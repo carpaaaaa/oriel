@@ -70,7 +70,7 @@ const VARIANTI = [
     id: 'prua', nome: 'Prua', d: PRUA_D + ' ' + O_D,
     righe: [
       'Somiglia a Search nella grammatica: una forma piena con la lettera ritagliata, la stessa O di Calco al posto della S.',
-      'La distingue la pillola: l’estremità destra non è tonda ma è la pianta del bovindo, con lo stesso apotema del semicerchio, e il contorno sporge come una finestra.',
+      'La distingue la pillola: l’estremità destra è la pianta del bovindo, con lo stesso apotema del semicerchio, e il contorno sporge come una finestra. Rischio: con la punta può ricordare un cartellino del prezzo.',
     ],
     misura: 'Pillola di Search 607 × 275. A destra il semicerchio diventa un mezzo ottagono con lo stesso apotema (137,7): il lato dritto prosegue senza scalino, facce a 45°, fronte alta 114. O uguale a Calco.',
   },
@@ -188,9 +188,9 @@ const winCtl = dark => {
     `<span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="${c}" stroke-width="1"/></svg></span>`;
 };
 const NOTE16 = {
-  calco: ['non si legge la lettera', 'A 16 px la pillola è larga 11 pixel e alta 5: la O diventa un punto chiaro sfocato, come la S di Search alla stessa misura. Resta la sagoma della pillola; la lettera si legge da 32 px in su.'],
-  faccetta: ['non si legge la lettera', 'Come Calco: a 16 e 24 px le faccette sono più piccole di un pixel e la O smussata non si distingue da quella tonda. La differenza si vede da 48 px in su.'],
-  prua: ['si legge la sagoma', 'La lettera sparisce come nelle altre, ma la punta a bovindo a destra cambia la sagoma della pillola e resta riconoscibile già a 24 px; a 16 è un pixel di differenza.'],
+  calco: ['non si legge la lettera', 'A 16 px la pillola è larga 11 pixel e alta 5: la O diventa un anellino chiaro sfocato, come la S di Search alla stessa misura. Resta la sagoma della pillola; la O si intuisce a 24 px e si legge da 32.'],
+  faccetta: ['non si legge la lettera', 'Come Calco: fino a 32 px le faccette sono più piccole di un pixel e la O smussata è uguale a quella tonda. Si intuisce a 48 px e si vede bene da 96.'],
+  prua: ['non si legge la lettera', 'La lettera sparisce come nelle altre, e anche la punta a bovindo a 16 e 24 px non si distingue dalla pillola tonda. Si intuisce a 32 px e si vede da 48.'],
 };
 function card(v) {
   const id = v.id;
