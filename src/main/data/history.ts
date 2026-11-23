@@ -317,6 +317,33 @@ export class History {
 
   visit(url: string): Visit | undefined { return this.visits.get(identity(url)) }
 
+  /** How often each site has been visited, to weigh one against another
+   * (History.visits(to:)): every page on its host and the host's subdomains,
+   * or under its path for one like google.com/maps. */
+  visitsTo(sites: string[]): Record<string, number> {
+    const wanted = sites.map(site => {
+      const lower = site.toLowerCase()
+      const bare = lower.startsWith('www.') ? lower.slice(4) : lower
+      const host = bare.split('/')[0]
+      return { site, host, path: bare.slice(host.length) }
+    })
+    const counts: Record<string, number> = {}
+    for (const v of this.visits.values()) {
+      const text = this.text.get(v.key)
+      if (!text) continue
+      for (const one of wanted) {
+        if (!(text.host === one.host || text.host.endsWith('.' + one.host))) continue
+        if (one.path) {
+          if (!text.searchable.startsWith(one.host + one.path)) continue
+          const rest = text.searchable.slice(one.host.length + one.path.length)
+          if (rest && !'/?#'.includes(rest[0])) continue
+        }
+        counts[one.site] = Math.min(mostVisits, (counts[one.site] ?? 0) + v.count)
+      }
+    }
+    return counts
+  }
+
   /** Best matches first: score = fit × log(2 + popularity) (History.suggestions). */
   suggestions(typed: string, limit = 5): Offer[] {
     const needle = stripped(typed)

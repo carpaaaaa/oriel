@@ -2,7 +2,7 @@
 // the tabs record, the bookmark commands (studio/05 §3).
 
 import type { Suggestion } from '../../shared/state'
-import { provideData, type Bookmark, type HistoryVisit } from './api'
+import { data, provideData, type Bookmark, type HistoryVisit } from './api'
 import { handle } from '../router'
 import { need } from '../context'
 import { model } from '../model/model'
@@ -37,8 +37,22 @@ export function placeOffers(typed: string, limit = 3): Suggestion[] {
   return list
 }
 
+/** data.suggest: each kind on its own, up to `limit` of each; the field
+ * puts them in order (05 §3.5, studio/03 §1.3). */
+export function kindsFor(typed: string, limit: number): Suggestion[] {
+  const visited = history().suggestions(typed, limit).map((v): Suggestion =>
+    ({ kind: v.kind === 'known' ? 'url' : 'history', title: v.title, detail: v.key, url: v.url }))
+  const kept = bookmarks().places(typed, limit)
+  const marks = [...kept.found, ...kept.slips].slice(0, limit).map((p): Suggestion => ({ kind: 'bookmark', title: p.title, detail: p.key, url: p.url }))
+  return [...visited, ...marks]
+}
+
 provideData({
-  async suggest(text, limit) { return placeOffers(text, limit) },
+  async suggest(text, limit) { return kindsFor(text, limit) },
+  visits(sites) { return history().visitsTo(sites) },
+  everything(matching, limit = 500) {
+    return history().everything(matching).slice(0, limit).map(v => ({ url: v.url, title: v.title, lastVisit: v.last, visits: v.count }))
+  },
   recordVisit(visit: HistoryVisit) { history().record(visit.url, visit.title) },
   recordTitle(url, title) { history().retitle(url, title) },
   isBookmarked(url) { return bookmarks().contains(url) },
@@ -116,6 +130,9 @@ benchRequest('data.take', req => {
   return { size: history().size }
 })
 benchRequest('data.suggest', async req => ({ offers: placeOffers(String(req.text), Number(req.limit ?? 3)) }))
+benchRequest('data.kinds', async req => ({ rows: await data.suggest(String(req.text), Number(req.limit ?? 12)) }))
+benchRequest('data.visitsTo', req => ({ counts: data.visits((req.sites ?? []) as string[]) }))
+benchRequest('data.everything', req => ({ traces: data.everything(String(req.text ?? ''), Number(req.limit ?? 50)) }))
 benchRequest('data.historyOffers', req => ({ offers: history().suggestions(String(req.text), Number(req.limit ?? 5)) }))
 benchRequest('data.history', () => ({ size: history().size, file: history().fileList() }))
 benchRequest('data.bookmarks', () => ({ roots: bookmarks().roots, count: bookmarks().count }))

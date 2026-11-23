@@ -134,6 +134,41 @@ for n in ["one", "two", "three", "four"]:
 o = offers("zebra")
 t.ok(len(o) == 3 and all(k == "bookmark" for k, _ in o), f"three places at most ({o})")
 
+# data.suggest for the field: each kind on its own, up to the limit of each,
+# the page's title as title (05 §3.5).
+rows = req("data.kinds", text="docs", limit=12)["rows"]
+kinds = [(r["kind"], r["url"]) for r in rows]
+t.ok(("bookmark", "https://docs.example.com/design") in kinds and ("history", "https://docs.example.com/visited-only") in kinds, f"history and bookmarks both, by kind ({kinds})")
+t.ok(("history", "https://docs.example.com/") in kinds and ("bookmark", "https://docs.example.com/") in kinds, "a page both visited and kept comes in both kinds: the field makes it one row")
+home = next(r for r in rows if r["kind"] == "history" and r["url"] == "https://docs.example.com/")
+t.ok(home["title"] == "Docs home" and home["detail"] == "docs.example.com", f"title is the page's title, detail its address ({home})")
+rows = req("data.kinds", text="zebra", limit=2)["rows"]
+t.ok(len([r for r in rows if r["kind"] == "bookmark"]) == 2, "up to the limit of each kind")
+rows = req("data.kinds", text="gmai", limit=12)["rows"]
+t.ok(rows and rows[0]["kind"] == "url" and rows[0]["title"] == "Gmail", f"a well-known site: kind url, its name ({rows[:1]})")
+untitled = [r for r in req("data.kinds", text="github", limit=12)["rows"] if r["url"] == "https://github.com/"]
+t.ok(untitled and untitled[0]["title"] == "", "a page without a title: no title, not its address")
+
+# visits(sites) and everything(matching), for the field's site search.
+req("data.visit", url="https://www.google.com/maps/place/x", title="Maps")
+req("data.visit", url="https://www.google.com/search?q=naruto+vs", title="naruto vs - Google Search")
+time.sleep(0.05)
+req("data.visit", url="https://www.google.com/search?q=one+piece", title="one piece - Google Search")
+counts = req("data.visitsTo", sites=["github.com", "google.com/maps", "google.com", "nowhere.example"])["counts"]
+t.ok(counts.get("github.com", 0) >= 3 and counts.get("google.com/maps") == 1 and counts.get("google.com", 0) >= 3 and "nowhere.example" not in counts,
+     f"visits to a site: its pages, its subdomains, a path for google.com/maps ({counts})")
+traces = req("data.everything", text="google.com/search")["traces"]
+t.ok([x["title"] for x in traces][:2] == ["one piece - Google Search", "naruto vs - Google Search"] and all({"url", "title", "lastVisit", "visits"} <= set(x) for x in traces),
+     f"everything matching, newest first ({[x['title'] for x in traces]})")
+
+# Through the field itself: the real history and bookmarks.
+b.cmd("field.open", target="new")
+b.cmd("field.type", text="docs")
+sug = b.window()["field"]["suggestions"]
+places = [(s.get("how"), s["url"]) for s in sug if s.get("how") in ("bookmark", "visited", "known")]
+t.ok(places and places[0] == ("bookmark", "https://docs.example.com/") and len(places) <= 3, f"the field: bookmarks first, three places ({places})")
+b.cmd("field.close")
+
 # The file: the Mac's shape, ids as Swift writes them.
 marks = saved("bookmarks.json")
 t.ok(marks[0]["title"] == "Mac folder" and list(marks[0].keys()) == ["id", "title", "children"], "a folder: id, title, children")
