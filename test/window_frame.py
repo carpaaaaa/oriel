@@ -56,6 +56,8 @@ b.call({"do": "window.place", "visual": True, **place})
 b.cmd("tab.go", input="data:text/html,<title>frame</title><body style='background:%23fff'>page")
 b.wait_for(lambda: b.active()["title"] == "frame", what="page")
 time.sleep(0.6)
+# The interface catches up with the size (slow machines).
+settle(lambda: abs(dom()["window"]["width"] - place["width"]) < 1.5, "interface at the new size", within=8)
 
 # 1. The drawn frame: margin, corners, card (studio/02 §4.1, §4.7).
 f = frame()

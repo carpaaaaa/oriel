@@ -172,31 +172,9 @@ def root_at(x, y):
 
 BACKDROP_LOG = Path(tempfile.gettempdir()) / "oriel-backdrop.txt"
 BACKDROP_LOG.write_text("")
-BACKDROP = r"""
-Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-Add-Type -ReferencedAssemblies System.Windows.Forms, System.Drawing -TypeDefinition @'
-using System.Windows.Forms;
-public class Backdrop : Form {
-  // Never activated nor raised by a click: Oriel stays in front.
-  protected override CreateParams CreateParams { get { var p = base.CreateParams; p.ExStyle |= 0x08000000; return p; } }
-  protected override bool ShowWithoutActivation { get { return true; } }
-  [System.Runtime.InteropServices.DllImport("user32.dll")]
-  static extern bool SetWindowPos(System.IntPtr h, System.IntPtr after, int x, int y, int cx, int cy, uint flags);
-  // On top of the other windows, still without taking the keys.
-  protected override void OnShown(System.EventArgs e) { base.OnShown(e); SetWindowPos(Handle, System.IntPtr.Zero, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); }
-}
-'@
-$f = New-Object Backdrop
-$f.Text = 'backdrop'
-$f.BackColor = [System.Drawing.Color]::FromArgb(232, 232, 232)
-$f.FormBorderStyle = 'None'
-$f.StartPosition = 'Manual'
-$f.Bounds = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
-$f.Add_MouseDown({ param($s, $e) $p = [System.Windows.Forms.Cursor]::Position; [System.IO.File]::AppendAllText('%s', "$($p.X),$($p.Y)`n") })
-[System.Windows.Forms.Application]::Run($f)
-""" % str(BACKDROP_LOG).replace("'", "''")
+HELPER = str(Path(__file__).resolve().parent / "window_backdrop.py")
 chord("esc")  # a Start menu or a first-run screen left open
-backdrop = subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", BACKDROP])
+backdrop = subprocess.Popen([sys.executable, HELPER, "back", str(BACKDROP_LOG)])
 time.sleep(4)
 
 
@@ -288,6 +266,8 @@ try:
     t.ok(frame()["state"] == "free", "still free after moving")
 
     # 3. Resizing from the right edge (just outside it) and the bottom left corner.
+    b.call({"do": "window.place", "visual": True, **vis})
+    time.sleep(0.4)
     v = frame()["visual"]
     before = v
     ex, ey = px(v["x"] + v["width"] + 3), px(v["y"] + v["height"] / 2)
@@ -346,7 +326,8 @@ try:
     note("snap left", frame=f)
     grab("5-snapped-left")
     t.ok(f["state"] == "snapped", "dragging to the left edge snaps (%s, arranged %s)" % (f["state"], f.get("arranged")))
-    t.ok(f["visual"]["x"] == work["x"] and abs(f["visual"]["width"] - work["width"] / 2) <= 2 and f["visual"]["height"] == work["height"], "snapped: the window fills the left half (%s)" % f["visual"])
+    half = max(work["width"] / 2, 640)  # never under 640 (a 1024 screen's half is less)
+    t.ok(f["visual"]["x"] == work["x"] and abs(f["visual"]["width"] - half) <= 2 and f["visual"]["height"] == work["height"], "snapped: the window fills the left half (%s)" % f["visual"])
     sx, sy = strip(f["visual"])
     drag((sx, sy), (sx + px(300), sy + px(120)), steps=20)
     f = frame()
@@ -401,10 +382,7 @@ try:
     t.ok(frame()["state"] == "free", "F11 again: back")
 
     # 11. Another window in front: the resting shadow and dimmer buttons.
-    other = subprocess.Popen(["powershell", "-NoProfile", "-Command",
-        "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.Form; $f.Text = 'other'; "
-        "$f.StartPosition = 'Manual'; $a = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea; "
-        "$f.SetBounds($a.Right - 230, $a.Bottom - 140, 220, 130); $f.TopMost = $true; [System.Windows.Forms.Application]::Run($f)"])
+    other = subprocess.Popen([sys.executable, HELPER, "front"])
     time.sleep(4)
     f = frame()
     grab("9-inactive")

@@ -144,6 +144,7 @@ export class Frame {
       // windows; do ours instead.
       c.base.hookWindowMessage(WM_SYSCOMMAND, wParam => {
         const command = Number(wParam.length >= 8 ? wParam.readBigUInt64LE(0) : BigInt(wParam.readUInt32LE(0))) & 0xfff0
+        if (process.env.SEARCH_PROBE) console.log('[frame] syscommand 0x' + command.toString(16), this.state)
         if (command === SC_MAXIMIZE && this.state !== 'maximized') setImmediate(() => { if (this.compute() !== 'maximized') this.maximize() })
         else if (command === SC_RESTORE && this.state === 'maximized' && !c.base.isMinimized()) setImmediate(() => { if (this.compute() === 'maximized') this.unmaximize() })
       })
@@ -246,12 +247,22 @@ export class Frame {
 
   // moving
 
-  /** A press on the strip moved past the threshold: hand it to Windows. */
-  startDrag(): void {
+  /** A press on the strip (at x, y, screen DIP) moved past the threshold:
+   * hand it to Windows' move loop. */
+  startDrag(press?: { x: number; y: number }): void {
     const w = win32()
     if (this.manual || !w || !this.hwnd || this.state === 'fullScreen') return
-    // A really maximized window (native) is brought back by Windows itself.
+    const b = this.c.base
     if (this.state === 'maximized' && !this.zoomed()) this.restoreUnder(screen.getCursorScreenPoint())
+    else if (press && this.state === 'free') {
+      // The loop starts from where the pointer is now: first catch up with
+      // the few pixels it travelled past the threshold, so the window stays
+      // under the point that was pressed. (Really maximized and snapped
+      // windows are brought back by Windows itself.)
+      const p = screen.getCursorScreenPoint()
+      const dx = Math.round(p.x - press.x), dy = Math.round(p.y - press.y)
+      if (dx || dy) { const r = b.getBounds(); b.setPosition(r.x + dx, r.y + dy) }
+    }
     w.beginMove(this.hwnd, w.cursor(), variant.move)
   }
 
