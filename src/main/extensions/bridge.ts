@@ -10,6 +10,8 @@ import path from 'node:path'
 import { extensionPreload } from '../../preload/extensions'
 
 const CHANNEL = 'search-ext:call'
+// TODO(brand): brand.name from src/shared/brand.ts once merged.
+const BRAND = 'Oriel'
 
 type Handler = (extensionId: string, args: unknown[]) => unknown
 const handlers = new Map<string, Handler>()
@@ -24,7 +26,7 @@ function idOf(url: string | undefined): string | null {
 async function dispatch(profile: Session, id: string | null, method: unknown, args: unknown): Promise<{ value?: unknown; error?: string }> {
   if (!id || !profile.extensions.getExtension(id)) return { error: 'Not an extension context.' }
   const handler = handlers.get(String(method))
-  if (!handler) return { error: `${String(method)} isn't available in Oriel.` }
+  if (!handler) return { error: `${String(method)} isn't available in ${BRAND}.` }
   try {
     return { value: await handler(id, Array.isArray(args) ? args : []) }
   } catch (e) {
