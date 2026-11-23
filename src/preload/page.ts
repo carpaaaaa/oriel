@@ -5,3 +5,4 @@
 import './page/compat'
 import './page/keys'
 import './page/fill'
+import './page/internal'

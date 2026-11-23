@@ -30,3 +30,8 @@ export function registerOutlet(name: OutletName, component: Component): void {
   setOutlets(o => ({ ...o, [name]: [...(o[name] ?? []), component] }))
 }
 export function outlet(name: OutletName): Component[] { return outlets()[name] ?? [] }
+
+/** Oriel's pages in a tab (oriel://<name>), drawn by src/ui/page.tsx. */
+const pages = new Map<string, Component>()
+export function registerPage(name: string, component: Component): void { pages.set(name, component) }
+export function pageFor(name: string): Component | undefined { return pages.get(name) }
