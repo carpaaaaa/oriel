@@ -1,0 +1,89 @@
+{
+ "rev": 1,
+ "windowID": "6780DA27-47DF-4951-898F-9117A7B432D6",
+ "chrome": "windows",
+ "look": "dark",
+ "focused": false,
+ "maximized": false,
+ "fullScreen": false,
+ "controlsWidth": 138,
+ "space": "00000000-0000-0000-0000-000000000001",
+ "spaces": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "Personal",
+   "colour": 0
+  }
+ ],
+ "tabs": [
+  {
+   "id": "1f4179a7-8b1b-4c55-bb47-493308fc458a",
+   "url": "",
+   "title": "",
+   "label": "New Tab",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": false,
+   "empty": true,
+   "canGoBack": false,
+   "canGoForward": false
+  }
+ ],
+ "pins": [],
+ "pinFolders": [],
+ "groups": [],
+ "splits": [],
+ "activeID": "1f4179a7-8b1b-4c55-bb47-493308fc458a",
+ "sidebar": {
+  "layout": "side",
+  "width": 232,
+  "folded": false,
+  "side": "left",
+  "icons": false
+ },
+ "field": {
+  "open": false,
+  "target": "new",
+  "text": "",
+  "suggestions": [],
+  "selected": 0,
+  "refused": 0
+ },
+ "extensions": [],
+ "downloads": [],
+ "prefs": {
+  "look.appearance": "system",
+  "tabs.layout": "side",
+  "sidebar.width": 232,
+  "sidebar.side": "left",
+  "sidebar.cards": true,
+  "tabs.roomier": false,
+  "tabs.newAfterLast": false,
+  "tabs.closeGoesBack": false,
+  "search.engine": "google",
+  "search.suggestions": true,
+  "start.fresh": false,
+  "spaces": false,
+  "spaces.commandNumbers": false,
+  "tabs.newPlace": "next",
+  "tabs.frontBeside": false,
+  "tabs.lazy": false,
+  "tabs.switcherBehindFirst": false,
+  "tabs.switcherLeavesOutPins": false,
+  "tabs.sleep": true,
+  "tabs.sleep.pace": "normal",
+  "pins.home": true,
+  "pins.peek": true,
+  "pins.list": false,
+  "pins.folders": false
+ },
+ "picked": [],
+ "switcher": null,
+ "spacesOn": false,
+ "reopen": {
+  "title": "Reopen Closed Tab",
+  "can": false,
+  "recent": []
+ }
+}
