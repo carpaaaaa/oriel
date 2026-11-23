@@ -9,7 +9,7 @@ import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import type { FieldState, GroupView, ID, PinView, SidebarState, SpaceView, SplitView, TabView } from '../../shared/state'
 import { readJSON, writeJSON, toAppleDate, fromAppleDate } from './persist'
-import { defaults, type PrefKey } from '../../shared/prefs'
+import { defaults, defaultOf, moduleDefaults, type PrefKey } from '../../shared/prefs'
 
 export const firstSpaceID = '00000000-0000-0000-0000-000000000001'
 
@@ -63,14 +63,14 @@ class Model extends EventEmitter {
   prefs: Record<string, unknown> = {}
 
   load(): void {
-    this.prefs = { ...defaults, ...readJSON<Record<string, unknown>>('prefs.json', {}) }
+    this.prefs = { ...defaults, ...moduleDefaults, ...readJSON<Record<string, unknown>>('prefs.json', {}) }
     this.spaces = readJSON<SpaceView[]>('spaces.json', [])
     if (!this.spaces.length) this.spaces = [{ id: firstSpaceID, name: 'Personal', colour: 0 }]
     this.pins = readJSON<PinRecord[]>('pins.json', [])
   }
 
   pref<T = unknown>(key: PrefKey): T {
-    return (this.prefs[key] ?? defaults[key]) as T
+    return (this.prefs[key] ?? defaultOf(key)) as T
   }
 
   setPref(key: string, value: unknown): void {

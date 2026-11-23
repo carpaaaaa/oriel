@@ -16,7 +16,7 @@ import { model } from './model/model'
 
 export interface Chord { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean; key: string; code: string; altGraph?: boolean }
 
-type Action = (c: WindowController) => Command | null | void
+export type Action = (c: WindowController) => Command | null | void
 
 const first: [string, Action][] = [
   ['Ctrl+T', () => ({ do: 'tab.new' })],
@@ -75,6 +75,17 @@ export function chordName(k: Chord): string | null {
   if (['Control', 'Shift', 'Alt', 'Meta', 'AltGraph'].includes(key)) return null
   const ctrl = process.platform === 'darwin' ? k.meta || k.ctrl : k.ctrl
   return [ctrl && 'Ctrl', k.shift && 'Shift', k.alt && 'Alt', key].filter(Boolean).join('+')
+}
+
+/** Modules add their shortcuts here (from their own files): 'first' keys go
+ * before the page (only for keys Chrome also takes first), 'later' ones only
+ * when the page leaves them alone. A module's own shortcut wins over the
+ * skeleton's default for the same chord. */
+export function shortcut(name: string, phase: 'first' | 'later', action: Action): void {
+  const list = phase === 'first' ? first : later
+  const at = list.findIndex(([n]) => n === name)
+  if (at >= 0) list.splice(at, 1)
+  list.unshift([name, action])
 }
 
 export function findAction(name: string, phase: 'first' | 'later'): Action | undefined {

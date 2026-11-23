@@ -21,7 +21,13 @@ export const defaults = {
   'start.fresh': false,
 } as const
 
-export type PrefKey = keyof typeof defaults
+export type PrefKey = keyof typeof defaults | (string & {})
+
+/** Each module adds the defaults of its own keys (in its shared/modules file
+ * or at start in the main process). Keys keep Prefs.swift's names. */
+export const moduleDefaults: Record<string, unknown> = {}
+export function addDefaults(values: Record<string, unknown>): void { Object.assign(moduleDefaults, values) }
+export function defaultOf(key: string): unknown { return key in moduleDefaults ? moduleDefaults[key] : (defaults as Record<string, unknown>)[key] }
 
 export const engines: Record<string, { name: string; search: string; suggest?: string }> = {
   google: { name: 'Google', search: 'https://www.google.com/search?q=%s', suggest: 'https://suggestqueries.google.com/complete/search?client=chrome&q=%s' },

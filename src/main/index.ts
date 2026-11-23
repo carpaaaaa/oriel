@@ -13,11 +13,14 @@ import { openWindow, setSessions } from './context'
 import './modules'
 import { onLeftover, wireKeys } from './keys'
 import { setupExtensions } from './extensions'
+import { attachNet } from './net'
 import { startBench } from './bench/server'
 import type { Command } from '../shared/commands'
 
 setupPaths()
 setupUserAgent()
+// Windows 11's thin scrollbars that fade in, as Chrome has them.
+if (process.platform === 'win32') app.commandLine.appendSwitch('enable-features', 'FluentScrollbar,FluentOverlayScrollbar')
 
 // One Search at a time per world: a second launch hands its link over.
 if (!app.requestSingleInstanceLock({ probe })) {
@@ -37,6 +40,7 @@ function pageSession(shy: boolean, windowID: string): Session {
   if (!s) {
     s = session.fromPartition(`shy-${windowID}`) // not persisted: private
     applyUserAgent(s)
+    attachNet(s)
     shySessions.set(windowID, s)
   }
   return s
@@ -83,6 +87,7 @@ app.whenReady().then(async () => {
   nativeTheme.themeSource = look === 'light' || look === 'dark' ? look : 'system'
   profile = session.fromPartition('persist:personal')
   applyUserAgent(profile)
+  attachNet(profile)
   applyUserAgent(session.defaultSession)
   setSessions(pageSession)
   model.load()
