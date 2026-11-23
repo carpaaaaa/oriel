@@ -10,6 +10,7 @@ import { runtimes } from '../views/tabs'
 import type { FindState } from '../../shared/modules/field'
 import { need } from '../context'
 import { onAfterField, mem } from './commands'
+import { PAGE_SCHEME } from '../address'
 
 interface Finding extends FindState {
   /** The page being searched, and the answer it gave. */
@@ -39,7 +40,7 @@ const ROOM = { width: 470, height: 96 }
 /** The page in front, when it is a web page Find can look in. */
 function webPage(c: WindowController): WebContents | null {
   const tab = model.activeTab(c.record)
-  if (!tab || tab.empty || tab.internal || /^search:/.test(tab.url)) return null
+  if (!tab || tab.empty || tab.internal || tab.url.startsWith(PAGE_SCHEME + ':')) return null
   const wc = runtimes.get(tab.id)?.contents
   return wc && !wc.isDestroyed() ? wc : null
 }

@@ -7,10 +7,14 @@ import { homedir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { destination } from './field/engines'
 
+/** The internal pages' scheme (the Mac's search://).
+ * TODO(brand): brand.scheme from src/shared/brand.ts once main is merged. */
+export const PAGE_SCHEME = 'oriel'
+
 /** Schemes the window shows itself (Address.ours); anything else typed with
  * a scheme is somebody else's job. chrome-extension: is Windows' own
  * addition, for the extensions' pages. */
-const ours = new Set(['http', 'https', 'file', 'about', 'data', 'search', 'chrome-extension'])
+const ours = new Set(['http', 'https', 'file', 'about', 'data', PAGE_SCHEME, 'chrome-extension'])
 
 const letters = /^\p{L}+$/u
 const labelChars = /^[\p{L}\p{N}-]+$/u
@@ -159,7 +163,7 @@ export function shownAddress(url: string): string {
 export function displayAddress(url: string): string {
   try {
     const u = new URL(url)
-    if (u.protocol === 'search:') return url
+    if (u.protocol === PAGE_SCHEME + ':') return url
     return (u.host.replace(/^www\./, '') + (u.pathname === '/' ? '' : u.pathname) + u.search).replace(/\/$/, '')
   } catch {
     return url

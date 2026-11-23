@@ -59,6 +59,8 @@ export function mem(c: WindowController): Memory {
       lastActive: c.record.active[c.record.space] ?? null, focusAsked: null, held: [],
     }
     memories.set(c.record, m)
+    // The window's field state, whole, from the start.
+    queueMicrotask(() => publish(c))
   }
   return m
 }

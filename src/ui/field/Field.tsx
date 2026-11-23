@@ -40,6 +40,7 @@ export function Field(p: { place: 'page' | 'overlay' }) {
   onMount(() => {
     write(f().shown ?? f().text, f().selectFrom ?? f().text.length)
     input.focus()
+    void cmd({ do: 'field.focused' })
   })
 
   // The main process changed the words (⌘L, a row walked to, Escape...).
