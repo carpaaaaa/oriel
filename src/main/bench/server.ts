@@ -88,6 +88,8 @@ async function answer(req: BenchRequest): Promise<BenchReply> {
     case 'focus' as never: {
       // Bring the window to the front, even from another Space (for a person to use it).
       const c = pickWindow((req as { window?: string }).window)
+      c.base.setOpacity(1)
+      c.base.setIgnoreMouseEvents(false)
       if (c.base.isMinimized()) c.base.restore()
       c.base.show()
       app.focus({ steal: true })

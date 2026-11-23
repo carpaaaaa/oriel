@@ -19,6 +19,8 @@ import type { Command } from '../shared/commands'
 
 setupPaths()
 setupUserAgent()
+// Test worlds on a Mac: no Dock icon, never the active app (see context.ts).
+if (process.platform === 'darwin' && process.env.SEARCH_PROBE && process.env.SEARCH_SHOW !== '1') app.setActivationPolicy('accessory')
 // Windows 11's thin scrollbars that fade in, as Chrome has them.
 if (process.platform === 'win32') app.commandLine.appendSwitch('enable-features', 'FluentScrollbar,FluentOverlayScrollbar')
 
