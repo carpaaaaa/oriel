@@ -1,0 +1,11 @@
+{
+  "name": "API test",
+  "version": "1.0",
+  "manifest_version": 3,
+  "description": "sidePanel, offscreen, identity, tabGroups, native messaging for test/extensions_apis.py",
+  "background": { "service_worker": "sw.js" },
+  "action": { "default_title": "API test" },
+  "side_panel": { "default_path": "panel.html" },
+  "permissions": ["sidePanel", "offscreen", "identity", "tabGroups", "nativeMessaging", "storage"],
+  "host_permissions": ["<all_urls>"]
+}
