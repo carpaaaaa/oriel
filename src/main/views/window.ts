@@ -14,7 +14,7 @@ import { IPC } from '../../shared/ipc'
 import { model, type Slice, type WindowRecord } from '../model/model'
 import { chromeKind } from '../paths'
 import { runtimeFor, runtimes, type TabRuntime } from './tabs'
-import { Frame, frameColour, frameKind, overlayColours, windowOptions } from '../window/frame'
+import { Frame, cascadeFrom, frameColour, frameKind, overlayColours, windowOptions } from '../window/frame'
 import type { Insets } from '../../shared/modules/window'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -55,7 +55,8 @@ export class WindowController {
   constructor(readonly record: WindowRecord, readonly pageSession: Session) {
     const dark = nativeTheme.shouldUseDarkColors
     const kind = frameKind(this.chrome)
-    this.base = new BaseWindow(windowOptions(kind, dark))
+    const front = focusedController()
+    this.base = new BaseWindow({ ...windowOptions(kind, dark), ...cascadeFrom(front && !front.base.isFullScreen() ? { kind: front.frame.kind, visual: front.frame.normalVisual() } : null, kind) })
     // Developing the Windows look on a Mac with Windows' frame: our buttons.
     if (process.platform === 'darwin' && kind === 'native') this.base.setWindowButtonVisibility(false)
     this.frame = new Frame(this, kind)

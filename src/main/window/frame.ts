@@ -91,6 +91,21 @@ export function overlayColours(dark: boolean) {
   return { color: frameColour(dark), symbolColor: dark ? '#EDEDED' : '#171717', height: CAPTION.height }
 }
 
+/** studio/01 §1.3: a new window takes the front window's size, 22 down and
+ * right of it (AppKit's cascade), kept inside the work area; with no window
+ * in front, 1180×780 in the middle (Electron centres it). */
+export function cascadeFrom(front: { kind: FrameKind; visual: Rectangle } | null, kind: FrameKind): Partial<Rectangle> {
+  if (!front) return {}
+  const step = 22
+  const work = screen.getDisplayMatching(front.visual).workArea
+  const width = Math.min(front.visual.width, work.width), height = Math.min(front.visual.height, work.height)
+  let x = front.visual.x + step, y = front.visual.y + step
+  if (x + width > work.x + work.width) x = work.x
+  if (y + height > work.y + work.height) y = work.y
+  const m = kind === 'drawn' ? ROOM : NONE
+  return { x: x - m.left, y: y - m.top, width: width + m.left + m.right, height: height + m.top + m.bottom }
+}
+
 const inside = (p: { x: number; y: number }, r: Rectangle) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.width && p.y < r.y + r.height
 const grow = (r: Rectangle, by: number): Rectangle => ({ x: r.x - by, y: r.y - by, width: r.width + 2 * by, height: r.height + 2 * by })
 
@@ -139,6 +154,15 @@ export class Frame {
   visual(bounds = this.c.base.getBounds()): Rectangle {
     const m = this.margin()
     return { x: bounds.x + m.left, y: bounds.y + m.top, width: bounds.width - m.left - m.right, height: bounds.height - m.top - m.bottom }
+  }
+
+  /** The visible rectangle it comes back to when not maximized or snapped. */
+  normalVisual(): Rectangle {
+    const b = this.c.base
+    if (this.state === 'free') return this.visual()
+    const n = this.restoreTo ?? b.getNormalBounds()
+    const m = this.kind === 'drawn' ? ROOM : NONE
+    return { x: n.x + m.left, y: n.y + m.top, width: n.width - m.left - m.right, height: n.height - m.top - m.bottom }
   }
 
   /** Window bounds for a visible rectangle (free state). */

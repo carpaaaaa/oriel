@@ -215,5 +215,19 @@ if sys.platform != "darwin":
     b.cmd("window.fullScreen", on=False)
     t.ok(settle(lambda: frame()["state"] == "free", "leave full screen"), "out of full screen, free again")
 
+# 11. A new window: the front one's size, 22 down and right (studio/01 §1.3).
+b.call({"do": "window.place", "visual": True, **place})
+time.sleep(0.3)
+first = frame()["visual"]
+b.cmd("window.new")
+settle(lambda: len(b.state()["windows"]) == 2, "second window")
+time.sleep(0.8)
+frames = {w["windowID"]: b.call({"do": "window.frame", "window": w["windowID"]})["frame"] for w in b.state()["windows"]}
+new_id, new = next(((i, x) for i, x in frames.items() if x["visual"] != first), list(frames.items())[-1])
+t.ok(new["visual"]["x"] == first["x"] + 22 and new["visual"]["y"] == first["y"] + 22, "a new window cascades 22 down and right (%s)" % new["visual"])
+t.ok(new["visual"]["width"] == first["width"] and new["visual"]["height"] == first["height"], "a new window has the front one's size")
+b.cmd("window.close", window=new_id)
+settle(lambda: len(b.state()["windows"]) == 1, "closed")
+
 print(json.dumps(frame()["variant"]))
 t.done()
