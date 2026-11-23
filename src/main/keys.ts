@@ -2,23 +2,28 @@
 //
 // ⌘ becomes Ctrl; the spaces' ⌃1-9 move to Alt+1-9 so they don't fight the
 // tabs' Ctrl+1-9; Windows' own habits that don't collide are added (Ctrl+F4,
-// Ctrl+PageUp/PageDown, Alt+F4, F5, F6, Alt+D, F3, F12, Alt+Left/Right).
+// Ctrl+PageUp/PageDown, Alt+F4, F5, F6, Alt+D, F3, F11, F12, Alt+Left/Right).
 // Letters are read by the character they type (event.key, or the key's place
 // on a layout that doesn't type Latin), digits and punctuation by the key's
 // place (event.code), and Ctrl+Alt is never a shortcut: on European layouts
 // it is AltGr, which types [ ] @ € ł ń. So no shortcut here uses Ctrl+Alt;
-// where the Mac has ⌥⌘ Windows gets Alt+Shift or a function key.
+// where the Mac has ⌥⌘ Windows gets Alt+Shift, a function key, or none.
 //
 // "first" keys are Search's before the page sees them (Chrome keeps the same
 // ones, and the Mac's pageFirst never gives them: ⌘T ⌘W ⌘K ⇧⌘N ⇧⌘[ ⇧⌘]
 // ⌘1-9); "later" ones only when the page leaves them alone (studio/03 §4.4
 // point 19). An action answers `false` to leave the key where it was going.
+//
+// The table is Command.all (Shortcuts.swift:207-358) in its order, every
+// command, with a key or without; the keys changed in Settings are kept as
+// differences only, under `shortcuts` (§4.1).
 
 import type { WebContents } from 'electron'
 import { handled, run } from './router'
 import type { Command } from '../shared/commands'
 import type { WindowController } from './views/window'
 import { model } from './model/model'
+import { addDefaults } from '../shared/prefs'
 import { controlUp, edit, escape as fieldEscape, fieldShowing, holdKey, mem, putAway, searchTabsKey } from './field/commands'
 import { closeFind, findIsOpen, openFind, step as findStep } from './field/find'
 
@@ -33,13 +38,16 @@ export interface KeyContext {
 /** A command to run, true for "taken" (done here), false to leave the key. */
 export type Action = (c: WindowController, k: KeyContext) => Command | boolean | null | void
 
+export type Section = 'Search' | 'File' | 'Edit' | 'View' | 'Tabs' | 'Spaces' | 'Profiles' | 'Bookmarks' | 'History' | 'Fixed'
+
 export interface Binding {
-  /** The Mac's command id (Shortcuts.swift Command.all) or a name for a fixed key. */
+  /** The Mac's command id (Command.all), or a name for a fixed key. */
   id: string
   title: string
-  /** The Mac's key, for the record. */
+  section: Section
+  /** The Mac's key, for the record ('' for none). */
   mac: string
-  /** Windows chords, as chordName writes them. */
+  /** Windows chords as chordName writes them; empty for none. */
   keys: string[]
   phase: 'first' | 'later'
   action?: Action
@@ -47,6 +55,8 @@ export interface Binding {
   needs?: Command
   /** Held down, it does nothing more (⌘T, ⌘L: their repeats would toggle). */
   once?: boolean
+  /** Fixed: not changeable in Settings (the Mac's ⌘Q, ⌃⌘F, tab numbers, Esc). */
+  fixed?: boolean
 }
 
 const activeID = (c: WindowController) => c.record.active[c.record.space] ?? null
@@ -85,82 +95,158 @@ function escapeKey(c: WindowController): boolean {
   return fieldEscape(c)
 }
 
-const D = (n: number) => String(n)
+type Spec = Omit<Binding, 'id' | 'title' | 'section' | 'mac' | 'keys' | 'phase'> & { phase?: 'first' | 'later' }
+const b = (id: string, title: string, section: Section, mac: string, keys: string[], spec: Spec = {}): Binding =>
+  ({ id, title, section, mac, keys, phase: spec.phase ?? 'later', ...spec })
+/** A command of another module: its key works once that command exists. */
+const later = (name: string, args: Record<string, unknown> = {}): Spec => ({ needs: { do: name, ...args } as never })
+const first = (spec: Spec): Spec => ({ ...spec, phase: 'first' })
+const none: Spec = {}
 
-/** The whole table: Command.all and the fixed keys, Mac → Windows. */
+/** The whole table, Mac → Windows. */
 export const bindings: Binding[] = [
   // Search
-  { id: 'app.settings', title: 'Settings…', mac: '⌘,', keys: ['Ctrl+,'], phase: 'later', needs: { do: 'app.settings' } as never },
-  { id: 'app.passwords', title: 'Passwords…', mac: '⌥⌘L', keys: ['Alt+Shift+L'], phase: 'later', needs: { do: 'app.passwords' } as never },
-  { id: 'app.quit', title: 'Quit Search', mac: '⌘Q', keys: ['Ctrl+Shift+Q'], phase: 'first', needs: { do: 'app.quit' } as never },
+  b('app.settings', 'Settings…', 'Search', '⌘,', ['Ctrl+,'], later('app.settings')),
+  b('app.welcome', 'Welcome…', 'Search', '', [], later('app.welcome')),
+  // ⌥⌘L: Ctrl+Alt+L is AltGr+L (ł in Polish); Ctrl+Shift+L is the password managers'.
+  b('app.passwords', 'Passwords…', 'Search', '⌥⌘L', ['Alt+Shift+L'], later('app.passwords')),
+  // ⌘Q is the Mac's own; Ctrl+Shift+Q as Firefox, never Ctrl+Q beside Ctrl+W and Ctrl+A.
+  b('app.quit', 'Quit Oriel', 'Search', '⌘Q', ['Ctrl+Shift+Q'], first({ ...later('app.quit'), fixed: true })),
   // File
-  { id: 'file.newWindow', title: 'New Window', mac: '⌘N', keys: ['Ctrl+N'], phase: 'first', action: () => ({ do: 'window.new' }) },
-  { id: 'file.newTab', title: 'New Tab', mac: '⌘T', keys: ['Ctrl+T'], phase: 'first', once: true, action: () => ({ do: 'tab.new' }) },
-  { id: 'file.newPrivateTab', title: 'New Private Tab', mac: '⇧⌘N', keys: ['Ctrl+Shift+N'], phase: 'first', action: () => ({ do: 'window.new', shy: true }) },
-  { id: 'file.reopen', title: 'Reopen Closed Tab', mac: '⇧⌘T', keys: ['Ctrl+Shift+T'], phase: 'first', action: () => ({ do: 'tab.reopen' }) },
-  { id: 'file.openAddress', title: 'Open Address…', mac: '⌘L', keys: ['Ctrl+L', 'Alt+D', 'F6'], phase: 'first', once: true, action: c => { edit(c); return true } },
-  { id: 'file.openFile', title: 'Open File…', mac: '⌘O', keys: ['Ctrl+O'], phase: 'later', needs: { do: 'file.open' } as never },
-  { id: 'file.closeTab', title: 'Close Tab', mac: '⌘W', keys: ['Ctrl+W', 'Ctrl+F4'], phase: 'first', action: closeFront },
-  { id: 'file.closeWindow', title: 'Close Window', mac: '⇧⌘W', keys: ['Ctrl+Shift+W', 'Alt+F4'], phase: 'first', action: () => ({ do: 'window.close' }) },
-  { id: 'file.print', title: 'Print…', mac: '⌘P', keys: ['Ctrl+P'], phase: 'later', needs: { do: 'page.print' } as never },
-  { id: 'file.stopAgent', title: 'Stop Agent', mac: '⌃⌥⌘.', keys: ['Ctrl+Shift+.'], phase: 'first', needs: { do: 'agent.stop' } as never },
+  b('file.newWindow', 'New Window', 'File', '⌘N', ['Ctrl+N'], first({ action: () => ({ do: 'window.new' }) })),
+  b('file.newTab', 'New Tab', 'File', '⌘T', ['Ctrl+T'], first({ once: true, action: () => ({ do: 'tab.new' }) })),
+  // A private tab until the tabs module has one; a private window meanwhile.
+  b('file.newPrivateTab', 'New Private Tab', 'File', '⇧⌘N', ['Ctrl+Shift+N'], first({ action: () => (handled().includes('tab.newPrivate' as never) ? { do: 'tab.newPrivate' } as never : { do: 'window.new', shy: true }) })),
+  b('file.reopen', 'Reopen Closed Tab', 'File', '⇧⌘T', ['Ctrl+Shift+T'], first({ action: () => ({ do: 'tab.reopen' }) })),
+  b('file.openAddress', 'Open Address…', 'File', '⌘L', ['Ctrl+L', 'Alt+D', 'F6'], first({ once: true, action: c => { edit(c); return true } })),
+  b('file.openFile', 'Open File…', 'File', '⌘O', ['Ctrl+O'], later('file.open')),
+  b('file.closeTab', 'Close Tab', 'File', '⌘W', ['Ctrl+W', 'Ctrl+F4'], first({ action: closeFront })),
+  b('file.closeWindow', 'Close Window', 'File', '⇧⌘W', ['Ctrl+Shift+W'], first({ action: () => ({ do: 'window.close' }) })),
+  b('file.import', 'Bring Things Over…', 'File', '', [], later('file.import')),
+  b('file.share', 'Share…', 'File', '', [], later('page.share')),
+  // Ctrl+S is Hide Sidebar, as ⌘S: no key for saving a page, as on the Mac.
+  b('file.savePage', 'Save Page As…', 'File', '', [], later('page.save')),
+  b('file.exportPDF', 'Export as PDF…', 'File', '', [], later('page.exportPDF')),
+  b('file.print', 'Print…', 'File', '⌘P', ['Ctrl+P'], later('page.print')),
+  // ⌃⌥⌘.: Ctrl+Alt is AltGr; Shift instead.
+  b('file.stopAgent', 'Stop Agent', 'File', '⌃⌥⌘.', ['Ctrl+Shift+.'], first(later('agent.stop'))),
   // Edit
-  { id: 'edit.find', title: 'Find on Page…', mac: '⌘F', keys: ['Ctrl+F'], phase: 'later', action: c => openFind(c) },
-  { id: 'edit.findNext', title: 'Find Next', mac: '⌘G', keys: ['Ctrl+G', 'F3'], phase: 'later', action: c => findStep(c, true) || openFind(c) },
-  { id: 'edit.findPrevious', title: 'Find Previous', mac: '⇧⌘G', keys: ['Ctrl+Shift+G', 'Shift+F3'], phase: 'later', action: c => findStep(c, false) },
-  { id: 'edit.copyCleanLink', title: 'Copy Clean Link', mac: '⌥⇧⌘C', keys: ['Alt+Shift+C'], phase: 'later', needs: { do: 'address.copyClean' } as never },
+  // ⌥⇧⌘V: in a text box Ctrl+Shift+V already pastes plain text on Windows.
+  b('edit.pasteMatchStyle', 'Paste and Match Style', 'Edit', '⌥⇧⌘V', [], later('edit.pasteMatchStyle')),
+  b('edit.find', 'Find on Page…', 'Edit', '⌘F', ['Ctrl+F'], { action: c => openFind(c) }),
+  b('edit.findNext', 'Find Next', 'Edit', '⌘G', ['Ctrl+G', 'F3'], { action: c => findStep(c, true) || openFind(c) }),
+  b('edit.findPrevious', 'Find Previous', 'Edit', '⇧⌘G', ['Ctrl+Shift+G', 'Shift+F3'], { action: c => findStep(c, false) }),
+  b('edit.copyCleanLink', 'Copy Clean Link', 'Edit', '⌥⇧⌘C', ['Alt+Shift+C'], later('address.copyClean')),
   // View
-  { id: 'view.sidebar', title: 'Show Tabs in Sidebar', mac: '⇧⌘S', keys: ['Ctrl+Shift+S'], phase: 'later', needs: { do: 'sidebar.layout' } as never },
-  { id: 'view.fold', title: 'Hide Sidebar or Tab Bar', mac: '⌘S', keys: ['Ctrl+S'], phase: 'later', action: () => ({ do: 'sidebar.toggle' }) },
-  { id: 'view.reload', title: 'Reload Page', mac: '⌘R', keys: ['Ctrl+R', 'F5'], phase: 'later', action: () => ({ do: 'tab.reload' }) },
-  { id: 'view.reloadOrigin', title: 'Reload Page From Origin', mac: '⌥⌘R', keys: ['Ctrl+F5', 'Shift+F5'], phase: 'later', action: () => ({ do: 'tab.reload', hard: true }) },
-  { id: 'view.reader', title: 'Reading Mode', mac: '⇧⌘R', keys: ['Ctrl+Shift+R'], phase: 'later', needs: { do: 'view.reader' } as never },
-  { id: 'view.float', title: 'Float Video', mac: '⇧⌘P', keys: ['Ctrl+Shift+P'], phase: 'later', needs: { do: 'view.float' } as never },
-  { id: 'view.dusk', title: 'Darken This Site', mac: '⇧⌘D', keys: ['Ctrl+Shift+D'], phase: 'later', needs: { do: 'view.dusk' } as never },
-  { id: 'view.duskPause', title: 'Pause Darkening', mac: '⌥⇧⌘D', keys: ['Alt+Shift+D'], phase: 'later', needs: { do: 'view.duskPause' } as never },
-  { id: 'view.hide', title: 'Hide Elements…', mac: '⇧⌘H', keys: ['Ctrl+Shift+H'], phase: 'later', needs: { do: 'view.hide' } as never },
-  { id: 'view.hidden', title: 'Hidden on This Site…', mac: '⇧⌘U', keys: ['Ctrl+Shift+U'], phase: 'later', needs: { do: 'view.hidden' } as never },
-  { id: 'view.zoomIn', title: 'Zoom In', mac: '⌘+', keys: ['Ctrl+=', 'Ctrl+Shift+=', 'Ctrl++', 'Ctrl+Shift++'], phase: 'later', needs: { do: 'view.zoom', by: 1.1 } as never },
-  { id: 'view.zoomOut', title: 'Zoom Out', mac: '⌘-', keys: ['Ctrl+-'], phase: 'later', needs: { do: 'view.zoom', by: 1 / 1.1 } as never },
-  { id: 'view.actualSize', title: 'Actual Size', mac: '⌘0', keys: ['Ctrl+0'], phase: 'first', needs: { do: 'view.zoom', reset: true } as never },
-  { id: 'view.inspector', title: 'Web Inspector', mac: '⌥⌘I', keys: ['F12', 'Ctrl+Shift+I'], phase: 'first', needs: { do: 'view.inspector' } as never },
-  { id: 'view.console', title: 'JavaScript Console', mac: '⌥⌘J', keys: ['Ctrl+Shift+J'], phase: 'first', needs: { do: 'view.console' } as never },
-  { id: 'view.fullScreen', title: 'Enter Full Screen', mac: '⌃⌘F', keys: ['F11'], phase: 'first', needs: { do: 'window.fullScreen' } as never },
+  b('view.sidebar', 'Show Tabs in Sidebar', 'View', '⇧⌘S', ['Ctrl+Shift+S'], later('sidebar.layout')),
+  b('view.fold', 'Hide Sidebar or Tab Bar', 'View', '⌘S', ['Ctrl+S'], { action: () => ({ do: 'sidebar.toggle' }) }),
+  // ⌥⌘[ ⌥⌘]: Ctrl+Alt+[ is AltGr+è on an Italian keyboard, which types [.
+  b('view.foldGroups', 'Fold All Groups', 'View', '⌥⌘[', [], later('groups.fold', { folded: true })),
+  b('view.unfoldGroups', 'Unfold All Groups', 'View', '⌥⌘]', [], later('groups.fold', { folded: false })),
+  b('view.reload', 'Reload Page', 'View', '⌘R', ['Ctrl+R', 'F5'], { action: () => ({ do: 'tab.reload' }) }),
+  b('view.reloadOrigin', 'Reload Page From Origin', 'View', '⌥⌘R', ['Ctrl+F5', 'Shift+F5'], { action: () => ({ do: 'tab.reload', hard: true }) }),
+  // Chrome's hard reload; Search's Reading Mode, kept (studio/03 §13.1).
+  b('view.reader', 'Reading Mode', 'View', '⇧⌘R', ['Ctrl+Shift+R'], later('view.reader')),
+  b('view.float', 'Float Video', 'View', '⇧⌘P', ['Ctrl+Shift+P'], later('view.float')),
+  b('view.sitePanel', 'Show Side Panel', 'View', '', [], later('view.sidePanel')),
+  b('view.dusk', 'Darken This Site', 'View', '⇧⌘D', ['Ctrl+Shift+D'], later('view.dusk')),
+  b('view.duskPause', 'Pause Darkening', 'View', '⌥⇧⌘D', ['Alt+Shift+D'], later('view.duskPause')),
+  b('view.summarize', 'Summarize Page', 'View', '', [], later('ai.summarize')),
+  b('view.ask', 'Ask About This Page…', 'View', '', [], later('ai.ask')),
+  b('view.capture', 'Capture…', 'View', '', [], later('view.capture')),
+  b('view.hide', 'Hide Elements…', 'View', '⇧⌘H', ['Ctrl+Shift+H'], later('view.hide')),
+  b('view.hidden', 'Hidden on This Site…', 'View', '⇧⌘U', ['Ctrl+Shift+U'], later('view.hidden')),
+  b('view.style', 'Edit Site Style…', 'View', '', [], later('view.style')),
+  b('view.zoomIn', 'Zoom In', 'View', '⌘+', ['Ctrl+=', 'Ctrl+Shift+=', 'Ctrl++', 'Ctrl+Shift++'], later('view.zoom', { by: 1.1 })),
+  b('view.zoomOut', 'Zoom Out', 'View', '⌘-', ['Ctrl+-'], later('view.zoom', { by: 1 / 1.1 })),
+  b('view.actualSize', 'Actual Size', 'View', '⌘0', ['Ctrl+0'], first(later('view.zoom', { reset: true }))),
+  // ⌥⌘I ⌥⌘J: Chrome's own keys for its tools, taken before the page as Chrome does.
+  b('view.inspector', 'Web Inspector', 'View', '⌥⌘I', ['F12', 'Ctrl+Shift+I'], first(later('view.inspector'))),
+  b('view.console', 'JavaScript Console', 'View', '⌥⌘J', ['Ctrl+Shift+J'], first(later('view.console'))),
+  // ⌥⌘C: Chrome's Ctrl+Shift+C is Copy Address here, Ctrl+Alt+C is AltGr.
+  b('view.inspect', 'Inspect Element', 'View', '⌥⌘C', [], later('view.inspect')),
+  b('view.fullScreen', 'Enter Full Screen', 'View', '⌃⌘F', ['F11'], first({ ...later('window.fullScreen'), fixed: true })),
   // Tabs
-  { id: 'tabs.back', title: 'Back', mac: '⌘[  ⌘←', keys: ['Alt+Left', 'Ctrl+['], phase: 'later', action: () => ({ do: 'tab.back' }) },
-  { id: 'tabs.forward', title: 'Forward', mac: '⌘]  ⌘→', keys: ['Alt+Right', 'Ctrl+]'], phase: 'later', action: () => ({ do: 'tab.forward' }) },
-  { id: 'tabs.next', title: 'Next Tab', mac: '⇧⌘]', keys: ['Ctrl+PageDown', 'Ctrl+Shift+]'], phase: 'first', action: c => step(c, 1) },
-  { id: 'tabs.previous', title: 'Previous Tab', mac: '⇧⌘[', keys: ['Ctrl+PageUp', 'Ctrl+Shift+['], phase: 'first', action: c => step(c, -1) },
-  { id: 'tabs.recent', title: 'Switch to Recent Tab', mac: '⌃Tab', keys: ['Ctrl+Tab'], phase: 'first', action: c => step(c, 1) },
-  { id: 'tabs.recentBack', title: 'Switch to Recent Tab (back)', mac: '⌃⇧Tab', keys: ['Ctrl+Shift+Tab'], phase: 'first', action: c => step(c, -1) },
-  { id: 'tabs.search', title: 'Search Tabs…', mac: '⌘K', keys: ['Ctrl+K'], phase: 'first', action: (c, k) => { if (!k.repeat || mem(c).summonHeld) searchTabsKey(c, true); return true } },
-  { id: 'tabs.split', title: 'Split Current Page', mac: '⌥⌘N', keys: ['Alt+Shift+N'], phase: 'later', needs: { do: 'split.toggle' } as never },
-  { id: 'tabs.focusLeftPane', title: 'Focus Left Page', mac: '⌃⌘←', keys: ['Alt+Shift+Left'], phase: 'first', needs: { do: 'split.focus', side: 'left' } as never },
-  { id: 'tabs.focusRightPane', title: 'Focus Right Page', mac: '⌃⌘→', keys: ['Alt+Shift+Right'], phase: 'first', needs: { do: 'split.focus', side: 'right' } as never },
-  { id: 'tabs.rename', title: 'Rename Tab', mac: '', keys: ['F2'], phase: 'later', needs: { do: 'tab.beginRename' } as never },
-  { id: 'tabs.duplicate', title: 'Duplicate Tab', mac: '⌘D', keys: ['Ctrl+D'], phase: 'later', action: c => { const id = activeID(c); const t = id && model.tabs.get(id); return t && !t.empty ? { do: 'tab.duplicate', id } : false } },
-  { id: 'tabs.copyAddress', title: 'Copy Address', mac: '⇧⌘C', keys: ['Ctrl+Shift+C'], phase: 'later', needs: { do: 'address.copy' } as never },
-  { id: 'tabs.pasteAndGo', title: 'Paste and Go', mac: '⇧⌘V', keys: ['Ctrl+Shift+V'], phase: 'later', needs: { do: 'address.pasteAndGo' } as never },
-  { id: 'tabs.mute', title: 'Stop Sound in Tab', mac: '⇧⌘M', keys: ['Ctrl+Shift+M'], phase: 'later', needs: { do: 'tab.stopSound' } as never },
-  ...[1, 2, 3, 4, 5, 6, 7, 8].map((n): Binding => ({ id: `tabs.${n}`, title: `Tab ${n}`, mac: `⌘${n}`, keys: [`Ctrl+${D(n)}`], phase: 'first', action: c => nth(c, n - 1) })),
-  { id: 'tabs.last', title: 'Last Tab', mac: '⌘9', keys: ['Ctrl+9'], phase: 'first', action: c => nth(c, -1) },
+  b('tabs.back', 'Back', 'Tabs', '⌘[  ⌘←', ['Alt+Left', 'Ctrl+['], { action: () => ({ do: 'tab.back' }) }),
+  b('tabs.forward', 'Forward', 'Tabs', '⌘]  ⌘→', ['Alt+Right', 'Ctrl+]'], { action: () => ({ do: 'tab.forward' }) }),
+  b('tabs.next', 'Next Tab', 'Tabs', '⇧⌘]', ['Ctrl+PageDown', 'Ctrl+Shift+]'], first({ action: c => step(c, 1) })),
+  // The recent-use switcher is the tabs module's; until it is there, the next tab.
+  b('tabs.recent', 'Switch to Recent Tab', 'Tabs', '⌃Tab', ['Ctrl+Tab'], first({ action: c => step(c, 1) })),
+  b('tabs.recentBack', 'Switch to Recent Tab, Back', 'Fixed', '⌃⇧Tab', ['Ctrl+Shift+Tab'], first({ action: c => step(c, -1) })),
+  b('tabs.previous', 'Previous Tab', 'Tabs', '⇧⌘[', ['Ctrl+PageUp', 'Ctrl+Shift+['], first({ action: c => step(c, -1) })),
+  // Always Search's, never the page's (#238).
+  b('tabs.search', 'Search Tabs…', 'Tabs', '⌘K', ['Ctrl+K'], first({ action: (c, k) => { if (!k.repeat || mem(c).summonHeld) searchTabsKey(c, true); return true } })),
+  b('tabs.split', 'Split Current Page', 'Tabs', '⌥⌘N', ['Alt+Shift+N'], later('split.toggle')),
+  // ⌃⌘← ⌃⌘→: Ctrl+Win+arrows change desktops, Ctrl+Alt+arrows turn some screens.
+  b('tabs.focusLeftPane', 'Focus Left Page', 'Tabs', '⌃⌘←', ['Alt+Shift+Left'], first(later('split.focus', { side: 'left' }))),
+  b('tabs.focusRightPane', 'Focus Right Page', 'Tabs', '⌃⌘→', ['Alt+Shift+Right'], first(later('split.focus', { side: 'right' }))),
+  b('tabs.focusOtherPane', 'Focus Other Page', 'Tabs', '', [], later('split.focus', { side: 'other' })),
+  b('tabs.swapSplit', 'Swap Pages', 'Tabs', '', [], later('split.swap')),
+  b('tabs.separateSplit', 'Separate Split Tabs', 'Tabs', '', [], later('split.separate')),
+  b('tabs.pin', 'Pin Tab', 'Tabs', '', [], { action: c => { const id = activeID(c); const t = id && model.tabs.get(id); return t && !t.empty ? (t.pinID ? { do: 'tab.unpin', id } : { do: 'tab.pin', id }) : false } }),
+  b('tabs.pinRow', 'Pin Tab as Row', 'Tabs', '', [], later('tab.pinRow')),
+  // F2, Windows' key for renaming.
+  b('tabs.rename', 'Rename Tab', 'Tabs', '', ['F2'], later('tab.beginRename')),
+  b('tabs.duplicate', 'Duplicate Tab', 'Tabs', '⌘D', ['Ctrl+D'], { action: c => { const id = activeID(c); const t = id && model.tabs.get(id); return t && !t.empty ? { do: 'tab.duplicate', id } : false } }),
+  b('tabs.copyAddress', 'Copy Address', 'Tabs', '⇧⌘C', ['Ctrl+Shift+C'], later('address.copy')),
+  b('tabs.copyMarkdown', 'Copy as Markdown Link', 'Tabs', '', [], later('address.copyMarkdown')),
+  b('tabs.pasteAndGo', 'Paste and Go', 'Tabs', '⇧⌘V', ['Ctrl+Shift+V'], later('address.pasteAndGo')),
+  b('tabs.closeOthers', 'Close Other Tabs', 'Tabs', '', [], later('tab.closeOthers')),
+  b('tabs.mute', 'Stop Sound in Tab', 'Tabs', '⇧⌘M', ['Ctrl+Shift+M'], later('tab.stopSound')),
   // Bookmarks
-  { id: 'bookmarks.add', title: 'Add This Page', mac: '⇧⌘B', keys: ['Ctrl+Shift+B'], phase: 'later', needs: { do: 'bookmarks.add' } as never },
-  { id: 'bookmarks.show', title: 'Show Bookmarks…', mac: '', keys: ['Ctrl+Shift+O'], phase: 'later', needs: { do: 'bookmarks.show' } as never },
+  b('bookmarks.add', 'Add This Page', 'Bookmarks', '⇧⌘B', ['Ctrl+Shift+B'], later('bookmarks.add')),
+  b('bookmarks.show', 'Show Bookmarks…', 'Bookmarks', '', ['Ctrl+Shift+O'], later('bookmarks.show')),
+  b('bookmarks.bar', 'Show Bookmarks Bar', 'Bookmarks', '', [], later('bookmarks.bar')),
   // History
-  { id: 'history.show', title: 'Show History…', mac: '⌘Y', keys: ['Ctrl+H'], phase: 'later', needs: { do: 'history.show' } as never },
-  { id: 'history.downloads', title: 'Downloads…', mac: '⇧⌘J', keys: ['Ctrl+J'], phase: 'later', needs: { do: 'downloads.show' } as never },
-  { id: 'history.clearData', title: 'Clear Browsing Data…', mac: '⇧⌘⌫', keys: ['Ctrl+Shift+Delete'], phase: 'first', needs: { do: 'history.clearData' } as never },
-  // Spaces: ⌃1-⌃9 on the Mac, Alt+1-9 here (Ctrl+1-9 are the tabs')
-  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n): Binding => ({
-    id: `spaces.${n}`, title: `Space ${n}`, mac: `⌃${n}`, keys: [`Alt+${D(n)}`], phase: 'first',
+  // ⌘Y: Ctrl+Y is Redo in every Windows text box.
+  b('history.show', 'Show History…', 'History', '⌘Y', ['Ctrl+H'], later('history.show')),
+  // ⇧⌘J: Ctrl+J as Chrome; Ctrl+Shift+J is the console.
+  b('history.downloads', 'Downloads…', 'History', '⇧⌘J', ['Ctrl+J'], later('downloads.show')),
+  b('history.archive', 'Archived Tabs…', 'History', '', [], later('history.archive')),
+  b('history.clearData', 'Clear Browsing Data…', 'History', '⇧⌘⌫', ['Ctrl+Shift+Delete'], first(later('history.clearData'))),
+  b('history.clear', 'Clear History', 'History', '', [], later('history.clear')),
+  // Spaces: ⌃1-⌃9 on the Mac, Alt+1-9 here (Ctrl+1-9 are the tabs').
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => b(`spaces.${n}`, `Space ${n}`, 'Spaces', `⌃${n}`, [`Alt+${n}`], first({
     action: () => { const s = model.spaces[n - 1]; return s && model.spaces.length > 1 ? { do: 'space.select', id: s.id } : false },
-  })),
-  // Fixed keys
-  { id: 'escape', title: 'Escape', mac: 'Esc', keys: ['Escape'], phase: 'first', action: c => escapeKey(c) },
-  { id: 'stop', title: 'Stop Loading', mac: '', keys: ['Escape'], phase: 'later', action: () => ({ do: 'tab.stop' }) },
-  { id: 'pin.home', title: 'Back to the Pinned Page', mac: '', keys: ['Alt+Home'], phase: 'later', action: c => { const id = activeID(c); const t = id && model.tabs.get(id); return t && t.pinID ? { do: 'pin.home', id: t.pinID } : false } },
+  }))),
+  b('spaces.next', 'Next Space', 'Spaces', '', [], { action: () => (model.spaces.length > 1 ? { do: 'space.step', by: 1 } : false) }),
+  b('spaces.previous', 'Previous Space', 'Spaces', '', [], { action: () => (model.spaces.length > 1 ? { do: 'space.step', by: -1 } : false) }),
+  b('profiles.next', 'Next Profile', 'Profiles', '', [], later('profile.step', { by: 1 })),
+  b('profiles.previous', 'Previous Profile', 'Profiles', '', [], later('profile.step', { by: -1 })),
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => b(`profiles.${n}`, `Profile ${n}`, 'Profiles', '', [], later('profile.select', { index: n - 1 }))),
+  // Fixed keys (studio/03 §13.2)
+  ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => b(`tab.${n}`, `Tab ${n}`, 'Fixed', `⌘${n}`, [`Ctrl+${n}`], first({ fixed: true, action: c => nth(c, n - 1) }))),
+  b('tab.last', 'Last Tab', 'Fixed', '⌘9', ['Ctrl+9'], first({ fixed: true, action: c => nth(c, -1) })),
+  b('escape', 'Escape', 'Fixed', 'Esc', ['Escape'], first({ fixed: true, action: c => escapeKey(c) })),
+  b('stop', 'Stop Loading', 'Fixed', '', ['Escape'], { fixed: true, action: () => ({ do: 'tab.stop' }) }),
+  // Windows closes a window on Alt+F4 whatever the page says.
+  b('window.close', 'Close Window', 'Fixed', '', ['Alt+F4'], first({ fixed: true, action: () => ({ do: 'window.close' }) })),
+  // Alt+Home is Chrome's home page; Search has none but a pin's own page.
+  b('pin.home', 'Back to the Pinned Page', 'Fixed', '', ['Alt+Home'], { fixed: true, action: c => { const id = activeID(c); const t = id && model.tabs.get(id); return t && t.pinID ? { do: 'pin.home', id: t.pinID } : false } }),
 ]
+void none
+
+// Settings › Shortcuts keeps only what was changed (ShortcutStore): { id: { keys } }.
+addDefaults({ shortcuts: {} })
+
+/** The keys a command has now: Settings' if changed there, else the table's. */
+export function keysOf(binding: Binding): string[] {
+  if (binding.fixed) return binding.keys
+  const changed = (model.pref<Record<string, { keys: string[] | null }>>('shortcuts') ?? {})[binding.id]
+  return changed ? changed.keys ?? [] : binding.keys
+}
+
+/** Never shortcuts on Windows (studio/03 §13.3, Shortcuts.isReserved): the
+ * text keys, the system's, Escape with anything, Tab alone or with Shift,
+ * the tab numbers, and Ctrl+Alt (AltGr). */
+export function reserved(name: string): boolean {
+  const fixed = new Set(['Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+A', 'Ctrl+Z', 'Ctrl+Y', 'Ctrl+Shift+Z', 'Alt+F4', 'Alt+Tab', 'Alt+Escape',
+    'Alt+Space', 'Ctrl+Escape', 'Ctrl+Shift+Escape', 'F10', 'Tab', 'Shift+Tab'])
+  if (fixed.has(name)) return true
+  if (/(^|\+)Escape$/.test(name) && name !== 'Escape') return true
+  if (/^Ctrl\+[1-9]$/.test(name)) return true
+  return /Ctrl\+(Shift\+)?Alt\+/.test(name) || name.includes('Meta+') || name.includes('Win+')
+}
 
 const extra: { first: [string, Action][]; later: [string, Action][] } = { first: [], later: [] }
 
@@ -174,21 +260,21 @@ export function shortcut(name: string, phase: 'first' | 'later', action: Action)
 }
 
 /** Whether a binding's command exists now. */
-export function live(b: Binding): boolean {
-  if (b.action) return true
-  return !!b.needs && handled().includes(b.needs.do)
+export function live(binding: Binding): boolean {
+  if (binding.action) return true
+  return !!binding.needs && handled().includes(binding.needs.do)
 }
 
 export function findBinding(name: string, phase: 'first' | 'later'): Binding | undefined {
-  return bindings.find(b => b.phase === phase && b.keys.includes(name) && live(b))
+  return bindings.find(x => x.phase === phase && keysOf(x).includes(name) && live(x))
 }
 
 export function findAction(name: string, phase: 'first' | 'later'): Action | undefined {
   const own = extra[phase].find(([n]) => n === name)?.[1]
   if (own) return own
-  const b = findBinding(name, phase)
-  if (!b) return undefined
-  return b.action ?? (() => b.needs!)
+  const found = findBinding(name, phase)
+  if (!found) return undefined
+  return found.action ?? (() => found.needs!)
 }
 
 /** Digits and punctuation by the key's place. */
@@ -220,8 +306,8 @@ function perform(c: WindowController, name: string, phases: ('first' | 'later')[
   for (const phase of phases) {
     const action = findAction(name, phase)
     if (!action) continue
-    const b = findBinding(name, phase)
-    if (k.repeat && b?.once) return true
+    const found = findBinding(name, phase)
+    if (k.repeat && found?.once) return true
     const result = action(c, k)
     if (result === false) continue
     if (result && typeof result === 'object') void run(result as never, { window: c }).catch(e => console.warn('[keys]', e))
@@ -254,5 +340,4 @@ export function wireKeys(c: WindowController, wc: WebContents, fromPage: boolean
   wc.on('before-input-event', (event, input) => { if (onInput(c, input, fromPage, wc)) event.preventDefault() })
 }
 
-/** For the field: whether it is up, without importing the field from elsewhere. */
 export { fieldShowing }

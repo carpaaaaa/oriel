@@ -84,9 +84,13 @@ t.ok(x["p"] == "This tab: enter a web address", "placeholder This tab: enter a w
 b.key("Escape")
 b.wait_for(lambda: b.window()["overlay"]["kind"] == "none", what="field away")
 
-# keys typed straight after Ctrl+L are kept for the field, in order
+# keys typed straight after Ctrl+L are kept for the field, in order: sent at
+# once to the overlay (where Ctrl+L puts the keys), before its field is there,
+# and one straying to the page under it
 b.key("L", CTRL)
-keys("abc")
+for ch in "ab":
+    b.call({"do": "field.key", "key": ch, "to": "overlay"})
+b.call({"do": "field.key", "key": "c", "to": "page"})
 x = settle(lambda x: x["v"] == "abc", "held keys", root="overlay")
 t.ok(x["v"] == "abc", "keys typed before the field had them land in it, in order")
 b.key("Escape")
