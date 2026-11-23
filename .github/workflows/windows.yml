@@ -108,6 +108,14 @@ jobs:
           FRAME_VARIANT: thick-dark
           FRAME_LOOK: dark
         run: python test/window_os.py
+      - name: Real input, with WS_CAPTION and WS_SYSMENU too
+        if: always()
+        continue-on-error: true
+        env:
+          SHOTS_DIR: shots
+          FRAME_VARIANT: caption
+          SEARCH_FRAME_STYLE: caption
+        run: python test/window_os.py
       - name: Real input, plain transparent window
         if: always()
         continue-on-error: true

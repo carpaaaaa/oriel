@@ -60,6 +60,10 @@ time.sleep(0.6)
 settle(lambda: abs(dom()["window"]["width"] - place["width"]) < 1.5, "interface at the new size", within=8)
 
 # 1. The drawn frame: margin, corners, card (studio/02 §4.1, §4.7).
+def page_on_card():
+    c, pg = dom()["card"], frame()["pages"]
+    return len(pg) == 1 and all(near(pg[0]["rect"][k], round(c[k])) for k in ("x", "y", "width", "height"))
+settle(page_on_card, "the page on the card", within=8)
 f = frame()
 d = dom()
 t.ok(f["kind"] == "drawn" and d["frame"] == "drawn", "the window is drawn by Oriel")

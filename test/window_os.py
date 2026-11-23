@@ -174,8 +174,9 @@ BACKDROP_LOG = Path(tempfile.gettempdir()) / "oriel-backdrop.txt"
 BACKDROP_LOG.write_text("")
 HELPER = str(Path(__file__).resolve().parent / "window_backdrop.py")
 chord("esc")  # a Start menu or a first-run screen left open
-backdrop = subprocess.Popen([sys.executable, HELPER, "back", str(BACKDROP_LOG)])
-time.sleep(4)
+backdrop = subprocess.Popen([sys.executable, HELPER, "back", str(BACKDROP_LOG)], stdout=subprocess.PIPE, text=True)
+print("backdrop:", backdrop.stdout.readline().strip())  # up before Oriel, so Oriel is in front
+time.sleep(0.5)
 
 
 def backdrop_clicks():

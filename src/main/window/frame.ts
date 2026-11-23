@@ -46,8 +46,9 @@ type State = FrameView['state']
 /** Variants that can be switched for comparing on Windows (bench and CI). */
 const variant = {
   /** plain: Electron's transparent window; thick: plus WS_THICKFRAME, so
-   * Windows treats it as resizable (Snap) with DWM's own border turned off. */
-  style: (process.env.SEARCH_FRAME_STYLE === 'plain' ? 'plain' : 'thick') as 'plain' | 'thick',
+   * Windows treats it as resizable (Snap) with DWM's own border turned off;
+   * caption: plus WS_CAPTION and WS_SYSMENU too (Win+Up, animations). */
+  style: ((['plain', 'caption'] as const).find(v => v === process.env.SEARCH_FRAME_STYLE) ?? 'thick') as 'plain' | 'thick' | 'caption',
   /** emulated: Electron's maximize for transparent windows (bounds = work
    * area); native: ShowWindow, a real maximized window. */
   maximize: process.env.SEARCH_FRAME_MAX === 'native' ? 'native' : 'emulated',
@@ -134,10 +135,11 @@ export class Frame {
     const w = win32()
     if (w && kind === 'drawn') {
       this.hwnd = w.hwnd(c.base.getNativeWindowHandle())
-      if (variant.style === 'thick') {
+      if (variant.style !== 'plain') {
         // Resizable in Windows' eyes (Snap needs it), without DWM's border,
         // corners or shadow: ours are drawn in the margin.
-        w.setStyle(this.hwnd, w.style(this.hwnd) | WS.THICKFRAME | WS.MAXIMIZEBOX | WS.MINIMIZEBOX)
+        const extra = variant.style === 'caption' ? WS.CAPTION | WS.SYSMENU : 0
+        w.setStyle(this.hwnd, w.style(this.hwnd) | WS.THICKFRAME | WS.MAXIMIZEBOX | WS.MINIMIZEBOX | extra)
       }
       w.dwmSet(this.hwnd, DWMWA.NCRENDERING_POLICY, 1)
       w.dwmSet(this.hwnd, DWMWA.WINDOW_CORNER_PREFERENCE, 1)
