@@ -19,6 +19,20 @@ import type { Command } from '../shared/commands'
 
 setupPaths()
 setupUserAgent()
+
+// An error nobody caught in the main process: Electron would show a dialog
+// (on top of everything, even for an invisible test window). Oriel logs it,
+// keeps it for the bench (state.errors) and goes on.
+export const mainErrors: string[] = []
+;(globalThis as { orielErrors?: string[] }).orielErrors = mainErrors
+const keep = (kind: string, e: unknown) => {
+  const text = `${kind}: ${(e as Error)?.stack ?? String(e)}`
+  console.error(`[oriel] ${text}`)
+  mainErrors.push(text)
+  if (mainErrors.length > 50) mainErrors.shift()
+}
+process.on('uncaughtException', e => keep('uncaughtException', e))
+process.on('unhandledRejection', e => keep('unhandledRejection', e))
 // Test worlds on a Mac: no Dock icon, never the active app (see context.ts).
 if (process.platform === 'darwin' && process.env.SEARCH_PROBE && process.env.SEARCH_SHOW !== '1') app.setActivationPolicy('accessory')
 // Windows 11's thin scrollbars that fade in, as Chrome has them.
