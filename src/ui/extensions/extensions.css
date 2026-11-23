@@ -72,4 +72,4 @@
 .ext-switch { flex: none; width: 30px; height: 18px; border-radius: 9px; background: var(--faint); position: relative; transition: background var(--dur-quick) var(--ease-quick); }
 .ext-switch span { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform var(--dur-quick) var(--ease-quick); }
 .ext-switch.on { background: var(--ink); }
-.ext-switch.on span { transform: translateX(12px); }
+.ext-switch.on span { transform: translateX(12px); background: var(--ground); }
