@@ -190,18 +190,30 @@ handle('find.options', ({ matchCase, wholeWords }, ctx) => {
   changed(c)
 })
 
-// It stays open from tab to tab, and asks the new one (Find.swift).
+// It stays open from tab to tab, and asks the new one (Find.swift). The new
+// tab's page may come a moment later (made when it is first shown): every
+// change of the window's tabs looks again until it is there.
 model.on('window-changed', (id: string, slices: string[]) => {
-  if (!slices.includes('activeID') && !slices.includes('space')) return
+  if (!slices.includes('activeID') && !slices.includes('space') && !slices.includes('tabs')) return
   const c = controllerFor(id)
   const f = c && states.get(c.record)
   if (!c || !f?.open) return
-  setTimeout(() => {
-    if (!f.open) return
-    if (webPage(c)) { show(c, false); ask(c, true) }
-    else if ((c.overlayLayer.kind as string) === 'find') c.sendOverlay({ kind: 'none' })
-  }, 0)
+  setTimeout(() => follow(c), 0)
 })
+
+function follow(c: WindowController): void {
+  const f = findOf(c)
+  if (!f.open) return
+  const wc = webPage(c)
+  const layer = c.overlayLayer.kind as string
+  if (!wc) {
+    if (layer === 'find') c.sendOverlay({ kind: 'none' })
+    return
+  }
+  // Never over something else the overlay is showing (the field, a menu).
+  if (layer !== 'none' && layer !== 'find') return
+  if (wc !== f.wc) { show(c, false); ask(c, true) } else if (layer === 'none') show(c, false)
+}
 
 onAfterField(c => { if (findOf(c).open) show(c, false) })
 

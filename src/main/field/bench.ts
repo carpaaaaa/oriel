@@ -1,6 +1,8 @@
 // The field module's bench requests (test worlds only).
 
 import { benchRequest } from '../bench/server'
+import { focusedController } from '../views/window'
+import { runtimes } from '../views/tabs'
 import { provideData } from '../data/api'
 import type { Suggestion } from '../../shared/state'
 import { addressURL, editable, fileURL, identity, resolveInput } from '../address'
@@ -45,4 +47,21 @@ benchRequest('field.chord', req => {
     meta: !!req.meta, altGraph: !!req.altGraph,
   })
   return { name, first: name ? findBinding(name, 'first')?.id ?? null : null, later: name ? findBinding(name, 'later')?.id ?? null : null }
+})
+
+/** A key sent to one view, whichever has the keys: a test window in the
+ * background has none, and bench's own `key` then goes to the interface. */
+benchRequest('field.key', req => {
+  const c = focusedController()
+  if (!c) throw new Error('no window')
+  const id = c.record.active[c.record.space]
+  const to = String(req.to ?? 'page')
+  const wc = to === 'ui' ? c.ui.webContents : to === 'overlay' ? c.overlay.webContents : id ? runtimes.get(id)?.contents : null
+  if (!wc) throw new Error(`no ${to}`)
+  const key = String(req.key)
+  const modifiers = (req.modifiers ?? []) as Electron.InputEvent['modifiers']
+  wc.sendInputEvent({ type: 'keyDown', keyCode: key, modifiers })
+  if (key.length === 1) wc.sendInputEvent({ type: 'char', keyCode: key, modifiers })
+  wc.sendInputEvent({ type: 'keyUp', keyCode: key, modifiers })
+  return {}
 })
