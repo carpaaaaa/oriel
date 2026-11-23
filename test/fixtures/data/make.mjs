@@ -38,14 +38,22 @@ const days = n => now - n * 86_400_000
 
 /** Sealed for this user by DPAPI (CryptProtectData through koffi, as the
  * browser does) on Windows; elsewhere a test world's stand-in. */
+let protectAPI = null
 function dpapi(key) {
   if (process.platform === 'win32') {
-    const koffi = require('koffi')
-    const crypt32 = koffi.load('crypt32.dll'), kernel32 = koffi.load('kernel32.dll')
-    const BLOB = koffi.struct('FIXTURE_DATA_BLOB', { cbData: 'uint32_t', pbData: 'void *' })
-    const protect = crypt32.func('__stdcall', 'CryptProtectData', 'bool',
-      [koffi.pointer(BLOB), 'str16', koffi.pointer(BLOB), 'void *', 'void *', 'uint32_t', koffi.out(koffi.pointer(BLOB))])
-    const free = kernel32.func('__stdcall', 'LocalFree', 'void *', ['void *'])
+    if (!protectAPI) {
+      // Declared once: koffi keeps type names for the whole process.
+      const koffi = require('koffi')
+      const crypt32 = koffi.load('crypt32.dll'), kernel32 = koffi.load('kernel32.dll')
+      const BLOB = koffi.struct('FIXTURE_DATA_BLOB', { cbData: 'uint32_t', pbData: 'void *' })
+      protectAPI = {
+        koffi,
+        protect: crypt32.func('__stdcall', 'CryptProtectData', 'bool',
+          [koffi.pointer(BLOB), 'str16', koffi.pointer(BLOB), 'void *', 'void *', 'uint32_t', koffi.out(koffi.pointer(BLOB))]),
+        free: kernel32.func('__stdcall', 'LocalFree', 'void *', ['void *']),
+      }
+    }
+    const { koffi, protect, free } = protectAPI
     const out = { cbData: 0, pbData: null }
     if (!protect({ cbData: key.length, pbData: key }, null, null, null, null, 1 /* UI forbidden */, out)) throw new Error('CryptProtectData failed')
     try { return Buffer.from(koffi.decode(out.pbData, 'uint8_t', out.cbData)) } finally { free(out.pbData) }

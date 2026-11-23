@@ -32,7 +32,7 @@ result = {}
 
 def ask():
     try:
-        result["reply"] = b.call({"do": "data.helloTrace", "reason": "fill your password for example.com", "within": 10000}, timeout=120)
+        result["reply"] = b.call({"do": "data.helloTrace", "reason": "fill your password for example.com", "within": 8000}, timeout=120)
     except Exception as e:  # noqa: BLE001
         result["error"] = repr(e)
 
@@ -44,6 +44,7 @@ worker.start()
 # The app answers while Hello or the password dialog is up.
 slowest = 0.0
 closed = []
+seen = None
 said = ""
 while worker.is_alive() and time.time() - started < 90:
     t0 = time.time()
@@ -56,8 +57,9 @@ while worker.is_alive() and time.time() - started < 90:
     # What a person would do on a machine with nothing to recognise: Cancel.
     if time.time() - started > 3:
         c = b.call({"do": "data.helloClose"})
-        if c["closed"]:
-            print("       closed:", c["closed"], "of", c["seen"])
+        if c["closed"] or c["seen"] != seen:
+            print(f"       {time.time() - started:5.1f} s  closed {c['closed']} of {c['seen']}")
+            seen = c["seen"]
         closed += c["closed"]
     time.sleep(0.4)
 worker.join(5)
@@ -72,6 +74,8 @@ t.ok(any(s == "factory 0x00000000" for s in steps), "the call starts")
 t.ok(trace.get("availability") is not None, f"Hello says whether it can ask ({trace.get('availability')})")
 if trace.get("availability") not in (None, 0):
     t.ok("to the password" in steps, "nothing to ask with: on to the Windows password")
-    t.ok(trace.get("password") is not None, f"the password dialog was called ({trace.get('password')})")
+    t.ok("password dialog asked" in steps, "the Windows password's dialog is asked for")
+    t.ok(trace.get("password") is not None or any(s.startswith("password dialog timed out") for s in steps),
+         f"and it comes back: answered ({trace.get('password')}) or closed when its time is up")
 t.ok(trace.get("verdict") in ("refused", "unavailable", "timeout"), f"no yes without a person ({trace.get('verdict')})")
 t.done()

@@ -224,13 +224,25 @@ const promise = <T>(f: { async: (...args: unknown[]) => void }, ...args: unknown
 
 /** The Windows password, in the system's credential dialog owned by the
  * window, run on a worker thread; checked with LogonUser; three tries. */
-async function windowsPassword(a: NonNullable<typeof api>, reason: string, hwnd: unknown, caption: string, trace: HelloTrace): Promise<boolean> {
+async function windowsPassword(a: NonNullable<typeof api>, reason: string, hwnd: unknown, caption: string, within: number, trace: HelloTrace): Promise<boolean> {
   const CREDUIWIN_ENUMERATE_CURRENT_USER = 0x200, ERROR_CANCELLED = 1223, ERROR_LOGON_FAILURE = 1326
   let authError = 0
   for (let attempt = 0; attempt < 3; attempt++) {
     const info = { cbSize: a.koffi.sizeof(a.CREDUI_INFOW), hwndParent: hwnd, pszMessageText: reason, pszCaptionText: caption, hbmBanner: null }
     const pkg = [0], buffer = [null], size = [0]
-    const code = await promise<number>(a.CredUIPromptForWindowsCredentialsW, info, authError, pkg, null, 0, buffer, size, null, CREDUIWIN_ENUMERATE_CURRENT_USER)
+    trace.steps.push('password dialog asked')
+    const asked = promise<number>(a.CredUIPromptForWindowsCredentialsW, info, authError, pkg, null, 0, buffer, size, null, CREDUIWIN_ENUMERATE_CURRENT_USER)
+    // Not left up for ever: past the time, closed wherever it is, as a Cancel.
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const late = new Promise<'late'>(done => { timer = setTimeout(() => done('late'), within) })
+    let code = await Promise.race([asked, late])
+    if (code === 'late') {
+      const shut = closeDialogs(hwnd ? [a.address(hwnd)] : [])
+      trace.steps.push(`password dialog timed out, closed ${JSON.stringify(shut.closed)} of ${JSON.stringify(shut.seen)}`)
+      trace.verdict = 'timeout'
+      code = await Promise.race([asked, new Promise<'late'>(done => setTimeout(() => done('late'), 5000))])
+      if (code === 'late') { trace.steps.push('password dialog never came back'); return false }
+    } else clearTimeout(timer)
     trace.password = code
     trace.steps.push(`password dialog ${code}`)
     if (code === ERROR_CANCELLED) return false
@@ -270,8 +282,9 @@ export async function windowsProof(reason: string, win: BaseWindow | null, capti
     if (said === true) { trace.verdict = 'verified'; return trace }
     if (said === false) { if (trace.verdict !== 'timeout') trace.verdict = 'refused'; return trace }
     trace.steps.push('to the password')
-    const ok = await windowsPassword(a, reason, hwnd, caption, trace)
-    trace.verdict = ok ? 'verified' : trace.password === 1223 ? 'refused' : trace.password ? 'unavailable' : 'refused'
+    const timedOut = () => trace.verdict === 'timeout'
+    const ok = await windowsPassword(a, reason, hwnd, caption, options.within ?? 180_000, trace)
+    trace.verdict = ok ? 'verified' : timedOut() ? 'timeout' : trace.password === 1223 ? 'refused' : trace.password ? 'unavailable' : 'refused'
   } catch (e) {
     trace.steps.push(`error ${String((e as Error)?.message ?? e)}`)
     trace.verdict = 'error'
@@ -279,27 +292,42 @@ export async function windowsProof(reason: string, win: BaseWindow | null, capti
   return trace
 }
 
-/** Closes the visible windows of this process that aren't Oriel's own (the
- * credential dialog, owned by Oriel or not): a test world's stand-in for a
- * person pressing Cancel. What was closed, by window class. */
-export function closeOwnedDialogs(ours: BaseWindow[]): { closed: string[]; seen: string[] } {
+/** The system's credential dialog, in this process or the broker's. */
+const credentialClass = /^Credential Dialog Xaml Host$/
+
+/** Closes the credential dialog: windows owned by one of Oriel's windows,
+ * other windows of this process that aren't Oriel's own, and the system's
+ * credential dialog wherever it runs. What was closed and what was seen
+ * (class@pid), for the trace. */
+function closeDialogs(owners: bigint[], ours: bigint[] = owners, sameProcess = false): { closed: string[]; seen: string[] } {
   const a = (api ??= load())
-  const mine = new Set(ours.map(w => a.address(a.koffi.decode(w.getNativeWindowHandle(), 'void *'))))
+  const mine = new Set(ours), owning = new Set(owners)
   const found: unknown[] = [], closed: string[] = [], seen: string[] = []
   const each = a.koffi.register((hwnd: unknown) => {
+    if (!a.IsWindowVisible(hwnd)) return true
     const pid = [0]
     a.GetWindowThreadProcessId(hwnd, pid)
-    if (pid[0] !== process.pid || !a.IsWindowVisible(hwnd)) return true
     const name = Buffer.alloc(512)
-    const n = a.GetClassNameW(hwnd, name, 256)
-    const cls = name.subarray(0, n * 2).toString('utf16le')
-    seen.push(cls)
-    if (!mine.has(a.address(hwnd))) { found.push(hwnd); closed.push(cls) }
+    const cls = name.subarray(0, a.GetClassNameW(hwnd, name, 256) * 2).toString('utf16le')
+    const owned = owning.has(a.address(a.GetWindow(hwnd, 4 /* GW_OWNER */)))
+    const here = pid[0] === process.pid
+    if (here || owned || credentialClass.test(cls) || /Credential|Consent/i.test(cls)) seen.push(`${cls}@${pid[0]}${owned ? ' owned' : ''}`)
+    if (mine.has(a.address(hwnd))) return true
+    // Another app's credential dialog is never touched, outside a test world.
+    const credential = credentialClass.test(cls) && (here || owned || sameProcess)
+    if (owned || credential || (sameProcess && here)) { found.push(hwnd); closed.push(cls) }
     return true
   }, a.koffi.pointer(a.EnumWindowsProc))
   try { a.EnumWindows(each, 0) } finally { a.koffi.unregister(each) }
   for (const hwnd of found) a.PostMessageW(hwnd, 0x0010 /* WM_CLOSE */, 0, 0)
   return { closed, seen }
+}
+
+/** A test world's stand-in for a person pressing Cancel. */
+export function closeOwnedDialogs(ours: BaseWindow[]): { closed: string[]; seen: string[] } {
+  const a = (api ??= load())
+  const hwnds = ours.map(w => a.address(a.koffi.decode(w.getNativeWindowHandle(), 'void *')))
+  return closeDialogs(hwnds, hwnds, true)
 }
 
 /** Whether the factories answer, the one that owns the dialog by window
