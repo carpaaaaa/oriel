@@ -183,7 +183,7 @@ def backdrop_clicks():
 
 
 t = b.T()
-b.use("window-os")
+b.use("window-os-" + os.environ.get("FRAME_VARIANT", "drawn"))
 b.launch(env={"SEARCH_LOOK": os.environ["FRAME_LOOK"]} if os.environ.get("FRAME_LOOK") else None)
 
 
