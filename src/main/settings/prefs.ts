@@ -1,0 +1,286 @@
+// What Settings' rows do (studio/06 §1): the keys they write, the rows that
+// write several keys at once (SettingsIndex.swift "merged controls"), and
+// the rows that are buttons (Make default, Clear, Set Up Like Arc...).
+
+import { app, dialog, nativeTheme, session as electronSession, shell } from 'electron'
+import { existsSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { defaultOf, defaults } from '../../shared/prefs'
+import { brand } from '../../shared/brand'
+import { model } from '../model/model'
+import { handle, run } from '../router'
+import { need } from '../context'
+import { probe } from '../paths'
+import { allControllers, type WindowController } from '../views/window'
+import { openInternal, scheme } from './internal'
+import { forgetPermissions } from './permissions'
+import { forgetDownloadAddresses } from './downloads'
+
+/** What Oriel said last (the Mac's announcement line), for the bench. */
+export const said: string[] = []
+function say(text: string): { said: string } { said.push(text); return { said: text } }
+
+/** Answers a test gives in place of a dialog: a test world never opens one
+ * on the screen of whoever works beside it. */
+export const probeAnswers: { folder?: string | null; saveAs?: string | null; opened: string[] } = { opened: [] }
+
+/** Write a key; its default is written as no key (studio/06 §1.17). */
+export function setKey(key: string, value: unknown): void {
+  const fallback = defaultOf(key)
+  const same = JSON.stringify(value) === JSON.stringify(fallback)
+  model.setPref(key, same && fallback !== undefined ? undefined : value)
+  mirror(key)
+}
+
+export const pref = <T = unknown>(key: string): T => model.pref<T>(key)
+
+/** Keys other modules still read under the skeleton's first names; kept in
+ * step until they read Prefs.swift's (see the settings module's report). */
+function mirror(key: string): void {
+  if (key === 'sidebar' || key === 'sidebar.position' || key === 'sidebar.icons') {
+    model.setPref('tabs.layout', pref<boolean>('sidebar') ? 'side' : 'top')
+    model.setPref('sidebar.side', pref<string>('sidebar.position') === 'right' ? 'right' : 'left')
+    for (const c of allControllers()) {
+      c.record.sidebar = {
+        ...c.record.sidebar,
+        layout: pref<boolean>('sidebar') ? 'side' : 'top',
+        side: pref<string>('sidebar.position') === 'right' ? 'right' : 'left',
+        icons: !!pref<boolean>('sidebar.icons'),
+      }
+      model.touch(c.record, ['sidebar'])
+    }
+  }
+  if (key === 'search.suggest') model.setPref('search.suggestions', pref<boolean>('search.suggest'))
+  if (key === 'look') applyLook()
+}
+
+function applyLook(): void {
+  if (process.env.SEARCH_LOOK) return
+  const look = pref<string>('look')
+  nativeTheme.themeSource = look === 'light' || look === 'dark' ? look : 'system'
+}
+// After the model has read prefs.json and before the first window is made
+// (index.ts loads the model, then waits for the extensions).
+app.whenReady().then(() => setImmediate(applyLook))
+
+// merged rows (SettingsIndex.swift: TabsLayout, SleepChoice, FloatOwn, PeekChoice, pinsKeepSite)
+
+type Layout = 'top' | 'left' | 'right' | 'icons'
+export function tabsLayout(): Layout {
+  if (!pref<boolean>('sidebar')) return 'top'
+  if (pref<boolean>('sidebar.icons')) return 'icons'
+  return pref<string>('sidebar.position') === 'right' ? 'right' : 'left'
+}
+function setTabsLayout(v: Layout): void {
+  if (v === 'top') return setKey('sidebar', false)
+  if (v === 'icons') { setKey('sidebar.icons', true); setKey('sidebar', true); return }
+  setKey('sidebar.position', v); setKey('sidebar.icons', false); setKey('sidebar', true)
+}
+
+export const sleepChoice = () => (pref<boolean>('tabs.sleep') ? (pref<string>('tabs.sleep.pace') || 'normal') : 'never')
+export const floatOwn = () => (pref<boolean>('float.away') ? 'tabsOrApps' : pref<boolean>('float.leave') ? 'tabs' : 'never')
+export const peekChoice = () => (pref<boolean>('links.peek') ? (pref<string>('links.peekClick') || 'shift') : 'off')
+export const pinsKeepSite = () => !!(pref<boolean>('pins.home') || pref<boolean>('pins.peek'))
+
+/** What Settings shows for the rows made of several keys (SettingsIndex.values). */
+export function mergedValues(): Record<string, unknown> {
+  return {
+    'tabs.layout': tabsLayout(), 'tabs.sleep': sleepChoice(), 'float.own': floatOwn(),
+    'pins.keep': pinsKeepSite(), 'links.peek': peekChoice(), 'arc': looksLikeArc(),
+  }
+}
+
+const merged: Record<string, (v: unknown) => boolean> = {
+  'tabs.layout': v => { if (!['top', 'left', 'right', 'icons'].includes(v as string)) return false; setTabsLayout(v as Layout); return true },
+  'tabs.sleep': v => {
+    if (v === 'never') { setKey('tabs.sleep', false); return true }
+    if (!['later', 'normal', 'sooner'].includes(v as string)) return false
+    setKey('tabs.sleep.pace', v); setKey('tabs.sleep', true); return true
+  },
+  'float.own': v => {
+    if (!['never', 'tabs', 'tabsOrApps'].includes(v as string)) return false
+    setKey('float.leave', v !== 'never'); setKey('float.away', v === 'tabsOrApps'); return true
+  },
+  'pins.keep': v => { setKey('pins.home', !!v); setKey('pins.peek', !!v); return true },
+  'links.peek': v => {
+    if (v === 'off') { setKey('links.peek', false); return true }
+    if (!['shift', 'optionShift', 'optionCommand'].includes(v as string)) return false
+    setKey('links.peekClick', v); setKey('links.peek', true); return true
+  },
+  'sidebar.narrowIcons': v => { setKey('sidebar.narrowIcons', !!v); if (!v) setKey('sidebar.narrowed', false); return true },
+}
+
+const known = (key: string) => key in defaults || defaultOf(key) !== undefined
+
+handle('settings.set', async ({ id, value }, ctx) => {
+  if (merged[id]) { if (!merged[id](value)) throw new Error(`bad value for ${id}`); return settingsValues() }
+  if (id === 'sync') {
+    if (!value) { setKey('sync.folder', ''); return settingsValues() }
+    const folder = await chooseFolder(need(ctx), pref<string>('sync.folder') || app.getPath('documents'))
+    if (folder) setKey('sync.folder', folder)
+    return settingsValues()
+  }
+  if (!known(id)) throw new Error(`no setting ${id}`)
+  setKey(id, value)
+  return settingsValues()
+})
+
+// facts a row's words depend on
+
+const home = os.homedir()
+export function downloadsFolder(): string { return pref<string>('downloads') || app.getPath('downloads') }
+const tilde = (p: string) => (p.startsWith(home) ? '~' + p.slice(home.length) : p)
+
+function arcFile(): string {
+  if (process.platform === 'win32') {
+    const packages = path.join(process.env.LOCALAPPDATA ?? path.join(home, 'AppData', 'Local'), 'Packages')
+    try {
+      const dir = require('node:fs').readdirSync(packages).find((d: string) => d.startsWith('TheBrowserCompany.Arc'))
+      if (dir) return path.join(packages, dir, 'LocalCache', 'Local', 'Arc', 'StorableSidebar.json')
+    } catch {}
+    return ''
+  }
+  return path.join(home, 'Library', 'Application Support', 'Arc', 'StorableSidebar.json')
+}
+
+export function settingsValues() {
+  return {
+    prefs: model.prefs,
+    merged: mergedValues(),
+    facts: {
+      downloadsFolder: tilde(downloadsFolder()),
+      downloadsFolderName: path.basename(downloadsFolder()),
+      isDefault: probe ? false : safe(() => app.isDefaultProtocolClient('https')),
+      mailDefault: probe ? false : safe(() => app.isDefaultProtocolClient('mailto')),
+      arcHere: !!arcFile() && existsSync(arcFile()),
+      arcUndoable: !!arcBefore && looksLikeArc(),
+      version: app.getVersion(),
+      name: brand.name,
+      platform: process.platform,
+      dark: nativeTheme.shouldUseDarkColors,
+    },
+  }
+}
+const safe = (f: () => boolean) => { try { return f() } catch { return false } }
+
+handle('settings.values', () => settingsValues())
+
+handle('settings.open', async ({ page, find }, ctx) => {
+  const c = need(ctx)
+  const section = page ?? (pref<string>('settings.page') || 'general')
+  const id = await openInternal(c, `${scheme}://settings/${section}${find ? `?find=${encodeURIComponent(find)}` : ''}`)
+  return { tab: id }
+})
+
+// rows that are buttons
+
+async function chooseFolder(c: WindowController, from: string): Promise<string | null> {
+  if (probe) return probeAnswers.folder ?? null
+  const r = await dialog.showOpenDialog(c.base as never, { defaultPath: from, buttonLabel: 'Use this folder', properties: ['openDirectory', 'createDirectory'] })
+  return r.canceled ? null : r.filePaths[0] ?? null
+}
+
+/** The page sessions of the profile and of private windows. */
+function pageSessions(): Electron.Session[] {
+  const all = new Set<Electron.Session>([electronSession.fromPartition('persist:personal')])
+  for (const c of allControllers()) all.add(c.pageSession)
+  return [...all]
+}
+
+/** Opens a link of Windows' own (Settings › Default apps). Never in a test. */
+function openSystem(url: string): void {
+  if (probe) { probeAnswers.opened.push(url); return }
+  void shell.openExternal(url)
+}
+
+handle('settings.do', async ({ id, arg }, ctx) => {
+  const c = need(ctx)
+  switch (id) {
+    case 'general.default':
+      // Windows lets a browser only open the page where you choose it.
+      if (process.platform === 'win32' || probe) openSystem(`ms-settings:defaultapps?registeredAppUser=${encodeURIComponent(brand.name)}`)
+      return settingsValues()
+    case 'mail.default':
+      if (process.platform === 'win32' || probe) openSystem(`ms-settings:defaultapps?registeredAppUser=${encodeURIComponent(brand.name)}`)
+      return settingsValues()
+    case 'general.import':
+      return run({ do: 'import.open' } as never, { window: c })
+    case 'arc.import':
+      return run({ do: 'import.open', source: 'arc' } as never, { window: c })
+    case 'downloads.folder': {
+      const folder = await chooseFolder(c, downloadsFolder())
+      if (folder) setKey('downloads', folder)
+      return settingsValues()
+    }
+    case 'passwords.open':
+      return openInternal(c, `${scheme}://passwords`)
+    case 'downloads.list':
+      return openInternal(c, `${scheme}://downloads`)
+    case 'privacy.forget':
+      forgetPermissions()
+      return say('Camera, microphone, location and notification choices forgotten')
+    case 'clear.history':
+      await run({ do: 'history.clear' } as never, { window: c }).catch(() => {})
+      forgetDownloadAddresses()
+      return say('History cleared')
+    case 'clear.cookies':
+      await Promise.all(pageSessions().map(s => s.clearStorageData()))
+      return say('Signed out of everything')
+    case 'clear.cache':
+      await Promise.all(pageSessions().map(async s => { await s.clearCache(); await s.clearStorageData({ storages: ['cachestorage'] }) }))
+      return say('Cache cleared')
+    case 'arc.setup': {
+      const changed = setUpLikeArc()
+      return say(changed.length ? 'Turned on: ' + changed.join(', ') : 'Already set up like Arc')
+    }
+    case 'arc.undo':
+      undoArc()
+      return say('Put back as it was')
+    case 'updates.check':
+      return say(await updater.check() ?? 'This is the latest one')
+    case 'profiles':
+      return say('Profiles come in a later version')
+    default:
+      void arg
+      throw new Error(`no action ${id}`)
+  }
+})
+
+/** The updater module replaces this (studio/06 §4). */
+export const updater: { check: () => Promise<string | null> } = { check: async () => null }
+
+// Set Up Like Arc (SettingsIndex.swift setUpLikeArc, LikeArc)
+
+let arcBefore: Record<string, unknown> | null = null
+const arcKeys = ['sidebar', 'sidebar.icons', 'sidebar.position', 'spaces', 'pins.list', 'pins.home', 'pins.peek', 'newtab.floating',
+  'tabs.close.after', 'float.leave', 'float.away', 'tabs.swipeBackCloses', 'links.peek', 'links.peekClick']
+
+export function looksLikeArc(): boolean {
+  return tabsLayout() === 'left' && !!pref('spaces') && !!pref('pins.list') && !!pref('pins.home') && !!pref('pins.peek')
+    && !!pref('newtab.floating') && Number(pref('tabs.close.after')) !== 0 && floatOwn() !== 'never'
+    && !!pref('tabs.swipeBackCloses') && !!pref('links.peek')
+}
+
+function setUpLikeArc(): string[] {
+  const was = Object.fromEntries(arcKeys.map(k => [k, pref(k)]))
+  const changed: string[] = []
+  if (tabsLayout() !== 'left') { setTabsLayout('left'); changed.push('tabs on the left') }
+  if (!pref('spaces')) { setKey('spaces', true); changed.push('Spaces') }
+  if (!pref('pins.list')) { setKey('pins.list', true); changed.push('pinned rows') }
+  if (!(pref('pins.home') && pref('pins.peek'))) { merged['pins.keep'](true); changed.push('pins keep their site') }
+  if (!pref('newtab.floating')) { setKey('newtab.floating', true); changed.push('the floating new tab') }
+  if (Number(pref('tabs.close.after')) === 0) { setKey('tabs.close.after', 12); changed.push('tabs close after 12 hours') }
+  if (floatOwn() === 'never') { merged['float.own']('tabs'); changed.push('the video floats on its own') }
+  if (!pref('tabs.swipeBackCloses')) { setKey('tabs.swipeBackCloses', true); changed.push("swipe back closes a link's tab") }
+  if (!pref('links.peek')) { merged['links.peek']('shift'); changed.push('Shift-click peeks at a link') }
+  if (changed.length) arcBefore = was
+  return changed
+}
+
+function undoArc(): void {
+  if (!arcBefore) return
+  // Only what differs is written back.
+  for (const k of arcKeys) if (JSON.stringify(pref(k)) !== JSON.stringify(arcBefore[k])) setKey(k, arcBefore[k])
+  arcBefore = null
+}
