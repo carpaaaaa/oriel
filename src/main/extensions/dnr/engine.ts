@@ -360,7 +360,7 @@ export class DnrEngine {
   }
 
   /** Time spent on real requests, for the report. */
-  readonly timing = { requests: 0, totalMs: 0, maxMs: 0 }
+  readonly timing = { requests: 0, totalMs: 0, maxMs: 0, samples: [] as number[] }
 
   beforeRequest(d: OnBeforeRequestListenerDetails): { cancel?: boolean; redirectURL?: string } | void {
     if (this.profile && d.webContents && d.webContents.session !== this.profile) return
@@ -376,6 +376,8 @@ export class DnrEngine {
     this.timing.requests++
     this.timing.totalMs += ms
     if (ms > this.timing.maxMs) this.timing.maxMs = ms
+    if (this.timing.samples.length < 20000) this.timing.samples.push(ms)
+    if (process.env.ORIEL_DNR_SLOW && ms > 2) console.log(`[dnr] slow ${ms.toFixed(1)} ms ${q.type} ${q.url.slice(0, 120)}`)
     if (block) return { cancel: true }
     if (redirect?.navigate) {
       // See war.ts: the tab loads the extension's page itself.

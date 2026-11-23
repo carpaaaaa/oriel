@@ -72,6 +72,11 @@ benchRequest('extensions.dnrState', req => {
 })
 
 benchRequest('extensions.dnrTiming', () => ({
+  ...(() => {
+    const s = [...dnr.timing.samples].sort((a, b) => a - b)
+    const at = (f: number) => s.length ? Math.round(s[Math.floor(s.length * f)] * 1000 * 10) / 10 : 0
+    return { p50Us: at(0.5), p90Us: at(0.9), p99Us: at(0.99) }
+  })(),
   requests: dnr.timing.requests,
   meanUs: dnr.timing.requests ? Math.round(dnr.timing.totalMs / dnr.timing.requests * 1000 * 10) / 10 : 0,
   maxUs: Math.round(dnr.timing.maxMs * 1000),
