@@ -259,6 +259,15 @@ export function shortcut(name: string, phase: 'first' | 'later', action: Action)
   list.unshift([name, action])
 }
 
+/** Takes back a module's shortcut: the chord is free again (for the page or
+ * the table). With `action`, only if that is still the one bound. */
+export function unshortcut(name: string, action?: Action): void {
+  for (const list of [extra.first, extra.later]) {
+    const at = list.findIndex(([n, a]) => n === name && (!action || a === action))
+    if (at >= 0) list.splice(at, 1)
+  }
+}
+
 /** Whether a binding's command exists now. */
 export function live(binding: Binding): boolean {
   if (binding.action) return true
