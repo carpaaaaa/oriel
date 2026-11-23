@@ -23,7 +23,7 @@ export function awakeBecause(t: TabRecord): string | null {
   if (t.bench) return 'a bench tab'
   if (t.empty) return 'blank'
   if (t.asleep) return 'already asleep'
-  if (!runtimes.get(t.id)?.contents) return 'no page'
+  if (!runtimes.get(t.id)?.awake) return 'no page'
   if (t.loading) return 'still loading'
   if (t.audible) return 'playing sound'
   if (t.capturing) return 'on a call'
@@ -88,7 +88,7 @@ export async function sleepIdle(within = sleepAfter()): Promise<string[]> {
   try {
     const now = Date.now()
     const due = [...model.tabs.values()]
-      .filter(t => runtimes.get(t.id)?.contents && !t.asleep && now - (t.touched ?? 0) >= within * 1000 && !awakeBecause(t))
+      .filter(t => runtimes.get(t.id)?.awake && !t.asleep && now - (t.touched ?? 0) >= within * 1000 && !awakeBecause(t))
       .sort((a, b) => (a.touched ?? 0) - (b.touched ?? 0))
     for (const t of due) {
       const fresh = model.tabs.get(t.id)

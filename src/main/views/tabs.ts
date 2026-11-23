@@ -28,6 +28,9 @@ type Hooks = {
 
 export const hooks: Hooks = {}
 
+/** The window view holding a page, if any (set by the tabs module's wiring). */
+export const viewHost = { parentOf: (_view: WebContentsView): Electron.View | null => null }
+
 // sessions: the profile's, a space's own, a private tab's
 
 const prepared = new Map<string, Session>()
@@ -90,10 +93,21 @@ export class TabRuntime {
     return wc && !wc.isDestroyed() ? wc : null
   }
 
+  /** A page that is up and holds the tab's page (not an empty shell). */
+  get awake(): boolean { return !!this.contents && !this.shell }
+
+  /** Made for a window that still had a place for an asleep tab no longer
+   * on screen: an empty view, never loaded, gone once the window lets go. */
+  private shell = false
+
   /** Make the page if it isn't there, and load what the tab holds. */
   ensure(): WebContentsView {
-    if (this.view && !this.view.webContents.isDestroyed()) return this.view
     const tab = this.record
+    const wanted = !tab || !tab.asleep || model.onScreen(this.id)
+    if (this.view && !this.view.webContents.isDestroyed()) {
+      if (this.shell && wanted) { this.shell = false; this.fill(this.view.webContents) }
+      return this.view
+    }
     this.partition = tab ? partitionFor(tab) : null
     const view = new WebContentsView({
       webPreferences: {
@@ -112,7 +126,15 @@ export class TabRuntime {
     // A tab muted asleep never lets out its first sound (§2.19).
     if (tab?.muted) wc.setAudioMuted(true)
     this.wire(wc)
-    hooks.created?.(this, wc)
+    model.making++
+    try { hooks.created?.(this, wc) } finally { model.making-- }
+    if (!wanted) { this.shell = true; this.reap(); return view }
+    this.fill(wc)
+    return view
+  }
+
+  private fill(wc: WebContents): void {
+    const tab = this.record
     const keep = model.keeps.get(this.id)
     model.keeps.delete(this.id)
     if (tab && !tab.internal && keep?.entries.length && !/^file:/i.test(tab.url)) {
@@ -122,7 +144,14 @@ export class TabRuntime {
       wc.loadURL(tab.url).catch(() => {})
     }
     model.updateTab(this.id, { asleep: false, resting: undefined })
-    return view
+  }
+
+  private reap(): void {
+    setTimeout(() => {
+      if (!this.shell || !this.view) return
+      if (viewHost.parentOf(this.view)) this.reap()
+      else this.destroy()
+    }, 2000).unref?.()
   }
 
   /** An address typed or picked for this tab (Tab.go, §2.7). */
@@ -143,8 +172,10 @@ export class TabRuntime {
     const t = this.record
     model.updateTab(this.id, {
       url, empty: false, internal: undefined, error: undefined, crashed: undefined, dead: undefined, stale: undefined,
+      asleep: false, resting: undefined,
       ...(t && t.url !== url ? { title: '' } : {}),
     })
+    if (this.shell && this.contents) { this.shell = false; this.fill(this.contents); return }
     if (!this.contents) { this.ensure(); return }
     this.contents.loadURL(url).catch(() => {})
   }
@@ -152,7 +183,7 @@ export class TabRuntime {
   /** History as it is now, unless the page is still arriving (Tab.keepsake). */
   keepsake(): Keepsake | undefined {
     const wc = this.contents
-    if (!wc || wc.isLoading()) return undefined
+    if (!wc || this.shell || wc.isLoading()) return undefined
     const nav = wc.navigationHistory
     const entries = nav.getAllEntries()
     return entries.length ? { entries, index: nav.getActiveIndex() } : undefined
@@ -161,7 +192,7 @@ export class TabRuntime {
   /** Let the page go, keep its history (Sleep.swift, §2.28). */
   sleep(): boolean {
     const wc = this.contents
-    if (!wc) return false
+    if (!wc || this.shell) return false
     const nav = wc.navigationHistory
     const entries = nav.getAllEntries()
     if (entries.length) model.keeps.set(this.id, { entries, index: nav.getActiveIndex() })
@@ -174,7 +205,7 @@ export class TabRuntime {
    * history kept unless it was loading (Tab.rehome, §2.31). */
   rehome(): void {
     const t = this.record
-    if (!t || !this.contents || this.partition === partitionFor(t)) return
+    if (!t || !this.awake || this.partition === partitionFor(t)) return
     const keep = this.keepsake()
     this.destroy()
     if (keep) model.keeps.set(this.id, keep)
@@ -187,7 +218,7 @@ export class TabRuntime {
     const t = this.record
     if (!t || t.internal || t.empty) return
     const wc = this.contents
-    if (!wc) { this.ensure(); return }
+    if (!wc || this.shell) { this.ensure(); return }
     const url = wc.getURL()
     if (t.dead || t.stale || !url || url === 'about:blank' || /^file:/i.test(t.url)) { this.revive(true); return }
     if (hard) wc.reloadIgnoringCache(); else wc.reload()
@@ -199,13 +230,16 @@ export class TabRuntime {
     if (!t || (!t.stale && !force)) return
     model.updateTab(this.id, { stale: undefined, dead: undefined, crashed: undefined, error: undefined, ...(force ? { crashes: [] } : {}) })
     const wc = this.contents
-    if (!wc) { this.ensure(); return }
+    if (!wc || this.shell) { this.shell = false; if (wc) this.fill(wc); else this.ensure(); return }
     wc.loadURL(t.url).catch(() => {})
   }
 
   destroy(): void {
     const view = this.view
     this.view = null
+    this.shell = false
+    // Out of its window first: a closed page left there stays in its place.
+    if (view) viewHost.parentOf(view)?.removeChildView(view)
     if (view && !view.webContents.isDestroyed()) view.webContents.close({ waitForBeforeUnload: false })
     this.lastVisit = ''
   }
@@ -314,7 +348,7 @@ export function controlUp(tabID: ID): void {
 }
 
 model.hooks.keepsake = id => runtimes.get(id)?.keepsake()
-model.hooks.live = id => !!runtimes.get(id)?.contents
+model.hooks.live = id => !!runtimes.get(id)?.awake
 
 model.on('tab-closed', (id: ID) => {
   const r = runtimes.get(id)

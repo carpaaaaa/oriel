@@ -220,6 +220,8 @@ class Model extends EventEmitter {
   private reopening: ClosedWindow | null = null
   private restoredOnce = false
   quitting = false
+  /** A page view is being made: selections asked meanwhile are ignored. */
+  making = 0
   homeSpace: ID = firstSpaceID
   /** The window in front, for pages that come from outside (§1.5). */
   front: ID | null = null
@@ -784,6 +786,9 @@ class Model extends EventEmitter {
   // MARK: selecting (§3.9)
 
   selectTab(win: WindowRecord, id: ID, options: { unfoldGroup?: boolean } = {}): void {
+    // A page being made is never thereby gone to (the extensions' tab store
+    // calls its new tabs active).
+    if (this.making) return
     const tab = this.tabs.get(id)
     if (!tab || tab.win !== win.id) return
     if (tab.space !== win.space) this.switchSpace(win, tab.space)
@@ -1006,8 +1011,9 @@ class Model extends EventEmitter {
   /** A page let go where it stands: its row stays (§6.39). */
   putAway(win: WindowRecord, t: TabRecord): void {
     this.leaveSplit(win, t.space, t.id)
-    this.rest(t)
+    // Off it first, so the window no longer wants its page.
     if (win.active[t.space] === t.id) this.leave(win, t)
+    this.rest(t)
     this.sessionNow(win, t.space)
   }
 
@@ -1047,8 +1053,8 @@ class Model extends EventEmitter {
     // A pin is put down, not closed (§6.7).
     if (tab.pinID) {
       const home = this.pref<boolean>('pins.home') || this.pref<boolean>('pins.peek') ? tab.home : undefined
-      this.rest(tab, home)
       if (win.active[space] === id) this.leave(win, tab)
+      this.rest(tab, home)
       this.sessionNow(win, space)
       return
     }

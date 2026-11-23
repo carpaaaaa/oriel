@@ -6,10 +6,11 @@ import { app, screen } from 'electron'
 import { model } from '../model/model'
 import { frameString, parseFrame } from '../model/formats'
 import { registerSlice, controllerFor, allControllers, type WindowController } from '../views/window'
-import { runtimes, onPageSession } from '../views/tabs'
+import { runtimes, onPageSession, viewHost } from '../views/tabs'
 import { shortcut } from '../keys'
 import { openWindow } from '../context'
 import { startSleeping } from './sleep'
+import { closeField } from '../field/commands'
 import type { Command } from '../../shared/commands'
 
 // the window's state (WindowState keeps its shape: these say how it is made)
@@ -57,6 +58,8 @@ for (let n = 1; n <= 9; n++) {
 
 // windows: frame, focus, ⌃ let go, the pages' histories before they close
 
+viewHost.parentOf = view => allControllers().map(c => c.base.contentView).find(v => v.children.includes(view)) ?? null
+
 model.hooks.frame = id => {
   const c = controllerFor(id)
   if (!c || c.base.isDestroyed()) return {}
@@ -94,6 +97,13 @@ model.on('window-opened', (id: string) => setImmediate(() => {
     })
   }
 }))
+
+// Another tab in front: the field it was raised for goes (Browser.select
+// sets editing off, §3.9); an empty tab's field is the tab itself.
+model.on('selected', (w: { id: string }, id: string) => {
+  const c = controllerFor(w.id)
+  if (c?.record.field.open && !model.tabs.get(id)?.empty) closeField(c)
+})
 
 // Last time's other windows, once the first is up (restoreOnce, §9.11).
 model.on('restore-windows', (n: number) => {

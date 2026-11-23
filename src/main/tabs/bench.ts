@@ -9,7 +9,7 @@ import { controllerFor } from '../views/window'
 import { sleepIdle, sleepTab, awakeBecause } from './sleep'
 
 function tabOut(t: TabRecord) {
-  return { ...t, label: model.label(t), live: !!runtimes.get(t.id)?.contents, kept: model.keeps.has(t.id) }
+  return { ...t, label: model.label(t), live: !!runtimes.get(t.id)?.awake, kept: model.keeps.has(t.id) }
 }
 
 function windowOut(w: WindowRecord) {

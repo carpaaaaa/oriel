@@ -29,7 +29,7 @@ handle('tab.close', ({ id }, ctx) => model.closeTab(win(need(ctx)), id))
 handle('tab.closeFront', (_a, ctx) => {
   const c = need(ctx)
   const active = model.activeTab(win(c))
-  if (c.record.field.open && active && !active.empty) { closeField(c); c.focusPage(); return }
+  if (c.overlayLayer.kind === 'field' && active && !active.empty) { closeField(c); c.focusPage(); return }
   model.closeFront(win(c))
 })
 
