@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bench as b
 
 ROOT = Path(__file__).resolve().parent.parent
+WIN = int(sys.platform == "win32")  # one more password there: sealed by DPAPI itself
 b.use("data-import")
 folder = b.folder()
 home = folder / "Import"
@@ -72,7 +73,7 @@ t.ok(chrome["usual"] == "Profile 1", "the profile used last comes first (last_us
 pv = chrome["preview"]
 t.ok(pv["bookmarks"] == 4, f"bookmarks counted: bar, Other, Mobile; no bookmarklet ({pv['bookmarks']})")
 t.ok(pv["places"] == 2, f"places: not hidden, not chrome://, visited ({pv['places']})")
-t.ok(pv["passwords"] == 7 and pv["passwordsLocked"] == 2 and pv["passwordsReadable"] == 5,
+t.ok(pv["passwords"] == 7 + WIN and pv["passwordsLocked"] == 2 and pv["passwordsReadable"] == 5 + WIN,
      f"passwords counted from both files, v20 apart, nothing decrypted ({pv['passwords']}, {pv['passwordsReadable']}, {pv['passwordsLocked']})")
 t.ok(chrome["canBring"] == "Bookmarks, history and passwords", f"what it can bring ({chrome['canBring']})")
 gx = found["Opera GX"]
@@ -92,7 +93,7 @@ t.ok(p["pick"] == "Chrome", "the first browser is picked")
 counted("Chrome")
 time.sleep(0.4)
 text = b.ui("document.body.innerText", root="overlay")
-for want in ["Bring things over", "Nothing in the other browser changes.", "On this PC", "Chrome", "2 profiles · 4 bookmarks · 2 places · 7 passwords",
+for want in ["Bring things over", "Nothing in the other browser changes.", "On this PC", "Chrome", f"2 profiles · 4 bookmarks · 2 places · {7 + WIN} passwords",
              "In a “Chrome” folder, or at the top if you have none yet", "The last 2 places", "Bring them in", "File…"]:
     t.ok(want in text, f"the panel says {want!r}")
 t.ok("Most recent: Work" in b.ui("document.querySelector('.bt-profile').innerText", root="overlay"), "Profile: Most recent: Work")

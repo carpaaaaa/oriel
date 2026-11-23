@@ -8,6 +8,8 @@ import { need } from '../context'
 import { addDefaults } from '../../shared/prefs'
 import { benchRequest } from '../bench/server'
 import { prove, setTestAnswer, fillProof, asked } from './proof'
+import { windowsProof, closeOwnedDialogs, factories } from './hello'
+import { appName } from '../../shared/modules/data'
 import { never, vault } from './vault'
 import { siteHost } from './urls'
 import { lastSaid, pendingOffer } from './forms'
@@ -116,5 +118,17 @@ benchRequest('data.pageKey', req => {
   if (keyCode === 'Enter') wc.sendInputEvent({ type: 'char', keyCode: '\r' })
   wc.sendInputEvent({ type: 'keyUp', keyCode })
   return {}
+})
+// Windows Hello for real, in a test world on Windows: what each step did.
+// A runner has no face nor finger: Hello says no device, and the password
+// dialog comes, closed here as a person's Cancel would close it.
+benchRequest('data.helloTrace', async req => {
+  const c = focusedController()
+  return { trace: await windowsProof(String(req.reason ?? 'fill your password for example.com'), c?.base ?? null, appName, { within: Number(req.within ?? 15_000) }) }
+})
+benchRequest('data.helloFactories', () => factories())
+benchRequest('data.helloClose', () => {
+  const c = focusedController()
+  return { closed: c ? closeOwnedDialogs(c.base) : 0 }
 })
 benchRequest('data.vaultReload', () => { vault.reload(); return {} })

@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bench as b
 
 ROOT = Path(__file__).resolve().parent.parent
+WIN = sys.platform == "win32"
 b.use("data-pwimport")
 folder = b.folder()
 home = folder / "Import"
@@ -68,7 +69,8 @@ counted("Chrome")
 t.ok(req("data.keyAsks")["value"] == 0, "counting decrypts nothing and asks for no key (05 §1.1)")
 time.sleep(0.3)
 text = b.ui("document.body.innerText", root="overlay")
-t.ok("5 can be read here; 2 are locked to Chrome: bring those in from its CSV file" in text, "the panel says which passwords can come and which are locked")
+readable = 6 if WIN else 5
+t.ok(f"{readable} can be read here; 2 are locked to Chrome: bring those in from its CSV file" in text, "the panel says which passwords can come and which are locked")
 t.ok("Allow Oriel to read them" in text, "and asks before reading them")
 
 # No yes, nothing read.
@@ -78,7 +80,9 @@ t.ok(req("data.keyAsks")["value"] == 0 and not vault()["logins"], "no key asked,
 
 # With a yes: v10 read, v20 left alone, android and planted values refused.
 said = bring("Chrome", consent=True)
-t.ok(said == ["3 passwords (1 skipped: no address); 1 couldn't be decrypted with Chrome's key; 2 locked to Chrome: bring those in from its CSV file"], f"said ({said})")
+t.ok(said == [f"{4 if WIN else 3} passwords (1 skipped: no address); 1 couldn't be decrypted with Chrome's key; 2 locked to Chrome: bring those in from its CSV file"], f"said ({said})")
+if WIN:
+    t.ok(secret("old.work.example", "olduser") == "old-dpapi-pass", "Windows: a password sealed by DPAPI itself, from before Chrome 80")
 t.ok(secret("login.work.example", "alice") == "work-pass-1", "a v10 password, AES-256-GCM with the Local State key")
 t.ok(secret("account.work.example", "alice") == "account-pass", "Login Data For Account too")
 kept = {(k["host"], k["user"]): k for k in vault()["logins"]}

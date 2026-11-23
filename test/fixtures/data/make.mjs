@@ -9,14 +9,17 @@
 //   node test/fixtures/data/make.mjs <home> > answers.json
 //
 // The key a Chromium browser keeps in Local State is sealed by DPAPI on
-// Windows; elsewhere it carries a test mark that only a test world opens.
+// Windows (CryptProtectData through koffi); elsewhere it carries a test mark
+// that only a test world opens.
 // Prints what the tests should find, as JSON.
 
 import { DatabaseSync } from 'node:sqlite'
 import { createCipheriv, createHash, pbkdf2Sync, randomBytes } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 import path from 'node:path'
+
+const require = createRequire(import.meta.url)
 
 const home = process.argv[2]
 if (!home) { console.error('usage: make.mjs <home>'); process.exit(2) }
@@ -32,12 +35,19 @@ const days = n => now - n * 86_400_000
 
 // Chromium
 
+/** Sealed for this user by DPAPI (CryptProtectData through koffi, as the
+ * browser does) on Windows; elsewhere a test world's stand-in. */
 function dpapi(key) {
   if (process.platform === 'win32') {
-    const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-      "Add-Type -AssemblyName System.Security; [Convert]::ToBase64String([Security.Cryptography.ProtectedData]::Protect([Convert]::FromBase64String($env:K), $null, 'CurrentUser'))"],
-      { env: { ...process.env, K: key.toString('base64') } })
-    return Buffer.from(String(out).trim(), 'base64')
+    const koffi = require('koffi')
+    const crypt32 = koffi.load('crypt32.dll'), kernel32 = koffi.load('kernel32.dll')
+    const BLOB = koffi.struct('FIXTURE_DATA_BLOB', { cbData: 'uint32_t', pbData: 'void *' })
+    const protect = crypt32.func('__stdcall', 'CryptProtectData', 'bool',
+      [koffi.pointer(BLOB), 'str16', koffi.pointer(BLOB), 'void *', 'void *', 'uint32_t', koffi.out(koffi.pointer(BLOB))])
+    const free = kernel32.func('__stdcall', 'LocalFree', 'void *', ['void *'])
+    const out = { cbData: 0, pbData: null }
+    if (!protect({ cbData: key.length, pbData: key }, null, null, null, null, 1 /* UI forbidden */, out)) throw new Error('CryptProtectData failed')
+    try { return Buffer.from(koffi.decode(out.pbData, 'uint8_t', out.cbData)) } finally { free(out.pbData) }
   }
   return Buffer.concat([Buffer.from('SEARCHTESTDPAPI:'), key])
 }
@@ -130,6 +140,8 @@ logins(path.join(chromeWork, 'Login Data'), [
   { origin: 'https://ads.example/', never: true },
   { origin: 'android://hash@com.example.app/', user: 'droid', blob: v10(chromeKey, 'android-pass') },
   { origin: 'https://planted.work.example/', user: 'eve', blob: Buffer.from('plain-text-planted') },
+  // Before Chrome 80, on Windows: the password itself sealed by DPAPI.
+  ...(process.platform === 'win32' ? [{ origin: 'https://old.work.example/', user: 'olduser', blob: dpapi(Buffer.from('old-dpapi-pass')) }] : []),
 ])
 logins(path.join(chromeWork, 'Login Data For Account'), [
   { origin: 'https://account.work.example/', user: 'alice', blob: v10(chromeKey, 'account-pass') },
