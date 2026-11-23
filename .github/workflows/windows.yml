@@ -78,10 +78,19 @@ jobs:
           [System.Windows.Forms.Screen]::AllScreens | Format-List DeviceName, Bounds, WorkingArea, Primary
           Get-CimInstance Win32_OperatingSystem | Format-List Caption, Version, BuildNumber
           Get-ItemProperty 'HKCU:\Control Panel\Desktop' | Format-List WindowArrangementActive, DragFullWindows
+          # A fresh Windows 11 image can still show the first-run privacy
+          # screen over everything: close it.
+          Get-Process | Where-Object { $_.MainWindowTitle } | Format-Table Id, Name, MainWindowTitle
+          Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
       - name: Frame (bench)
         env:
           SHOTS_DIR: shots
         run: python test/window_frame.py
+      - name: Split View (bench)
+        if: always()
+        env:
+          SHOTS_DIR: shots
+        run: python test/window_split.py
       - name: Real input, frame as shipped
         if: always()
         env:

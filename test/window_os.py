@@ -174,7 +174,15 @@ BACKDROP_LOG = Path(tempfile.gettempdir()) / "oriel-backdrop.txt"
 BACKDROP_LOG.write_text("")
 BACKDROP = r"""
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-$f = New-Object System.Windows.Forms.Form
+Add-Type -ReferencedAssemblies System.Windows.Forms, System.Drawing -TypeDefinition @'
+using System.Windows.Forms;
+public class Backdrop : Form {
+  // Never activated nor raised by a click: Oriel stays in front.
+  protected override CreateParams CreateParams { get { var p = base.CreateParams; p.ExStyle |= 0x08000000; return p; } }
+  protected override bool ShowWithoutActivation { get { return true; } }
+}
+'@
+$f = New-Object Backdrop
 $f.Text = 'backdrop'
 $f.BackColor = [System.Drawing.Color]::FromArgb(232, 232, 232)
 $f.FormBorderStyle = 'None'
@@ -258,8 +266,6 @@ try:
     click(mx, my, 0.4)
     t.ok(len(backdrop_clicks()) > before, "a click on the margin reaches the window behind")
     time.sleep(0.3)
-    grab("2-inactive")
-    note("inactive", frame=frame())
     gx, gy = px(v["x"] + v["width"] + 3), px(v["y"] + v["height"] / 2)
     move_to(gx, gy)
     time.sleep(0.4)
@@ -298,7 +304,7 @@ try:
     click(px(v["x"] + v["width"] - 46 - 23), px(v["y"] + 20), 0.8)
     f = frame()
     note("maximize button", frame=f)
-    t.ok(f["state"] == "maximized" and f["bounds"] == f["workArea"], "the maximize button maximizes (%s)" % f["state"])
+    t.ok(f["state"] == "maximized" and f["visual"] == f["workArea"], "the maximize button maximizes (%s)" % f["state"])
     grab("4-maximized")
     v = f["visual"]
     click(px(v["x"] + v["width"] - 46 - 23), px(v["y"] + 20), 0.8)

@@ -150,8 +150,9 @@ export class Frame {
 
   margin(): Insets { return this.kind === 'drawn' && this.state === 'free' ? ROOM : NONE }
 
-  /** The window as people see it, in screen DIP. */
-  visual(bounds = this.c.base.getBounds()): Rectangle {
+  /** The window as people see it, in screen DIP (the client area: a really
+   * maximized window hangs over the screen's edges by its frame). */
+  visual(bounds = this.c.base.getContentBounds()): Rectangle {
     const m = this.margin()
     return { x: bounds.x + m.left, y: bounds.y + m.top, width: bounds.width - m.left - m.right, height: bounds.height - m.top - m.bottom }
   }

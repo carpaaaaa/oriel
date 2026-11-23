@@ -54,6 +54,8 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .caption-buttons button.close:hover { background: var(--caption-close); color: #fff; }
 .caption-buttons button.close:active { background: var(--caption-close-press); color: rgba(255,255,255,.7); }
 .blurred .caption-buttons button:not(:hover) { color: var(--caption-rest); }
+/* the minimize line on a whole pixel */
+.caption-buttons .minimize svg { transform: translateY(.5px); }
 
 /* Grips: resizing starts just outside and just inside the visible edge. */
 .grips { position: absolute; inset: var(--m-top) var(--m-right) var(--m-bottom) var(--m-left); pointer-events: none; z-index: 30; }

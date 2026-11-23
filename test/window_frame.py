@@ -13,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bench as b
 
 SHOTS = os.environ.get("SHOTS_DIR")
+if SHOTS:
+    Path(SHOTS).mkdir(parents=True, exist_ok=True)
 ROOM = {"top": 30, "right": 40, "bottom": 50, "left": 40}
 
 b.use("window-frame")
@@ -64,7 +66,7 @@ t.ok(f["visual"]["width"] == place["width"] and f["visual"]["height"] == place["
 w = d["window"]
 t.ok(near(w["x"], ROOM["left"]) and near(w["y"], ROOM["top"]) and near(w["width"], place["width"]) and near(w["height"], place["height"]), "the window is drawn inside the margin")
 t.ok(d["windowRadius"] == "17.5px", "window corners 17.5 (%s)" % d["windowRadius"])
-t.ok("44px" in d["shadow"], "the window has its own shadow")
+t.ok("44px" in d["shadow"] or "26px" in d["shadow"], "the window has its own shadow (key or resting)")
 c = d["card"]
 t.ok(near(w["x"] + w["width"] - (c["x"] + c["width"]), 8) and near(w["y"] + w["height"] - (c["y"] + c["height"]), 8), "card 8 from the right and the bottom")
 t.ok(d["cardRadius"] == "10px", "card radius 10 (%s)" % d["cardRadius"])
@@ -105,7 +107,7 @@ f = settle(lambda: frame()["state"] == "maximized" and frame(), "maximized") or 
 time.sleep(0.5)
 d = dom()
 t.ok(f["state"] == "maximized" and f["margin"] == {"top": 0, "right": 0, "bottom": 0, "left": 0}, "maximized: no margin")
-t.ok(f["bounds"] == f["workArea"], "maximized: fills the work area (%s)" % f["bounds"])
+t.ok(f["visual"] == f["workArea"], "maximized: fills the work area (%s)" % f["visual"])
 t.ok(d["windowRadius"] == "0px" and d["shadow"] == "none", "maximized: square corners, no shadow")
 t.ok(near(d["window"]["x"], 0) and near(d["window"]["width"], f["workArea"]["width"]), "maximized: drawn edge to edge")
 t.ok(near(d["window"]["x"] + d["window"]["width"] - (d["card"]["x"] + d["card"]["width"]), 8), "maximized: the card keeps its 8 (as on the Mac)")

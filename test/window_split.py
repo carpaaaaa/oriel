@@ -10,6 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bench as b
 
 SHOTS = os.environ.get("SHOTS_DIR")
+if SHOTS:
+    Path(SHOTS).mkdir(parents=True, exist_ok=True)
 b.use("window-split")
 b.launch()
 t = b.T()
