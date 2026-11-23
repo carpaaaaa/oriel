@@ -22,7 +22,7 @@ export function registerPanel(name: string, component: Component<{ layer: Overla
 export function panelFor(name: string): Component<{ layer: OverlayLayer }> | undefined { return panels.get(name) }
 
 export type OutletName =
-  | 'sidebar.top' | 'sidebar.afterPins' | 'sidebar.foot'
+  | 'sidebar.top' | 'sidebar.helm' | 'sidebar.afterPins' | 'sidebar.foot'
   | 'strip.end' | 'card.over' | 'chrome.end'
 
 const [outlets, setOutlets] = createSignal<Record<string, Component[]>>({})
