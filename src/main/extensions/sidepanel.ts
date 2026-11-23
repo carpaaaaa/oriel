@@ -45,7 +45,7 @@ function defaultPath(id: string): string | undefined {
 
 function activeTabId(c: WindowController): number {
   const id = c.record.active[c.record.space]
-  return (id && runtimes.get(id)?.contents?.id) ?? -1
+  return (id ? runtimes.get(id)?.contents?.id : undefined) ?? -1
 }
 
 /** What the panel shows on a tab: the tab's options over the extension's. */

@@ -12,13 +12,14 @@
 
 import { WebContentsView, type Session } from 'electron'
 import type { Rect } from '../../shared/state'
+import { CARD_ROOM } from '../../shared/modules/extensions'
 import type { WindowController } from '../views/window'
 import { run } from '../router'
 
 const MIN = 25, MAX_W = 800, MAX_H = 600
 const FIRST = { width: 360, height: 240 }
-/** Room around the card for its shadow and arrow (extensions.css .ext-pop). */
-export const POP_ROOM = 22
+/** Room around the card for its shadow and arrow. */
+export const POP_ROOM = CARD_ROOM
 export const POP_RADIUS = 12
 const GAP = 6
 
@@ -35,6 +36,16 @@ export interface Popup {
 
 const open = new Map<WindowController, Popup>()
 const lastSize = new Map<string, { width: number; height: number }>()
+/** Closed by a click elsewhere: if that click was on its own button, the
+ * press that follows must not open it again (within 1.5 s, as on the Mac). */
+const blurred = new Map<WindowController, { id: string; at: number }>()
+const watched = new WeakSet<WindowController>()
+
+export function closedRecently(c: WindowController, id: string): boolean {
+  const b = blurred.get(c)
+  blurred.delete(c)
+  return !!b && b.id === id && Date.now() - b.at < 1500
+}
 let changed: (c: WindowController) => void = () => {}
 export function onPopupChange(f: (c: WindowController) => void): void { changed = f }
 
@@ -132,10 +143,16 @@ export function openPopup(c: WindowController, profile: Session, id: string, url
   wc.on('before-input-event', (_e, input) => { if (input.type === 'keyDown' && input.key === 'Escape') closePopup(c) })
   wc.on('blur', () => {
     // A click elsewhere in the window; not the moment it opens.
-    if (Date.now() - p.opened > 400 && c.base.isFocused() && open.get(c) === p) closePopup(c)
+    if (Date.now() - p.opened > 400 && c.base.isFocused() && open.get(c) === p) {
+      blurred.set(c, { id, at: Date.now() })
+      closePopup(c)
+    }
   })
   wc.on('destroyed', () => { if (open.get(c) === p) closePopup(c) })
-  c.base.once('closed', () => open.delete(c))
-  c.base.on('resize', () => { if (open.get(c) === p) place(p) })
+  if (!watched.has(c)) {
+    watched.add(c)
+    c.base.once('closed', () => open.delete(c))
+    c.base.on('resize', () => { const now = open.get(c); if (now) place(now) })
+  }
   void wc.loadURL(url).catch(() => {})
 }

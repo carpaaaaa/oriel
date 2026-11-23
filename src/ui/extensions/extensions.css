@@ -1,0 +1,75 @@
+/* The extensions' places (studio/04 §2.9). Owned by the extensions module. */
+
+/* puzzle and pinned buttons: 26 x 26, corner 8, 2 apart */
+.ext-slot { display: flex; align-items: center; gap: 2px; -webkit-app-region: no-drag; }
+.ext-button { position: relative; }
+.ext-puzzle.on { background: var(--g-hover); color: var(--ink-hover-text); }
+
+.ext-icon { position: relative; display: grid; place-items: center; flex: none; }
+.ext-icon img { display: block; object-fit: contain; }
+.ext-icon.off { opacity: .4; }
+.ext-initial { display: grid; place-items: center; background: var(--wash); color: var(--muted); font-weight: 600; line-height: 1; }
+
+/* the badge: 8 semibold, ground on ink, min 12 x 11, at (5, 3) past the corner */
+.ext-badge { position: absolute; right: -1px; bottom: 0; min-width: 12px; height: 11px; padding: 0 3px; border-radius: 6px;
+  background: var(--ink); color: var(--ground); font-size: 8px; font-weight: 600; line-height: 11px; text-align: center; box-sizing: border-box; pointer-events: none; }
+
+/* a card over the page: the overlay's region starts 22 before it all round */
+.ext-region { position: fixed; inset: 0; outline: none; }
+.ext-card { position: absolute; box-sizing: border-box; background: var(--ground); border-radius: var(--menu-radius);
+  box-shadow: 0 0 0 .5px var(--card-edge), 0 6px 20px rgba(0,0,0,.14); overflow: hidden; animation: ext-in .12s ease-out; }
+.ext-arrow { position: absolute; width: 14px; height: 14px; background: var(--ground); transform: rotate(45deg); border-radius: 2px;
+  box-shadow: 0 0 0 .5px var(--card-edge), 0 2px 8px rgba(0,0,0,.1); animation: ext-in .12s ease-out; }
+@keyframes ext-in { from { opacity: 0 } to { opacity: 1 } }
+.ext-pop { background: #FFFFFF; }
+
+/* the puzzle's list: 280 wide, padding 6, rows 30, 12.5, icon 16, corner 8 */
+.ext-list { display: flex; flex-direction: column; padding: 6px; }
+.ext-rows { flex: 1 1 auto; max-height: 360px; overflow-y: auto; }
+.ext-row { height: 30px; display: flex; align-items: center; gap: 9px; padding: 0 6px 0 7px; border-radius: 8px; font-size: 12.5px; color: var(--ink); }
+.ext-row:hover { background: var(--wash); }
+.ext-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ext-tool { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); visibility: hidden; }
+.ext-tool:hover { background: var(--g-hover); color: var(--ink); }
+.ext-row:hover .ext-tool, .ext-row.pinned .ext-pin { visibility: visible; }
+.ext-empty { margin: 0; padding: 14px; font-size: 12.5px; color: var(--muted); }
+.ext-foot { border-top: 1px solid var(--hairline); margin-top: 6px; padding-top: 6px; display: flex; flex-direction: column; }
+.ext-foot-item { height: 28px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink); text-align: left; }
+.ext-foot-item svg { width: 14px; color: var(--muted); }
+.ext-foot-item:hover { background: var(--wash); }
+
+/* managing them (studio/04 §2.6): rows 14/10, icon 22, name 13, detail 11.5 */
+.ext-veil { position: fixed; inset: 0; background: rgba(0,0,0,.10); display: grid; place-items: center; animation: ext-in .12s ease-out; }
+.ext-plate { width: min(600px, calc(100vw - 48px)); max-height: calc(100vh - 64px); overflow-y: auto; box-sizing: border-box; padding: 22px;
+  background: var(--ground); border-radius: var(--card-group-radius); box-shadow: var(--plate-shadow); display: flex; flex-direction: column; gap: 18px; outline: none; }
+.ext-plate-head { display: flex; align-items: center; justify-content: space-between; }
+.ext-plate-head h1 { margin: 0; font-size: var(--fs-panel-title); font-weight: 600; }
+.ext-said { margin: 0; font-size: var(--fs-detail); color: var(--muted); }
+.ext-said.bad { color: var(--unsafe); }
+.ext-box { border: 1px solid var(--hairline); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.ext-box-title { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+.ext-field-row { display: flex; align-items: center; gap: 8px; }
+.ext-field { flex: 1; font: inherit; font-size: 12.5px; padding: 7px 10px; border-radius: 9px; border: none; outline: none; background: var(--wash); color: var(--ink); user-select: text; }
+.ext-note { margin: 0; font-size: var(--fs-detail); color: var(--muted); }
+.ext-none { margin: 0; font-size: 13px; color: var(--muted); }
+.ext-installed { padding: 0; gap: 0; }
+.ext-line { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+.ext-installed .ext-line + .ext-line { border-top: 1px solid var(--hairline); }
+.ext-box.ext-line { flex-direction: row; }
+.ext-line-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ext-line-name { font-size: 13px; color: var(--ink); }
+.ext-line-detail { font-size: 11.5px; color: var(--muted); }
+.ext-line-problem { font-size: 11.5px; color: var(--unsafe); user-select: text; }
+.ext-more { flex: none; }
+
+.ext-pill { flex: none; font: inherit; font-size: 12px; padding: 4px 11px; border-radius: 999px; background: var(--wash); color: var(--ink); }
+.ext-pill:hover:not(:disabled) { background: var(--g-hover); }
+.ext-pill.full { background: var(--ink); color: var(--ground); }
+.ext-pill:disabled { opacity: .4; }
+.ext-spin { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--faint); border-top-color: var(--ink); animation: ext-spin .8s linear infinite; }
+@keyframes ext-spin { to { transform: rotate(360deg) } }
+
+.ext-switch { flex: none; width: 30px; height: 18px; border-radius: 9px; background: var(--faint); position: relative; transition: background var(--dur-quick) var(--ease-quick); }
+.ext-switch span { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform var(--dur-quick) var(--ease-quick); }
+.ext-switch.on { background: var(--ink); }
+.ext-switch.on span { transform: translateX(12px); }

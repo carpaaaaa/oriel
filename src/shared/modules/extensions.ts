@@ -26,13 +26,20 @@ export interface ExtView {
   problem?: string
 }
 
+/** Room around a card (the puzzle's list, a popup) for its shadow and arrow:
+ * the overlay's region starts this far before the card on every side. */
+export const CARD_ROOM = 22
+
+/** A card's arrow: on which side, at which window coordinate along it. */
+export interface Arrow { side: 'top' | 'bottom' | 'left' | 'right'; at: number }
+
 export interface ExtState {
   /** Installed, in the order they were added. */
   list: ExtView[]
-  /** The puzzle's list is open, hanging from this rectangle. */
-  menu: { anchor: Rect } | null
+  /** The puzzle's list is open: where its card sits and where its arrow points. */
+  menu: { rect: Rect; arrow: Arrow } | null
   /** A popup is open in this window: where its page sits. */
-  popup: { id: string; rect: Rect; arrow: { side: 'top' | 'bottom' | 'left' | 'right'; at: number } } | null
+  popup: { id: string; rect: Rect; arrow: Arrow } | null
   /** Being installed (ids). */
   busy: string[]
   /** The last thing said about installing or removing. */
@@ -56,7 +63,7 @@ declare module '../commands' {
     'ext.popupClose': None
     'ext.pin': { id: string; pinned: boolean }
     /** Right click on a button or a row of the list. */
-    'ext.context': { id: string; x: number; y: number }
+    'ext.context': { id: string; x: number; y: number; overlay?: boolean }
     'ext.options': { id: string }
     'ext.remove': { id: string; ask?: boolean }
     'ext.enable': { id: string; on: boolean }
