@@ -127,7 +127,9 @@ export class TabRuntime {
     if (tab?.muted) wc.setAudioMuted(true)
     this.wire(wc)
     model.making++
-    try { hooks.created?.(this, wc) } finally { model.making-- }
+    // Another module's trouble with this page (extensions take only the
+    // profile's session) mustn't take the page down with it.
+    try { hooks.created?.(this, wc) } catch (error) { console.warn('[tabs] page made:', (error as Error).message) } finally { model.making-- }
     if (!wanted) { this.shell = true; this.reap(); return view }
     this.fill(wc)
     return view
