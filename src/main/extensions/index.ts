@@ -12,13 +12,45 @@ import path from 'node:path'
 import { model } from '../model/model'
 import { focusedController } from '../views/window'
 import { runtimeFor, runtimes, hooks } from '../views/tabs'
+import { net } from '../net'
+import { setupBridge, onExtensionCall } from './bridge'
+import { dnr } from './dnr/engine'
+import { apiConstants } from './dnr/types'
+import { bindCommands, unbindCommands, setupCommands } from './commands'
+import { setBadge } from './lib'
 
 let extensions: ElectronChromeExtensions | null = null
+let profileSession: Session | null = null
 
 export function getExtensions(): ElectronChromeExtensions | null { return extensions }
+export function getProfile(): Session | null { return profileSession }
+
+// declarativeNetRequest sees every request through the one owner of
+// session.webRequest (studio/04 §5.2: coordinated with Shield at 100).
+net.onBeforeRequest('dnr', 200, d => dnr.beforeRequest(d))
+net.onBeforeSendHeaders('dnr', 200, (d, headers) => { dnr.beforeSendHeaders(d, headers) })
+net.onHeadersReceived('dnr', 200, (d, headers) => dnr.headersReceived(d, headers))
+for (const name of Object.keys(dnr.api)) onExtensionCall(`dnr.${name}`, (id, args) => dnr.api[name](id, ...args))
+app.on('before-quit', () => dnr.flush())
 
 export async function setupExtensions(profile: Session): Promise<void> {
-  rememberProfile(profile)
+  profileSession = profile
+  const extensionsPath = path.join(app.getPath('userData'), 'Extensions')
+  dnr.profile = profile
+  dnr.extensionsRoot = extensionsPath
+  // Before electron-chrome-extensions: its preload freezes `chrome`.
+  setupBridge(profile, apiConstants(), Object.keys(dnr.api))
+  // Rules are ready when an extension loads, before any tab is restored
+  // (studio/04 checklist A, "Avvio").
+  profile.extensions.on('extension-loaded', (_e, ext) => {
+    try { dnr.load(ext) } catch (error) { console.warn('[dnr]', ext.name, error) }
+    bindCommands(ext)
+  })
+  profile.extensions.on('extension-unloaded', (_e, ext) => {
+    dnr.unload(ext)
+    unbindCommands(ext)
+  })
+
   ElectronChromeExtensions.handleCRXProtocol(electronSession.defaultSession)
   extensions = new ElectronChromeExtensions({
     session: profile,
@@ -44,6 +76,8 @@ export async function setupExtensions(profile: Session): Promise<void> {
       }
     },
   } as never)
+  setupCommands(extensions)
+  dnr.onCount = (id, tabId, count) => { if (extensions) setBadge(extensions, id, tabId, count ? String(count) : null) }
 
   const previous = hooks.created
   hooks.created = (tab, contents) => {
@@ -56,25 +90,7 @@ export async function setupExtensions(profile: Session): Promise<void> {
     if (wc && extensions) extensions.selectTab(wc)
   })
 
-  await installChromeWebStore({
-    session: profile,
-    extensionsPath: path.join(app.getPath('userData'), 'Extensions'),
-    autoUpdate: true,
-  })
+  await installChromeWebStore({ session: profile, extensionsPath, autoUpdate: true })
 }
 
-// Bench: install from the Web Store by id, list what's loaded.
-import { benchRequest } from '../bench/server'
-import { installExtension } from 'electron-chrome-web-store'
-
-let profileSession: Session | null = null
-export function rememberProfile(s: Session): void { profileSession = s }
-
-benchRequest('extensions.install', async req => {
-  if (!profileSession) throw new Error('no profile')
-  const ext = await installExtension(String(req.id), { session: profileSession })
-  return { id: ext.id, name: ext.name, version: ext.version }
-})
-benchRequest('extensions.list', () => ({
-  extensions: (profileSession?.extensions.getAllExtensions() ?? []).map(e => ({ id: e.id, name: e.name, version: e.version, manifest_version: e.manifest.manifest_version })),
-}))
+import './bench'
