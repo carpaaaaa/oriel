@@ -75,8 +75,11 @@ export function placeBeside(c: WindowController, anchor: Rect, size: { width: nu
   return { rect: { x: Math.round(x), y: Math.round(y), width: w, height: h }, arrow: { side: up ? 'bottom' : 'top', at: Math.round(cx) } }
 }
 
+/** The window can go first (quitting): nothing is done to it then. */
+const gone = (c: WindowController) => c.base.isDestroyed()
+
 function place(p: Popup): void {
-  if (p.view.webContents.isDestroyed()) return
+  if (p.view.webContents.isDestroyed() || gone(p.c)) return
   p.placed = placeBeside(p.c, p.anchor, p.size)
   const r = p.placed!.rect
   p.view.setBounds(r)
@@ -87,7 +90,7 @@ function place(p: Popup): void {
 }
 
 function show(p: Popup): void {
-  if (p.shown || p.view.webContents.isDestroyed()) return
+  if (p.shown || p.view.webContents.isDestroyed() || gone(p.c)) return
   p.shown = true
   p.c.sendOverlay({ kind: 'panel', name: 'ext.popup' })
   place(p)
@@ -100,8 +103,9 @@ export function closePopup(c: WindowController): void {
   if (!p) return
   open.delete(c)
   lastSize.set(p.id, p.size)
-  try { c.base.contentView.removeChildView(p.view) } catch { /* window gone */ }
   if (!p.view.webContents.isDestroyed()) p.view.webContents.close()
+  if (gone(c)) return
+  try { c.base.contentView.removeChildView(p.view) } catch { /* already out */ }
   if (c.overlayLayer.kind === 'panel' && c.overlayLayer.name === 'ext.popup') c.sendOverlay({ kind: 'none' })
   changed(c)
 }
@@ -130,7 +134,7 @@ export function openPopup(c: WindowController, profile: Session, id: string, url
     show(p)
   })
   setTimeout(() => {
-    if (open.get(c) !== p || p.shown) return
+    if (open.get(c) !== p || p.shown || gone(c)) return
     p.size = lastSize.get(id) ?? FIRST
     show(p)
   }, 5000)
@@ -143,7 +147,8 @@ export function openPopup(c: WindowController, profile: Session, id: string, url
   wc.on('before-input-event', (_e, input) => { if (input.type === 'keyDown' && input.key === 'Escape') closePopup(c) })
   wc.on('blur', () => {
     // A click elsewhere in the window; not the moment it opens.
-    if (Date.now() - p.opened > 400 && c.base.isFocused() && open.get(c) === p) {
+    if (gone(c) || open.get(c) !== p) return
+    if (Date.now() - p.opened > 400 && c.base.isFocused()) {
       blurred.set(c, { id, at: Date.now() })
       closePopup(c)
     }

@@ -132,7 +132,7 @@ export async function setupExtensions(profile: Session): Promise<void> {
   } as never)
   setupCommands(extensions)
   dnr.onCount = (id, tabId, count) => { if (extensions) setBadge(extensions, id, tabId, count ? String(count) : null) }
-  setupSidePanel(profile, c => c.mark('ext'))
+  setupSidePanel(profile, c => { if (!c.base.isDestroyed()) c.mark('ext') })
   setupOffscreen(profile)
   setupIdentity(profile)
   setupUI(extensions, profile, { extensions: extensionsPath, unpacked: unpackedPath() })

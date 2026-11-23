@@ -106,8 +106,9 @@ export function closePanel(c: WindowController): void {
   const panel = open.get(c)
   if (!panel) return
   open.delete(c)
-  try { c.base.contentView.removeChildView(panel.view) } catch { /* window gone */ }
   if (!panel.view.webContents.isDestroyed()) panel.view.webContents.close()
+  if (c.base.isDestroyed()) return
+  try { c.base.contentView.removeChildView(panel.view) } catch { /* already out */ }
   c.placePages()
   changed(c)
 }

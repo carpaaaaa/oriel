@@ -141,10 +141,10 @@ r = api(f"chrome.identity.launchWebAuthFlow({{ url: 'http://127.0.0.1:{PORT}/aut
 t.ok(r == f"https://{EXT}.chromiumapp.org/cb?code=7", f"interactive: in a tab ({r})")
 b.wait_for(lambda: len(b.window()["tabs"]) == tabs, within=5, what="flow tab closed")
 t.ok(True, "and its tab goes away")
-b.ev(page, f"window.flow = chrome.identity.launchWebAuthFlow({{ url: 'http://127.0.0.1:{PORT}/auth-page', interactive: true }}).then(u => u, e => 'error: ' + e.message)")
+b.ev(page, f"window.flow = null; chrome.identity.launchWebAuthFlow({{ url: 'http://127.0.0.1:{PORT}/auth-page', interactive: true }}).then(u => window.flow = u, e => window.flow = 'error: ' + e.message); 1")
 flow_tab = b.wait_for(lambda: (a := b.active()) and a["title"] == "sign in" and a["id"], within=8, what="flow tab")
 b.cmd("tab.close", id=flow_tab)
-t.ok(b.ev(page, "window.flow") == "error: The user did not approve access.", "closing its tab is a no")
+t.ok(b.wait_for(lambda: b.ev(page, "window.flow instanceof Promise ? null : window.flow"), within=5, what="flow ends") == "error: The user did not approve access.", "closing its tab is a no")
 t.ok(api("chrome.identity.getAuthToken({ interactive: false })") == "error: getAuthToken needs a Google account signed into Chrome; this extension would need launchWebAuthFlow instead", "getAuthToken refused in the Mac's words")
 
 # --- tabGroups, minimal

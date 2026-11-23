@@ -48,7 +48,7 @@ let said: ExtState['said'] = null
 const per = new WeakMap<WindowController, { menu: ExtState['menu']; puzzle: Rect | null; manage: boolean }>()
 const of = (c: WindowController) => { let s = per.get(c); if (!s) { s = { menu: null, puzzle: null, manage: false }; per.set(c, s) } return s }
 
-export function markAll(): void { for (const c of allControllers()) c.mark('ext') }
+export function markAll(): void { for (const c of allControllers()) if (!c.base.isDestroyed()) c.mark('ext') }
 function say(text: string, bad = false): void { said = { text, bad }; markAll() }
 
 const isStore = (folder: string) => path.resolve(folder).startsWith(path.resolve(extensionsRoot) + path.sep)
@@ -375,11 +375,11 @@ export function setupUI(e: ElectronChromeExtensions, p: Session, roots: { extens
   try { saved = { ...saved, ...JSON.parse(fs.readFileSync(savedFile(), 'utf8')) } } catch { /* first time */ }
   registerSlice('ext', sliceFor)
   onActionsChanged(e, markAll)
-  onPopupChange(c => c.mark('ext'))
+  onPopupChange(c => { if (!c.base.isDestroyed()) c.mark('ext') })
   p.extensions.on('extension-loaded', markAll)
   p.extensions.on('extension-unloaded', (_e, ext) => { letGo(ext.id); markAll() })
   model.on('selected', (win: { id: string }) => {
-    for (const c of allControllers()) if (c.record.id === win.id) { closePopup(c); followTab(c); c.mark('ext') }
+    for (const c of allControllers()) if (c.record.id === win.id && !c.base.isDestroyed()) { closePopup(c); followTab(c); c.mark('ext') }
   })
   app.on('web-contents-created', (_e, wc) => { if (wc.session === p) watchStore(wc) })
   // action.openPopup(): Oriel's popup, at the button.
