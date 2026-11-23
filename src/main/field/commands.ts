@@ -229,15 +229,22 @@ function wordsToCarry(c: WindowController, m: Memory): string | null {
   return m.typed
 }
 
+/** The field takes the keys. Over a page the overlay is asked to show it
+ * only once the window's state has gone out (its patch is sent on the next
+ * turn, queued now): a field made before then came up with the words of
+ * before, and the patch arriving after selected them over keys typed. */
 function askFocus(c: WindowController, m: Memory): void {
   m.focus++
   m.focusAsked = Date.now()
   if (blankInFront(c)) {
     if (c.overlayLayer.kind === 'field') c.sendOverlay({ kind: 'none' })
     c.ui.webContents.focus()
-  } else {
-    c.sendOverlay({ kind: 'field' })
+    return
   }
+  c.mark('field')
+  setTimeout(() => {
+    if (m.editing && !blankInFront(c) && !c.base.isDestroyed()) c.sendOverlay({ kind: 'field' })
+  }, 0)
 }
 
 /** ⌘L: the page's address, selected whole; pressed again, put away. */

@@ -44,7 +44,8 @@ export function Field(p: { place: 'page' | 'overlay' }) {
   let refusals = f().refused
 
   onMount(() => {
-    write(f().shown ?? f().text, f().selectFrom ?? f().text.length)
+    // null selects everything (⌘L's address); absent, the caret at the end.
+    write(f().shown ?? f().text, f().selectFrom === undefined ? f().text.length : f().selectFrom)
     input.focus()
     void cmd({ do: 'field.focused' })
   })
