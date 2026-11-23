@@ -1,0 +1,12 @@
+# sorgente Mac di riferimento (sta nel suo repo ufficiale)
+ref/
+# dipendenze e build (escluse da iCloud con xattr com.apple.fileprovider.ignore#P)
+node_modules
+dist/
+out/
+
+
+# catture con dati personali
+riferimenti-privati/
+.DS_Store
+*.log

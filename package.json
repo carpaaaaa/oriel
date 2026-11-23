@@ -1,0 +1,74 @@
+{
+  "name": "search-windows",
+  "productName": "Search for Windows",
+  "version": "0.1.0",
+  "description": "Unofficial Windows port of Search, the small fast browser by Office Commun.",
+  "license": "MIT",
+  "private": true,
+  "main": "out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/build.mjs && electron .",
+    "typecheck": "tsc -p .",
+    "dist": "node scripts/build.mjs && electron-builder --win --x64 --arm64"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "electron": "45.4.1",
+    "electron-chrome-extensions": "4.10.0",
+    "electron-chrome-web-store": "0.13.0",
+    "koffi": "3.3.8",
+    "solid-js": "1.9.20"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "electron-builder": "26.18.0",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vite-plugin-solid": "2.11.17"
+  },
+  "build": {
+    "appId": "app.searchforwindows.browser",
+    "productName": "Search for Windows",
+    "copyright": "Search by Office Commun (MIT). Windows port: MIT.",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/main/**",
+      "out/preload/**",
+      "out/ui/**",
+      "package.json",
+      "!**/*.map"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "artifactName": "${productName}-${version}-${arch}-${target}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "protocols": [
+      {
+        "name": "Web",
+        "schemes": [
+          "http",
+          "https"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Angoli su Windows</title>
+<style>
+/* Colori registrati: i fondi sfumano, i testi cambiano di colpo a metà (mai grigio su grigio). */
+@property --tv-bg    { syntax: '<color>'; inherits: true; initial-value: #EEEBE5; }
+@property --tv-desk  { syntax: '<color>'; inherits: true; initial-value: #DFDBD3; }
+@property --tv-ctl   { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.055); }
+@property --tv-pill  { syntax: '<color>'; inherits: true; initial-value: #FFFFFF; }
+@property --tv-off   { syntax: '<color>'; inherits: true; initial-value: #CFCAC1; }
+@property --tv-knob  { syntax: '<color>'; inherits: true; initial-value: #FFFFFF; }
+@property --tv-ink   { syntax: '<color>'; inherits: true; initial-value: #23211D; }
+@property --tv-muted { syntax: '<color>'; inherits: true; initial-value: #7C776E; }
+
+@property --ground    { syntax: '<color>'; inherits: true; initial-value: #FFFFFF; }
+@property --frame     { syntax: '<color>'; inherits: true; initial-value: #F4F4F4; }
+@property --hairline  { syntax: '<color>'; inherits: true; initial-value: #E8E8E8; }
+@property --win-edge  { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.10); }
+@property --card-edge { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.08); }
+@property --line      { syntax: '<color>'; inherits: true; initial-value: rgba(23,23,23,.07); }
+@property --line-soft { syntax: '<color>'; inherits: true; initial-value: rgba(23,23,23,.045); }
+@property --line-bold { syntax: '<color>'; inherits: true; initial-value: rgba(23,23,23,.12); }
+@property --cap-hover { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.035); }
+@property --gf-wash   { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.0628); }
+@property --gf-tile   { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.0314); }
+@property --gw-wash   { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.063); }
+@property --gw-tile   { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.03465); }
+
+@property --ink      { syntax: '<color>'; inherits: true; initial-value: #171717; }
+@property --muted    { syntax: '<color>'; inherits: true; initial-value: #8C8C8C; }
+@property --gf-muted { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.4241); }
+@property --gf-faint { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.1309); }
+@property --gw-muted { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.45); }
+@property --gw-faint { syntax: '<color>'; inherits: true; initial-value: rgba(0,0,0,.17); }
+
+/* Misure registrate: si muovono insieme, così angoli e margini restano legati durante il movimento. */
+@property --inset { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --wr    { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --m     { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --cr    { syntax: '<length>'; inherits: true; initial-value: 0px; }
+
+:root {
+  --soft: cubic-bezier(.4, 0, .2, 1);
+  --move: .5s;
+  --z: 1;
+
+  /* tavola, chiaro */
+  --tv-bg: #EEEBE5;
+  --tv-desk: #DFDBD3;
+  --tv-ctl: rgba(0,0,0,.055);
+  --tv-pill: #FFFFFF;
+  --tv-off: #CFCAC1;
+  --tv-knob: #FFFFFF;
+  --tv-ink: #23211D;
+  --tv-muted: #7C776E;
+
+  /* Search, chiaro (02-aspetto, sezioni 2.1, 2.2, 11) */
+  --ground: #FFFFFF;
+  --frame: #F4F4F4;
+  --hairline: #E8E8E8;
+  --ink: #171717;
+  --muted: #8C8C8C;
+  --card-edge: rgba(0,0,0,.08);
+  --gf-wash: rgba(0,0,0,.0628);
+  --gf-tile: rgba(0,0,0,.0314);
+  --gf-muted: rgba(0,0,0,.4241);
+  --gf-faint: rgba(0,0,0,.1309);
+  --gw-wash: rgba(0,0,0,.063);
+  --gw-tile: rgba(0,0,0,.03465);
+  --gw-muted: rgba(0,0,0,.45);
+  --gw-faint: rgba(0,0,0,.17);
+
+  /* Windows 11 e contenuto finto */
+  --win-edge: rgba(0,0,0,.10);
+  --cap-hover: rgba(0,0,0,.035);
+  --line: rgba(23,23,23,.07);
+  --line-soft: rgba(23,23,23,.045);
+  --line-bold: rgba(23,23,23,.12);
+
+  color-scheme: light;
+  transition:
+    --tv-bg var(--move) var(--soft), --tv-desk var(--move) var(--soft), --tv-ctl var(--move) var(--soft),
+    --tv-pill var(--move) var(--soft), --tv-off var(--move) var(--soft), --tv-knob var(--move) var(--soft),
+    --ground var(--move) var(--soft), --frame var(--move) var(--soft), --hairline var(--move) var(--soft),
+    --win-edge var(--move) var(--soft), --card-edge var(--move) var(--soft), --cap-hover var(--move) var(--soft),
+    --line var(--move) var(--soft), --line-soft var(--move) var(--soft), --line-bold var(--move) var(--soft),
+    --gf-wash var(--move) var(--soft), --gf-tile var(--move) var(--soft),
+    --gw-wash var(--move) var(--soft), --gw-tile var(--move) var(--soft),
+    --tv-ink 0s linear .25s, --tv-muted 0s linear .25s,
+    --ink 0s linear .25s, --muted 0s linear .25s,
+    --gf-muted 0s linear .25s, --gf-faint 0s linear .25s,
+    --gw-muted 0s linear .25s, --gw-faint 0s linear .25s;
+}
+
+:root.dark {
+  --tv-bg: #1B1A18;
+  --tv-desk: #2A2825;
+  --tv-ctl: rgba(255,255,255,.07);
+  --tv-pill: #3B3936;
+  --tv-off: #4A4743;
+  --tv-knob: #242220;
+  --tv-ink: #ECEAE6;
+  --tv-muted: #9B968D;
+
+  --ground: #1C1C1C;
+  --frame: #131313;
+  --hairline: #333333;
+  --ink: #EDEDED;
+  --muted: #949494;
+  --card-edge: rgba(255,255,255,.08);
+  --gf-wash: rgba(255,255,255,.0865);
+  --gf-tile: rgba(255,255,255,.0432);
+  --gf-muted: rgba(255,255,255,.5459);
+  --gf-faint: rgba(255,255,255,.2649);
+  --gw-wash: rgba(255,255,255,.073);
+  --gw-tile: rgba(255,255,255,.04015);
+  --gw-muted: rgba(255,255,255,.5281);
+  --gw-faint: rgba(255,255,255,.236);
+
+  --win-edge: rgba(255,255,255,.12);
+  --cap-hover: rgba(255,255,255,.06);
+  --line: rgba(237,237,237,.08);
+  --line-soft: rgba(237,237,237,.05);
+  --line-bold: rgba(237,237,237,.14);
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--tv-bg); }
+body {
+  font-family: "Inter", "Inter Variable", "InterVariable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--tv-ink);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+button { font: inherit; color: inherit; }
+
+/* ---------- testata ---------- */
+header {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+  gap: 20px 40px;
+  padding: 40px 32px 32px;
+  max-width: 1360px; margin: 0 auto;
+}
+h1 { margin: 0 0 8px; font-size: 22px; font-weight: 600; letter-spacing: -0.012em; }
+header p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--tv-muted); max-width: 560px; }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+
+.seg {
+  position: relative; display: inline-flex; padding: 2px;
+  border-radius: 9px; background: var(--tv-ctl);
+}
+.seg button {
+  position: relative; z-index: 1;
+  padding: 5px 10px; border: 0; border-radius: 7px; background: none;
+  font-size: 12px; font-weight: 500; color: var(--tv-muted); cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.seg button[aria-pressed="true"] { color: var(--tv-ink); }
+.seg .pill {
+  position: absolute; top: 2px; bottom: 2px; left: 0; width: 0;
+  border-radius: 7px; background: var(--tv-pill);
+  box-shadow: 0 1px 6px rgba(0,0,0,.08);
+}
+.ready .seg .pill { transition: transform .45s var(--soft), width .45s var(--soft); }
+
+.sw {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: 12px; font-weight: 500;
+}
+.sw .track {
+  position: relative; width: 30px; height: 18px; border-radius: 9px;
+  background: var(--tv-off); transition: background-color .25s var(--soft);
+}
+.sw .knob {
+  position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 7px;
+  background: var(--tv-knob); box-shadow: 0 1px 3px rgba(0,0,0,.18);
+  transition: transform .3s var(--soft);
+}
+.sw[aria-checked="true"] .track { background: var(--tv-ink); }
+.sw[aria-checked="true"] .knob { transform: translateX(12px); }
+
+.hint {
+  font-size: 12px; color: var(--tv-muted);
+  opacity: 0; transition: opacity .3s var(--soft);
+}
+.hint.on { opacity: 1; }
+
+/* ---------- tavola ---------- */
+.board {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 56px 48px;
+  padding: 8px 32px 72px;
+  max-width: 1360px; margin: 0 auto;
+}
+.strada { margin: 0; width: calc(608px * var(--z)); max-width: 100%; }
+.strada h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; letter-spacing: -0.006em; }
+.view { max-width: 100%; overflow-x: auto; }
+.desc { margin-top: 16px; max-width: 608px; font-size: 13px; line-height: 1.5; }
+.desc p { margin: 0 0 4px; color: var(--tv-muted); }
+.desc p:first-child { color: var(--tv-ink); margin-bottom: 8px; }
+.desc b { font-weight: 600; color: var(--tv-ink); }
+
+/* ---------- schermo e finestra ---------- */
+.screen {
+  position: relative; width: 608px; height: 418px;
+  background: var(--tv-desk); overflow: hidden;
+  zoom: var(--z);
+}
+
+.win {
+  --inset: 24px;
+  position: absolute; inset: var(--inset);
+  border-radius: var(--wr);
+  overflow: hidden;
+  background: var(--frame);
+  box-shadow: 0 2px 6px rgba(0,0,0,.10), 0 10px 30px rgba(0,0,0,.18);
+  transition:
+    --inset var(--move) var(--soft), --wr var(--move) var(--soft),
+    --m var(--move) var(--soft), --cr var(--move) var(--soft),
+    box-shadow var(--move) var(--soft);
+}
+.win.max { --inset: 0px; box-shadow: 0 0 0 rgba(0,0,0,0), 0 0 0 rgba(0,0,0,0); }
+
+/* le tre strade */
+.win[data-s="carta"]       { --wr: 8px;  --m: 4px;  --cr: 4px; }
+.win[data-s="carta"].max   { --wr: 0px;  --m: -1px; --cr: 0px; }
+.win[data-s="filo"]        { --wr: 8px;  --m: 0px;  --cr: 0px; background: var(--ground); }
+.win[data-s="filo"].max    { --wr: 0px; }
+.win[data-s="mac"]         { --wr: 18px; --m: 8px;  --cr: 10px; }
+.win[data-s="mac"].max     { --wr: 0px; }
+
+/* filo della finestra di Windows (sparisce quando è ingrandita) */
+.edge {
+  position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  border-radius: inherit; border: 1px solid var(--win-edge);
+  transition: opacity var(--move) var(--soft);
+}
+.win.max .edge { opacity: 0; }
+
+/* colonna */
+.on-frame  { --g-wash: var(--gf-wash); --g-tile: var(--gf-tile); --g-muted: var(--gf-muted); --g-faint: var(--gf-faint); }
+.on-ground { --g-wash: var(--gw-wash); --g-tile: var(--gw-tile); --g-muted: var(--gw-muted); --g-faint: var(--gw-faint); }
+
+.col { position: absolute; left: 0; top: 0; bottom: 0; width: 232px; }
+.band { height: 52px; display: flex; align-items: center; gap: 4px; padding-left: 10px; }
+.door {
+  width: 26px; height: 26px; border-radius: 8px;
+  display: grid; place-items: center; color: var(--muted);
+}
+.door svg { width: 11px; height: 11px; display: block; }
+.door.off { opacity: .3; }
+
+.pins { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 0 10px; }
+.pin {
+  height: 34px; border-radius: 9px; background: var(--g-tile);
+  display: grid; place-items: center; color: var(--muted);
+}
+.pin svg { width: 16px; height: 16px; display: block; }
+
+.tabs { display: flex; flex-direction: column; gap: 2px; margin: 12px 10px 0; }
+.row {
+  height: 28px; border-radius: 9px;
+  display: flex; align-items: center; gap: 8px; padding: 0 10px;
+  font-size: 12.5px; line-height: 1.2; letter-spacing: -0.003em;
+  color: var(--g-muted); white-space: nowrap; overflow: hidden;
+}
+.row svg { width: 15px; height: 15px; flex: none; display: block; }
+.row.on { background: var(--g-wash); color: var(--ink); }
+.row.new { color: var(--g-faint); }
+
+/* pagina */
+.page {
+  position: absolute; left: 232px; top: var(--m); right: var(--m); bottom: var(--m);
+  border-radius: var(--cr); overflow: hidden;
+  background: var(--ground);
+  box-shadow: 0 1px 12px rgba(0,0,0,.07);
+}
+.page::after {
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  border-radius: inherit; border: 1px solid var(--card-edge);
+}
+.win[data-s="filo"] .page { box-shadow: none; }
+.win[data-s="filo"] .page::after { border: 0; border-left: 1px solid var(--hairline); }
+
+/* pulsanti di Windows 11: il simbolo resta all'altezza di Indietro e Avanti */
+.caps { position: absolute; top: 0; right: 0; z-index: 2; display: flex; }
+.cap {
+  position: relative; width: 46px; height: calc(52px - 2 * var(--m));
+  display: grid; place-items: center;
+  padding: 0; border: 0; background: transparent; color: var(--ink);
+}
+.cap svg { width: 10px; height: 10px; display: block; overflow: visible; }
+.cap:hover { background: var(--cap-hover); }
+.cap.x:hover { background: #C42B1C; color: #FFFFFF; }
+.cap.mx { cursor: pointer; }
+.cap.mx svg { grid-area: 1 / 1; transition: opacity var(--move) var(--soft); }
+.cap.mx .restore { opacity: 0; }
+.win.max .cap.mx .restore { opacity: 1; }
+.win.max .cap.mx .grow { opacity: 0; }
+
+/* contenuto finto del sito */
+.site { position: absolute; left: 0; right: 0; top: calc(64px - var(--m)); padding: 0 28px; }
+.site i { display: block; height: 7px; border-radius: 3.5px; background: var(--line); margin-bottom: 9px; }
+.site .h, .site .img { display: block; }
+.site .h { height: 12px; width: 46%; border-radius: 6px; background: var(--line-bold); margin-bottom: 16px; }
+.site .img { height: 96px; border-radius: 8px; background: var(--line-soft); margin: 18px 0; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- pulsanti della colonna, 11 -->
+    <symbol id="i-back" viewBox="0 0 11 11"><path d="M6.9 1.8 3.2 5.5l3.7 3.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-fwd" viewBox="0 0 11 11"><path d="m4.1 1.8 3.7 3.7-3.7 3.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-reload" viewBox="0 0 11 11"><path d="M9.2 5.9A3.75 3.75 0 1 1 7.9 2.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M6.2 1.3 8.4 2.4 7.4 4.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <!-- pin, 16 -->
+    <symbol id="p-mail" viewBox="0 0 16 16"><rect x="2" y="3.5" width="12" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="m2.6 5 5.4 3.8L13.4 5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+    <symbol id="p-cal" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 6.6h11M5.6 1.8v2.4M10.4 1.8v2.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="p-music" viewBox="0 0 16 16"><path d="M6 11.6V3.6l7-1.5v8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><circle cx="4.3" cy="11.8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="11.3" cy="10.3" r="1.8" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
+    <symbol id="p-chat" viewBox="0 0 16 16"><path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v3.5A2.5 2.5 0 0 1 11 11H8.2l-3.2 2.4V11A2.5 2.5 0 0 1 2.5 8.5V5A2.5 2.5 0 0 1 5 2.5Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+    <!-- schede, 15 -->
+    <symbol id="t-globe" viewBox="0 0 15 15"><circle cx="7.5" cy="7.5" r="5.6" fill="none" stroke="currentColor" stroke-width="1.2"/><ellipse cx="7.5" cy="7.5" rx="2.3" ry="5.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2 7.5h11" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="t-pin" viewBox="0 0 15 15"><path d="M7.5 13.2S3.4 9 3.4 6.1a4.1 4.1 0 0 1 8.2 0c0 2.9-4.1 7.1-4.1 7.1Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="7.5" cy="6.1" r="1.4" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="t-doc" viewBox="0 0 15 15"><rect x="3" y="1.9" width="9" height="11.2" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 5.4h4M5.5 7.9h4M5.5 10.4h2.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+    <symbol id="t-play" viewBox="0 0 15 15"><rect x="1.9" y="3" width="11.2" height="9" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6.3 5.6 9.6 7.5 6.3 9.4Z" fill="currentColor"/></symbol>
+    <symbol id="t-book" viewBox="0 0 15 15"><path d="M2.4 3.4c2-.7 3.9-.5 5.1.6 1.2-1.1 3.1-1.3 5.1-.6v8.6c-2-.7-3.9-.5-5.1.6-1.2-1.1-3.1-1.3-5.1-.6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M7.5 4v8.6" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="t-plus" viewBox="0 0 15 15"><path d="M7.5 3.5v8M3.5 7.5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <!-- Windows 11, 10 -->
+    <symbol id="w-min" viewBox="0 0 10 10"><path d="M0 5.5h10" stroke="currentColor" stroke-width="1"/></symbol>
+    <symbol id="w-max" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1"/></symbol>
+    <symbol id="w-restore" viewBox="0 0 10 10"><rect x=".5" y="2.5" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1"/><path d="M2.5 2.5V2A1.5 1.5 0 0 1 4 .5h4A1.5 1.5 0 0 1 9.5 2v4A1.5 1.5 0 0 1 8 7.5h-.5" fill="none" stroke="currentColor" stroke-width="1"/></symbol>
+    <symbol id="w-close" viewBox="0 0 10 10"><path d="m.5.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="1"/></symbol>
+  </defs>
+</svg>
+
+<header>
+  <div>
+    <h1>Angoli della finestra su Windows</h1>
+    <p>Tre strade per Search su Windows 11, in scala reale. Ogni finestra si ingrandisce e torna com'era, poi passa allo scuro. Guarda dove l'angolo della pagina incontra quello della finestra.</p>
+  </div>
+  <div class="controls">
+    <div class="seg" id="tema" role="group" aria-label="Aspetto">
+      <span class="pill"></span>
+      <button type="button" data-v="light" aria-pressed="true">Chiaro</button>
+      <button type="button" data-v="dark" aria-pressed="false">Scuro</button>
+    </div>
+    <button type="button" class="sw" id="ferma" role="switch" aria-checked="false">
+      <span class="track"><span class="knob"></span></span>
+      Ferma animazione
+    </button>
+    <div class="seg" id="zoom" role="group" aria-label="Ingrandimento">
+      <span class="pill"></span>
+      <button type="button" data-v="1" aria-pressed="true">100%</button>
+      <button type="button" data-v="2" aria-pressed="false">200%</button>
+    </div>
+    <span class="hint" id="hint">Ogni finestra si ingrandisce dal suo pulsante</span>
+  </div>
+</header>
+
+<main class="board" id="board"></main>
+
+<template id="window">
+  <div class="screen">
+    <div class="win">
+      <aside class="col">
+        <div class="band">
+          <span class="door"><svg><use href="#i-back"/></svg></span>
+          <span class="door off"><svg><use href="#i-fwd"/></svg></span>
+          <span class="door"><svg><use href="#i-reload"/></svg></span>
+        </div>
+        <div class="pins">
+          <span class="pin"><svg><use href="#p-mail"/></svg></span>
+          <span class="pin"><svg><use href="#p-cal"/></svg></span>
+          <span class="pin"><svg><use href="#p-music"/></svg></span>
+          <span class="pin"><svg><use href="#p-chat"/></svg></span>
+        </div>
+        <div class="tabs">
+          <div class="row"><svg><use href="#t-globe"/></svg>Notizie del giorno</div>
+          <div class="row on"><svg><use href="#t-pin"/></svg>Mappe di Milano</div>
+          <div class="row"><svg><use href="#t-doc"/></svg>Ricette d'autunno</div>
+          <div class="row"><svg><use href="#t-play"/></svg>Video della settimana</div>
+          <div class="row"><svg><use href="#t-book"/></svg>Biblioteca civica</div>
+          <div class="row new"><svg><use href="#t-plus"/></svg>New tab</div>
+        </div>
+      </aside>
+      <section class="page">
+        <div class="caps">
+          <span class="cap" title="Riduci"><svg><use href="#w-min"/></svg></span>
+          <button type="button" class="cap mx" aria-label="Ingrandisci"><svg class="grow"><use href="#w-max"/></svg><svg class="restore"><use href="#w-restore"/></svg></button>
+          <span class="cap x" title="Chiudi"><svg><use href="#w-close"/></svg></span>
+        </div>
+        <div class="site">
+          <span class="h"></span>
+          <i style="width:94%"></i>
+          <i style="width:88%"></i>
+          <i style="width:96%"></i>
+          <i style="width:58%"></i>
+          <span class="img"></span>
+          <i style="width:91%"></i>
+          <i style="width:95%"></i>
+          <i style="width:84%"></i>
+          <i style="width:90%"></i>
+          <i style="width:66%"></i>
+        </div>
+      </section>
+      <i class="edge"></i>
+    </div>
+  </div>
+</template>
+
+<script>
+(() => {
+  const STRADE = [
+    {
+      s: 'carta',
+      nome: 'Carta 8 e 4',
+      come: 'Angoli di Windows da 8, pagina a 4 dal bordo con angoli da 4: le due curve corrono parallele. Ingrandita, la pagina arriva al bordo.',
+      bene: 'tutto quello che Windows fa da solo: Snap per affiancare, ridimensionare dai bordi, la sua ombra.',
+      male: 'la carta respira poco, margine e angoli sono piccoli.'
+    },
+    {
+      s: 'filo',
+      nome: 'Pagina a filo',
+      come: 'Angoli di Windows da 8, la pagina tocca il bordo in alto, a destra e in basso e prende gli angoli della finestra. Un filo la separa dalla colonna.',
+      bene: 'niente angoli da far combaciare, qualche pixel di pagina in più, tutto quello che Windows fa da solo.',
+      male: 'la carta, il tratto che fa riconoscere Search.'
+    },
+    {
+      s: 'mac',
+      nome: 'Come il Mac',
+      come: 'Angoli da 18, pagina a 8 dal bordo con angoli da 10, come su Mac. Ingrandita, la pagina tiene il suo margine.',
+      bene: 'lo stesso aspetto del Mac.',
+      male: 'la cornice di Windows. Snap per affiancare, ridimensionare dai bordi e l\'ombra vanno rifatti da noi, e non saranno mai uguali.'
+    }
+  ];
+
+  const board = document.getElementById('board');
+  const tpl = document.getElementById('window');
+  for (const st of STRADE) {
+    const fig = document.createElement('figure');
+    fig.className = 'strada';
+    const h = document.createElement('h2');
+    h.textContent = st.nome;
+    const view = document.createElement('div');
+    view.className = 'view';
+    view.appendChild(tpl.content.cloneNode(true));
+    const win = view.querySelector('.win');
+    win.dataset.s = st.s;
+    win.querySelector('.col').classList.add(st.s === 'filo' ? 'on-ground' : 'on-frame');
+    const desc = document.createElement('div');
+    desc.className = 'desc';
+    const p1 = document.createElement('p'); p1.textContent = st.come;
+    const p2 = document.createElement('p'); p2.innerHTML = '<b>Si guadagna:</b> '; p2.append(st.bene);
+    const p3 = document.createElement('p'); p3.innerHTML = '<b>Si perde:</b> '; p3.append(st.male);
+    desc.append(p1, p2, p3);
+    fig.append(h, view, desc);
+    board.appendChild(fig);
+  }
+
+  const root = document.documentElement;
+  const wins = [...document.querySelectorAll('.win')];
+  const temaSeg = document.getElementById('tema');
+  const zoomSeg = document.getElementById('zoom');
+  const ferma = document.getElementById('ferma');
+  const hint = document.getElementById('hint');
+
+  function pick(seg, value) {
+    let on = null;
+    for (const b of seg.querySelectorAll('button')) {
+      const yes = b.dataset.v === String(value);
+      b.setAttribute('aria-pressed', String(yes));
+      if (yes) on = b;
+    }
+    const pill = seg.querySelector('.pill');
+    pill.style.width = on.offsetWidth + 'px';
+    pill.style.transform = 'translateX(' + on.offsetLeft + 'px)';
+  }
+
+  let theme = 'light';
+  let zoom = 1;
+  function setTheme(t) {
+    theme = t;
+    root.classList.toggle('dark', t === 'dark');
+    pick(temaSeg, t);
+  }
+  function setZoom(z) {
+    zoom = z;
+    root.style.setProperty('--z', String(z));
+    pick(zoomSeg, z);
+  }
+  function setMax(w, on) {
+    w.classList.toggle('max', on);
+    w.querySelector('.cap.mx').setAttribute('aria-label', on ? 'Ripristina' : 'Ingrandisci');
+  }
+
+  /* giro: chiaro normale, ingrandita, normale; scuro normale, ingrandita, normale */
+  const STEPS = [
+    ['light', false], ['light', true], ['light', false],
+    ['dark', false], ['dark', true], ['dark', false]
+  ];
+  const MOVE = 500, HOLD = 1800;
+  let step = 0, timer = 0, running = true;
+
+  function apply(i) {
+    const [t, m] = STEPS[i];
+    if (t !== theme) setTheme(t);
+    for (const w of wins) setMax(w, m);
+  }
+  function next() {
+    step = (step + 1) % STEPS.length;
+    apply(step);
+    timer = setTimeout(next, MOVE + HOLD);
+  }
+  function syncSwitch() {
+    ferma.setAttribute('aria-checked', String(!running));
+    hint.classList.toggle('on', !running);
+  }
+  function start(from) {
+    clearTimeout(timer);
+    running = true;
+    step = from;
+    apply(step);
+    timer = setTimeout(next, MOVE + HOLD);
+    syncSwitch();
+  }
+  function stop() {
+    clearTimeout(timer);
+    running = false;
+    syncSwitch();
+  }
+
+  temaSeg.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (running) start(b.dataset.v === 'light' ? 0 : 3);
+    else setTheme(b.dataset.v);
+  });
+  zoomSeg.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b) setZoom(Number(b.dataset.v));
+  });
+  ferma.addEventListener('click', () => {
+    if (running) stop();
+    else start(theme === 'light' ? 0 : 3);
+  });
+  for (const w of wins) {
+    const toggle = () => {
+      if (running) stop();
+      setMax(w, !w.classList.contains('max'));
+    };
+    w.querySelector('.cap.mx').addEventListener('click', toggle);
+    w.querySelector('.band').addEventListener('dblclick', toggle);
+  }
+
+  setTheme('light');
+  setZoom(1);
+  requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('ready')));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { pick(temaSeg, theme); pick(zoomSeg, zoom); });
+  start(0);
+})();
+</script>
+</body>
+</html>

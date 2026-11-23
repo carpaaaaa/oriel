@@ -1,0 +1,220 @@
+/* Search design tokens, from studio/02-aspetto.md §11 (values from
+   Design.swift and friends). Owned by the orchestrator.
+   Window corners: Windows 11 draws its own (8 px) around a native frame. The
+   page card's radius is derived so nested corners stay concentric:
+   inner = outer − distance. data-chrome="mac" keeps the Mac's geometry. */
+:root {
+  /* palette: chiaro */
+  --ground: #FFFFFF;
+  --ink: #171717;
+  --ink-rgb: 23 23 23;
+  --muted: #8C8C8C;
+  --faint: #D4D4D4;
+  --hairline: #E8E8E8;
+  --wash: #EFEFEF;
+  --hover: #F6F6F6;
+  --frame: #F4F4F4;
+  --resting-light: #CCCCCC;
+  --safe: #14803D;
+  --unsafe: #B5540A;
+  --unread: #ED3D36;
+  --underpage-dusk: #171717;
+
+  /* grigi in trasparenza su bianco (Greys.white) */
+  --g-wash: rgba(0,0,0,.063);
+  --g-hover: rgba(0,0,0,.035);
+  --g-tile: rgba(0,0,0,.03465);
+  --g-pin-live: rgba(0,0,0,.10);
+  --g-wash-on-tile: rgba(0,0,0,.0294);
+  --g-hover-on-tile: rgba(0,0,0,.004);
+  --g-muted: rgba(0,0,0,.45);
+  --g-faint: rgba(0,0,0,.17);
+
+  /* opacità d'inchiostro ricorrenti */
+  --ink-reading: rgb(var(--ink-rgb) / .055);
+  --ink-mark-bg: rgb(var(--ink-rgb) / .06);
+  --ink-close-disc: rgb(var(--ink-rgb) / .07);
+  --ink-selection: rgb(var(--ink-rgb) / .12);
+  --ink-placeholder: rgb(var(--ink-rgb) / .30);
+  --ink-picked-outline: rgb(var(--ink-rgb) / .35);
+  --ink-hover-text: rgb(var(--ink-rgb) / .70);
+  --scrim-field: rgb(255 255 255 / .74);   /* ground al 74% */
+  --scrim-panel: rgba(0,0,0,.10);
+
+  /* card della pagina */
+  --card-edge: rgba(0,0,0,.08);
+  --card-shadow: 0 1px 12px rgba(0,0,0,.07);
+
+  /* tipografia */
+  --font-ui: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+  --fs-tab: 12.5px;
+  --fs-tab-roomy: 14px;
+  --fs-detail: 11.5px;
+  --fs-body: 13px;
+  --fs-field: 15.5px;
+  --fs-panel-title: 17px;
+  --fs-page-title: 22px;
+  --fs-heading: 26px;
+  --fs-hero: 34px;
+  --fs-caption: 10.5px;
+  --lh-k: 1.193;
+
+  /* misure */
+  --strip: 52px;
+  --strip-compact: 36px;
+  --band: 30px;
+  --lights-x: 26px;          /* centro del primo semaforo */
+  --lights-gap: 23px;
+  --lights-size: 14px;
+  --tabs-start: 100px;
+  --side-default: 232px;
+  --side-min: 176px;
+  --side-max: 440px;
+  --side-narrow-line: 200px;
+  --side-icons: 52px;
+  --side-pad: 10px;
+  --side-helm-x: 80px;
+  --row: 28px;
+  --row-roomy: 36px;
+  --row-gap: 2px;
+  --row-radius: 9px;
+  --mark: 15px;
+  --mark-roomy: 17px;
+  --pin-max: 34px;
+  --pin-gap: 4px;
+  --door: 26px;
+  --door-radius: 8px;
+  --door-gap: 4px;
+  --tab-width: 186px;
+  --tab-titled: 104px;
+  --tab-min: 36px;
+  --tab-gap: 2px;
+  --tab-lead: 11px;
+  --tab-trail: 7px;
+  --tab-pin: 30px;
+  --close: 15px;
+  --field-width: 560px;
+  --field-height: 50px;
+  --field-pad-x: 22px;
+  --field-radius: 14px;
+  --field-shadow: 0 8px 48px rgba(0,0,0,.06);
+  --list-pad: 6px;
+  --list-shadow: 0 6px 40px rgba(0,0,0,.07);
+  --plate-radius: 16px;
+  --plate-pad: 22px;
+  --plate-shadow: 0 12px 68px rgba(0,0,0,.16);
+  --card-group-radius: 11px;
+  --hairline-w: 1px;
+  --grip-w: 4px;
+  --grip-rest: 28px;
+  --grip-lit: 40px;
+  --bookmarks-bar: 30px;
+  --menu-row: 24px;
+  --menu-radius: 12px;
+  --menu-highlight-radius: 6px;
+  --settings-rail: 196px;
+  --settings-column: 600px;
+  --settings-text-inset: 52px;
+
+  /* movimento */
+  --ease-quick: cubic-bezier(0, 0, .58, 1);
+  --dur-quick: 140ms;
+  --ease-in: cubic-bezier(.42, 0, 1, 1);
+  --ease-in-out: cubic-bezier(.42, 0, .58, 1);
+  --dur-glide: 467ms;
+  --ease-glide: linear(0, 0.0530, 0.1737, 0.3204, 0.4674, 0.6003, 0.7126, 0.8026, 0.8716, 0.9223, 0.9579, 0.9817, 0.9967, 1.0053, 1.0096, 1.0110, 1.0108, 1.0096, 1.0080, 1.0064, 1.0048, 1.0035, 1.0024, 1.0016, 1);
+  --dur-settle: 418ms;
+  --ease-settle: linear(0, 0.0540, 0.1753, 0.3207, 0.4647, 0.5939, 0.7026, 0.7897, 0.8568, 0.9066, 0.9423, 0.9671, 0.9835, 0.9939, 1.0000, 1.0033, 1.0047, 1.0050, 1.0047, 1.0041, 1.0033, 1.0026, 1.0020, 1.0014, 1);
+  --dur-fold-out: 195ms;
+  --dur-fold-in: 191ms;
+  --dur-light: 160ms;          /* Light motion: ease-out */
+  --dur-breath: 2.6s;
+  --dur-ring: .85s;
+
+  /* lavaggio degli spazi (Subtle) */
+  --wash-subtle: .07;
+  --wash-rich: .18;
+  --wash-vivid: .30;
+  --grain-opacity: .035;
+  --space-blue: #4285F5;
+  --space-green: #33A873;
+  --space-orange: #F59E33;
+  --space-red: #E65466;
+  --space-violet: #9E66E6;
+}
+
+/* scuro: stesso blocco sotto prefers-color-scheme o [data-look="dark"] */
+:root[data-look="dark"] {
+  --ground: #1C1C1C;
+  --ink: #EDEDED;
+  --ink-rgb: 237 237 237;
+  --muted: #949494;
+  --faint: #525252;
+  --hairline: #333333;
+  --wash: #2D2D2D;
+  --hover: #262626;
+  --frame: #131313;
+  --resting-light: #4D4D4D;
+  --safe: #4ADE80;
+  --unsafe: #FABF24;
+
+  --g-wash: rgba(255,255,255,.073);
+  --g-hover: rgba(255,255,255,.045);
+  --g-tile: rgba(255,255,255,.04015);
+  --g-pin-live: rgba(255,255,255,.112);
+  --g-wash-on-tile: rgba(255,255,255,.0342);
+  --g-hover-on-tile: rgba(255,255,255,.005);
+  --g-muted: rgba(255,255,255,.5281);
+  --g-faint: rgba(255,255,255,.236);
+
+  --scrim-field: rgb(28 28 28 / .74);
+  --card-edge: rgba(255,255,255,.08);
+
+  --wash-subtle: .11;
+  --wash-rich: .22;
+  --wash-vivid: .40;
+  --grain-opacity: .04;
+}
+
+/* grigi per ciò che sta sul fondo "frame" (colonna e barra con la pagina a scheda) */
+.on-frame {
+  --g-wash: rgba(0,0,0,.0628);
+  --g-hover: rgba(0,0,0,.0419);
+  --g-tile: rgba(0,0,0,.0314);
+  --g-pin-live: rgba(0,0,0,.0995);
+  --g-wash-on-tile: rgba(0,0,0,.0324);
+  --g-hover-on-tile: rgba(0,0,0,.0108);
+  --g-muted: rgba(0,0,0,.4241);
+  --g-faint: rgba(0,0,0,.1309);
+}
+:root[data-look="dark"] .on-frame {
+  --g-wash: rgba(255,255,255,.0865);
+  --g-hover: rgba(255,255,255,.0595);
+  --g-tile: rgba(255,255,255,.0432);
+  --g-pin-live: rgba(255,255,255,.1243);
+  --g-wash-on-tile: rgba(255,255,255,.0452);
+  --g-hover-on-tile: rgba(255,255,255,.0169);
+  --g-muted: rgba(255,255,255,.5459);
+  --g-faint: rgba(255,255,255,.2649);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-quick: 0ms; --dur-glide: 0ms; --dur-settle: 0ms; --dur-fold-out: 0ms; --dur-fold-in: 0ms; }
+}
+
+/* Corners, derived. Windows: native 8 px frame; card 4 px in, radius 4.
+   Maximized or snapped windows have square corners: the card goes flush. */
+:root {
+  --window-radius: 8px;
+  --card-gap: 4px;
+  --card-radius: max(0px, calc(var(--window-radius) - var(--card-gap)));
+}
+:root[data-chrome="mac"] {
+  --window-radius: 17.5px;
+  --card-gap: 8px;
+  --card-radius: 10px;
+}
+:root[data-maximized="true"] {
+  --window-radius: 0px;
+}
