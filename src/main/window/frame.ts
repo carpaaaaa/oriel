@@ -127,6 +127,9 @@ export class Frame {
   private poll: NodeJS.Timeout | null = null
   private drag: { bounds: Rectangle; x: number; y: number } | null = null
   private restoreTo: Rectangle | null = null
+  /** Window messages seen while tracing (tests). */
+  tracing = false
+  trace: string[] = []
   /** Full screen as we asked it (Electron doesn't know it for transparent windows on Windows). */
   private full = false
 
@@ -148,11 +151,22 @@ export class Frame {
       // windows; do ours instead.
       c.base.hookWindowMessage(WM_SYSCOMMAND, wParam => {
         const command = Number(wParam.length >= 8 ? wParam.readBigUInt64LE(0) : BigInt(wParam.readUInt32LE(0))) & 0xfff0
-        if (process.env.SEARCH_PROBE) console.log('[frame] syscommand 0x' + command.toString(16), this.state)
+        if (this.tracing) this.trace.push('syscommand 0x' + command.toString(16))
         if (command === SC_MAXIMIZE && this.state !== 'maximized') setImmediate(() => { if (this.compute() !== 'maximized') this.maximize() })
         else if (command === SC_RESTORE && this.state === 'maximized' && !c.base.isMinimized()) setImmediate(() => { if (this.compute() === 'maximized') this.unmaximize() })
       })
       c.base.hookWindowMessage(WM_EXITSIZEMOVE, () => setImmediate(() => this.refresh()))
+      // For the tests: which window messages arrive (Win+Up, Snap).
+      if (process.env.SEARCH_PROBE) {
+        for (const m of [0x0005, 0x0018, 0x0024, 0x0046, 0x0047, 0x0086, 0x0231, 0x0313]) {
+          if (m === WM_EXITSIZEMOVE) continue
+          c.base.hookWindowMessage(m, (wp, lp) => {
+            if (!this.tracing) return
+            const n = (b: Buffer) => (b.length >= 8 ? b.readBigUInt64LE(0) : BigInt(b.readUInt32LE(0))).toString(16)
+            this.trace.push(`0x${m.toString(16)} ${n(wp)} ${n(lp)}`)
+          })
+        }
+      }
     }
     this.manual = kind === 'drawn' && !(w && this.hwnd)
     if (kind === 'drawn') {

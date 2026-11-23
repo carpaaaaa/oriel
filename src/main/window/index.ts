@@ -37,6 +37,13 @@ benchRequest('window.place', req => {
   c.frame.refresh()
   return { bounds: c.base.getBounds(), visual: c.frame.visual() }
 })
+benchRequest('window.trace', req => {
+  const c = pick(req.window)
+  const trace = c.frame.trace
+  c.frame.tracing = !!req.on
+  c.frame.trace = []
+  return { trace }
+})
 benchRequest('window.focus', req => { const c = pick(req.window); c.base.focus(); return {} })
 benchRequest('window.restore', req => { const c = pick(req.window); c.base.restore(); return {} })
 // A press, a few moves with the button held, a release, as the interface's

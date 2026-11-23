@@ -15,6 +15,15 @@ import bench as b
 SHOTS = os.environ.get("SHOTS_DIR")
 if SHOTS:
     Path(SHOTS).mkdir(parents=True, exist_ok=True)
+
+
+def picture(name):
+    """A picture for looking at; a window hidden behind another can't be
+    captured (Windows' compositor), which is no failure of the window."""
+    try:
+        b.shot(f"{SHOTS}/{name}")
+    except RuntimeError as e:
+        print("  (no picture %s: %s)" % (name, e))
 ROOM = {"top": 30, "right": 40, "bottom": 50, "left": 40}
 
 b.use("window-frame")
@@ -86,7 +95,7 @@ t.ok(near(g["x"], w["x"] + w["width"] - 4) and near(g["width"], 12), "the right 
 gt = d["gripTop"]
 t.ok(near(gt["y"], w["y"] - 8), "the top grip starts 8 above the edge")
 if SHOTS:
-    b.shot(f"{SHOTS}/window-1-free.png")
+    picture("window-1-free.png")
 
 # 2. Resizing (setBounds): the drawn window and the page follow.
 b.call({"do": "window.place", "visual": True, **{**place, "width": place["width"] - 100, "height": place["height"] - 60}})
@@ -121,7 +130,7 @@ t.ok(d["maxTitle"] == "Restore Down", "maximized: the button restores")
 t.ok(all(near(f["pages"][0]["rect"][k], round(d["card"][k])) for k in ("x", "y", "width", "height")), "maximized: the page lies on the card")
 t.ok(not d["gripRight"], "maximized: no grips")
 if SHOTS:
-    b.shot(f"{SHOTS}/window-2-maximized.png")
+    picture("window-2-maximized.png")
 b.cmd("window.maximize")
 f = settle(lambda: frame()["state"] == "free" and frame(), "restored") or frame()
 t.ok(f["state"] == "free" and f["visual"] == {**place}, "restored where it was (%s)" % f["visual"])
@@ -219,7 +228,7 @@ if sys.platform != "darwin":
     t.ok(f["state"] == "fullScreen" and f["bounds"] == f["display"], "F11: full screen fills the display")
     t.ok(not d["buttons"] and near(d["card"]["y"], 0) and d["cardRadius"] == "0px", "full screen: no buttons, the page edge to edge")
     if SHOTS:
-        b.shot(f"{SHOTS}/window-3-fullscreen.png")
+        picture("window-3-fullscreen.png")
     b.cmd("window.fullScreen", on=False)
     t.ok(settle(lambda: frame()["state"] == "free", "leave full screen"), "out of full screen, free again")
 

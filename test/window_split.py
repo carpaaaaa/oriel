@@ -12,6 +12,15 @@ import bench as b
 SHOTS = os.environ.get("SHOTS_DIR")
 if SHOTS:
     Path(SHOTS).mkdir(parents=True, exist_ok=True)
+
+
+def picture(name):
+    """A picture for looking at; a window hidden behind another can't be
+    captured (Windows' compositor), which is no failure of the window."""
+    try:
+        b.shot(f"{SHOTS}/{name}")
+    except RuntimeError as e:
+        print("  (no picture %s: %s)" % (name, e))
 b.use("window-split")
 b.launch()
 t = b.T()
@@ -67,7 +76,7 @@ pages = {x["id"]: x["rect"] for x in frame()["pages"]}
 t.ok(set(pages) == {left, right}, "both pages are on screen")
 t.ok(all(all(near(pages[x["id"]][k], round(x[k])) for k in ("x", "y", "width", "height")) for x in p), "each page lies on its pane")
 if SHOTS:
-    b.shot(f"{SHOTS}/split-1-even.png")
+    picture("split-1-even.png")
 
 # 3. The divider: dragging moves the shares, released once; near even it snaps.
 d = divider()
