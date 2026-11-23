@@ -4,7 +4,7 @@
 
 import { engines } from '../shared/prefs'
 
-const schemes = /^(https?|file|ftp|search|chrome-extension|about|data|view-source):/i
+const schemes = /^(https?|file|ftp|oriel|search|chrome-extension|about|data|view-source):/i
 const hostLike = /^(localhost|\[[0-9a-f:]+\]|(\d{1,3}\.){3}\d{1,3}|([a-z0-9-]+\.)+[a-z][a-z0-9-]{1,62})(:\d+)?(\/.*)?$/i
 
 export function resolveInput(input: string, engine = 'google'): { url: string; searched: boolean } {

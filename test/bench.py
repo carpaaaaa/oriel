@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive Search for Windows in a test world, as the Mac's Tests/split_view.py
+"""Drive Oriel in a test world, as the Mac's Tests/split_view.py
 drives Search: SEARCH_PROBE=<world> gives the app its own settings folder and
 socket, so a test never touches the Search someone is using.
 
@@ -35,7 +35,7 @@ def appdata():
 
 
 def folder():
-    return appdata() / f"Search for Windows ({WORLD})"
+    return appdata() / f"Oriel ({WORLD})"
 
 
 def address():

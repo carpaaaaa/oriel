@@ -288,7 +288,7 @@ class Model extends EventEmitter {
     writeJSON(this.sessionFile(space), (): SessionShape => {
       const ids = this.spaceTabs(win, space).filter(id => {
         const t = this.tabs.get(id)
-        return t && !t.shy && !t.empty && /^(https?|file|search):/.test(t.url)
+        return t && !t.shy && !t.empty && /^(https?|file|oriel):/.test(t.url)
       })
       const active = Math.max(0, ids.indexOf(win.active[space] ?? ''))
       return {

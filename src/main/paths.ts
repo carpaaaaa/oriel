@@ -6,7 +6,7 @@ import { app } from 'electron'
 import path from 'node:path'
 
 export const probe = process.env.SEARCH_PROBE ?? ''
-export const productName = 'Search for Windows'
+export const productName = 'Oriel'
 
 /** Call before app is ready. */
 export function setupPaths(): void {
