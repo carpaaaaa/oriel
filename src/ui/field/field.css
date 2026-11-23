@@ -1,0 +1,32 @@
+/* The field and its list (studio/02 §4.4). Owned by the field module. */
+
+/* empty tab and the field */
+.empty-page { position: absolute; inset: 0; display: grid; place-items: center; padding-bottom: 60px; }
+.field-wrap { position: relative; width: min(var(--field-width), calc(100% - 28px)); }
+.field {
+  position: relative; height: var(--field-height); display: flex; align-items: center; gap: 12px; padding: 0 var(--field-pad-x);
+  border-radius: var(--field-radius); background: var(--ground); box-shadow: 0 0 0 1px var(--hairline), var(--field-shadow);
+}
+.field .lens { color: var(--muted); flex: none; }
+.field input { flex: 1; font-size: var(--fs-field); user-select: text; }
+.field input::placeholder { color: var(--ink-placeholder); }
+.field .breath { position: absolute; inset: 0; border-radius: 26px; box-shadow: 0 0 52px rgb(var(--ink-rgb) / .07); z-index: -1; animation: breath var(--dur-breath) var(--ease-in-out) infinite alternate; }
+@keyframes breath { from { transform: scale(.97); opacity: .65; } to { transform: scale(1.03); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .field .breath { animation: none; } }
+
+.suggestions { position: absolute; left: 0; right: 0; top: calc(var(--field-height) + 8px); padding: var(--list-pad); border-radius: var(--field-radius); background: var(--ground); box-shadow: 0 0 0 1px var(--hairline), var(--list-shadow); animation: list-in var(--dur-quick) var(--ease-quick); transform-origin: top; z-index: 2; }
+@keyframes list-in { from { opacity: 0; transform: scale(.98); } }
+.suggestion { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--row-radius); font-size: var(--fs-body); }
+.suggestion:hover { background: var(--hover); }
+.suggestion.picked { background: var(--wash); }
+.suggestion .icon { width: 14px; height: 14px; display: grid; place-items: center; color: var(--muted); flex: none; }
+.suggestion .what { flex: none; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggestion .detail { flex: 1; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggestion .switch { margin-left: auto; color: var(--muted); font-size: var(--fs-detail); }
+
+/* the overlay's veil over a page */
+.veil { position: fixed; inset: 0; background: var(--scrim-field); display: grid; place-items: center; padding-bottom: 60px; animation: veil-in var(--dur-quick) var(--ease-quick); }
+@keyframes veil-in { from { opacity: 0; } }
+.veil .field-wrap { animation: field-in var(--dur-settle) var(--ease-settle); }
+@keyframes field-in { from { opacity: 0; transform: scale(.97); } }
+

@@ -2,6 +2,7 @@
 // of suggestions 8 below. On an empty tab it lives in the interface; over a
 // page it lives in the overlay, on a veil of the page's colour at 74%.
 
+import './field.css'
 import { createEffect, For, onMount, Show } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import { Search, Globe } from '../lib/icons'

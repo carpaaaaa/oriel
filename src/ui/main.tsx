@@ -3,6 +3,9 @@ import '@fontsource-variable/inter'
 import '../shared/tokens.css'
 import './app.css'
 import { connect } from './lib/store'
+
+// Every module's register.ts(x): layers, outlets, keys.
+import.meta.glob('./*/register.{ts,tsx}', { eager: true })
 import { ChromeRoot } from './chrome/Chrome'
 import { OverlayRoot } from './overlay/Overlay'
 

@@ -2,10 +2,13 @@
 // then the tabs as rows with the grey of the active one gliding between them
 // (studio/01 §5, studio/02 §4.2).
 
+import './sidebar.css'
 import { createEffect, createSignal, For, Show } from 'solid-js'
 import { state, cmd, activeTab } from '../lib/store'
 import { Back, Forward, Reload, Stop, Close, Globe, Speaker, SpeakerOff } from '../lib/icons'
 import type { TabView, PinView } from '../../shared/state'
+import { outlet } from '../lib/registry'
+import { Dynamic } from 'solid-js/web'
 
 export function Sidebar() {
   let list!: HTMLDivElement
@@ -56,7 +59,9 @@ export function Sidebar() {
         <For each={loose()}>{t => <Row tab={t} />}</For>
       </div>
 
+      <For each={outlet('sidebar.afterPins')}>{c => <Dynamic component={c} />}</For>
       <div class="foot">
+        <For each={outlet('sidebar.foot')}>{c => <Dynamic component={c} />}</For>
         <For each={state.spaces}>{s => (
           <button class="door space-dot" classList={{ on: s.id === state.space }} title={s.name} onClick={() => cmd({ do: 'space.select', id: s.id })}>
             <span class="dot" />

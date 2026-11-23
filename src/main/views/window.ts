@@ -25,6 +25,11 @@ interface Slot { insets: { left: number; top: number; right: number; bottom: num
 
 const controllers = new Map<ID, WindowController>()
 
+/** Modules add parts of the window's state without touching this file:
+ * registerSlice('downloads', c => ...). Send a part again with c.mark(key). */
+const sliceMakers = new Map<string, (c: WindowController) => unknown>()
+export function registerSlice(key: string, make: (c: WindowController) => unknown): void { sliceMakers.set(key, make) }
+
 export function controllerFor(id: ID): WindowController | undefined { return controllers.get(id) }
 export function allControllers(): WindowController[] { return [...controllers.values()] }
 export function focusedController(): WindowController | undefined {
@@ -39,7 +44,7 @@ export class WindowController {
   private slots = new Map<ID, Slot>()
   private shown = new Set<ID>()
   private rev = 0
-  private dirty = new Set<Slice | 'window'>()
+  private dirty = new Set<string>()
   private flushTimer: NodeJS.Timeout | null = null
   private overlayRect: Rect | null = null
   overlayLayer: OverlayLayer = { kind: 'none' }
@@ -111,7 +116,7 @@ export class WindowController {
   // state
 
   /** Something in the window's slice changed; send it on the next tick. */
-  mark(slice: Slice | 'window'): void {
+  mark(slice: Slice | 'window' | (string & {})): void {
     this.dirty.add(slice)
     if (!this.flushTimer) this.flushTimer = setTimeout(() => this.flush(), 0)
     if (slice === 'activeID' || slice === 'space' || slice === 'tabs') this.placePages()
@@ -157,6 +162,7 @@ export class WindowController {
       extensions: [],
       downloads: [],
       prefs: model.prefs,
+      ...Object.fromEntries([...sliceMakers].map(([k, make]) => [k, make(this)])),
     }
   }
 
