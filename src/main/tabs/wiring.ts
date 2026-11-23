@@ -2,7 +2,7 @@
 // keys, the window's frame and focus for windows.json, last time's windows
 // brought back, and the sleep timer.
 
-import { app, screen } from 'electron'
+import { app, ipcMain, screen } from 'electron'
 import { model } from '../model/model'
 import { frameString, parseFrame } from '../model/formats'
 import { registerSlice, controllerFor, allControllers, type WindowController } from '../views/window'
@@ -103,6 +103,11 @@ model.on('window-opened', (id: string) => setImmediate(() => {
 model.on('selected', (w: { id: string }, id: string) => {
   const c = controllerFor(w.id)
   if (c?.record.field.open && !model.tabs.get(id)?.empty) closeField(c)
+})
+
+// Camera, microphone or screen in use (src/preload/page/tabs.ts, §2.21).
+ipcMain.on('search:tab-capture', (e, on: boolean) => {
+  for (const [id, r] of runtimes) if (r.contents === e.sender) model.updateTab(id, { capturing: on ? true : undefined })
 })
 
 // Last time's other windows, once the first is up (restoreOnce, §9.11).

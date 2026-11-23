@@ -237,6 +237,7 @@ export class TabRuntime {
   }
 
   destroy(): void {
+    if (this.record?.capturing) model.updateTab(this.id, { capturing: undefined })
     const view = this.view
     this.view = null
     this.shell = false
@@ -273,7 +274,8 @@ export class TabRuntime {
     wc.on('did-start-loading', () => update({ loading: true }))
     wc.on('did-stop-loading', () => { update({ loading: false }); nav() })
     wc.on('did-navigate', (_e, url) => {
-      if (url && url !== 'about:blank' && !url.startsWith('chrome-error:')) update({ url, error: undefined, dead: undefined, crashed: undefined })
+      // A new document: whatever the last one captured has ended with it.
+      if (url && url !== 'about:blank' && !url.startsWith('chrome-error:')) update({ url, error: undefined, dead: undefined, crashed: undefined, capturing: undefined })
       nav()
       this.visit(url)
     })
