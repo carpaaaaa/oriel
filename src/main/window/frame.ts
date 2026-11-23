@@ -18,7 +18,9 @@ import type { Edge, FrameView, Insets } from '../../shared/modules/window'
 import { model } from '../model/model'
 import { DWMWA, WS, win32 } from '../win/user32'
 import type { WindowController } from '../views/window'
-import { quietTests } from '../context'
+
+/** As quietTests in context.ts (not imported: frame.ts loads before it). */
+const quietTests = process.platform === 'darwin' && !!process.env.SEARCH_PROBE && process.env.SEARCH_SHOW !== '1'
 
 /** Clear room for the window's shadow (tokens.css --window-shadow fits in it). */
 export const ROOM: Insets = { top: 30, right: 40, bottom: 50, left: 40 }
@@ -389,6 +391,8 @@ export class Frame {
       out.cursor = w.cursor()
     }
     out.pages = this.c.pageBounds()
+    const wc = this.c.activeRuntime()?.contents
+    out.zoom = wc && !wc.isDestroyed() ? wc.getZoomFactor() : null
     out.pointer = screen.getCursorScreenPoint()
     out.minimized = this.c.base.isMinimized()
     out.workArea = screen.getDisplayMatching(this.c.base.getBounds()).workArea

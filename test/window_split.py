@@ -104,11 +104,11 @@ t.ok(near(p[0]["width"], p[1]["width"]), "double click evens the two pages out")
 
 # 4. The keys move between pages, one at a time (§8.24).
 b.cmd("tab.select", id=right)
-b.cmd("split.focus", by=-1)
+b.cmd("split.focus", side="left")
 t.ok(b.window()["activeID"] == left, "the keys go to the left page")
-b.cmd("split.focus", by=-1)
+b.cmd("split.focus", side="left")
 t.ok(b.window()["activeID"] == left, "and stop at the end")
-b.cmd("split.focus", by=1)
+b.cmd("split.focus", side="right")
 t.ok(b.window()["activeID"] == right, "and back to the right")
 t.ok(splits()[0]["focused"] == right, "the split remembers the page with the keys")
 
@@ -126,7 +126,7 @@ t.ok(len(panes()) == 2, "with room again, both come back")
 b.cmd("tab.close", id=right)
 time.sleep(0.5)
 t.ok(splits() == [] and b.window()["activeID"] == left, "closing one page: the split is gone, its partner in front")
-t.ok(len(panes()) == 0 and len(frame()["pages"]) == 1, "one card again")
+t.ok(len(panes()) == 0 and len(frame()["pages"]) == 1, "one card again (%s, %s)" % (panes(), frame()["pages"]))
 
 # 7. Split and separate with the same key (§8.19).
 b.cmd("split.toggle")

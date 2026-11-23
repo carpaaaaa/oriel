@@ -26,6 +26,8 @@ const uiPage = path.join(here, '../ui/index.html')
 interface Slot { insets: { left: number; top: number; right: number; bottom: number }; radius: number }
 
 const controllers = new Map<ID, WindowController>()
+/** Modules hear of each page the first time it comes on screen (zoom). */
+export const pageAttached: ((id: ID, contents: Electron.WebContents) => void)[] = []
 /** Pages whose focus is already watched (a click in a page of a split gives it the keys). */
 const watched = new WeakSet<Electron.WebContents>()
 
@@ -116,7 +118,7 @@ export class WindowController {
   mark(slice: Slice | 'window' | (string & {})): void {
     this.dirty.add(slice)
     if (!this.flushTimer) this.flushTimer = setTimeout(() => this.flush(), 0)
-    if (slice === 'activeID' || slice === 'space' || slice === 'tabs') this.placePages()
+    if (slice === 'activeID' || slice === 'space' || slice === 'tabs' || slice === 'splits') this.placePages()
   }
 
   /** Send a part at once, not on the next tick (the frame, before pages move). */
@@ -226,7 +228,8 @@ export class WindowController {
     const want = new Set<ID>()
     for (const id of this.slots.keys()) {
       const tab = model.tabs.get(id)
-      if (tab && !tab.empty && model.spaceTabs(this.record).includes(id)) want.add(id)
+      // Only what the model has on screen: the tab in front and its split.
+      if (tab && !tab.empty && model.onScreen(id)) want.add(id)
     }
     for (const id of [...this.shown]) {
       if (want.has(id)) continue
@@ -244,6 +247,7 @@ export class WindowController {
           const r = this.record
           if (r.active[r.space] !== id && r.splits.some(s => s.tabs.includes(id))) model.selectTab(r, id)
         })
+        for (const f of pageAttached) f(id, view.webContents)
       }
       if (!this.shown.has(id)) {
         // Under the overlay, above the interface.

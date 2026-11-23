@@ -8,8 +8,7 @@ import type { SplitView } from '../../shared/state'
 import { handle } from '../router'
 import { model, type WindowRecord } from '../model/model'
 import { need } from '../context'
-import { shortcut } from '../keys'
-import type { WindowController } from '../views/window'
+import { allControllers, type WindowController } from '../views/window'
 
 /** TabSplit.most */
 export const MOST = 4
@@ -53,35 +52,6 @@ export function toggleSplit(c: WindowController): void {
   c.ui.webContents.focus()
 }
 
-/** A page leaves: its share goes to the others in proportion; one page left
- * is a tab again (TabSplit.remove). */
-function leave(win: WindowRecord, id: string): void {
-  const split = splitOf(win, id)
-  if (!split) return
-  const i = split.tabs.indexOf(id)
-  const tabs = split.tabs.filter(t => t !== id)
-  if (tabs.length < 2) win.splits = win.splits.filter(s => s !== split)
-  else {
-    const sizes = clampSizes(split.sizes.filter((_, k) => k !== i))
-    win.splits = win.splits.map(s => (s === split ? { ...s, tabs, sizes, focused: s.focused === id ? tabs[Math.min(i, tabs.length - 1)] : s.focused } : s))
-  }
-  touch(win)
-}
-
-// §8.26: closing the page with the keys hands them to its partner, the page
-// on its right (or on its left for the last one), before the model picks.
-model.on('tab-closed', (id: string) => {
-  for (const win of model.windows.values()) {
-    const split = splitOf(win, id)
-    if (!split) continue
-    const i = split.tabs.indexOf(id)
-    const partner = split.tabs[i + 1] ?? split.tabs[i - 1]
-    leave(win, id)
-    const space = model.spaceOfTab(win, partner ?? '')
-    if (partner && win.active[space] === id) model.selectTab(win, partner)
-  }
-})
-
 /** The page with the keys, remembered by its split (§8.12). */
 export function noteFocus(win: WindowRecord, id: string): void {
   const split = splitOf(win, id)
@@ -92,20 +62,45 @@ export function noteFocus(win: WindowRecord, id: string): void {
 
 model.on('selected', (win: WindowRecord, id: string) => noteFocus(win, id))
 
-/** §8.24: the page on the left or right, one at a time, not wrapping. */
-function focusBeside(c: WindowController, by: 1 | -1): void {
+// Model.close leaves the split without saying so ('splits' isn't touched):
+// send the splits again whenever a tab goes (asked of the tabs module).
+model.on('tab-closed', () => { for (const c of allControllers()) c.mark('splits') })
+
+/** §8.24: the page on the left or right, one at a time, not wrapping;
+ * "other" goes round (Focus Other Page). */
+function focusBeside(c: WindowController, side: 'left' | 'right' | 'other'): void {
   const win = c.record
   const split = splitOf(win, win.active[win.space])
   if (!split) return
   const i = split.tabs.indexOf(win.active[win.space]!)
-  const next = split.tabs[i + by]
+  const next = side === 'other' ? split.tabs[(i + 1) % split.tabs.length] : split.tabs[i + (side === 'left' ? -1 : 1)]
   if (!next) return
   model.selectTab(win, next)
   c.focusPage()
 }
 
+/** §8.27: Swap Pages (two pages trade places, the shares with them). */
+function swap(c: WindowController): void {
+  const win = c.record
+  const split = splitOf(win, win.active[win.space])
+  if (!split) return
+  win.splits = win.splits.map(s => (s === split ? { ...s, tabs: [...s.tabs].reverse(), sizes: [...s.sizes].reverse() } : s))
+  touch(win)
+}
+
+/** §8.27: Separate: every page a tab again, the one with the keys in front. */
+function separate(c: WindowController): void {
+  const win = c.record
+  const split = splitOf(win, win.active[win.space])
+  if (!split) return
+  win.splits = win.splits.filter(s => s !== split)
+  touch(win)
+}
+
 handle('split.toggle', (_a, ctx) => toggleSplit(need(ctx)))
-handle('split.focus', ({ by }, ctx) => focusBeside(need(ctx), by))
+handle('split.focus', ({ side }, ctx) => focusBeside(need(ctx), side))
+handle('split.swap', (_a, ctx) => swap(need(ctx)))
+handle('split.separate', (_a, ctx) => separate(need(ctx)))
 handle('split.resize', ({ first, sizes }, ctx) => {
   const win = need(ctx).record
   const split = win.splits.find(s => s.tabs[0] === first)
@@ -114,8 +109,3 @@ handle('split.resize', ({ first, sizes }, ctx) => {
   touch(win)
 })
 
-// Windows keys (studio/01 §8.19, §8.24 proposals): Ctrl+Alt+N splits and
-// separates; Ctrl+Alt+Left/Right move the keys. AltGr never counts.
-shortcut('Ctrl+Alt+N', 'first', () => ({ do: 'split.toggle' }))
-shortcut('Ctrl+Alt+Left', 'first', c => (splitOf(c.record, c.record.active[c.record.space]) ? { do: 'split.focus', by: -1 } : null))
-shortcut('Ctrl+Alt+Right', 'first', c => (splitOf(c.record, c.record.active[c.record.space]) ? { do: 'split.focus', by: 1 } : null))

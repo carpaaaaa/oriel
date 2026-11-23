@@ -4,9 +4,9 @@
 import { app, BaseWindow } from 'electron'
 import './commands'
 import './split'
+import './zoom'
 import '../../shared/modules/window'
 import { registerSlice } from '../views/window'
-import { shortcut } from '../keys'
 import { addDefaults } from '../../shared/prefs'
 import { benchRequest } from '../bench/server'
 import { allControllers, controllerFor, focusedController } from '../views/window'
@@ -20,8 +20,6 @@ addDefaults({ 'window.nativeFrame': false })
 
 registerSlice('frame', c => c.frame.view())
 
-// studio/01 §1.19: F11 on Windows (⌃⌘F on the Mac).
-shortcut('F11', 'first', () => ({ do: 'window.fullScreen' }))
 
 const pick = (id?: unknown) => {
   const c = typeof id === 'string' ? controllerFor(id) : focusedController()

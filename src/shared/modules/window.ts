@@ -39,8 +39,14 @@ declare module '../commands' {
     // Split View (studio/01 §8)
     /** Split Current Page / Separate Split Tabs (§8.19). */
     'split.toggle': { id?: string }
-    /** The keys to the page on the left (-1) or right (1) (§8.24). */
-    'split.focus': { by: 1 | -1 }
+    /** The keys to the page on the left or right, or the next one round (§8.24). */
+    'split.focus': { side: 'left' | 'right' | 'other' }
+    /** Swap Pages, Separate (§8.27). */
+    'split.swap': { id?: string }
+    'split.separate': { id?: string }
+    /** Page zoom, kept for each site (studio/01 §2.22): times `by`, or back
+     * to the default. */
+    'view.zoom': { by?: number; reset?: boolean; id?: string }
     /** New shares of the split whose first page is `first` (§8.14). */
     'split.resize': { first: string; sizes: number[] }
   }
