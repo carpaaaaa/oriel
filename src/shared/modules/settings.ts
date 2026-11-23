@@ -79,6 +79,8 @@ declare module '../commands' {
     'settings.do': { id: string; arg?: unknown }
     // Oriel's own pages
     'internal.open': { url: string }
+    /** A part of the window's state, for an Oriel page allowed to read it (allowPage). */
+    'internal.state': { slice: string }
     // site permissions (06 §2.6)
     'permission.answer': { answer: 'allow' | 'once' | 'always' | 'deny' }
     'permission.list': None

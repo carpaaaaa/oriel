@@ -116,31 +116,64 @@ export function tabOf(wc: WebContents): { tab: string; window: WindowController 
   return null
 }
 
-/** What an Oriel page may ask of the main process. */
-const allowed = [
-  'settings.', 'permission.', 'download.', 'internal.',
-  'passwords.list', 'passwords.remove', 'passwords.removeAll', 'passwords.reveal', 'passwords.copy', 'passwords.add', 'passwords.forgetNever',
-  'history.list', 'history.forget', 'history.clear', 'bookmark.list', 'import.open', 'tab.new', 'tab.go',
-]
+/** What each Oriel page may ask of the main process, never everything: its
+ * module names its commands ("history.list"; "download." for a family) and
+ * the window-state parts it may read. Every page has `common`. */
+interface PageGrant { commands: string[]; slices: string[] }
+const grants = new Map<string, PageGrant>()
+const common = ['internal.open', 'internal.state', 'tab.new', 'settings.values', 'settings.open']
+
+/** For any module: what its oriel://<page> may do.
+ *   allowPage('extensions', { commands: ['extension.pin', 'extension.remove'], slices: ['extensions'] })
+ * then, in the page: window.oriel.cmd({ do: 'extension.pin', id, pinned: true }),
+ * window.oriel.cmd({ do: 'internal.state', slice: 'extensions' }), and
+ * window.oriel.on(u => u.kind === 'extensions' && ...), fed by tellPages('extensions', value, 'extensions'). */
+export function allowPage(page: string, grant: Partial<PageGrant>): void {
+  const g = grants.get(page) ?? { commands: [], slices: [] }
+  g.commands.push(...(grant.commands ?? []))
+  g.slices.push(...(grant.slices ?? []))
+  grants.set(page, g)
+}
+
+const passwordsCommands = ['passwords.list', 'passwords.remove', 'passwords.removeAll', 'passwords.reveal', 'passwords.copy', 'passwords.add', 'passwords.forgetNever']
+allowPage('settings', {
+  commands: ['settings.', 'permission.', 'import.open', 'passwords.list', 'passwords.forgetNever', 'history.clear', 'downloads.show'],
+  slices: ['prefs'],
+})
+allowPage('downloads', { commands: ['download.', 'downloads.show'], slices: ['downloads', 'settings'] })
+allowPage('passwords', { commands: passwordsCommands })
+allowPage('history', { commands: ['history.list', 'history.forget', 'history.clear', 'tab.go'] })
+
+const hostOf = (url: string) => { try { return new URL(url).host } catch { return '' } }
+const fits = (list: string[], name: string) => list.some(a => (a.endsWith('.') ? name.startsWith(a) : name === a))
 
 ipcMain.handle('oriel:command', async (event, command: Command) => {
   const frame = event.senderFrame
   if (!frame || frame !== event.sender.mainFrame || !isInternal(frame.url)) throw new Error('not an Oriel page')
+  const page = hostOf(frame.url)
   const name = String(command?.do ?? '')
-  if (!allowed.some(a => (a.endsWith('.') ? name.startsWith(a) : name === a))) throw new Error(`not for a page: ${name}`)
+  const grant = grants.get(page)
+  if (!fits(common, name) && !(grant && fits(grant.commands, name))) throw new Error(`not for oriel://${page}: ${name}`)
   if (!pages.has(event.sender)) {
     pages.add(event.sender)
     event.sender.once('destroyed', () => pages.delete(event.sender))
   }
   const where = tabOf(event.sender)
+  if (name === 'internal.state') {
+    const slice = String((command as { slice?: string }).slice ?? '')
+    if (!grant?.slices.includes(slice)) throw new Error(`oriel://${page} doesn't read ${slice}`)
+    return where?.window ? (where.window.state() as unknown as Record<string, unknown>)[slice] ?? null : null
+  }
   return run(command as never, { window: where?.window ?? null })
 })
 
-/** Tell every open Oriel page (kind: 'prefs', 'downloads', 'permissions'...). */
-export function tellPages(kind: string, value: unknown, only?: (wc: WebContents) => boolean): void {
+/** Tell open Oriel pages something new (kind: 'prefs', 'downloads'...): all
+ * of them, those of one page ('extensions'), or those `only` picks. */
+export function tellPages(kind: string, value: unknown, only?: string | ((wc: WebContents) => boolean)): void {
   for (const wc of pages) {
     if (wc.isDestroyed()) { pages.delete(wc); continue }
-    if (only && !only(wc)) continue
+    if (typeof only === 'string' && hostOf(wc.getURL()) !== only) continue
+    if (typeof only === 'function' && !only(wc)) continue
     wc.send('oriel:update', { kind, value })
   }
 }
@@ -148,7 +181,7 @@ export function tellPages(kind: string, value: unknown, only?: (wc: WebContents)
 let prefsTimer: NodeJS.Timeout | null = null
 model.on('window-changed', (_id: string, slices: string[]) => {
   if (!slices.includes('prefs') || prefsTimer) return
-  prefsTimer = setTimeout(() => { prefsTimer = null; tellPages('prefs', allPrefs()) }, 0)
+  prefsTimer = setTimeout(() => { prefsTimer = null; tellPages('prefs', allPrefs(), 'settings') }, 0)
 })
 
 /** Opens an Oriel page in this window: the tab already showing that kind of
@@ -202,3 +235,6 @@ export function internalContents(id: string): WebContents | null {
 }
 
 export function windows(): WindowController[] { return allControllers() }
+
+// The same, asked by the interface or the bench (no page grant to check).
+handle('internal.state', ({ slice }, ctx) => (need(ctx).state() as unknown as Record<string, unknown>)[slice] ?? null)

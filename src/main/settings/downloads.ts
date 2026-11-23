@@ -194,7 +194,7 @@ function changed(): void {
   markAllSettings()
   for (const c of allControllers()) c.mark('downloads')
   if (tellTimer) return
-  tellTimer = setTimeout(() => { tellTimer = null; tellPages('downloads', listed()); taskbar() }, 50)
+  tellTimer = setTimeout(() => { tellTimer = null; tellPages('downloads', listed(), 'downloads'); taskbar() }, 50)
 }
 
 function progress(): number | null {
@@ -282,6 +282,9 @@ handle('download.retry', ({ id }) => {
   if (!l?.entry.url && !l?.item) return
   const url = l.item?.getURL() ?? l.entry.url!
   live.delete(id)
+  // What was left of the broken one goes, and its name with it.
+  if (l.item && l.item.getState() !== 'completed') l.item.cancel()
+  if (l.entry.path) { taken.delete(l.entry.path); try { if (l.entry.state !== 'completed') unlinkSync(l.entry.path) } catch {} }
   retrying.set(url, l.retryName)
   l.session.downloadURL(url)
   changed()

@@ -6,6 +6,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PAGES = {}
 GATES = {}
+FAILED = set()
+BROKEN = set()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -28,6 +30,13 @@ class Handler(BaseHTTPRequestHandler):
             size = int(q.get("size", 200000))
             slow = float(q.get("slow", 0))
             fail = int(q.get("fail", -1))
+            # failonce=<bytes>: the first request for this name breaks there, a retry gets it whole.
+            if "failonce" in q and path not in FAILED:
+                FAILED.add(path)
+                fail = int(q["failonce"])
+            # breaks=<bytes>: broken there for as long as the path is in BROKEN.
+            if "breaks" in q and path in BROKEN:
+                fail = int(q["breaks"])
             gate = q.get("gate")
             self.send_response(200)
             self.send_header("Content-Type", "application/octet-stream")
