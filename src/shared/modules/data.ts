@@ -4,6 +4,13 @@
 
 import type { ID } from '../state'
 
+/** The app's name where the interface says it. TODO(brand): brand.name from
+ * src/shared/brand.ts once main is merged. */
+export const appName = 'Oriel'
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+type None = {}
+
 /** A bookmark or a folder, as bookmarks.json keeps it on the Mac
  * (Bookmarks.swift: id, title, url?, children?). A folder has no url. */
 export interface BookmarkNode {
@@ -119,7 +126,7 @@ declare module '../commands' {
     // history (studio/05 §3.5)
     'history.list': { query?: string }
     'history.forget': { url: string }
-    'history.clear': Record<string, never>
+    'history.clear': None
     // passwords (studio/05 §2)
     'passwords.list': { query?: string }
     'passwords.add': { host: string; user: string; password: string }
@@ -127,19 +134,19 @@ declare module '../commands' {
     'passwords.removeAll': { query?: string }
     'passwords.reveal': { host: string; user: string }
     'passwords.copy': { host: string; user: string }
-    'passwords.forgetNever': Record<string, never>
+    'passwords.forgetNever': None
     'fill.pick': { index: number; byKey?: boolean }
-    'fill.dismiss': Record<string, never>
+    'fill.dismiss': None
     'save.answer': { answer: 'save' | 'notNow' | 'never' }
     // bringing things over (studio/05 §1)
     'import.open': { source?: string; extensions?: boolean }
-    'import.close': Record<string, never>
+    'import.close': None
     'import.pick': { source: string }
     'import.profile': { source: string; profile: string }
     'import.option': { key: 'passwords' | 'bookmarks' | 'history' | 'extensions' | 'replace'; on: boolean }
     'import.consent': { source: string; on: boolean }
     'import.how': { source: string | null }
-    'import.run': Record<string, never>
+    'import.run': None
     'import.file': { path?: string }
     'import.trashFile': { path: string }
   }

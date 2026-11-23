@@ -57,3 +57,14 @@ model.on('tab-changed', (tab: { id: ID }, patch: Record<string, unknown>) => {
 model.on('window-changed', (id: ID) => {
   if (!controllerFor(id)) perWindow.delete(id)
 })
+
+/** A panel of ours over the page. The overlay's page may still be loading
+ * (just after a window opens): what it is told then is lost, so it is told
+ * again once it has loaded, if the panel is still the one wanted. */
+export function showPanel(c: WindowController, name: string): void {
+  c.sendOverlay({ kind: 'panel', name })
+  const wc = c.overlay.webContents
+  if (wc.isLoading()) wc.once('did-finish-load', () => {
+    if (c.overlayLayer.kind === 'panel' && c.overlayLayer.name === name) c.sendOverlay({ kind: 'panel', name })
+  })
+}

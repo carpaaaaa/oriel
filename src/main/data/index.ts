@@ -4,6 +4,9 @@
 import { app } from 'electron'
 import './store'
 import './places'
+import './forms'
+import './passwords'
+import '../import/panel'
 import { bookmarks, history } from './store'
 import { flushMeta } from './meta'
 
