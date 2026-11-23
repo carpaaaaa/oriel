@@ -118,8 +118,12 @@ def wid(i=0):
     return win(None, i)["id"]
 
 
-def cmd(name, i=None, **args):
-    return b.cmd(name, window=wid(i) if i is not None else None, **args)
+def cmd(_command, _i=None, **args):
+    """Any command; `_i` the window by its place (args may use `name`)."""
+    req = {"do": "cmd", "cmd": {"do": _command, **args}}
+    if _i is not None:
+        req["window"] = wid(_i)
+    return b.call(req).get("value")
 
 
 def page(name, i=None, wait=True):
