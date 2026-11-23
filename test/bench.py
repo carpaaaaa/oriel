@@ -46,8 +46,11 @@ def address():
 
 
 def use(world, wipe=True):
+    """A world of this checkout's own: two worktrees testing at once (agents
+    in parallel) never share a socket or a folder, as on the Mac."""
     global WORLD
-    WORLD = world
+    import hashlib
+    WORLD = f"{world}-{hashlib.sha1(str(ROOT).encode()).hexdigest()[:6]}"
     if wipe and folder().exists():
         shutil.rmtree(folder(), ignore_errors=True)
 

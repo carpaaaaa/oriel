@@ -1,32 +1,84 @@
-// Small JSON files, written atomically and a moment after the last change,
-// as Store.swift does on the Mac. A file that can't be read is moved aside
-// (quarantined) and never overwritten in place.
+// Small JSON files, written atomically, as Store.swift's Disk does on the Mac
+// (studio/01 §9.2): each into a file beside it, then renamed over it, so a
+// file is never half written. A file that is there but won't read is moved
+// aside (quarantined, §9.3) and never overwritten in place.
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync, openSync, fsyncSync, closeSync } from 'node:fs'
 import path from 'node:path'
 import { dataFile } from '../paths'
 
 const pending = new Map<string, { timer: NodeJS.Timeout; write: () => void }>()
+const flushers: (() => void)[] = []
 
-export function readJSON<T>(name: string, fallback: T): T {
+/** Whatever else must reach the disk before quitting (the model's rows). */
+export function onFlush(f: () => void): void { flushers.push(f) }
+
+export function fileExists(name: string): boolean {
+  return existsSync(dataFile(name))
+}
+
+/** X.json becomes X.unreadable-<seconds>.json, as Store.quarantine names it.
+ * True when it was moved (or wasn't there). */
+export function quarantine(name: string): boolean {
   const file = dataFile(name)
-  if (!existsSync(file)) return fallback
+  if (!existsSync(file)) return true
+  const aside = file.replace(/\.json$/, '') + `.unreadable-${Math.floor(Date.now() / 1000)}.json`
   try {
-    return JSON.parse(readFileSync(file, 'utf8')) as T
-  } catch (error) {
-    const aside = `${file}.broken-${Date.now()}`
-    try { renameSync(file, aside) } catch {}
-    console.warn(`[persist] ${name} unreadable, kept as ${path.basename(aside)}:`, error)
-    return fallback
+    renameSync(file, aside)
+    console.warn(`[persist] ${name} unreadable, kept as ${path.basename(aside)}`)
+    return true
+  } catch {
+    return false
   }
 }
 
+/** Names whose quarantine failed: never written over until it works. */
+const stuck = new Set<string>()
+
+/** The file's JSON, `fallback` if it isn't there. `check` turns what was read
+ * into the value (null: it doesn't make sense), so a file that parses but
+ * means nothing is quarantined too. */
+export function readJSON<T>(name: string, fallback: T, check?: (raw: unknown) => T | null): T {
+  const file = dataFile(name)
+  if (!existsSync(file)) return fallback
+  let raw: unknown
+  try {
+    const text = readFileSync(file, 'utf8')
+    if (!text.trim()) return fallback
+    raw = JSON.parse(text)
+  } catch {
+    if (!quarantine(name)) stuck.add(name)
+    return fallback
+  }
+  if (!check) return raw as T
+  const value = check(raw)
+  if (value === null) {
+    if (!quarantine(name)) stuck.add(name)
+    return fallback
+  }
+  return value
+}
+
 export function writeJSONNow(name: string, value: unknown): void {
+  const prior = pending.get(name)
+  if (prior) { clearTimeout(prior.timer); pending.delete(name) }
+  if (stuck.has(name)) {
+    if (!quarantine(name)) return
+    stuck.delete(name)
+  }
   const file = dataFile(name)
   mkdirSync(path.dirname(file), { recursive: true })
   const temp = `${file}.${process.pid}.tmp`
-  writeFileSync(temp, JSON.stringify(value, null, 1))
-  renameSync(temp, file)
+  writeFileSync(temp, JSON.stringify(value))
+  try { const fd = openSync(temp, 'r+'); fsyncSync(fd); closeSync(fd) } catch {}
+  // Windows: an indexer or antivirus can hold the file a moment.
+  for (let attempt = 0; ; attempt++) {
+    try { renameSync(temp, file); return } catch (error) {
+      if (attempt >= 9) { try { unlinkSync(temp) } catch {} ; throw error }
+      const until = Date.now() + 50
+      while (Date.now() < until) { /* wait */ }
+    }
+  }
 }
 
 /** Write after `delay` ms of quiet; later calls replace the value. */
@@ -37,8 +89,15 @@ export function writeJSON(name: string, value: () => unknown, delay = 400): void
   pending.set(name, { timer: setTimeout(write, delay), write })
 }
 
+export function removeFile(name: string): void {
+  const prior = pending.get(name)
+  if (prior) { clearTimeout(prior.timer); pending.delete(name) }
+  try { unlinkSync(dataFile(name)) } catch {}
+}
+
 /** Everything still waiting, now (quitting). */
 export function flushJSON(): void {
+  for (const f of flushers) { try { f() } catch (e) { console.warn('[persist] flush', e) } }
   for (const { timer, write } of [...pending.values()]) { clearTimeout(timer); write() }
 }
 

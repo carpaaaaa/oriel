@@ -14,8 +14,8 @@ function leftover(e: KeyboardEvent): void {
   })
 }
 
-// Last in line: the page's own listeners, on window or below, run first. A
-// listener added on window in the bubble phase after load still sees the
-// event before ours only if added earlier; the queueMicrotask below lets a
-// handler that calls preventDefault late still win.
-window.addEventListener('keydown', e => queueMicrotask(() => leftover(e)), false)
+// Last in line: the page's own listeners run first, wherever they are. A
+// microtask would run between two listeners of the same event (the checkpoint
+// after each callback), before a page's later window listener could call
+// preventDefault; a task runs only once the whole dispatch is over.
+window.addEventListener('keydown', e => { setTimeout(() => leftover(e), 0) }, false)

@@ -1,0 +1,274 @@
+{
+ "rev": 1,
+ "windowID": "565CC502-845E-43EE-8E2D-DEE95D2DBE5B",
+ "chrome": "windows",
+ "look": "dark",
+ "focused": false,
+ "maximized": false,
+ "fullScreen": false,
+ "controlsWidth": 138,
+ "space": "00000000-0000-0000-0000-000000000001",
+ "spaces": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "Personal",
+   "colour": 0
+  }
+ ],
+ "tabs": [
+  {
+   "id": "9f433839-94b7-4866-80d2-d8c09d7d2906",
+   "url": "https://mail.google.com/mail/u/0/",
+   "title": "Inbox",
+   "label": "Inbox",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "pinID": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A01"
+  },
+  {
+   "id": "db0f0606-f2fb-4ee2-a618-b43a253f0718",
+   "url": "https://calendar.google.com/",
+   "title": "Calendar",
+   "label": "Calendar",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "pinID": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A02"
+  },
+  {
+   "id": "c8eb1f3c-96da-4102-86bb-28fcbc754381",
+   "url": "https://linear.app/",
+   "title": "Linear",
+   "label": "Linear",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "pinID": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A08",
+   "listed": true
+  },
+  {
+   "id": "55c65260-39f7-4832-839b-6ac6fe9c54f9",
+   "url": "https://docs.google.com/",
+   "title": "Docs",
+   "label": "Docs",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "pinID": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A06",
+   "listed": true
+  },
+  {
+   "id": "8bc94f4b-e734-4f2c-973b-b392eae63951",
+   "url": "https://sheets.google.com/",
+   "title": "Sheets",
+   "label": "Sheets",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "pinID": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A07",
+   "listed": true
+  },
+  {
+   "id": "505a9708-3f84-4d24-9fda-543f39fd8820",
+   "url": "https://www.reddit.com/",
+   "title": "Reddit",
+   "label": "Reddit",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "pinID": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A09",
+   "listed": true
+  },
+  {
+   "id": "e5624567-71de-4d5c-8f74-fbbde5692863",
+   "url": "https://oriel.app/",
+   "title": "Oriel",
+   "label": "Oriel",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "pinID": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A05",
+   "listed": true
+  },
+  {
+   "id": "8b02f3ac-37b3-46e5-a372-8aee42fbbfb7",
+   "url": "https://www.are.na/oriel",
+   "title": "Oriel references",
+   "label": "Oriel references",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": false,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "favicon": "https://www.are.na/favicon.ico"
+  }
+ ],
+ "pins": [
+  {
+   "id": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A01",
+   "title": "Inbox",
+   "home": "https://mail.google.com/mail/u/0/",
+   "letter": "M",
+   "tabID": "9f433839-94b7-4866-80d2-d8c09d7d2906",
+   "everywhere": true
+  },
+  {
+   "id": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A02",
+   "title": "Calendar",
+   "home": "https://calendar.google.com/",
+   "letter": "C",
+   "tabID": "db0f0606-f2fb-4ee2-a618-b43a253f0718",
+   "everywhere": true
+  },
+  {
+   "id": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A08",
+   "title": "Linear",
+   "home": "https://linear.app/",
+   "letter": "L",
+   "tabID": "c8eb1f3c-96da-4102-86bb-28fcbc754381",
+   "folder": "9A0D1E2F-3B4C-4D5E-8F60-718293A4B5C2",
+   "listed": true
+  },
+  {
+   "id": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A06",
+   "title": "Docs",
+   "home": "https://docs.google.com/",
+   "letter": "D",
+   "tabID": "55c65260-39f7-4832-839b-6ac6fe9c54f9",
+   "folder": "9A0D1E2F-3B4C-4D5E-8F60-718293A4B5C1",
+   "listed": true
+  },
+  {
+   "id": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A07",
+   "title": "Sheets",
+   "home": "https://sheets.google.com/",
+   "letter": "S",
+   "tabID": "8bc94f4b-e734-4f2c-973b-b392eae63951",
+   "folder": "9A0D1E2F-3B4C-4D5E-8F60-718293A4B5C1",
+   "listed": true
+  },
+  {
+   "id": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A09",
+   "title": "Reddit",
+   "home": "https://www.reddit.com/",
+   "letter": "R",
+   "tabID": "505a9708-3f84-4d24-9fda-543f39fd8820",
+   "folder": "9A0D1E2F-3B4C-4D5E-8F60-718293A4B5C3",
+   "listed": true
+  },
+  {
+   "id": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A05",
+   "title": "Oriel",
+   "home": "https://oriel.app/",
+   "letter": "O",
+   "tabID": "e5624567-71de-4d5c-8f74-fbbde5692863",
+   "listed": true
+  }
+ ],
+ "pinFolders": [
+  {
+   "id": "9A0D1E2F-3B4C-4D5E-8F60-718293A4B5C1",
+   "name": "Writing",
+   "open": true,
+   "depth": 1
+  },
+  {
+   "id": "9A0D1E2F-3B4C-4D5E-8F60-718293A4B5C2",
+   "name": "Work",
+   "open": true,
+   "depth": 2,
+   "parent": "9A0D1E2F-3B4C-4D5E-8F60-718293A4B5C1"
+  },
+  {
+   "id": "9A0D1E2F-3B4C-4D5E-8F60-718293A4B5C3",
+   "name": "Later",
+   "open": false,
+   "depth": 1
+  }
+ ],
+ "groups": [],
+ "splits": [],
+ "activeID": "8b02f3ac-37b3-46e5-a372-8aee42fbbfb7",
+ "sidebar": {
+  "layout": "side",
+  "width": 232,
+  "folded": false,
+  "side": "left",
+  "icons": false
+ },
+ "field": {
+  "open": false,
+  "target": "new",
+  "text": "",
+  "suggestions": [],
+  "selected": 0,
+  "refused": 0
+ },
+ "extensions": [],
+ "downloads": [],
+ "prefs": {
+  "look.appearance": "system",
+  "tabs.layout": "side",
+  "sidebar.width": 232,
+  "sidebar.side": "left",
+  "sidebar.cards": true,
+  "tabs.roomier": false,
+  "tabs.newAfterLast": false,
+  "tabs.closeGoesBack": false,
+  "search.engine": "google",
+  "search.suggestions": true,
+  "start.fresh": false,
+  "spaces": true,
+  "spaces.commandNumbers": false,
+  "tabs.newPlace": "next",
+  "tabs.frontBeside": false,
+  "tabs.lazy": false,
+  "tabs.switcherBehindFirst": false,
+  "tabs.switcherLeavesOutPins": false,
+  "tabs.sleep": true,
+  "tabs.sleep.pace": "normal",
+  "pins.home": true,
+  "pins.peek": true,
+  "pins.list": true,
+  "pins.folders": true
+ },
+ "picked": [],
+ "switcher": null,
+ "spacesOn": true,
+ "reopen": {
+  "title": "Reopen Closed Tab",
+  "can": false,
+  "recent": []
+ }
+}
