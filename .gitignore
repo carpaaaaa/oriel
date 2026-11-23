@@ -10,3 +10,6 @@ out/
 riferimenti-privati/
 .DS_Store
 *.log
+
+# worktrees of parallel agents
+.claude/
