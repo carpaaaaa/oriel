@@ -543,14 +543,17 @@ function afterField(c: WindowController): void { afterFieldHook(c) }
 // keys typed before the field had them (Browser.holdKey)
 
 /** Typing between the key that raised the field and the field taking the
- * keys is kept for it, half a second at most, never a shortcut. */
+ * keys is kept for it, half a second at most, never a shortcut. A key that
+ * reaches the page under the raised field is the field's too: the page is
+ * behind the veil. */
 export function holdKey(c: WindowController, input: Electron.Input, from: Electron.WebContents): boolean {
   const m = memories.get(c.record)
-  if (!m?.focusAsked || Date.now() - m.focusAsked > 500 || !fieldShowing(c)) return false
-  if (input.control || input.meta || input.alt || input.type !== 'keyDown' || input.isComposing) return false
+  if (!m || input.control || input.meta || input.alt || input.type !== 'keyDown' || input.isComposing) return false
   if (['Shift', 'CapsLock', 'Control', 'Alt', 'Meta', 'AltGraph', 'Process', 'Dead'].includes(input.key)) return false
-  void from
-  if (!m.held.length) setTimeout(() => letGo(c), 500)
+  const early = m.focusAsked != null && Date.now() - m.focusAsked <= 500 && fieldShowing(c)
+  const stray = m.editing && !blankInFront(c) && from !== c.overlay.webContents && from !== c.ui.webContents
+  if (!early && !stray) return false
+  if (!m.held.length) setTimeout(() => letGo(c), early ? 500 : 0)
   m.held.push(input)
   return true
 }
@@ -592,7 +595,13 @@ handle('field.unchip', (_a, ctx) => {
 })
 handle('field.escape', (_a, ctx) => escape(need(ctx)))
 handle('field.take', ({ index }, ctx) => take(need(ctx), index))
-handle('field.focused', (_a, ctx) => { const c = need(ctx); if (mem(c).held.length) letGo(c); else mem(c).focusAsked = null })
+handle('field.focused', (_a, ctx) => {
+  const c = need(ctx)
+  // A blank tab's field has the keys: the interface's view must have them
+  // too (a new window comes up with the overlay or nothing focused).
+  if (blankInFront(c) && !c.ui.webContents.isFocused() && c.base.isFocused()) c.ui.webContents.focus()
+  if (mem(c).held.length) letGo(c); else mem(c).focusAsked = null
+})
 
 /** Typing. Answers with the ending for these words, for the input to show
  * grey and selected after the caret. */

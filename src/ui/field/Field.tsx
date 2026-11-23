@@ -37,6 +37,12 @@ export function Field(p: { place: 'page' | 'overlay' }) {
     input.scrollLeft = 0
   }
 
+  // Counters as they were when this field came: only a real move counts
+  // (a value arriving for the first time is not a change).
+  let synced = f().sync ?? 0
+  let focused = f().focus ?? 0
+  let refusals = f().refused
+
   onMount(() => {
     write(f().shown ?? f().text, f().selectFrom ?? f().text.length)
     input.focus()
@@ -44,14 +50,22 @@ export function Field(p: { place: 'page' | 'overlay' }) {
   })
 
   // The main process changed the words (⌘L, a row walked to, Escape...).
-  createEffect(on(() => f().sync ?? 0, () => write(f().shown ?? f().text, f().selectFrom), { defer: true }))
+  createEffect(on(() => f().sync ?? 0, n => {
+    if (n === synced) return
+    synced = n
+    write(f().shown ?? f().text, f().selectFrom)
+  }, { defer: true }))
   // The keys to the field.
-  createEffect(on(() => f().focus ?? 0, () => {
+  createEffect(on(() => f().focus ?? 0, n => {
+    if (n === focused) return
+    focused = n
     input.focus()
     void cmd({ do: 'field.focused' })
   }, { defer: true }))
   // Refused: a red edge and a shake, gone at the next key.
-  createEffect(on(() => f().refused, () => {
+  createEffect(on(() => f().refused, n => {
+    if (n <= refusals) { refusals = n; return }
+    refusals = n
     refused = true
     box.classList.add('refused')
     shake(box)
