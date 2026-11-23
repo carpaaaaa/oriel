@@ -2302,6 +2302,18 @@ class Model extends EventEmitter {
 
   // MARK: change notification
 
+  /** Each listener on its own: one that throws (another module's) neither
+   * stops the others nor the change that was being made. */
+  override emit(event: string | symbol, ...args: unknown[]): boolean {
+    const listeners = this.rawListeners(event)
+    for (const f of listeners) {
+      try { (f as (...a: unknown[]) => void).apply(this, args) } catch (error) {
+        console.warn(`[model] ${String(event)} listener:`, (error as Error)?.message ?? error)
+      }
+    }
+    return listeners.length > 0
+  }
+
   touch(win: WindowRecord, slices: Slice[]): void {
     this.emit('window-changed', win.id, slices)
   }
