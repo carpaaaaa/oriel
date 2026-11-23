@@ -113,8 +113,15 @@ handle('bookmark.list', ({ query }) => query
 
 // history commands (05 §3.5)
 
-handle('history.list', ({ query }) => history().everything(query ?? '').slice(0, 500)
-  .map(v => ({ url: v.url, title: v.title, address: v.address, count: v.count, last: v.last })))
+/** Everywhere you have been, newest first, for the History page (Recall.swift):
+ * the whole list's count, and the first 2000 rows with their icons. */
+handle('history.list', ({ query }) => {
+  const all = history().everything(query ?? '')
+  return {
+    total: all.length,
+    pages: all.slice(0, 2000).map(v => ({ url: v.url, title: v.title, address: v.address, count: v.count, last: v.last, favicon: iconFor(v.url) })),
+  }
+})
 // Forgetting a page forgets its icon too; Clear History, every icon (studio/01 §2.13).
 handle('history.forget', ({ url }) => { history().forget(url); forgetPage(url) })
 handle('history.clear', () => { history().clear(); forgetAll() })
