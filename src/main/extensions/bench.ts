@@ -5,7 +5,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { installExtension } from 'electron-chrome-web-store'
 import { benchRequest } from '../bench/server'
-import { getExtensions, getProfile } from './index'
+import { getExtensions, getProfile, unpackedPath } from './index'
 import { dnr } from './dnr/engine'
 import { benchMatcher } from './dnr/bench'
 import { boundCommands } from './commands'
@@ -19,10 +19,18 @@ benchRequest('extensions.install', async req => {
   return { id: ext.id, name: ext.name, version: ext.version }
 })
 
-/** Tests only: a folder as is (Load Unpacked, without the copy). */
+/** A folder in place, or with {copy: true} copied first into Unpacked/ as
+ * Load Unpacked does on the Mac (studio/04 §2.2, 5); the copy is prepared. */
 benchRequest('extensions.loadUnpacked', async req => {
-  const ext = await profile().extensions.loadExtension(String(req.path))
-  return { id: ext.id, name: ext.name, version: ext.version }
+  let folder = String(req.path)
+  if (req.copy) {
+    const to = path.join(unpackedPath(), path.basename(folder))
+    fs.rmSync(to, { recursive: true, force: true })
+    fs.cpSync(folder, to, { recursive: true })
+    folder = to
+  }
+  const ext = await profile().extensions.loadExtension(folder)
+  return { id: ext.id, name: ext.name, version: ext.version, path: ext.path }
 })
 
 benchRequest('extensions.remove', req => {
@@ -31,7 +39,10 @@ benchRequest('extensions.remove', req => {
 })
 
 benchRequest('extensions.list', () => ({
-  extensions: profile().extensions.getAllExtensions().map(e => ({ id: e.id, name: e.name, version: e.version, manifest_version: e.manifest.manifest_version, path: e.path })),
+  extensions: profile().extensions.getAllExtensions().map(e => ({
+    id: e.id, name: e.name, version: e.version, manifest_version: e.manifest.manifest_version, path: e.path,
+    popup: (e.manifest as { action?: { default_popup?: string } }).action?.default_popup ?? null,
+  })),
 }))
 
 /** chrome.declarativeNetRequest.<method>(...args) as the extension `id`. */

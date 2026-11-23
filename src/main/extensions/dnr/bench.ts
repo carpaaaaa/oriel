@@ -70,6 +70,7 @@ export function benchMatcher(options: { files: string[]; total: number; requests
   for (const r of reqs.slice(0, 2000)) index.best(new Req(r.url, r.type, 'GET', 1, r.initiator, r.initiator))
   const times: number[] = []
   let hits = 0
+  const cpu0 = process.cpuUsage()
   const all0 = performance.now()
   for (const r of reqs) {
     const s = performance.now()
@@ -77,6 +78,7 @@ export function benchMatcher(options: { files: string[]; total: number; requests
     times.push(performance.now() - s)
   }
   const allMs = performance.now() - all0
+  const cpu = process.cpuUsage(cpu0)
   times.sort((a, b) => a - b)
   const us = (ms: number) => Math.round(ms * 1000 * 10) / 10
   return {
@@ -90,6 +92,8 @@ export function benchMatcher(options: { files: string[]; total: number; requests
     requests: reqs.length,
     hits,
     meanUs: us(allMs / reqs.length),
+    /** CPU time per request: steadier than the clock on a busy machine. */
+    cpuUs: Math.round((cpu.user + cpu.system) / reqs.length * 10) / 10,
     p50Us: us(times[Math.floor(times.length * 0.5)]),
     p99Us: us(times[Math.floor(times.length * 0.99)]),
     maxUs: us(times[times.length - 1]),

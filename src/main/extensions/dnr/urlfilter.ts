@@ -4,11 +4,11 @@
 // of the host or of one of its labels. Case-insensitive unless the rule says.
 //
 // Besides matching, a filter offers "tokens" for the index: runs of
-// [a-z0-9_%] that any matching URL must contain as a whole run, because the
-// pattern bounds them on both sides by literal separators or anchors.
+// [a-z0-9] that any matching URL must contain as a whole run, because the
+// pattern bounds them on both sides by other characters or anchors.
 
 const isTokenCode = (c: number) =>
-  (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c === 95 || c === 37 || (c >= 65 && c <= 90)
+  (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || (c >= 65 && c <= 90)
 
 /** Runs of token characters in a lowercased URL, each once. */
 export function urlTokens(lower: string): string[] {
@@ -44,7 +44,7 @@ const SEPARATOR = '(?:[^A-Za-z0-9_\\-.%]|$)'
 const DOMAIN_ANCHOR = '^[a-z][a-z0-9+.\\-]*:\\/\\/(?:[^\\/?#@]*@)?(?:[^\\/?#@:]*\\.)?'
 
 export function isSeparatorCode(c: number): boolean {
-  return !(isTokenCode(c) || c === 45 || c === 46)
+  return !(isTokenCode(c) || c === 95 || c === 45 || c === 46 || c === 37)
 }
 
 export function compileUrlFilter(pattern: string, caseSensitive: boolean): UrlFilter {
@@ -54,6 +54,10 @@ export function compileUrlFilter(pattern: string, caseSensitive: boolean): UrlFi
   else if (body.startsWith('|')) { left = 'start'; body = body.slice(1) }
   let endAnchor = false
   if (body.endsWith('|')) { endAnchor = true; body = body.slice(0, -1) }
+  // A "*" at either end adds nothing to a substring match, and as ".*" at
+  // the start of a regex it would make it try every position twice over.
+  if (body.startsWith('*')) { left = 'none'; body = body.replace(/^\*+/, '') }
+  if (body.endsWith('*')) { endAnchor = false; body = body.replace(/\*+$/, '') }
 
   // Tokens with safe boundaries.
   const tokens: string[] = []
@@ -84,9 +88,8 @@ export function compileUrlFilter(pattern: string, caseSensitive: boolean): UrlFi
       tokens,
       test(url, lower, hostStart, hostEnd) {
         const hay = caseSensitive ? url : lower
-        for (let p = hostStart; p < hostEnd; p++) {
+        for (let p = hay.indexOf(literal, hostStart); p >= 0 && p < hostEnd; p = hay.indexOf(literal, p + 1)) {
           if (p !== hostStart && hay.charCodeAt(p - 1) !== 46) continue
-          if (!hay.startsWith(literal, p)) continue
           if (!trailingSep) return true
           const after = p + literal.length
           if (after >= hay.length || isSeparatorCode(hay.charCodeAt(after))) return true
@@ -96,11 +99,14 @@ export function compileUrlFilter(pattern: string, caseSensitive: boolean): UrlFi
     }
   }
 
-  // Everything else: a regular expression, made on first use.
+  // Everything else: a regular expression, made on first use, and tried
+  // only when the URL has the longest literal piece of the pattern.
+  const piece = needle.split(/[*^]/).reduce((a, b) => (b.length > a.length ? b : a), '')
   let re: RegExp | null = null
   return {
     tokens,
-    test(url) {
+    test(url, lower) {
+      if (piece && !(caseSensitive ? url : lower).includes(piece)) return false
       if (!re) {
         let src = left === 'domain' ? DOMAIN_ANCHOR : left === 'start' ? '^' : ''
         for (const ch of body) src += ch === '*' ? '.*' : ch === '^' ? SEPARATOR : escapeRegex(ch)

@@ -1,7 +1,7 @@
 // The index that keeps matching fast with hundreds of thousands of rules
 // (studio/04 §8.4): each rule sits in one bucket, found by one key the URL
 // must contain. The key is, in order of preference, a token of its urlFilter
-// (a run of [a-z0-9_%] the pattern bounds on both sides), one of its
+// (a run of [a-z0-9] the pattern bounds on both sides), one of its
 // requestDomains, one of its initiatorDomains; only rules with none of these
 // are tried on every request. A request looks up its own URL tokens and host
 // suffixes, so the work grows with the URL, not with the rules. Buckets are
@@ -108,7 +108,10 @@ export function ruleMatches(r: CompiledRule, q: Req): boolean {
     if (r.excludedResponseHeaders && r.excludedResponseHeaders.some(m => headerMatches(m, h))) return false
   }
   if (r.url && !r.url.test(q.url, q.lower, q.hostStart, q.hostEnd)) return false
-  if (r.regex && !r.regex.test(q.url)) return false
+  if (r.regex) {
+    if (r.piece && !(r.caseSensitive ? q.url : q.lower).includes(r.piece)) return false
+    if (!r.regex.test(q.url)) return false
+  }
   return true
 }
 
@@ -131,7 +134,7 @@ export class RuleIndex {
     this.regexCount = rules.filter(r => r.regex).length
     // How often each token is offered, to give each rule its rarest one.
     const freq = new Map<string, number>()
-    for (const r of rules) for (const t of r.url?.tokens ?? []) freq.set(t, (freq.get(t) ?? 0) + 1)
+    for (const r of rules) for (const t of r.tokens) freq.set(t, (freq.get(t) ?? 0) + 1)
     const cost = (t: string) => (freq.get(t) ?? 0) + (COMMON.has(t) ? 1e6 : 0) + (t.length < 3 ? 1e4 : 0)
     const put = (map: Map<string, CompiledRule[]>, key: string, r: CompiledRule) => {
       const list = map.get(key)
@@ -139,7 +142,7 @@ export class RuleIndex {
     }
     for (const r of rules) {
       let best: string | null = null
-      for (const t of r.url?.tokens ?? []) if (best === null || cost(t) < cost(best)) best = t
+      for (const t of r.tokens) if (best === null || cost(t) < cost(best)) best = t
       if (best !== null && (!COMMON.has(best) || !r.requestDomains)) { put(this.tokens, best, r); continue }
       if (r.requestDomains) { for (const d of r.requestDomains) put(this.requestDomains, d, r); continue }
       if (r.initiatorDomains) { for (const d of r.initiatorDomains) put(this.initiatorDomains, d, r); continue }

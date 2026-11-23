@@ -40,6 +40,70 @@ export function translateRegex(source: string, caseSensitive: boolean): { re: Re
   }
 }
 
+const isAlnum = (c: string) => /[a-z0-9]/i.test(c)
+
+/** What any URL a regex matches must contain: its literal runs outside
+ * groups (none if it has a top-level "|"), so a URL without them is turned
+ * down by `includes` before the regex runs, and index tokens: runs of
+ * [a-z0-9] bounded inside a literal run, or by the regex's own ^ and $. */
+export function regexLiterals(source: string): { pieces: string[]; tokens: string[] } {
+  const runs: { text: string; left: boolean; right: boolean }[] = []
+  let cur = ''
+  let curLeft = false
+  let depth = 0
+  const flush = (right = false) => {
+    if (cur) runs.push({ text: cur, left: curLeft, right })
+    cur = ''
+    curLeft = false
+  }
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i]
+    if (c === '\\') {
+      const n = source[++i] ?? ''
+      if (/[A-Za-z0-9]/.test(n)) { if (depth === 0) flush(); continue } // \d \w \b \x41...
+      if (depth === 0) cur += n
+      continue
+    }
+    if (c === '[') {
+      if (depth === 0) flush()
+      for (i++; i < source.length && source[i] !== ']'; i++) if (source[i] === '\\') i++
+      continue
+    }
+    if (c === '(') { if (depth === 0) flush(); depth++; continue }
+    if (c === ')') { depth--; continue }
+    if (c === '|') { if (depth === 0) return { pieces: [], tokens: [] }; continue }
+    if (depth > 0) continue
+    if (c === '?' || c === '*') { cur = cur.slice(0, -1); flush(); continue }
+    if (c === '+') { flush(); continue }
+    if (c === '{') {
+      const m = /^\{(\d*)/.exec(source.slice(i))
+      if (m && (m[1] === '' || m[1] === '0')) cur = cur.slice(0, -1)
+      flush()
+      while (i < source.length && source[i] !== '}') i++
+      continue
+    }
+    if (c === '^' && i === 0) { curLeft = true; continue }
+    if (c === '$') { flush(true); continue }
+    if (c === '.') { flush(); continue }
+    cur += c
+  }
+  flush()
+  const pieces = runs.map(r => r.text).filter(t => t.length >= 3)
+  const tokens: string[] = []
+  for (const r of runs) {
+    let start = -1
+    for (let i = 0; i <= r.text.length; i++) {
+      const tok = i < r.text.length && isAlnum(r.text[i])
+      if (tok) { if (start < 0) start = i; continue }
+      if (start >= 0) {
+        if ((start > 0 || r.left) && (i < r.text.length || r.right)) tokens.push(r.text.slice(start, i).toLowerCase())
+        start = -1
+      }
+    }
+  }
+  return { pieces, tokens }
+}
+
 /** The regexSubstitution of a redirect: \0 is the whole match, \1..\9 groups,
  * "\\" a backslash. Chrome replaces the first match only. */
 export function substitute(url: string, re: RegExp, substitution: string): string | null {

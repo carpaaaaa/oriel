@@ -5,7 +5,7 @@
 
 import { RESOURCE_TYPES, REQUEST_METHODS, ACTION_TYPES, type Rule, type RuleActionType, type HeaderInfo, type ModifyHeaderInfo } from './types'
 import { compileUrlFilter, urlFilterProblem, type UrlFilter } from './urlfilter'
-import { translateRegex } from './regex'
+import { translateRegex, regexLiterals } from './regex'
 import { domainList, type DomainList } from './domains'
 
 /** Chrome's order when priorities tie: allow, allowAllRequests, block,
@@ -34,6 +34,12 @@ export interface CompiledRule {
   methods: number
   url: UrlFilter | null
   regex: RegExp | null
+  /** Index tokens (urlFilter's or the regex's). */
+  tokens: string[]
+  /** A piece of text the URL must contain before the regex is tried
+   * (lower-cased unless the rule is case-sensitive). */
+  piece: string | null
+  caseSensitive: boolean
   requestDomains: DomainList | null
   excludedRequestDomains: DomainList | null
   initiatorDomains: DomainList | null
@@ -166,6 +172,15 @@ export function compileRule(rule: Rule, rulesetId: string, scope: 'static' | 'dy
         : 'specified an invalid regular expression as part of the "condition.regexFilter" key.')
     } else regex = t.re
   }
+  const caseSensitive = c.isUrlFilterCaseSensitive === true
+  let tokens = url?.tokens ?? []
+  let piece: string | null = null
+  if (regex) {
+    const lit = regexLiterals(c.regexFilter!)
+    tokens = lit.tokens
+    piece = lit.pieces.reduce<string | null>((a, b) => (!a || b.length > a.length ? b : a), null)
+    if (piece && !caseSensitive) piece = piece.toLowerCase()
+  }
 
   let types = bits(id, 'resourceTypes', c.resourceTypes, RESOURCE_TYPES, typeBit)
   const excludedTypes = bits(id, 'excludedResourceTypes', c.excludedResourceTypes, RESOURCE_TYPES, typeBit)
@@ -210,6 +225,9 @@ export function compileRule(rule: Rule, rulesetId: string, scope: 'static' | 'dy
     methods,
     url,
     regex,
+    tokens,
+    piece,
+    caseSensitive,
     // "domains" and "excludedDomains" are the names before Chrome 101.
     requestDomains: domains(id, 'requestDomains', c.requestDomains),
     excludedRequestDomains: domains(id, 'excludedRequestDomains', c.excludedRequestDomains),

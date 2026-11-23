@@ -12,6 +12,7 @@ import { RuleIndex, Req } from './matcher'
 import { applyTransform, upgrade } from './transform'
 import { substitute, translateRegex } from './regex'
 import { HostAccess } from './hosts'
+import { OwnFiles } from './war'
 import { LIMITS, DYNAMIC_RULESET_ID, SESSION_RULESET_ID, type Rule, type ModifyHeaderInfo } from './types'
 
 const TYPE_OF: Record<string, string> = {
@@ -53,6 +54,7 @@ interface Saved { version: string; enabled?: string[]; disabled?: Record<string,
 class ExtRules {
   readonly id: string
   readonly access: HostAccess
+  readonly files: OwnFiles
   readonly rulesets: { id: string; path: string; enabled: boolean }[]
   readonly feedback: boolean
   readonly unpacked: boolean
@@ -73,6 +75,7 @@ class ExtRules {
     this.id = ext.id
     const manifest = ext.manifest as { declarative_net_request?: { rule_resources?: { id: string; path: string; enabled: boolean }[] }; permissions?: string[] }
     this.access = new HostAccess(manifest)
+    this.files = new OwnFiles(manifest)
     this.rulesets = (manifest.declarative_net_request?.rule_resources ?? []).slice(0, LIMITS.MAX_NUMBER_OF_STATIC_RULESETS)
     const perms = manifest.permissions ?? []
     this.feedback = perms.includes('declarativeNetRequestFeedback') || perms.includes('activeTab')
@@ -134,6 +137,7 @@ class ExtRules {
 }
 
 interface Pending { q: Req; allow: Map<string, number> }
+interface Redirected { st: ExtRules; url: string; upgrade: boolean; navigate: boolean }
 
 export class DnrEngine {
   private exts = new Map<string, ExtRules>()
@@ -304,12 +308,12 @@ export class DnrEngine {
   }
 
   /** Each extension's winning rule for the request, before it is sent. */
-  private decide(q: Req, d: OnBeforeRequestListenerDetails | null, record: boolean): { block: ExtRules | null; redirect: { st: ExtRules; url: string; upgrade: boolean } | null; allow: Map<string, number>; winners: Map<string, CompiledRule> } {
+  private decide(q: Req, d: OnBeforeRequestListenerDetails | null, record: boolean): { block: ExtRules | null; redirect: Redirected | null; allow: Map<string, number>; winners: Map<string, CompiledRule> } {
     const only = DnrEngine.byExtension(d?.initiatorOrigin)
     const allow = new Map<string, number>()
     const winners = new Map<string, CompiledRule>()
     let block: ExtRules | null = null
-    let redirect: { st: ExtRules; url: string; upgrade: boolean } | null = null
+    let redirect: Redirected | null = null
     const isFrame = q.type === 'main_frame' || q.type === 'sub_frame'
     const frameKey: string | number | null = q.type === 'main_frame' ? 'main' : q.type === 'sub_frame' ? (d?.frame?.frameTreeNodeId ?? null) : null
     if (record && q.type === 'main_frame') {
@@ -343,10 +347,12 @@ export class DnrEngine {
       if (win.type === 'redirect' && !this.hostAllowed(st, q, d?.initiatorOrigin)) continue
       const url = this.target(st, win, q)
       if (!url || url === q.url) continue
+      // See war.ts.
+      const navigate = q.type === 'main_frame' && url.startsWith(`chrome-extension://${st.id}/`) && st.files.dynamicOnly(new URL(url))
       const up = win.type === 'upgradeScheme'
       // Across extensions: upgrade before redirect, then the latest installed.
       if (!redirect || (up && !redirect.upgrade) || (up === redirect.upgrade && st.order > redirect.st.order)) {
-        redirect = { st, url, upgrade: up }
+        redirect = { st, url, upgrade: up, navigate }
       }
       if (record) { this.note(st, win, q.tabId); this.count(st, q.tabId) }
     }
@@ -371,6 +377,13 @@ export class DnrEngine {
     this.timing.totalMs += ms
     if (ms > this.timing.maxMs) this.timing.maxMs = ms
     if (block) return { cancel: true }
+    if (redirect?.navigate) {
+      // See war.ts: the tab loads the extension's page itself.
+      const wc = d.webContents
+      const url = redirect.url
+      if (wc) setImmediate(() => { if (!wc.isDestroyed()) wc.loadURL(url).catch(() => {}) })
+      return { cancel: true }
+    }
     if (redirect) return { redirectURL: redirect.url }
   }
 

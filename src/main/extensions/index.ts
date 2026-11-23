@@ -18,12 +18,15 @@ import { dnr } from './dnr/engine'
 import { apiConstants } from './dnr/types'
 import { bindCommands, unbindCommands, setupCommands } from './commands'
 import { setBadge } from './lib'
+import { prepare } from './dnr/war'
 
 let extensions: ElectronChromeExtensions | null = null
 let profileSession: Session | null = null
 
 export function getExtensions(): ElectronChromeExtensions | null { return extensions }
 export function getProfile(): Session | null { return profileSession }
+/** Where unpacked extensions are copied (studio/04 §2.2, 5). */
+export function unpackedPath(): string { return path.join(app.getPath('userData'), 'Unpacked') }
 
 // declarativeNetRequest sees every request through the one owner of
 // session.webRequest (studio/04 §5.2: coordinated with Shield at 100).
@@ -40,6 +43,16 @@ export async function setupExtensions(profile: Session): Promise<void> {
   dnr.extensionsRoot = extensionsPath
   // Before electron-chrome-extensions: its preload freezes `chrome`.
   setupBridge(profile, apiConstants(), Object.keys(dnr.api))
+  // Every package Oriel keeps is prepared before it loads (dnr/war.ts):
+  // installs, updates and restarts all come through loadExtension.
+  const kept = [extensionsPath, unpackedPath()].map(p => path.resolve(p) + path.sep)
+  const load = profile.extensions.loadExtension.bind(profile.extensions)
+  profile.extensions.loadExtension = (folder: string, options?: Electron.LoadExtensionOptions) => {
+    if (kept.some(k => path.resolve(folder).startsWith(k))) {
+      try { prepare(folder) } catch (error) { console.warn('[extensions] prepare', error) }
+    }
+    return load(folder, options)
+  }
   // Rules are ready when an extension loads, before any tab is restored
   // (studio/04 checklist A, "Avvio").
   profile.extensions.on('extension-loaded', (_e, ext) => {
