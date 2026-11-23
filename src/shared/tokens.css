@@ -203,7 +203,7 @@
   :root { --dur-quick: 0ms; --dur-glide: 0ms; --dur-settle: 0ms; --dur-fold-out: 0ms; --dur-fold-in: 0ms; }
 }
 
-/* Corners: as on the Mac (carpa's choice, 23 Nov 2026: "il più uguale possibile").
+/* Corners: as on the Mac (chosen 23 Nov 2026: as close to Search as possible).
    The window is drawn by Search itself (frameless, transparent) with 17.5 px
    corners; the page card sits 8 in with radius 10. The native-frame fallback
    (Windows 11's own 8 px corners) derives the card so corners stay concentric. */
