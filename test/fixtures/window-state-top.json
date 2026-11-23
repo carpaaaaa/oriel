@@ -1,0 +1,204 @@
+{
+ "rev": 1,
+ "windowID": "B03A6E1A-ADE4-416E-A5DB-3454A1046BA7",
+ "chrome": "windows",
+ "look": "dark",
+ "focused": false,
+ "maximized": false,
+ "fullScreen": false,
+ "controlsWidth": 138,
+ "space": "00000000-0000-0000-0000-000000000001",
+ "spaces": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "Personal",
+   "colour": 0
+  }
+ ],
+ "tabs": [
+  {
+   "id": "12a88248-1988-4e31-b7d8-cbee9bd14573",
+   "url": "https://mail.google.com/mail/u/0/",
+   "title": "Inbox",
+   "label": "Inbox",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "pinID": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A01"
+  },
+  {
+   "id": "b89449f1-8aa5-4a95-b6db-dd822e6f93d3",
+   "url": "https://calendar.google.com/",
+   "title": "Calendar",
+   "label": "Calendar",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "pinID": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A02"
+  },
+  {
+   "id": "f08267fe-43af-4e7a-ae5f-6aeed70581f1",
+   "url": "https://www.youtube.com/",
+   "title": "YouTube",
+   "label": "YouTube",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "groupID": "2B7E9F10-5C3D-4A8B-8E21-77C1D0A4B001"
+  },
+  {
+   "id": "d2cabe22-a07c-4a43-8255-d4adf5bf9b54",
+   "url": "https://music.youtube.com/",
+   "title": "YouTube Music",
+   "label": "YouTube Music",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "groupID": "2B7E9F10-5C3D-4A8B-8E21-77C1D0A4B001"
+  },
+  {
+   "id": "f3743c42-0e48-49b8-a7eb-c87b7bc7687e",
+   "url": "https://www.bbc.com/news",
+   "title": "BBC News",
+   "label": "BBC News",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false
+  },
+  {
+   "id": "a84aa569-167f-47e2-912c-794621561c56",
+   "url": "https://www.corriere.it/",
+   "title": "Corriere della Sera",
+   "label": "Corriere della Sera",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false
+  },
+  {
+   "id": "7c728fc9-2fbb-4ba9-b25c-0e8c8d8b131e",
+   "url": "https://www.nytimes.com/",
+   "title": "The New York Times",
+   "label": "The New York Times",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": false,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "favicon": "https://www.nytimes.com/favicon.ico"
+  }
+ ],
+ "pins": [
+  {
+   "id": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A01",
+   "title": "Inbox",
+   "home": "https://mail.google.com/mail/u/0/",
+   "letter": "M",
+   "tabID": "12a88248-1988-4e31-b7d8-cbee9bd14573"
+  },
+  {
+   "id": "6F1C1A0E-0D4B-4F5B-9C3A-1E5B2C7D8A02",
+   "title": "Calendar",
+   "home": "https://calendar.google.com/",
+   "letter": "C",
+   "tabID": "b89449f1-8aa5-4a95-b6db-dd822e6f93d3"
+  }
+ ],
+ "pinFolders": [],
+ "groups": [
+  {
+   "id": "2B7E9F10-5C3D-4A8B-8E21-77C1D0A4B001",
+   "name": "Watch",
+   "colour": 4,
+   "folded": false
+  }
+ ],
+ "splits": [],
+ "activeID": "7c728fc9-2fbb-4ba9-b25c-0e8c8d8b131e",
+ "sidebar": {
+  "layout": "top",
+  "width": 232,
+  "folded": false,
+  "side": "left",
+  "icons": false
+ },
+ "field": {
+  "open": false,
+  "target": "new",
+  "text": "",
+  "suggestions": [],
+  "selected": 0,
+  "refused": 0
+ },
+ "extensions": [],
+ "downloads": [],
+ "prefs": {
+  "look.appearance": "system",
+  "tabs.layout": "top",
+  "sidebar.width": 232,
+  "sidebar.side": "left",
+  "sidebar.cards": true,
+  "tabs.roomier": false,
+  "tabs.newAfterLast": false,
+  "tabs.closeGoesBack": false,
+  "search.engine": "google",
+  "search.suggestions": true,
+  "start.fresh": false,
+  "spaces": false,
+  "spaces.commandNumbers": false,
+  "tabs.newPlace": "next",
+  "tabs.frontBeside": false,
+  "tabs.lazy": false,
+  "tabs.switcherBehindFirst": false,
+  "tabs.switcherLeavesOutPins": false,
+  "tabs.sleep": true,
+  "tabs.sleep.pace": "normal",
+  "pins.home": true,
+  "pins.peek": true,
+  "pins.list": false,
+  "pins.folders": false
+ },
+ "picked": [
+  "7c728fc9-2fbb-4ba9-b25c-0e8c8d8b131e",
+  "f3743c42-0e48-49b8-a7eb-c87b7bc7687e"
+ ],
+ "switcher": {
+  "cards": [
+   "7c728fc9-2fbb-4ba9-b25c-0e8c8d8b131e",
+   "f3743c42-0e48-49b8-a7eb-c87b7bc7687e",
+   "a84aa569-167f-47e2-912c-794621561c56"
+  ],
+  "index": 1
+ },
+ "spacesOn": false,
+ "reopen": {
+  "title": "Reopen Closed Tab",
+  "can": false,
+  "recent": []
+ }
+}

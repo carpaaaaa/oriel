@@ -1,32 +1,97 @@
-/* The field and its list (studio/02 §4.4). Owned by the field module. */
+/* The field and its list (studio/02 §4.4, §6; Omnibox.swift). Owned by the field module. */
 
-/* empty tab and the field */
+:root { --refused-edge: rgb(255 59 48 / .35); --missed-text: rgb(255 59 48 / .8); }
+:root[data-look="dark"] { --refused-edge: rgb(255 69 58 / .35); --missed-text: rgb(255 69 58 / .8); }
+
+/* the empty tab: the field a little above the middle (padding 60 under it) */
 .empty-page { position: absolute; inset: 0; display: grid; place-items: center; padding-bottom: 60px; }
 .field-wrap { position: relative; width: min(var(--field-width), calc(100% - 28px)); }
+
+/* 22 of text, 14 above and below: 50; 22 at the sides; radius 14, a hairline
+   inside the edge (red 35% when refused), black 6% shadow r24 y8 */
 .field {
-  position: relative; height: var(--field-height); display: flex; align-items: center; gap: 12px; padding: 0 var(--field-pad-x);
-  border-radius: var(--field-radius); background: var(--ground); box-shadow: 0 0 0 1px var(--hairline), var(--field-shadow);
+  position: relative; height: var(--field-height); display: flex; align-items: center; gap: 8px; padding: 0 var(--field-pad-x);
+  border-radius: var(--field-radius); background: var(--ground);
+  box-shadow: inset 0 0 0 1px var(--hairline), var(--field-shadow);
+  transition: box-shadow var(--dur-quick) var(--ease-quick);
 }
-.field .lens { color: var(--muted); flex: none; }
-.field input { flex: 1; font-size: var(--fs-field); user-select: text; }
-.field input::placeholder { color: var(--ink-placeholder); }
-.field .breath { position: absolute; inset: 0; border-radius: 26px; box-shadow: 0 0 52px rgb(var(--ink-rgb) / .07); z-index: -1; animation: breath var(--dur-breath) var(--ease-in-out) infinite alternate; }
+.field.refused { box-shadow: inset 0 0 0 1px var(--refused-edge), var(--field-shadow); transition: box-shadow var(--dur-settle) var(--ease-settle); }
+.field input {
+  flex: 1; min-width: 0; height: 22px; margin-right: 4px; /* RoomyField: 4 kept clear past the caret */
+  font-size: var(--fs-field); line-height: 22px; color: var(--ink); caret-color: var(--ink); user-select: text;
+}
+.field input::placeholder { color: var(--ink-placeholder); opacity: 1; }
+.field input::selection { background: var(--ink-selection); color: var(--ink); }
+
+/* the breath: ink 7% blurred by 26, scaling .97 to 1.03 and fading .65 to 1,
+   2.6 s each way, ease-in-out, for ever; still with Reduce motion */
+.field .breath {
+  position: absolute; inset: 0; border-radius: 26px; z-index: -1; pointer-events: none;
+  box-shadow: 0 0 52px rgb(var(--ink-rgb) / .07);
+  animation: breath var(--dur-breath) var(--ease-in-out) infinite alternate;
+}
 @keyframes breath { from { transform: scale(.97); opacity: .65; } to { transform: scale(1.03); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .field .breath { animation: none; } }
 
-.suggestions { position: absolute; left: 0; right: 0; top: calc(var(--field-height) + 8px); padding: var(--list-pad); border-radius: var(--field-radius); background: var(--ground); box-shadow: 0 0 0 1px var(--hairline), var(--list-shadow); animation: list-in var(--dur-quick) var(--ease-quick); transform-origin: top; z-index: 2; }
-@keyframes list-in { from { opacity: 0; transform: scale(.98); } }
-.suggestion { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--row-radius); font-size: var(--fs-body); }
-.suggestion:hover { background: var(--hover); }
-.suggestion.picked { background: var(--wash); }
-.suggestion .icon { width: 14px; height: 14px; display: grid; place-items: center; color: var(--muted); flex: none; }
-.suggestion .what { flex: none; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.suggestion .detail { flex: 1; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.suggestion .switch { margin-left: auto; color: var(--muted); font-size: var(--fs-detail); }
+/* the site Tab put in the field: 22 high, 8 at the sides, wash, radius 7 */
+.chip { flex: none; height: 22px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 7px; background: var(--wash); animation: chip-in var(--dur-quick) var(--ease-quick); transform-origin: left center; }
+.chip-icon { width: 14px; height: 14px; display: grid; place-items: center; color: var(--muted); border-radius: 3px; }
+.chip-name { font-size: var(--fs-body); font-weight: 500; color: var(--ink); white-space: nowrap; }
+@keyframes chip-in { from { opacity: 0; transform: scale(.9); } }
 
-/* the overlay's veil over a page */
+/* the list: 8 under the field, padding 6, radius 14, hairline, black 7% r20 y6;
+   comes in at .98 from its top with an opacity, quick */
+.suggestions {
+  position: absolute; left: 0; right: 0; top: calc(var(--field-height) + 8px); padding: var(--list-pad);
+  border-radius: var(--field-radius); background: var(--ground); box-shadow: inset 0 0 0 1px var(--hairline), var(--list-shadow);
+  animation: list-in var(--dur-quick) var(--ease-quick); transform-origin: top; z-index: 2;
+}
+@keyframes list-in { from { opacity: 0; transform: scale(.98); } }
+
+/* a row: 12 / 9, 10 apart, radius 9; walked to = wash, under the pointer = hover */
+.suggestion { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--row-radius); transition: background-color var(--dur-quick) var(--ease-quick); }
+.suggestion:hover { background: var(--hover); }
+.suggestion.picked, .suggestion.picked:hover { background: var(--wash); }
+.suggestion .icon { width: 14px; height: 14px; flex: none; display: grid; place-items: center; color: var(--muted); }
+.suggestion .key { flex: 0 1 auto; min-width: 0; font-size: var(--fs-body); line-height: 16px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggestion .title { flex: 0 1 auto; min-width: 0; font-size: 12px; line-height: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggestion .spacer { flex: 1 0 0; }
+.suggestion .trail { flex: none; width: 14px; display: grid; place-items: center; color: var(--muted); }
+/* "Tab": 11 medium muted, 18 high, 6 at the sides, hairline radius 5 */
+.suggestion .tab-key { flex: none; height: 18px; padding: 0 6px; display: grid; place-items: center; font-size: 11px; font-weight: 500; color: var(--muted); border-radius: 5px; box-shadow: inset 0 0 0 1px var(--hairline); }
+.suggestions .note { padding: 9px 12px; font-size: var(--fs-body); color: var(--muted); }
+
+/* Mark at 14: radius 14 × .22, 6% ink under the letter at 14 × .56, medium, muted */
+.row-mark { width: 14px; height: 14px; display: grid; place-items: center; border-radius: 3.08px; overflow: hidden; }
+.row-mark img { display: block; width: 14px; height: 14px; object-fit: contain; }
+.row-letter { width: 14px; height: 14px; display: grid; place-items: center; background: var(--ink-mark-bg); color: var(--muted); font-size: 7.84px; font-weight: 500; border-radius: 3.08px; }
+
+/* over a page: the page's colour at 74%; the field comes in at .97 with the
+   settle spring, the veil with a quick fade */
 .veil { position: fixed; inset: 0; background: var(--scrim-field); display: grid; place-items: center; padding-bottom: 60px; animation: veil-in var(--dur-quick) var(--ease-quick); }
 @keyframes veil-in { from { opacity: 0; } }
 .veil .field-wrap { animation: field-in var(--dur-settle) var(--ease-settle); }
 @keyframes field-in { from { opacity: 0; transform: scale(.97); } }
 
+/* Find on Page: a capsule 12 from the top and 14 from the right, padding
+   16 / 8 / 8 (10 / 6 narrow), ground and hairline (red 35% with no match),
+   black 10% r18 y5; field 150 wide at 12.5, status 10 medium tabular,
+   buttons 24 x 24 (Find.swift:52-118) */
+.find-room { position: fixed; inset: 0; display: flex; justify-content: flex-end; align-items: flex-start; padding: 12px 14px 0 0; pointer-events: none; }
+.find {
+  pointer-events: auto; display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 16px; border-radius: 999px; background: var(--ground);
+  box-shadow: inset 0 0 0 1px var(--hairline), 0 5px 36px rgba(0,0,0,.10); animation: find-in var(--dur-quick) var(--ease-quick);
+  transition: box-shadow var(--dur-quick) var(--ease-quick);
+}
+.find.narrow { padding: 8px 6px 8px 10px; }
+.find.missed { box-shadow: inset 0 0 0 1px var(--refused-edge), 0 5px 36px rgba(0,0,0,.10); }
+@keyframes find-in { from { opacity: 0; transform: scale(.97); } }
+.find-field { width: 150px; font-size: 12.5px; line-height: 15px; color: var(--ink); caret-color: var(--ink); user-select: text; }
+.find.narrow .find-field { width: max(40px, min(160px, calc(100vw - 80px))); }
+.find-field::placeholder { color: var(--ink-placeholder); opacity: 1; }
+.find-field::selection { background: var(--ink-selection); color: var(--ink); }
+.find-status { flex: none; font-size: 10px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.find.missed .find-status { color: var(--missed-text); }
+.find-button { width: 24px; height: 24px; flex: none; display: grid; place-items: center; color: var(--muted); border-radius: 6px; }
+.find-button.on { color: var(--ink); }
+.find-button:hover { color: var(--ink); }
