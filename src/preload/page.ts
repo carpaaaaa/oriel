@@ -2,5 +2,6 @@
 // part is a file in preload/page/; this only brings them together.
 // Owned by the orchestrator.
 
+import './page/compat'
 import './page/keys'
 import './page/fill'

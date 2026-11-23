@@ -85,6 +85,15 @@ async function answer(req: BenchRequest): Promise<BenchReply> {
       v.webContents.sendInputEvent({ type: 'mouseUp', x, y, button, clickCount })
       return { ok: true }
     }
+    case 'focus' as never: {
+      // Bring the window to the front, even from another Space (for a person to use it).
+      const c = pickWindow((req as { window?: string }).window)
+      if (c.base.isMinimized()) c.base.restore()
+      c.base.show()
+      app.focus({ steal: true })
+      c.base.focus()
+      return { ok: true }
+    }
     case 'settle':
       await new Promise(r => setTimeout(r, 50))
       return { ok: true }
