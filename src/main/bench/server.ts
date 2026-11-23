@@ -52,7 +52,8 @@ async function answer(req: BenchRequest): Promise<BenchReply> {
       const c = pickWindow(req.window)
       const { width, height } = c.base.getContentBounds()
       // The window is several views; draw each at its place.
-      const parts = [c.ui, ...c.base.contentView.children.filter(v => v !== c.ui && v !== c.overlay), c.overlay]
+      // In their real stacking order: a popup above the overlay stays above it.
+      const parts = [...c.base.contentView.children]
       const images = await Promise.all(parts.map(async v => {
         const b = v.getBounds()
         if (!b.width || !b.height || !(v as Electron.WebContentsView).webContents) return null
