@@ -82,6 +82,11 @@ benchRequest('extensions.dnrTiming', () => ({
   maxUs: Math.round(dnr.timing.maxMs * 1000),
 }))
 
+benchRequest('extensions.dnrTimingReset', () => {
+  Object.assign(dnr.timing, { requests: 0, totalMs: 0, maxMs: 0, samples: [] })
+  return {}
+})
+
 /** {files: [...rule files], total, requests} */
 benchRequest('extensions.dnrBench', req => benchMatcher({
   files: ((req.files as string[]) ?? []).filter(f => fs.existsSync(f)),
@@ -96,7 +101,7 @@ benchRequest('extensions.badge', req => {
   return { text: e ? badgeOf(e, String(req.id), Number(req.tabId)) ?? null : null }
 })
 
-/** The webContents id of a Search tab: the id extensions see as tabId. */
+/** The webContents id of a tab: the id extensions see as tabId. */
 benchRequest('extensions.tabId', req => {
   return { tabId: runtimes.get(String(req.tab))?.contents?.id ?? null }
 })

@@ -42,14 +42,22 @@ more = [Path(f).stem for f in files if Path(f).stem not in on][:50 - len(on)]  #
 b.call({"do": "extensions.dnr", "id": UBOL, "method": "updateEnabledRulesets", "args": [{"enableRulesetIds": more}]})
 st = b.call({"do": "extensions.dnrState", "id": UBOL})
 print(f"  enabled {len(st['enabled'])} rulesets, {st['staticRules']} static rules")
-for url in ("https://www.repubblica.it", "https://www.corriere.it", "https://edition.cnn.com"):
+def visit(url):
     try:
         b.cmd("tab.new", url=url)
         b.wait_for(lambda: not b.active()["loading"], within=40, what=url)
     except Exception as e:
         print("  ", url, e)
     time.sleep(3)
+
+
+# The first page pays for warming up (each regex is compiled on first use).
+visit("https://www.ilpost.it")
+b.call({"do": "extensions.dnrTimingReset"})
+for url in ("https://www.repubblica.it", "https://www.corriere.it", "https://edition.cnn.com"):
+    visit(url)
 tm = b.call({"do": "extensions.dnrTiming"})
-print(f"  real pages: {tm['requests']} requests, mean {tm['meanUs']} µs, max {tm['maxUs']} µs")
-t.ok(tm["requests"] > 50 and tm["meanUs"] < 100, f"real pages: mean per request under 100 µs ({tm['meanUs']} µs over {tm['requests']})")
+print(f"  real pages: {tm['requests']} requests, mean {tm['meanUs']} µs, p50 {tm['p50Us']} µs, p90 {tm['p90Us']} µs, p99 {tm['p99Us']} µs, max {tm['maxUs']} µs")
+t.ok(tm["requests"] > 50 and tm["p50Us"] < 100, f"real pages: median request under 100 µs ({tm['p50Us']} µs over {tm['requests']})")
+t.ok(tm["p99Us"] < 1500, f"real pages: 99% of requests under 1.5 ms ({tm['p99Us']} µs)")
 t.done()
