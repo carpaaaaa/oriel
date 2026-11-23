@@ -13,6 +13,8 @@ export const IPC = {
   hello: 'search:hello',
   /** main → overlay: what to float now. */
   overlay: 'search:overlay',
+  /** overlay → main, invoke: what floats now (asked once at load). */
+  overlayNow: 'search:overlay-now',
   /** main → interface: a key the page left alone, for the interface to act on. */
   key: 'search:key',
   /** main → interface: reading progress of the tab on screen, apart from state
@@ -39,6 +41,7 @@ export interface Bridge {
   hello(): Promise<WindowPatch>
   onState(listener: (patch: WindowPatch) => void): () => void
   onOverlay(listener: (layer: OverlayLayer) => void): () => void
+  overlayNow(): Promise<OverlayLayer | null>
   onKey(listener: (key: KeyEvent) => void): () => void
   onReading(listener: (value: { id: string; fraction: number }) => void): () => void
 }

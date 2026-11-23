@@ -1,4 +1,4 @@
-// Search for Windows: the main process starts here.
+// Oriel: the main process starts here.
 
 import { app, ipcMain, session, nativeTheme, protocol, type Session } from 'electron'
 import { setupPaths, probe } from './paths'
@@ -30,7 +30,7 @@ if (!app.requestSingleInstanceLock({ probe })) {
   process.exit(0)
 }
 
-protocol.registerSchemesAsPrivileged([{ scheme: 'search', privileges: { standard: true, secure: true, supportFetchAPI: true } }])
+protocol.registerSchemesAsPrivileged([{ scheme: 'oriel', privileges: { standard: true, secure: true, supportFetchAPI: true } }])
 
 let profile: Session
 
@@ -60,6 +60,8 @@ ipcMain.handle(IPC.command, async (event, command: Command) => {
     throw error
   }
 })
+
+ipcMain.handle(IPC.overlayNow, event => controllerOf(event.sender)?.overlayLayer ?? null)
 
 ipcMain.handle(IPC.hello, event => {
   const c = controllerOf(event.sender)

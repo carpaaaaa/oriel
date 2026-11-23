@@ -8,6 +8,7 @@ const IPC = {
   state: 'search:state',
   hello: 'search:hello',
   overlay: 'search:overlay',
+  overlayNow: 'search:overlay-now',
   key: 'search:key',
   reading: 'search:reading',
 }
@@ -28,6 +29,7 @@ const bridge: Bridge = {
   hello: () => ipcRenderer.invoke(IPC.hello),
   onState: listener => on(IPC.state, listener),
   onOverlay: listener => on(IPC.overlay, listener),
+  overlayNow: () => ipcRenderer.invoke(IPC.overlayNow),
   onKey: listener => on(IPC.key, listener),
   onReading: listener => on(IPC.reading, listener),
 }

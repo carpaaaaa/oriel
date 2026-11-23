@@ -1,0 +1,138 @@
+{
+ "rev": 1,
+ "windowID": "1A2E5C59-A79E-4493-8CF8-A28DB6BB3A3F",
+ "chrome": "windows",
+ "look": "dark",
+ "focused": false,
+ "maximized": false,
+ "fullScreen": false,
+ "controlsWidth": 138,
+ "space": "4C2E8D1A-6B3F-4E7A-9D10-2F8C5B7E1A01",
+ "spaces": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "Personal",
+   "colour": 0
+  },
+  {
+   "id": "4C2E8D1A-6B3F-4E7A-9D10-2F8C5B7E1A01",
+   "name": "Work",
+   "colour": 1,
+   "icon": "briefcase",
+   "sharesSignIns": true
+  },
+  {
+   "id": "4C2E8D1A-6B3F-4E7A-9D10-2F8C5B7E1A02",
+   "name": "Studio",
+   "colour": 5,
+   "icon": "paintpalette",
+   "sharesSignIns": false,
+   "gradient": {
+    "colours": [
+     "#8E6CFF",
+     "#FF7AB6"
+    ],
+    "angle": 135
+   },
+   "strength": "rich"
+  }
+ ],
+ "tabs": [
+  {
+   "id": "4c9d6dc4-c945-4ff5-8fd1-4d249617feb1",
+   "url": "https://linear.app/oriel",
+   "title": "Oriel · Linear",
+   "label": "Oriel · Linear",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false
+  },
+  {
+   "id": "d6ad1502-0f4f-4b47-80b7-6ca2b3c818f0",
+   "url": "https://github.com/carpaaaaa/oriel/pulls",
+   "title": "Pull requests",
+   "label": "Pull requests",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": true,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false
+  },
+  {
+   "id": "6515d1ef-b1be-4580-b22c-d83c6cb58593",
+   "url": "https://vercel.com/oriel/deployments",
+   "title": "Deployments · Vercel",
+   "label": "Deployments · Vercel",
+   "loading": false,
+   "audible": false,
+   "muted": false,
+   "asleep": false,
+   "empty": false,
+   "canGoBack": false,
+   "canGoForward": false,
+   "favicon": "https://vercel.com/favicon.ico"
+  }
+ ],
+ "pins": [],
+ "pinFolders": [],
+ "groups": [],
+ "splits": [],
+ "activeID": "6515d1ef-b1be-4580-b22c-d83c6cb58593",
+ "sidebar": {
+  "layout": "side",
+  "width": 232,
+  "folded": false,
+  "side": "left",
+  "icons": false
+ },
+ "field": {
+  "open": false,
+  "target": "new",
+  "text": "",
+  "suggestions": [],
+  "selected": 0,
+  "refused": 0
+ },
+ "extensions": [],
+ "downloads": [],
+ "prefs": {
+  "look.appearance": "system",
+  "tabs.layout": "side",
+  "sidebar.width": 232,
+  "sidebar.side": "left",
+  "sidebar.cards": true,
+  "tabs.roomier": false,
+  "tabs.newAfterLast": false,
+  "tabs.closeGoesBack": false,
+  "search.engine": "google",
+  "search.suggestions": true,
+  "start.fresh": false,
+  "spaces": true,
+  "spaces.commandNumbers": false,
+  "tabs.newPlace": "next",
+  "tabs.frontBeside": false,
+  "tabs.lazy": false,
+  "tabs.switcherBehindFirst": false,
+  "tabs.switcherLeavesOutPins": false,
+  "tabs.sleep": true,
+  "tabs.sleep.pace": "normal",
+  "pins.home": true,
+  "pins.peek": true,
+  "pins.list": false,
+  "pins.folders": false
+ },
+ "picked": [],
+ "switcher": null,
+ "spacesOn": true,
+ "reopen": {
+  "title": "Reopen Closed Tab",
+  "can": false,
+  "recent": []
+ }
+}

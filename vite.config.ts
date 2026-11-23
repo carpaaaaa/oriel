@@ -12,5 +12,6 @@ export default defineConfig({
     emptyOutDir: true,
     target: 'chrome150',
     sourcemap: true,
+    rollupOptions: { input: { index: 'src/ui/index.html', page: 'src/ui/page.html' } },
   },
 })

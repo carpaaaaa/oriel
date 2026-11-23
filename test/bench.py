@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive Search for Windows in a test world, as the Mac's Tests/split_view.py
+"""Drive Oriel in a test world, as the Mac's Tests/split_view.py
 drives Search: SEARCH_PROBE=<world> gives the app its own settings folder and
 socket, so a test never touches the Search someone is using.
 
@@ -36,7 +36,7 @@ def appdata():
 
 
 def folder():
-    return appdata() / f"Search for Windows ({WORLD})"
+    return appdata() / f"Oriel ({WORLD})"
 
 
 def address():
@@ -46,8 +46,11 @@ def address():
 
 
 def use(world, wipe=True):
+    """A world of this checkout's own: two worktrees testing at once (agents
+    in parallel) never share a socket or a folder, as on the Mac."""
     global WORLD
-    WORLD = world
+    import hashlib
+    WORLD = f"{world}-{hashlib.sha1(str(ROOT).encode()).hexdigest()[:6]}"
     if wipe and folder().exists():
         shutil.rmtree(folder(), ignore_errors=True)
 

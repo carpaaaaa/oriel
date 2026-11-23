@@ -1,4 +1,6 @@
-// Tabs, pins, pin folders, groups, spaces, the switcher (studio/01 §2-7).
-// Owned by the tabs module.
+// Tabs, pins, pin folders, groups, spaces, the switcher, sessions and sleep
+// (studio/01 §2-§3, §6-§7, §9). Owned by the tabs module.
 
 import './commands'
+import './wiring'
+import './bench'

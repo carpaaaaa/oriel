@@ -1,6 +1,6 @@
-# Search per Windows: studio e piano
+# Oriel (Search per Windows): studio e piano
 
-Versione Windows non ufficiale di Search, il browser per Mac di Office Commun (MIT, v1.0.19). Questo file riassume lo studio, le decisioni prese con l'advisor e il piano di lavoro. Il dettaglio sta in `studio/`.
+Oriel è la versione Windows non ufficiale di Search, il browser per Mac di Office Commun (MIT, v1.0.19). Questo file riassume lo studio, le decisioni prese con l'advisor e il piano di lavoro. Il dettaglio sta in `studio/`.
 
 ## 1. Cosa abbiamo studiato
 
@@ -82,7 +82,7 @@ Regole per gli agenti paralleli: `src/shared/` lo cambia solo l'orchestratore; o
 
 ## 7. Decisioni che spettano all'utente
 
-1. Nome e icona prima di pubblicare (oggi: nome interno "Search for Windows").
+1. ~~Nome~~: Oriel (23 novembre). Icona ancora da fare.
 2. Angoli della finestra: scelta sulla tavola.
 3. Macchina virtuale Windows 11 sul Mac: sì o no.
 4. Prova dell'accesso a Google con il proprio account.

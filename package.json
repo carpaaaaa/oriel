@@ -1,8 +1,8 @@
 {
-  "name": "search-windows",
-  "productName": "Search for Windows",
+  "name": "oriel",
+  "productName": "Oriel",
   "version": "0.1.0",
-  "description": "Unofficial Windows port of Search, the small fast browser by Office Commun.",
+  "description": "Oriel: an unofficial Windows port of Search, the small fast browser for the Mac by Office Commun.",
   "license": "MIT",
   "private": true,
   "main": "out/main/index.js",
@@ -21,7 +21,8 @@
     "electron-chrome-extensions": "4.10.0",
     "electron-chrome-web-store": "0.13.0",
     "koffi": "3.3.8",
-    "solid-js": "1.9.20"
+    "solid-js": "1.9.20",
+    "tldts": "7.5.5"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
@@ -33,9 +34,9 @@
     "vite-plugin-solid": "2.11.17"
   },
   "build": {
-    "appId": "app.searchforwindows.browser",
-    "productName": "Search for Windows",
-    "copyright": "Search by Office Commun (MIT). Windows port: MIT.",
+    "appId": "app.oriel.browser",
+    "productName": "Oriel",
+    "copyright": "Oriel contributors. Based on Search by Office Commun (MIT).",
     "directories": {
       "output": "dist",
       "buildResources": "build"
