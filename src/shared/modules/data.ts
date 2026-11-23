@@ -1,0 +1,159 @@
+// The data module's commands and its part of the window's state: bookmarks,
+// history, passwords, bringing things over from another browser (studio/05).
+// Owned by the data module.
+
+import type { ID } from '../state'
+
+/** The app's name where the interface says it. TODO(brand): brand.name from
+ * src/shared/brand.ts once main is merged. */
+export const appName = 'Oriel'
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+type None = {}
+
+/** A bookmark or a folder, as bookmarks.json keeps it on the Mac
+ * (Bookmarks.swift: id, title, url?, children?). A folder has no url. */
+export interface BookmarkNode {
+  id: string
+  title: string
+  url?: string
+  children?: BookmarkNode[]
+}
+
+/** One kept password as a list needs it: never the secret (Vault.Kept). */
+export interface KeptLogin {
+  host: string
+  user: string
+  /** Last used, ms since 1970. */
+  used?: number
+  /** Saved from a page sent over plain http. */
+  clear?: boolean
+}
+
+/** The accounts hanging under a sign-in box (Browser.Suggesting). */
+export interface FillList {
+  tab: ID
+  host: string
+  accounts: KeptLogin[]
+  /** The row the arrow keys are on, none until an arrow is pressed. */
+  lit: number | null
+  /** Hung from a first step's name box: a pick puts in the name alone. */
+  nameOnly: boolean
+  /** Where the list's rows start being the site's other hosts' accounts. */
+  othersFrom: number | null
+  domain: string
+}
+
+/** The question after a sign-in that took (PageQuestions.PasswordOffer). */
+export interface SaveQuestion {
+  tab: ID
+  host: string
+  user: string
+  /** The account is kept with another password: Update. */
+  changed: boolean
+}
+
+export interface ImportProfileView { id: string; name: string }
+
+export interface ImportPreview {
+  bookmarks: number
+  places: number
+  passwords: number
+  /** Chromium on Windows: how many are readable (v10) and how many are
+   * locked to their browser (v20, App-Bound Encryption). */
+  passwordsReadable?: number
+  passwordsLocked?: number
+  extensions: string[]
+}
+
+export interface ImportSourceView {
+  id: string
+  name: string
+  family: 'chromium' | 'gecko'
+  profiles: ImportProfileView[]
+  /** The profile used last, proposed first. */
+  usual: string | null
+  /** What the row under the name says it can bring. */
+  canBring: string
+  /** How passwords come from it: read here, only by its CSV, or not at all. */
+  passwords: 'read' | 'consent' | 'csv' | 'none'
+  /** Where it keeps its export, for the guided CSV steps. */
+  exportAt?: string
+  record?: ImportRecordView
+}
+
+export interface ImportRecordView { date: number; bookmarks: number; places: number; passwords: number; recorded: boolean }
+
+export interface ImportSaid { ok: boolean; text: string }
+
+/** Bring Things Over, as the panel draws it (ImportPanel.swift). */
+export interface ImportPanelState {
+  looking: boolean
+  sources: ImportSourceView[]
+  pick: string | null
+  /** The profile chosen per source: a folder's name, '' for all. */
+  chosen: Record<string, string>
+  previews: Record<string, ImportPreview>
+  wants: { passwords: boolean; bookmarks: boolean; history: boolean; extensions: boolean; replace: boolean }
+  /** Said yes to reading this source's passwords on this PC. */
+  consent: Record<string, boolean>
+  bringing: boolean
+  brought: ImportSaid[] | null
+  /** The CSV steps are open for this source. */
+  how: string | null
+  /** A file just brought in that holds passwords in the clear. */
+  clearFile?: string | null
+}
+
+export interface DataState {
+  /** The page in front is one of the bookmarks. */
+  bookmarked: boolean
+  fill: FillList | null
+  save: SaveQuestion | null
+  import: ImportPanelState | null
+}
+
+declare module '../commands' {
+  interface Commands {
+    // bookmarks (studio/05 §3.2)
+    'bookmark.add': { url?: string; title?: string; folder?: ID | null }
+    'bookmark.toggle': { id?: ID }
+    'bookmark.remove': { id: ID }
+    'bookmark.move': { id: ID; folder: ID | null; index?: number }
+    'bookmark.rename': { id: ID; title: string }
+    'bookmark.folder': { title: string; parent?: ID | null }
+    'bookmark.list': { query?: string }
+    // history (studio/05 §3.5)
+    'history.list': { query?: string }
+    'history.forget': { url: string }
+    'history.clear': None
+    // passwords (studio/05 §2)
+    'passwords.list': { query?: string }
+    'passwords.add': { host: string; user: string; password: string }
+    'passwords.remove': { host: string; user: string }
+    'passwords.removeAll': { query?: string }
+    'passwords.reveal': { host: string; user: string }
+    'passwords.copy': { host: string; user: string }
+    'passwords.forgetNever': None
+    'fill.pick': { index: number; byKey?: boolean }
+    'fill.dismiss': None
+    'save.answer': { answer: 'save' | 'notNow' | 'never' }
+    // bringing things over (studio/05 §1)
+    'import.open': { source?: string; extensions?: boolean }
+    'import.close': None
+    'import.pick': { source: string }
+    'import.profile': { source: string; profile: string }
+    'import.option': { key: 'passwords' | 'bookmarks' | 'history' | 'extensions' | 'replace'; on: boolean }
+    'import.consent': { source: string; on: boolean }
+    'import.how': { source: string | null }
+    'import.run': None
+    'import.file': { path?: string }
+    'import.trashFile': { path: string }
+  }
+}
+
+declare module '../state' {
+  interface WindowState { data?: DataState }
+}
+
+export {}

@@ -1,0 +1,122 @@
+/* The data module's overlay pieces. Values from studio/02 (Plate, Card, Rule,
+   Line, Pill, Switch, the account list, the password question). */
+
+/* the accounts under a sign-in box (Accounts.swift) */
+.accounts {
+  position: fixed; inset: 0 10px 20px 10px;
+  display: flex; flex-direction: column;
+  padding: var(--list-pad);
+  background: var(--ground);
+  border: var(--hairline-w) solid var(--hairline);
+  border-radius: var(--menu-radius);
+  box-shadow: 0 4px 14px rgba(0,0,0,.08);
+  font: 400 var(--fs-body)/1.2 var(--font-ui);
+  color: var(--ink);
+  overflow: hidden;
+  animation: data-rise var(--dur-quick) var(--ease-quick);
+}
+.account {
+  display: flex; align-items: center; gap: 10px;
+  height: 36px; flex: none;
+  padding: 0 8px;
+  border: 0; background: transparent; color: inherit; font: inherit; text-align: left;
+  border-radius: calc(var(--menu-radius) - var(--list-pad));
+  cursor: default;
+}
+.account:hover { background: var(--g-hover); }
+.account.lit { background: var(--g-wash); }
+.account-letter {
+  width: 22px; height: 22px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--wash); color: var(--ink);
+  font-size: var(--fs-detail); font-weight: 600;
+}
+.account-text { display: flex; flex-direction: column; min-width: 0; }
+.account-name, .account-host { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-host { font-size: var(--fs-detail); color: var(--muted); }
+.accounts-rule { height: 36px; flex: none; display: flex; align-items: center; padding: 0 8px; font-size: var(--fs-detail); color: var(--muted); border-top: var(--hairline-w) solid var(--hairline); }
+.accounts-foot { height: 26px; flex: none; display: flex; align-items: center; padding: 0 8px; font-size: var(--fs-caption); color: var(--muted); }
+
+/* the question after a sign-in (PageQuestions.PasswordOffer) */
+.offer {
+  position: fixed; inset: 0 12px 30px 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 12px 9px 16px;
+  background: var(--ground);
+  border: var(--hairline-w) solid var(--hairline);
+  border-radius: 20px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.10);
+  font: 400 12.5px/1.25 var(--font-ui);
+  color: var(--ink);
+  animation: data-rise var(--dur-settle) var(--ease-settle);
+}
+.offer-text { min-width: 0; }
+.offer-actions { display: flex; align-items: center; gap: 12px; flex: none; font-size: 12px; }
+.offer-actions button { border: 0; background: transparent; font: inherit; color: var(--muted); cursor: default; padding: 0; }
+.offer-actions .offer-keep { background: var(--ink); color: var(--ground); padding: 5px 11px; border-radius: 999px; }
+
+@keyframes data-rise { from { opacity: 0; transform: translateY(-3px); } }
+
+/* Bring Things Over (ImportPanel.swift on a Plate) */
+.bt-veil {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  background: var(--scrim-panel);
+  font: 400 var(--fs-body)/1.25 var(--font-ui);
+  color: var(--ink);
+  animation: bt-fade var(--dur-quick) var(--ease-quick);
+}
+@keyframes bt-fade { from { opacity: 0; } }
+.bt-plate {
+  width: min(580px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  display: flex; flex-direction: column;
+  background: var(--ground);
+  border: var(--hairline-w) solid var(--hairline);
+  border-radius: var(--plate-radius);
+  box-shadow: var(--plate-shadow);
+  animation: bt-in var(--dur-settle) var(--ease-settle);
+}
+@keyframes bt-in { from { opacity: 0; transform: scale(.98); } }
+.bt-plate-head { display: flex; align-items: center; justify-content: space-between; padding: 18px var(--plate-pad) 14px; }
+.bt-plate-title { font-size: var(--fs-panel-title); font-weight: 600; }
+.bt-plate-close { width: 24px; height: 24px; border: 0; border-radius: 50%; background: var(--wash); color: var(--muted); font-size: 15px; line-height: 1; cursor: default; }
+.bt-plate-body { padding: 0 var(--plate-pad); overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+.bt-plate-foot { margin-top: 18px; padding: 14px var(--plate-pad); border-top: var(--hairline-w) solid var(--hairline); display: flex; flex-direction: column; gap: 10px; }
+.bt-muted { margin: 0; font-size: 12.5px; color: var(--muted); }
+.bt-looking { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.bt-ring { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--faint); border-top-color: var(--ink); animation: bt-spin var(--dur-ring) linear infinite; }
+@keyframes bt-spin { to { transform: rotate(360deg); } }
+.bt-caption { font-size: var(--fs-detail); font-weight: 500; color: var(--muted); margin-bottom: -8px; }
+.bt-card { border: var(--hairline-w) solid var(--hairline); border-radius: var(--card-group-radius); background: var(--ground); }
+.bt-nothing { padding: 14px; color: var(--muted); }
+.bt-rule { height: var(--hairline-w); background: var(--hairline); margin-left: 14px; }
+.bt-source { width: 100%; display: flex; align-items: flex-start; gap: 12px; padding: 11px 14px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: default; }
+.bt-dot { width: 14px; height: 14px; flex: none; margin-top: 1px; border-radius: 50%; border: 1.5px solid var(--faint); box-sizing: border-box; }
+.bt-chosen .bt-dot { border: 4.5px solid var(--ink); }
+.bt-source-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bt-source-detail, .bt-source-can { font-size: var(--fs-detail); color: var(--muted); }
+.bt-line { display: flex; align-items: center; gap: 16px; padding: 11px 14px; }
+.bt-line-text { flex: 1; min-width: 0; }
+.bt-line-title { font-size: var(--fs-body); }
+.bt-line-detail { font-size: var(--fs-detail); color: var(--muted); margin-top: 2px; }
+.bt-line-control { display: flex; align-items: center; gap: 10px; flex: none; }
+.bt-steps { margin: 0 14px 12px; padding: 10px 12px; border-radius: 10px; background: var(--wash); font-size: var(--fs-detail); line-height: 1.4; }
+.bt-profile { font: inherit; font-size: 11.5px; color: var(--ink); background: var(--ground); border: var(--hairline-w) solid var(--hairline); border-radius: 999px; padding: 4px 10px; }
+.bt-switch { width: 30px; height: 18px; flex: none; position: relative; border: 0; border-radius: 999px; background: var(--faint); padding: 0; cursor: default; transition: background var(--dur-settle) var(--ease-settle); }
+.bt-switch.bt-on { background: var(--ink); }
+.bt-switch.bt-none { opacity: .4; }
+.bt-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--ground); box-shadow: 0 1px 3px rgba(0,0,0,.18); transition: transform var(--dur-settle) var(--ease-settle); }
+.bt-on .bt-knob { transform: translateX(12px); }
+.bt-pill { font: inherit; font-size: 11.5px; padding: 5px 10px; border-radius: 999px; border: var(--hairline-w) solid var(--hairline); background: var(--ground); color: var(--ink); cursor: default; }
+.bt-pill:hover:not(:disabled) { background: var(--hover); }
+.bt-pill.bt-filled { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.bt-pill.bt-quiet { border-color: transparent; color: var(--muted); }
+.bt-pill:disabled { opacity: .4; }
+.bt-foot-row { display: flex; align-items: center; gap: 8px; }
+.bt-spacer { flex: 1; }
+.bt-said { display: flex; flex-direction: column; gap: 5px; }
+.bt-said-line { display: flex; gap: 8px; font-size: 12.5px; }
+.bt-said-line.bt-bad { color: var(--muted); }
+.bt-said-mark { width: 12px; flex: none; font-size: 10.5px; font-weight: 600; }
