@@ -3,13 +3,13 @@
 
 /* the accounts under a sign-in box (Accounts.swift) */
 .accounts {
-  position: fixed; inset: 0;
+  position: fixed; inset: 0 10px 20px 10px;
   display: flex; flex-direction: column;
   padding: var(--list-pad);
   background: var(--ground);
   border: var(--hairline-w) solid var(--hairline);
   border-radius: var(--menu-radius);
-  box-shadow: var(--list-shadow);
+  box-shadow: 0 4px 14px rgba(0,0,0,.08);
   font: 400 var(--fs-body)/1.2 var(--font-ui);
   color: var(--ink);
   overflow: hidden;
@@ -40,13 +40,13 @@
 
 /* the question after a sign-in (PageQuestions.PasswordOffer) */
 .offer {
-  position: fixed; inset: 0;
+  position: fixed; inset: 0 12px 30px 20px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 9px 12px 9px 16px;
   background: var(--ground);
   border: var(--hairline-w) solid var(--hairline);
   border-radius: 20px;
-  box-shadow: 0 6px 40px rgba(0,0,0,.12);
+  box-shadow: 0 6px 18px rgba(0,0,0,.10);
   font: 400 12.5px/1.25 var(--font-ui);
   color: var(--ink);
   animation: data-rise var(--dur-settle) var(--ease-settle);

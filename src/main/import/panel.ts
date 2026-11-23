@@ -2,7 +2,9 @@
 // (ImportPanel.swift, studio/05 §1.12). Drawn in the overlay by
 // src/ui/data/ImportPanel.tsx from the window's data state.
 
-import { dialog, shell, session } from 'electron'
+import { app, dialog, shell, session } from 'electron'
+import { mkdirSync, renameSync } from 'node:fs'
+import path from 'node:path'
 import type { ImportPanelState, ImportSaid, ImportSourceView } from '../../shared/modules/data'
 import { handle } from '../router'
 import { need } from '../context'
@@ -15,6 +17,7 @@ import { bookmarksSaid, broughtBefore, importHooks, listed, n, plural, preview, 
 import { readPasswords, passwordsSaid, passwordMode } from './passwords'
 import { bringFile } from './file'
 import { sweepScratch } from './read'
+import { keyAsks } from './dpapi'
 import { probe } from '../paths'
 
 sweepScratch()
@@ -211,7 +214,12 @@ handle('import.file', async ({ path: given }, ctx) => {
 handle('import.trashFile', async ({ path: file }, ctx) => {
   const c = need(ctx), s = panel(c)
   if (s?.clearFile !== file) return false
-  await shell.trashItem(file)
+  // A test world never touches the real Recycle Bin: its own folder stands in.
+  if (probe) {
+    const bin = path.join(app.getPath('userData'), 'Recycle Bin')
+    mkdirSync(bin, { recursive: true })
+    renameSync(file, path.join(bin, path.basename(file)))
+  } else await shell.trashItem(file)
   s.clearFile = null
   s.brought = [...(s.brought ?? []), { ok: true, text: 'The file went to the Recycle Bin' }]
   mark(c)
@@ -227,4 +235,5 @@ benchRequest('data.importSources', () => ({
   }),
 }))
 benchRequest('data.records', () => ({ records: records.all() }))
+benchRequest('data.keyAsks', () => ({ value: keyAsks }))
 export { plural, dayMonth, broughtBefore }

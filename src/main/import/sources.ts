@@ -161,6 +161,9 @@ export function usual(profiles: Profile[]): string | null {
     const hit = last.map(l => profiles.find(x => x.id === l && x.root === p.root)).find(Boolean)
     if (hit) return hit.id
   }
+  // Opera's own folder is its main profile; its side profiles come after.
+  const own = profiles.find(p => p.id === '.')
+  if (own) return own.id
   const newest = [...profiles].sort((a, b) => mtime(b.dir) - mtime(a.dir))[0]
   return newest.id
 }

@@ -43,7 +43,12 @@ function windowsAPI() {
   }
 }
 
+/** How many times a key was asked of Windows, for the tests: counting what
+ * a browser holds never does (Import.swift keyAsks, 05 §1.1 point 1). */
+export let keyAsks = 0
+
 export function unprotect(blob: Buffer): Buffer | null {
+  keyAsks++
   if (process.platform === 'win32') {
     try { return (api ??= windowsAPI()).unprotect(blob) } catch { return null }
   }
