@@ -18,6 +18,7 @@ import { run, handle } from '../router'
 import { hooks, onPageSession, runtimes } from '../views/tabs'
 import { allControllers, controllerFor, type WindowController } from '../views/window'
 import { need } from '../context'
+import { allPrefs } from './prefs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const uiDir = path.join(here, '../ui')
@@ -84,6 +85,12 @@ app.on('web-contents-created', (_e, wc) => {
     if (!details.isMainFrame || !isInternal(from)) {
       refused.push({ url: details.url, site: 'navigation', origin: from })
       details.preventDefault()
+      // The tabs module took the address at did-start-navigation; the page
+      // never left, so the tab says where it still is.
+      if (details.isMainFrame) setTimeout(() => {
+        const where = tabOf(wc)
+        if (where && !wc.isDestroyed() && model.tabs.get(where.tab)?.url !== wc.getURL()) model.updateTab(where.tab, { url: wc.getURL(), title: wc.getTitle() })
+      }, 30)
     }
   })
 })
@@ -141,7 +148,7 @@ export function tellPages(kind: string, value: unknown, only?: (wc: WebContents)
 let prefsTimer: NodeJS.Timeout | null = null
 model.on('window-changed', (_id: string, slices: string[]) => {
   if (!slices.includes('prefs') || prefsTimer) return
-  prefsTimer = setTimeout(() => { prefsTimer = null; tellPages('prefs', model.prefs) }, 0)
+  prefsTimer = setTimeout(() => { prefsTimer = null; tellPages('prefs', allPrefs()) }, 0)
 })
 
 /** Opens an Oriel page in this window: the tab already showing that kind of

@@ -6,7 +6,7 @@ import { app, dialog, nativeTheme, session as electronSession, shell } from 'ele
 import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { defaultOf, defaults } from '../../shared/prefs'
+import { defaultOf, defaults, moduleDefaults } from '../../shared/prefs'
 import { brand } from '../../shared/brand'
 import { model } from '../model/model'
 import { handle, run } from '../router'
@@ -24,6 +24,13 @@ function say(text: string): { said: string } { said.push(text); return { said: t
 /** Answers a test gives in place of a dialog: a test world never opens one
  * on the screen of whoever works beside it. */
 export const probeAnswers: { folder?: string | null; saveAs?: string | null; opened: string[] } = { opened: [] }
+
+/** Every key with its value now: written, or its default (what an Oriel page reads). */
+export function allPrefs(): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...defaults, ...moduleDefaults }
+  for (const [k, v] of Object.entries(model.prefs)) if (v !== undefined) out[k] = v
+  return out
+}
 
 /** Write a key; its default is written as no key (studio/06 §1.17). */
 export function setKey(key: string, value: unknown): void {
@@ -145,7 +152,7 @@ function arcFile(): string {
 
 export function settingsValues() {
   return {
-    prefs: model.prefs,
+    prefs: allPrefs(),
     merged: mergedValues(),
     facts: {
       downloadsFolder: tilde(downloadsFolder()),
