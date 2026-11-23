@@ -15,6 +15,12 @@ const layers = new Map<string, LayerComponent>()
 export function registerLayer(kind: string, component: LayerComponent): void { layers.set(kind, component) }
 export function layerFor(kind: string): LayerComponent | undefined { return layers.get(kind) }
 
+/** Panels are one layer kind told apart by name ({ kind: 'panel', name });
+ * each module registers its own names: registerPanel('data.import', C). */
+const panels = new Map<string, Component<{ layer: OverlayLayer }>>()
+export function registerPanel(name: string, component: Component<{ layer: OverlayLayer }>): void { panels.set(name, component) }
+export function panelFor(name: string): Component<{ layer: OverlayLayer }> | undefined { return panels.get(name) }
+
 export type OutletName =
   | 'sidebar.top' | 'sidebar.afterPins' | 'sidebar.foot'
   | 'strip.end' | 'card.over' | 'chrome.end'

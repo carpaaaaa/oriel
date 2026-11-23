@@ -6,13 +6,23 @@
 import { createSignal, onMount, Show } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
 import type { OverlayLayer } from '../../shared/state'
-import { layerFor } from '../lib/registry'
+import { layerFor, panelFor } from '../lib/registry'
 
 export function OverlayRoot() {
   const [layer, setLayer] = createSignal<OverlayLayer>({ kind: 'none' })
-  onMount(() => window.search.onOverlay(setLayer))
+  onMount(() => {
+    window.search.onOverlay(setLayer)
+    // A layer sent while this page was still loading would be lost: ask.
+    void window.search.overlayNow().then(l => { if (l) setLayer(l) })
+  })
+  const component = () => {
+    const l = layer()
+    if (l.kind === 'none') return undefined
+    if (l.kind === 'panel') return panelFor(l.name) ?? layerFor('panel')
+    return layerFor(l.kind)
+  }
   return (
-    <Show when={layer().kind !== 'none' && layerFor(layer().kind)}>
+    <Show when={component()}>
       {c => <Dynamic component={c()} layer={layer()} />}
     </Show>
   )

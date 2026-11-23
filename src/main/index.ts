@@ -61,6 +61,8 @@ ipcMain.handle(IPC.command, async (event, command: Command) => {
   }
 })
 
+ipcMain.handle(IPC.overlayNow, event => controllerOf(event.sender)?.overlayLayer ?? null)
+
 ipcMain.handle(IPC.hello, event => {
   const c = controllerOf(event.sender)
   return c ? { rev: 0, set: c.state() } : null
