@@ -4,7 +4,7 @@ Oriel stands on other people's work. Thank you.
 
 ## Search, by Office Commun
 
-Oriel is an unofficial Windows port of **[Search](https://github.com/driceroland/Search)**, the small, fast browser for the Mac made by **Office Commun** (Drice Roland and contributors), released under the MIT license.
+Oriel is an unofficial Windows port of **[Search](https://github.com/driceroland/Search)**, the small, fast browser for the Mac made by **Office Commun** ([@driceroland](https://github.com/driceroland) and contributors), released under the MIT license.
 
 From Search, Oriel takes:
 
