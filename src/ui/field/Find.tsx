@@ -10,10 +10,13 @@ export function FindBar() {
   // A pane narrower than 290 keeps Return and Shift+Return instead of the arrows.
   const narrow = () => innerWidth < 290
 
+  /** What this input last sent: words coming back that it didn't send are
+   * written in (Ctrl+F again with words kept, another window's choice). */
+  let sent: string | null = null
   const take = () => { input.focus(); input.select() }
   onMount(() => { input.value = f().text; take() })
   createEffect(on(() => f().focus, take, { defer: true }))
-  createEffect(() => { if (document.activeElement !== input && input.value !== f().text) input.value = f().text })
+  createEffect(() => { const text = f().text; if (text !== sent && input.value !== text) input.value = text })
 
   const key = (e: KeyboardEvent) => {
     if (e.key === 'Enter' && !e.isComposing) {
@@ -32,7 +35,7 @@ export function FindBar() {
       <div class="find" classList={{ missed: f().missed, narrow: narrow() }}>
         <input ref={input} class="find-field" spellcheck={false} autocomplete="off" placeholder="Find on page"
           aria-label="Find on page" title="" aria-description="Type text to search this page. Press Return to find the next match."
-          onInput={e => void cmd({ do: 'find.input', text: e.currentTarget.value })} onKeyDown={key} />
+          onInput={e => { sent = e.currentTarget.value; void cmd({ do: 'find.input', text: sent }) }} onKeyDown={key} />
         <Show when={f().status}>
           <span class="find-status" aria-label={f().status ?? ''}>{f().status}</span>
         </Show>
