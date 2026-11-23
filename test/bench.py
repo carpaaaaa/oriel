@@ -194,6 +194,13 @@ class T:
         return cond
 
     def done(self):
+        try:
+            errors = state().get("errors") or []
+        except Exception:
+            errors = []
+        for e in errors:
+            self.failed += 1
+            print("  FAIL main process error: " + e.splitlines()[0])
         print(f"{self.passed} passed, {self.failed} failed")
         quit()
         sys.exit(1 if self.failed else 0)
