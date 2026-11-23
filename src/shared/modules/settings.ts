@@ -93,8 +93,14 @@ declare module '../commands' {
     'download.clear': None
     'download.copy': { id: ID }
     'download.folder': None
-    /** The button: a tab, or the card by it (Settings › Open Downloads). */
-    'download.show': { toggle?: boolean; anchor?: { x: number; y: number } }
+    // keys.ts's table: Settings… (Ctrl+,), Passwords… (Alt+Shift+L),
+    // Show History… (Ctrl+H), Downloads… (Ctrl+J), Clear Browsing Data…
+    'app.settings': None
+    'app.passwords': None
+    'history.show': None
+    'history.clearData': None
+    /** Where Settings › Open Downloads says; the button toggles (Browser.showDownloads). */
+    'downloads.show': { toggle?: boolean; anchor?: { x: number; y: number } }
   }
 }
 

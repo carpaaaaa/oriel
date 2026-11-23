@@ -7,7 +7,7 @@
 // bridge (preload/page/internal.ts), and the main process checks every
 // command comes from one of them.
 
-import { app, ipcMain, session as electronSession, type Session, type WebContents } from 'electron'
+import { app, ipcMain, type Session, type WebContents } from 'electron'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,7 +15,7 @@ import { brand } from '../../shared/brand'
 import type { Command } from '../../shared/commands'
 import { model } from '../model/model'
 import { run, handle } from '../router'
-import { runtimes } from '../views/tabs'
+import { hooks, onPageSession, runtimes } from '../views/tabs'
 import { allControllers, controllerFor, type WindowController } from '../views/window'
 import { need } from '../context'
 
@@ -74,7 +74,7 @@ export function serveInternal(s: Session): void {
   if (!s.protocol.isProtocolHandled(scheme)) s.protocol.handle(scheme, answer)
 }
 
-app.on('session-created', s => { if (s !== electronSession.defaultSession) serveInternal(s) })
+onPageSession(s => serveInternal(s))
 
 // A site navigating itself or a frame to an Oriel page is stopped there.
 app.on('web-contents-created', (_e, wc) => {
@@ -144,26 +144,44 @@ model.on('window-changed', (_id: string, slices: string[]) => {
   prefsTimer = setTimeout(() => { prefsTimer = null; tellPages('prefs', model.prefs) }, 0)
 })
 
-/** Opens an Oriel page in this window: the tab already showing that page if
- * there is one (one Settings per window, InternalPages.swift), else a new
- * tab beside the current one. */
+/** Opens an Oriel page in this window: the tab already showing that kind of
+ * page if there is one (one of each, InternalPages.swift; the tabs module's
+ * showInternal), else a new tab. */
 export async function openInternal(c: WindowController, url: string): Promise<string | null> {
-  const host = new URL(url).host
-  const ids = model.spaceTabs(c.record)
-  const existing = ids.find(id => {
-    const t = model.tabs.get(id)
-    try { return !!t && isInternal(t.url) && new URL(t.url).host === host } catch { return false }
-  })
-  if (existing) {
-    await run({ do: 'tab.select', id: existing } as never, { window: c })
-    const rt = runtimes.get(existing)
-    const page = url.slice(`${scheme}://${host}`.length).replace(/^\//, '')
-    if (rt?.contents && !rt.contents.isDestroyed()) rt.contents.send('oriel:update', { kind: 'go', value: page })
-    return existing
-  }
   await run({ do: 'tab.new', url } as never, { window: c })
-  return c.record.active[c.record.space] ?? null
+  const host = new URL(url).host
+  const id = model.spaceTabs(c.record).find(t => model.tabs.get(t)?.internal === host)
+  return id ?? c.record.active[c.record.space] ?? null
 }
+
+// The tabs module keeps no page behind an internal tab (views/tabs.ts fill()
+// and load() skip them): here the Oriel page is the tab's page, loaded into
+// the view it makes, and moved to another section in place.
+function loadInternal(id: string, wc: WebContents): void {
+  const t = model.tabs.get(id)
+  if (!t?.internal || wc.isDestroyed()) return
+  const now = wc.getURL()
+  if (now === t.url) return
+  try {
+    if (isInternal(now) && new URL(now).host === new URL(t.url).host) { wc.send('oriel:update', { kind: 'go', value: t.url }); return }
+  } catch {}
+  wc.loadURL(t.url).catch(() => {})
+}
+
+app.whenReady().then(() => setImmediate(() => {
+  const previous = hooks.created
+  hooks.created = (tab, contents) => {
+    previous?.(tab, contents)
+    // After the tabs module's fill(), which leaves an internal tab blank.
+    setImmediate(() => loadInternal(tab.id, contents))
+  }
+}))
+
+model.on('tab-changed', (tab: { id: string; internal?: string }, patch: Record<string, unknown>) => {
+  if (!tab.internal || !('url' in patch || 'internal' in patch)) return
+  const wc = runtimes.get(tab.id)?.contents
+  if (wc) loadInternal(tab.id, wc)
+})
 
 handle('internal.open', ({ url }, ctx) => {
   if (!isInternal(url)) throw new Error('not an Oriel page')

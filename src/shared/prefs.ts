@@ -40,8 +40,6 @@ export const defaults = {
   'layout.cardsFullScreen': false,
   'toolbar.left': false,
   'tabs.compact': false,
-  'address.shown': false,
-  'address.width': 'small', // small | medium
   'window.glass': false,
   'window.glass.clear': 0.5,
   'window.glass.grain': 0.2,
@@ -93,15 +91,7 @@ export const defaults = {
   'tabs.address': true,
   'tabs.clickAddressOnly': false,
   'tabs.mirror': false,
-  // Browsing › Searching
-  'search.engine': 'google', // google | duckduckgo | bing | ecosia | startpage | kagi | brave | qwant | custom
-  'search.custom': '',
-  /** Shift-Return's engine; empty is Off. */
-  'search.shift': '',
-  'search.shiftCustom': '',
-  'search.suggest': false,
-  /** JSON [{ id, keyword, template }] (Keyword.swift). */
-  'search.keywords': [] as { id: string; keyword: string; template: string }[],
+  // Browsing › Searching: the field module's (field/engines.ts)
   // Browsing › Links, Reading mode, Video, Pages
   'links.little': true,
   'links.little.tabs': false,
@@ -131,17 +121,8 @@ export const defaults = {
   'pins.list': false,
   'pins.folders': false,
   'pins.commandNewTab': false,
-  'newtab.floating': false,
-  'field.window': false,
-  'newtab.recent': false,
-  'newtab.arc': false,
-  'commandbar': false,
   'start.fresh': false,
-  // Passwords
-  'passwords.save': true,
-  'passwords.fill': true,
-  /** Windows Hello before a saved password goes into a page. */
-  'passwords.fill.prove': false,
+  // Passwords: save, fill and prove are the data module's (data/passwords.ts)
   'passkeys': true,
   // Privacy
   'shield': true,
@@ -166,7 +147,6 @@ export const defaults = {
   /** JSON { key, modifiers } or empty for none. */
   'launcher.key': '',
   'launcher.little': false,
-  'shortcuts': '',
   // About
   'update.install': true,
   'bench': false,
@@ -188,36 +168,3 @@ export function defaultOf(key: string): unknown { return key in moduleDefaults ?
 
 /** Per-site keys (studio/06 §1.16): never in `defaults`, removed when reset. */
 export const perSite = ['capture.', 'autoplay.', 'zoom.', 'nofloat.'] as const
-
-/** The search engines of Engine.swift, in its order. */
-export const engines: Record<string, { name: string; search: string; suggest?: string }> = {
-  google: { name: 'Google', search: 'https://www.google.com/search?q=%s', suggest: 'https://suggestqueries.google.com/complete/search?client=chrome&q=%s' },
-  duckduckgo: { name: 'DuckDuckGo', search: 'https://duckduckgo.com/?q=%s', suggest: 'https://duckduckgo.com/ac/?q=%s&type=list' },
-  bing: { name: 'Bing', search: 'https://www.bing.com/search?q=%s' },
-  ecosia: { name: 'Ecosia', search: 'https://www.ecosia.org/search?q=%s' },
-  startpage: { name: 'Startpage', search: 'https://www.startpage.com/sp/search?query=%s' },
-  kagi: { name: 'Kagi', search: 'https://kagi.com/search?q=%s' },
-  brave: { name: 'Brave Search', search: 'https://search.brave.com/search?q=%s' },
-  qwant: { name: 'Qwant', search: 'https://www.qwant.com/?q=%s' },
-}
-
-/** An http or https address with %s once (Engine.accepts). */
-export function acceptsTemplate(written: string): boolean {
-  const t = writtenTemplate(written)
-  if ((t.match(/%s/g) ?? []).length !== 1) return false
-  try { const u = new URL(t.replace('%s', 'x')); return (u.protocol === 'https:' || u.protocol === 'http:') && !!u.hostname } catch { return false }
-}
-
-/** What was typed, with https:// put in front when it has no scheme (Engine.written). */
-export function writtenTemplate(text: string): string {
-  const t = text.trim()
-  if (!t) return ''
-  return /^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : `https://${t}`
-}
-
-/** The search address for an engine key, Custom included (until it's a
- * good address, Custom searches Google, as on the Mac). */
-export function engineTemplate(engine: string, custom = ''): string {
-  if (engine === 'custom') return acceptsTemplate(custom) ? writtenTemplate(custom) : engines.google.search
-  return (engines[engine] ?? engines.google).search
-}

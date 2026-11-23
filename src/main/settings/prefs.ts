@@ -51,7 +51,6 @@ function mirror(key: string): void {
       model.touch(c.record, ['sidebar'])
     }
   }
-  if (key === 'search.suggest') model.setPref('search.suggestions', pref<boolean>('search.suggest'))
   if (key === 'look') applyLook()
 }
 
@@ -284,3 +283,11 @@ function undoArc(): void {
   for (const k of arcKeys) if (JSON.stringify(pref(k)) !== JSON.stringify(arcBefore[k])) setKey(k, arcBefore[k])
   arcBefore = null
 }
+
+// keys.ts's table (studio/03 §4): Settings… Ctrl+,, Passwords… Alt+Shift+L,
+// Show History… Ctrl+H, Clear Browsing Data… Ctrl+Shift+Delete.
+handle('app.settings', (_a, ctx) => run({ do: 'settings.open' } as never, ctx))
+handle('app.passwords', (_a, ctx) => openInternal(need(ctx), `${scheme}://passwords`))
+handle('history.show', (_a, ctx) => openInternal(need(ctx), `${scheme}://history`))
+// The clearing controls are part of History (Browser.clearBrowsingData).
+handle('history.clearData', (_a, ctx) => openInternal(need(ctx), `${scheme}://history/clear`))
