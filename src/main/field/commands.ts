@@ -1,99 +1,651 @@
-// The field: opening, typing, suggestions, going. Owned by the field module.
+// The field: opening it, typing, the list, Return, Escape (studio/03 §1.1-1.5,
+// §4.4 point 6). Browser.swift's "guessing" and "the address field" parts,
+// one window at a time. Owned by the field module.
 
-import { net } from 'electron'
-import { handle } from '../router'
-import { model } from '../model/model'
+import { handle, run } from '../router'
+import { model, type WindowRecord } from '../model/model'
 import type { WindowController } from '../views/window'
+import { controllerFor } from '../views/window'
 import { runtimeFor } from '../views/tabs'
-import { displayAddress, resolveInput } from '../address'
-import { engines } from '../../shared/prefs'
+import { addressURL, fileURL, reachable, shownAddress } from '../address'
 import type { Suggestion } from '../../shared/state'
+import type { FieldMode, SiteView } from '../../shared/modules/field'
 import { need } from '../context'
+import { destination, siteMatch, siteURL, type SearchSite } from './engines'
+import {
+  EngineSuggester, engineQuestion, openPages, placeOffers, SUGGEST_MOST, suggestionRow, switcherFallback,
+} from './suggest'
 
-// the field
+/** What a window's field holds besides what it shows (Browser's fields). */
+interface Memory {
+  typed: string
+  offers: Suggestion[]
+  ending: string | null
+  picked: number | null
+  editing: boolean
+  summoning: boolean
+  /** ⌘K raised with Ctrl still down: Ctrl let go of takes the row walked to. */
+  summonHeld: boolean
+  cycling: boolean
+  chip: SearchSite | null
+  offer: SearchSite | null
+  refusals: number
+  sync: number
+  focus: number
+  selectFrom: number | null
+  /** The text the interface was last told to show. */
+  shown: string
+  serial: number
+  pending: Promise<void>
+  engineWords: { asked: string; words: string[] }
+  suggester: EngineSuggester
+  /** What was typed on each blank tab (Tab.draft), kept while away from it. */
+  drafts: Map<string, string>
+  lastActive: string | null
+  /** Keys typed between ⌘L/⌘T/⌘K and the field taking them (holdKey). */
+  focusAsked: number | null
+  held: Electron.Input[]
+}
 
+const memories = new WeakMap<WindowRecord, Memory>()
+
+export function mem(c: WindowController): Memory {
+  let m = memories.get(c.record)
+  if (!m) {
+    m = {
+      typed: '', offers: [], ending: null, picked: null, editing: false, summoning: false, summonHeld: false, cycling: false,
+      chip: null, offer: null, refusals: 0, sync: 0, focus: 0, selectFrom: null, shown: '', serial: 0, pending: Promise.resolve(),
+      engineWords: { asked: '', words: [] }, suggester: new EngineSuggester(), drafts: new Map(),
+      lastActive: c.record.active[c.record.space] ?? null, focusAsked: null, held: [],
+    }
+    memories.set(c.record, m)
+    // The window's field state, whole, from the start.
+    queueMicrotask(() => publish(c))
+  }
+  return m
+}
+
+const activeOf = (c: WindowController) => model.activeTab(c.record)
+const blankInFront = (c: WindowController) => activeOf(c)?.empty ?? true
+
+/** The field on screen: raised over a page, or a blank tab's own. */
+export function fieldShowing(c: WindowController): boolean {
+  return mem(c).editing || blankInFront(c)
+}
+
+function mode(c: WindowController, m: Memory): FieldMode {
+  if (m.summoning) return 'switcher'
+  if (m.editing && !blankInFront(c)) return 'thisTab'
+  return 'blank'
+}
+
+const placeholders: Record<FieldMode, string> = {
+  blank: 'Enter a web address',
+  newTab: 'New tab: enter a web address',
+  thisTab: 'This tab: enter a web address',
+  switcher: 'Switch to an open tab',
+}
+const labels: Record<FieldMode, string> = {
+  blank: 'Address', newTab: 'Address, new tab', thisTab: 'Address, this tab', switcher: 'Switch to an open tab',
+}
+
+function siteView(s: SearchSite | null): SiteView | null {
+  return s ? { name: s.name, host: s.host } : null
+}
+
+/** Typed plus whatever the field is quietly finishing; a row walked to shows itself. */
+function completed(m: Memory): string {
+  if (m.picked != null && m.offers[m.picked]) return m.offers[m.picked].title
+  return m.typed + (m.ending ?? '')
+}
+
+/** ⌘K's quiet line when it has no page to offer. */
+function note(m: Memory): string | null {
+  if (!m.summoning || m.offers.length) return null
+  return m.typed.trim() ? 'No open tab matches' : 'No other tabs open'
+}
+
+/** Into the window's state. `rewrite`: the text was changed here, not by
+ * typing, so the interface writes it into its input. */
+function publish(c: WindowController, rewrite = false, selectFrom?: number | null): void {
+  const m = mem(c)
+  const shown = completed(m)
+  if (rewrite) {
+    m.sync++
+    m.selectFrom = selectFrom === undefined ? m.typed.length : selectFrom
+  }
+  m.shown = shown
+  const md = mode(c, m)
+  c.record.field = {
+    open: m.editing,
+    target: md === 'thisTab' ? 'here' : 'new',
+    text: m.typed,
+    suggestions: m.offers,
+    selected: m.picked ?? -1,
+    refused: m.refusals,
+    mode: md,
+    ending: m.ending,
+    shown,
+    sync: m.sync,
+    focus: m.focus,
+    selectFrom: m.selectFrom,
+    offer: siteView(m.offer),
+    chip: siteView(m.chip),
+    note: note(m),
+    placeholder: m.chip ? `Search ${m.chip.name}` : placeholders[md],
+    label: labels[md],
+  }
+  model.touch(c.record, ['field'])
+}
+
+// guessing (Browser.guess)
+
+function stopEngine(m: Memory): void {
+  m.suggester.stop()
+  m.engineWords = { asked: '', words: [] }
+}
+
+/** Every key asks again: the list and the grey ending answer what is typed. */
+function guess(c: WindowController, deleting = false): Promise<void> {
+  const m = mem(c)
+  const serial = ++m.serial
+  const work = (async () => {
+    if (m.summoning || !m.typed.trim()) stopEngine(m)
+    if (m.summoning) {
+      m.offers = openPages(c.record, m.typed)
+      const fallback = switcherFallback(m.typed, blankInFront(c))
+      if (fallback) m.offers.push(fallback)
+      m.ending = null
+      m.offer = null
+      m.picked = m.offers.length ? 0 : null
+      return
+    }
+    if (m.chip) {
+      m.offer = null
+      m.ending = null
+      m.picked = null
+      const words = m.typed.trim()
+      const url = siteURL(m.chip, words)
+      m.offers = url ? [{ kind: 'search', how: 'search', title: words, detail: m.chip.name, url }] : []
+      if (words) askEngine(c)
+      return
+    }
+    if (!m.typed.trim()) {
+      m.offers = []
+      m.ending = null
+      m.picked = null
+      m.offer = null
+      return
+    }
+    const typed = m.typed
+    const offer = siteMatch(typed)
+    const { offers, ending } = await placeOffers(typed)
+    if (serial !== m.serial) return
+    m.offer = offer
+    m.offers = offers
+    m.ending = deleting ? null : ending
+    m.picked = null
+    askEngine(c)
+  })()
+  m.pending = work.catch(e => console.warn('[field] guess', e))
+  return m.pending
+}
+
+/** The engine's words under the field's own rows; last time's that still
+ * fit stay until it answers (Browser.askEngine). */
+function askEngine(c: WindowController): void {
+  const m = mem(c)
+  const shy = !!activeOf(c)?.shy || c.record.shy
+  const question = engineQuestion(m.typed, { summoning: m.summoning, shy, chip: m.chip })
+  if (!question) { stopEngine(m); return }
+  const words = m.typed.trim()
+  const lower = words.toLowerCase()
+  const keys = new Set(m.offers.map(o => o.title.toLowerCase()))
+  const still = m.engineWords.words.filter(w => w.toLowerCase().startsWith(lower) && w.toLowerCase() !== lower && !keys.has(w.toLowerCase()))
+  if (still.length) m.offers = [...m.offers, ...engineRows(still, m.chip)]
+  m.suggester.ask(question, words, answer => {
+    if (m.typed.trim() !== words || !fieldShowing(c)) return
+    if (!engineQuestion(m.typed, { summoning: m.summoning, shy, chip: m.chip })) return
+    const mine = m.offers.filter(o => o.how !== 'suggested')
+    if (m.picked != null && m.picked >= mine.length) return
+    m.engineWords = { asked: words, words: answer }
+    const have = new Set(mine.map(o => o.title.toLowerCase()))
+    m.offers = [...mine, ...engineRows(answer.filter(w => !have.has(w.toLowerCase())), m.chip)]
+    publish(c)
+  })
+}
+
+function engineRows(words: string[], chip: SearchSite | null): Suggestion[] {
+  return words.slice(0, SUGGEST_MOST).map(w => suggestionRow(w, chip)).filter((s): s is Suggestion => !!s)
+}
+
+// opening
+
+/** The words in the field now up, for another of its keys to carry on with. */
+function wordsToCarry(c: WindowController, m: Memory): string | null {
+  const active = activeOf(c)
+  const page = active && !active.empty ? shownAddress(active.url) : ''
+  if (!fieldShowing(c) || !m.typed.trim() || !(m.summoning || m.typed !== page)) return null
+  return m.typed
+}
+
+/** The field takes the keys. Over a page the overlay is asked to show it
+ * only once the window's state has gone out (its patch is sent on the next
+ * turn, queued now): a field made before then came up with the words of
+ * before, and the patch arriving after selected them over keys typed. */
+function askFocus(c: WindowController, m: Memory): void {
+  m.focus++
+  m.focusAsked = Date.now()
+  if (blankInFront(c)) {
+    if (c.overlayLayer.kind === 'field') c.sendOverlay({ kind: 'none' })
+    c.ui.webContents.focus()
+    return
+  }
+  c.mark('field')
+  setTimeout(() => {
+    if (m.editing && !blankInFront(c) && !c.base.isDestroyed()) c.sendOverlay({ kind: 'field' })
+  }, 0)
+}
+
+/** ⌘L: the page's address, selected whole; pressed again, put away. */
+export function edit(c: WindowController): void {
+  const m = mem(c)
+  if (m.editing && !m.summoning && !blankInFront(c)) { putAway(c); return }
+  const words = wordsToCarry(c, m)
+  m.summoning = false
+  m.cycling = false
+  const active = activeOf(c)
+  m.typed = words ?? (active && !active.empty ? shownAddress(active.url) : '')
+  m.editing = true
+  m.picked = null
+  m.ending = null
+  void guess(c, true).then(() => publish(c))
+  askFocus(c, m)
+  // A draft carried on in a blank tab is not typed over: the caret after it.
+  publish(c, true, blankInFront(c) && m.typed ? m.typed.length : null)
+}
+
+/** ⌘K (Browser.searchTabsKey). `held`: Ctrl is still down. */
+export function searchTabsKey(c: WindowController, held: boolean): void {
+  const m = mem(c)
+  if (m.summoning && m.editing && m.summonHeld && m.offers.length) {
+    m.cycling = true
+    walk(c, 1)
+  } else if (m.summoning && m.editing) {
+    if (!blankInFront(c)) putAway(c); else dismiss(c)
+  } else {
+    summon(c, held)
+  }
+}
+
+function summon(c: WindowController, held: boolean): void {
+  const m = mem(c)
+  const words = wordsToCarry(c, m) ?? ''
+  m.chip = null
+  m.summoning = true
+  m.summonHeld = held
+  m.typed = words
+  m.editing = true
+  void guess(c)
+  askFocus(c, m)
+  publish(c, true, null)
+}
+
+/** Ctrl let go of after ⌘K pressed on with it held: go where the walk landed. */
+export function controlUp(c: WindowController): void {
+  const m = memories.get(c.record)
+  if (!m || !m.summonHeld) return
+  m.summonHeld = false
+  if (!m.cycling) return
+  m.cycling = false
+  if (m.picked != null) void submit(c, {})
+}
+
+/** A blank tab made by ⌘T (the tabs module calls this): its field takes the keys. */
 export function openField(c: WindowController, target: 'new' | 'here'): void {
-  const active = model.activeTab(c.record)
-  const here = target === 'here' && active && !active.empty
-  c.record.field = { open: true, target, text: here ? active!.url : '', suggestions: [], selected: 0, refused: c.record.field.refused }
-  model.touch(c.record, ['field'])
-  if (active?.empty && target === 'new') { c.ui.webContents.focus(); return }
-  c.sendOverlay({ kind: 'field' })
+  if (target === 'here') { edit(c); return }
+  const m = mem(c)
+  noticeActive(c)
+  m.summoning = false
+  m.chip = null
+  m.editing = false
+  askFocus(c, m)
+  publish(c, true, m.typed.length)
 }
 
+/** The field raised over a page, put away whichever key raised it. A blank
+ * tab's field is the tab, and stays with what was typed (its draft). */
+export function putAway(c: WindowController): void {
+  const m = mem(c)
+  m.summoning = false
+  m.cycling = false
+  m.summonHeld = false
+  if (blankInFront(c)) { if (m.editing) { m.editing = false; publish(c) } return }
+  closeOver(c, m)
+}
+
+function closeOver(c: WindowController, m: Memory): void {
+  m.editing = false
+  m.chip = null
+  m.typed = ''
+  m.offers = []
+  m.ending = null
+  m.picked = null
+  m.offer = null
+  m.serial++
+  stopEngine(m)
+  if (c.overlayLayer.kind === 'field') {
+    c.sendOverlay({ kind: 'none' })
+    afterField(c)
+  }
+  publish(c, true)
+}
+
+/** For tab.select and the like: the field over a page goes. */
 export function closeField(c: WindowController): void {
-  if (!c.record.field.open) return
-  c.record.field = { ...c.record.field, open: false, text: '', suggestions: [], selected: 0 }
-  model.touch(c.record, ['field'])
-  if (c.overlayLayer.kind === 'field') c.sendOverlay({ kind: 'none' })
+  const m = mem(c)
+  if (!m.editing && !m.summoning) return
+  putAway(c)
 }
 
-let suggestSerial = 0
+/** Browser.dismiss: Escape or a click on the veil. With a site in the
+ * field only the site goes. */
+export function dismiss(c: WindowController): void {
+  const m = mem(c)
+  m.summoning = false
+  m.cycling = false
+  m.summonHeld = false
+  if (m.chip) { m.chip = null; void guess(c).then(() => publish(c)); publish(c, true); return }
+  if (blankInFront(c)) { publish(c); return }
+  closeOver(c, m)
+}
+
+// the list
+
+/** The arrow keys walk the list; off either end lets go of it. */
+export function walk(c: WindowController, step: number): void {
+  const m = mem(c)
+  if (!m.offers.length) return
+  if (m.picked == null) m.picked = step > 0 ? 0 : m.offers.length - 1
+  else {
+    const next = m.picked + step
+    m.picked = next < 0 || next >= m.offers.length ? null : next
+  }
+  publish(c, true, m.typed.length)
+}
+
+/** Tab: the offered site into the field, or a step down the list. */
+function tabKey(c: WindowController, back: boolean): void {
+  const m = mem(c)
+  if (!back && lockSiteOffer(c)) return
+  if (m.offers.length) walk(c, back ? -1 : 1)
+}
+
+function lockSiteOffer(c: WindowController): boolean {
+  const m = mem(c)
+  if (m.chip || !m.offer) return false
+  m.chip = m.offer
+  m.offer = null
+  m.typed = ''
+  m.ending = null
+  m.picked = null
+  stopEngine(m)
+  void guess(c)
+  publish(c, true, 0)
+  return true
+}
+
+// Return
+
+interface Submit { text?: string; newTab?: boolean; front?: boolean }
+
+/** Browser.submit: the row walked to, else the grey ending, else what was
+ * typed; nothing of those a place, and the field shakes. */
+export async function submit(c: WindowController, o: Submit): Promise<void> {
+  const m = mem(c)
+  await m.pending
+  if (o.text != null && o.text !== m.shown) {
+    // A key went in before its answer: what the field shows is what counts.
+    m.typed = o.text
+    m.picked = null
+    await guess(c, true)
+  }
+  const aside = !!o.newTab
+  const active = activeOf(c)
+  const fromSwitcher = m.summoning && !!active && !active.empty
+  const picked = m.picked != null ? m.offers[m.picked] : undefined
+  if (picked?.tabID && model.tabs.has(picked.tabID)) {
+    m.summoning = false
+    model.selectTab(c.record, picked.tabID)
+    closeOver(c, m)
+    c.focusPage()
+    return
+  }
+  if (m.summoning) {
+    m.summoning = false
+    m.summonHeld = false
+    m.cycling = false
+    if (!m.typed.trim()) { m.editing = false; if (!blankInFront(c)) closeOver(c, m); else publish(c); return }
+  }
+  let target: string | null
+  if (picked) target = picked.url
+  else if (m.ending != null) target = addressURL(completed(m))
+  else target = m.chip ? siteURL(m.chip, m.typed) : fileURL(m.typed) ?? destination(m.typed)
+  if (!target) {
+    m.refusals++
+    publish(c)
+    return
+  }
+  go(c, reachable(target), aside || fromSwitcher ? { newTab: true, front: fromSwitcher && !aside ? true : !!o.front } : {})
+}
+
+/** A row clicked: taken as it is, never through the keyboard's pick. */
+async function take(c: WindowController, index: number): Promise<void> {
+  const m = mem(c)
+  await m.pending
+  const offer = m.offers[index]
+  if (!offer) return
+  const active = activeOf(c)
+  const aside = m.summoning && !!active && !active.empty
+  m.summoning = false
+  if (offer.tabID && model.tabs.has(offer.tabID)) {
+    model.selectTab(c.record, offer.tabID)
+    closeOver(c, m)
+    c.focusPage()
+    return
+  }
+  go(c, reachable(offer.url), aside ? { newTab: true, front: true } : {})
+}
+
+function go(c: WindowController, url: string, o: { newTab?: boolean; front?: boolean }): void {
+  const m = mem(c)
+  const active = activeOf(c)
+  if (active?.empty) m.drafts.delete(active.id)
+  closeOver(c, m)
+  if (o.newTab || !active) {
+    void run({ do: 'tab.new', url, background: !o.front, after: active?.id } as never, { window: c })
+      .then(() => { c.placePages(); if (o.front) c.focusPage() })
+      .catch(e => console.warn('[field] tab.new', e))
+    return
+  }
+  runtimeFor(active.id, c.pageSession).go(url)
+  c.placePages()
+  c.focusPage()
+}
+
+// Escape (App.swift take, the field's part of the chain)
+
+/** One step at a time: the row, then the blank tab's words, then the blank
+ * tab itself, then the field over the page. False when there was nothing. */
+export function escape(c: WindowController): boolean {
+  const m = mem(c)
+  const active = activeOf(c)
+  if (!fieldShowing(c)) return false
+  if (m.picked != null) { m.picked = null; publish(c, true, m.typed.length); return true }
+  if (active?.empty && (m.typed || m.chip)) {
+    m.chip = null
+    m.picked = null
+    m.typed = ''
+    m.drafts.delete(active.id)
+    void guess(c).then(() => publish(c))
+    publish(c, true, 0)
+    return true
+  }
+  if (active?.empty && !m.typed) {
+    // An unused blank tab goes, back to the tab touched last; never the last one.
+    const others = model.spaceTabs(c.record).filter(id => id !== active.id).map(id => model.tabs.get(id)!).filter(Boolean)
+    if (!others.length) {
+      if (m.summoning) { m.summoning = false; m.editing = false; publish(c); return true }
+      return false
+    }
+    const back = others.reduce((a, b) => ((b.touched ?? 0) > (a.touched ?? 0) ? b : a))
+    m.summoning = false
+    m.editing = false
+    model.selectTab(c.record, back.id)
+    model.closeTab(c.record, active.id)
+    c.focusPage()
+    return true
+  }
+  if (m.editing && active && !active.empty) { dismiss(c); if (!m.editing) c.focusPage(); return true }
+  return false
+}
+
+// the tab in front changing (Browser.select)
+
+/** A blank tab left keeps its words; one come back to gets them again. */
+function noticeActive(c: WindowController): void {
+  const m = mem(c)
+  const now = c.record.active[c.record.space] ?? null
+  if (now === m.lastActive) return
+  const before = m.lastActive ? model.tabs.get(m.lastActive) : undefined
+  if (before?.empty && !m.summoning) m.drafts.set(before.id, m.typed)
+  m.lastActive = now
+  const tab = now ? model.tabs.get(now) : undefined
+  m.summoning = false
+  m.summonHeld = false
+  m.cycling = false
+  m.editing = false
+  m.chip = null
+  m.picked = null
+  m.typed = tab?.empty ? m.drafts.get(tab.id) ?? '' : ''
+  if (c.overlayLayer.kind === 'field') { c.sendOverlay({ kind: 'none' }); afterField(c) }
+  void guess(c, true).then(() => publish(c))
+  publish(c, true, m.typed.length)
+}
+
+model.on('window-changed', (id: string, slices: string[]) => {
+  if (!slices.includes('activeID') && !slices.includes('space') && !slices.includes('tabs')) return
+  const c = controllerFor(id)
+  if (c && memories.has(c.record)) noticeActive(c)
+})
+model.on('tab-closed', (id: string) => {
+  for (const win of model.windows.values()) memories.get(win)?.drafts.delete(id)
+})
+
+/** The overlay given back: whatever the field covered comes back (find). */
+let afterFieldHook: (c: WindowController) => void = () => {}
+export function onAfterField(f: (c: WindowController) => void): void { afterFieldHook = f }
+function afterField(c: WindowController): void { afterFieldHook(c) }
+
+// keys typed before the field had them (Browser.holdKey)
+
+/** Typing between the key that raised the field and the field taking the
+ * keys is kept for it, half a second at most, never a shortcut. A key that
+ * reaches the page under the raised field is the field's too: the page is
+ * behind the veil. */
+export function holdKey(c: WindowController, input: Electron.Input, from: Electron.WebContents): boolean {
+  const m = memories.get(c.record)
+  if (!m || input.control || input.meta || input.alt || input.type !== 'keyDown' || input.isComposing) return false
+  if (['Shift', 'CapsLock', 'Control', 'Alt', 'Meta', 'AltGraph', 'Process', 'Dead'].includes(input.key)) return false
+  const early = m.focusAsked != null && Date.now() - m.focusAsked <= 500 && fieldShowing(c)
+  const stray = m.editing && !blankInFront(c) && from !== c.overlay.webContents && from !== c.ui.webContents
+  if (!early && !stray) return false
+  if (!m.held.length) setTimeout(() => letGo(c), early ? 500 : 0)
+  m.held.push(input)
+  return true
+}
+
+const named: Record<string, string> = { ArrowDown: 'Down', ArrowUp: 'Up', ArrowLeft: 'Left', ArrowRight: 'Right', Enter: 'Return', ' ': 'Space' }
+
+function letGo(c: WindowController): void {
+  const m = memories.get(c.record)
+  if (!m) return
+  m.focusAsked = null
+  const held = m.held
+  m.held = []
+  const wc = blankInFront(c) ? c.ui.webContents : c.overlay.webContents
+  if (wc.isDestroyed()) return
+  for (const k of held) {
+    const modifiers: Electron.InputEvent['modifiers'] = k.shift ? ['shift'] : []
+    const keyCode = named[k.key] ?? k.key
+    wc.sendInputEvent({ type: 'keyDown', keyCode, modifiers })
+    if (k.key.length === 1) wc.sendInputEvent({ type: 'char', keyCode: k.key, modifiers })
+    wc.sendInputEvent({ type: 'keyUp', keyCode, modifiers })
+  }
+}
+
+// commands
+
 handle('field.open', ({ target }, ctx) => openField(need(ctx), target))
-handle('field.close', (_a, ctx) => { const c = need(ctx); closeField(c); c.focusPage() })
-handle('field.move', ({ by }, ctx) => {
+handle('field.close', (_a, ctx) => { const c = need(ctx); dismiss(c); if (!mem(c).editing) c.focusPage() })
+handle('field.summon', (_a, ctx) => searchTabsKey(need(ctx), false))
+handle('field.move', ({ by }, ctx) => walk(need(ctx), by))
+handle('field.tab', ({ back }, ctx) => tabKey(need(ctx), !!back))
+handle('field.lock', (_a, ctx) => { lockSiteOffer(need(ctx)) })
+handle('field.unchip', (_a, ctx) => {
   const c = need(ctx)
-  const n = c.record.field.suggestions.length
-  if (!n) return
-  c.record.field = { ...c.record.field, selected: (c.record.field.selected + by + n) % n }
-  model.touch(c.record, ['field'])
+  const m = mem(c)
+  if (!m.chip) return
+  m.chip = null
+  void guess(c).then(() => publish(c))
+  publish(c)
+})
+handle('field.escape', (_a, ctx) => escape(need(ctx)))
+handle('field.take', ({ index }, ctx) => take(need(ctx), index))
+handle('field.focused', (_a, ctx) => {
+  const c = need(ctx)
+  // A blank tab's field has the keys: the interface's view must have them
+  // too (a new window comes up with the overlay or nothing focused).
+  if (blankInFront(c) && !c.ui.webContents.isFocused() && c.base.isFocused()) c.ui.webContents.focus()
+  if (mem(c).held.length) letGo(c); else mem(c).focusAsked = null
+})
+
+/** Typing. Answers with the ending for these words, for the input to show
+ * grey and selected after the caret. */
+handle('field.type', async ({ text, deleting }, ctx) => {
+  const c = need(ctx)
+  const m = mem(c)
+  m.typed = text
+  m.picked = null
+  if (deleting) m.ending = null
+  m.shown = text
+  const work = guess(c, !!deleting)
+  publish(c)
+  await work
+  if (m.typed !== text) return { text, ending: null }
+  publish(c)
+  return { text, ending: m.ending }
 })
 handle('field.input', async ({ text }, ctx) => {
   const c = need(ctx)
-  const serial = ++suggestSerial
-  c.record.field = { ...c.record.field, text, suggestions: localSuggestions(c, text), selected: 0 }
-  model.touch(c.record, ['field'])
-  const remote = await remoteSuggestions(text).catch(() => [])
-  if (serial !== suggestSerial || !c.record.field.open) return
-  const local = localSuggestions(c, text)
-  const seen = new Set(local.map(s => s.url))
-  c.record.field = { ...c.record.field, suggestions: [...local, ...remote.filter(s => !seen.has(s.url))].slice(0, 8) }
-  model.touch(c.record, ['field'])
+  const m = mem(c)
+  m.typed = text
+  m.picked = null
+  await guess(c)
+  publish(c)
 })
-handle('field.commit', ({ index, text, newTab }, ctx) => {
+handle('field.submit', (o, ctx) => submit(need(ctx), o))
+handle('field.commit', async ({ index, text, newTab }, ctx) => {
   const c = need(ctx)
-  const f = c.record.field
-  const picked = index != null ? f.suggestions[index] : undefined
-  const typed = text ?? f.text
-  if (!picked && !typed.trim()) { c.record.field = { ...f, refused: f.refused + 1 }; model.touch(c.record, ['field']); return }
-  if (picked?.tabID) { closeField(c); model.selectTab(c.record, picked.tabID); c.focusPage(); return }
-  const url = picked?.url ?? resolveInput(typed, model.pref<string>('search.engine')).url
-  const active = model.activeTab(c.record)
-  closeField(c)
-  if (!newTab && active && (active.empty || f.target === 'here')) {
-    runtimeFor(active.id, c.pageSession).go(url)
-  } else {
-    const tab = model.addTab(c.record, { url, empty: false })
-    runtimeFor(tab.id, c.pageSession).go(url)
+  const m = mem(c)
+  await m.pending
+  if (text != null && index == null) {
+    m.typed = text
+    m.picked = null
+    await guess(c, true)
+    publish(c)
+  } else if (index != null) {
+    m.picked = index
   }
-  c.placePages()
-  c.focusPage()
+  await submit(c, { newTab })
 })
-
-function localSuggestions(c: WindowController, text: string): Suggestion[] {
-  const t = text.trim()
-  if (!t) return []
-  const { url, searched } = resolveInput(t, model.pref<string>('search.engine'))
-  const engine = engines[model.pref<string>('search.engine')] ?? engines.google
-  const first: Suggestion = searched
-    ? { kind: 'search', title: t, detail: `${engine.name} Search`, url }
-    : { kind: 'url', title: displayAddress(url), url }
-  const lower = t.toLowerCase()
-  const open: Suggestion[] = model.spaceTabs(c.record)
-    .map(id => model.tabs.get(id)!)
-    .filter(tab => tab && !tab.empty && (tab.title.toLowerCase().includes(lower) || tab.url.toLowerCase().includes(lower)))
-    .slice(0, 3)
-    .map(tab => ({ kind: 'tab', title: tab.title || displayAddress(tab.url), detail: displayAddress(tab.url), url: tab.url, favicon: tab.favicon, tabID: tab.id }))
-  return [first, ...open]
-}
-
-async function remoteSuggestions(text: string): Promise<Suggestion[]> {
-  const t = text.trim()
-  if (!t || !model.pref<boolean>('search.suggestions')) return []
-  const engine = engines[model.pref<string>('search.engine')] ?? engines.google
-  if (!engine.suggest) return []
-  const res = await net.fetch(engine.suggest.replace('%s', encodeURIComponent(t)))
-  const data = await res.json() as unknown[]
-  const words = (Array.isArray(data) && Array.isArray(data[1]) ? data[1] : []) as string[]
-  return words.slice(0, 5).filter(w => w !== t).map(w => ({ kind: 'search', title: w, url: engine.search.replace('%s', encodeURIComponent(w)) }))
-}
