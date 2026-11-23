@@ -13,7 +13,8 @@ const CHANNEL = 'search-ext:call'
 // TODO(brand): brand.name from src/shared/brand.ts once merged.
 const BRAND = 'Oriel'
 
-type Handler = (extensionId: string, args: unknown[]) => unknown
+/** `sender` is the page that called, null for a service worker. */
+type Handler = (extensionId: string, args: unknown[], sender: Electron.WebContents | null) => unknown
 const handlers = new Map<string, Handler>()
 
 /** An API call extensions can make: "dnr.updateDynamicRules"... */
@@ -23,12 +24,12 @@ function idOf(url: string | undefined): string | null {
   return /^chrome-extension:\/\/([a-p]{32})\//.exec(url ?? '')?.[1] ?? null
 }
 
-async function dispatch(profile: Session, id: string | null, method: unknown, args: unknown): Promise<{ value?: unknown; error?: string }> {
+async function dispatch(profile: Session, id: string | null, method: unknown, args: unknown, sender: Electron.WebContents | null): Promise<{ value?: unknown; error?: string }> {
   if (!id || !profile.extensions.getExtension(id)) return { error: 'Not an extension context.' }
   const handler = handlers.get(String(method))
   if (!handler) return { error: `${String(method)} isn't available in ${BRAND}.` }
   try {
-    return { value: await handler(id, Array.isArray(args) ? args : []) }
+    return { value: await handler(id, Array.isArray(args) ? args : [], sender) }
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) }
   }
@@ -36,9 +37,9 @@ async function dispatch(profile: Session, id: string | null, method: unknown, ar
 
 /** Call before electron-chrome-extensions registers its preload: ours must
  * run first. */
-export function setupBridge(profile: Session, constants: Record<string, unknown>, methods: string[]): void {
+export function setupBridge(profile: Session, constants: Record<string, unknown>, methods: string[], apis: string[]): void {
   const file = path.join(app.getPath('userData'), 'search-extensions-preload.cjs')
-  const text = `"use strict";\n(${extensionPreload.toString()})(require, ${JSON.stringify(constants)}, ${JSON.stringify(methods)});\n`
+  const text = `"use strict";\n(${extensionPreload.toString()})(require, ${JSON.stringify(constants)}, ${JSON.stringify(methods)}, ${JSON.stringify(apis)});\n`
   fs.mkdirSync(path.dirname(file), { recursive: true })
   if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== text) fs.writeFileSync(file, text)
   profile.registerPreloadScript({ id: 'search-extensions-frame', type: 'frame', filePath: file })
@@ -48,10 +49,10 @@ export function setupBridge(profile: Session, constants: Record<string, unknown>
     const e = event as unknown as { type?: string; serviceWorker?: Electron.ServiceWorkerMain; session?: Session }
     if (e.type === 'service-worker') {
       if (e.session !== profile) return { error: 'Not an extension context.' }
-      return dispatch(profile, idOf(e.serviceWorker?.scope), method, args)
+      return dispatch(profile, idOf(e.serviceWorker?.scope), method, args, null)
     }
     if (event.sender.session !== profile) return { error: 'Not an extension context.' }
-    return dispatch(profile, idOf(event.senderFrame?.url), method, args)
+    return dispatch(profile, idOf(event.senderFrame?.url), method, args, event.sender)
   })
 
   const seen = new WeakSet<Electron.ServiceWorkerMain>()
@@ -60,6 +61,6 @@ export function setupBridge(profile: Session, constants: Record<string, unknown>
     const worker = profile.serviceWorkers.getWorkerFromVersionID(versionId)
     if (!worker || seen.has(worker) || !worker.scope.startsWith('chrome-extension://')) return
     seen.add(worker)
-    worker.ipc.handle(CHANNEL, (_event, method, args) => dispatch(profile, idOf(worker.scope), method, args))
+    worker.ipc.handle(CHANNEL, (_event, method, args) => dispatch(profile, idOf(worker.scope), method, args, null))
   })
 }

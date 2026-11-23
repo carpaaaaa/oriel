@@ -1,3 +1,5 @@
+import { getDomain } from 'tldts'
+
 // Domains for declarativeNetRequest: lists match a host and its subdomains,
 // and when a rule names both, the longest matching entry decides (Chrome's
 // url_pattern_index: "a.com" with "~b.a.com" leaves out x.b.a.com, and
@@ -48,19 +50,19 @@ export function passes(hostSuffixes: readonly string[] | null, include: DomainLi
   return inc > exc
 }
 
-// Registrable domain, for domainType (first or third party). Chrome uses the
-// Public Suffix List; without it, a ccTLD with a common second level
-// ("co.uk", "com.au") counts as the suffix. Good enough for ad blocking;
-// the full list is a request in the report.
-const secondLevels = new Set(['co', 'com', 'net', 'org', 'gov', 'edu', 'ac', 'or', 'ne', 'go', 'gob', 'mil', 'nic', 'ltd', 'plc', 'sch', 'nom', 'gv', 'gen', 'biz', 'info', 'web', 'int', 'res', 'lg', 'ed', 'in', 'ind', 'firm'])
-const ipv4 = /^\d{1,3}(\.\d{1,3}){3}$/
+// Registrable domain, for domainType (first or third party), from the
+// Public Suffix List's ICANN part as Chrome's DNR uses it (private suffixes
+// like github.io left out). An IP address or a bare name is its own.
+// Remembered, since every third-party check asks for two.
+const known = new Map<string, string>()
 
 export function registrable(host: string): string {
-  if (!host || ipv4.test(host) || host.includes(':')) return host
-  const labels = host.split('.')
-  if (labels.length <= 2) return host
-  const tld = labels[labels.length - 1]
-  const sld = labels[labels.length - 2]
-  const take = tld.length === 2 && secondLevels.has(sld) ? 3 : 2
-  return labels.slice(-take).join('.')
+  if (!host) return host
+  let site = known.get(host)
+  if (site === undefined) {
+    site = getDomain(host, { allowPrivateDomains: false }) ?? host
+    if (known.size > 20000) known.clear()
+    known.set(host, site)
+  }
+  return site
 }

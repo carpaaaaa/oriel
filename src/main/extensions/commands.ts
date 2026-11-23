@@ -1,33 +1,33 @@
 // chrome.commands (studio/04 §2.3 "Comandi da tastiera delle estensioni",
 // checklist B P0): each command of the manifest with a suggested key gets it
-// (the "windows" one, else "default") unless the key is Search's own, a
-// reserved one (Ctrl+W, Ctrl+T, Ctrl+N and their Shift and Alt variants) or
+// (the "windows" one, else "default") unless the key is Oriel's own, one the
+// system keeps, Ctrl+W, Ctrl+T, Ctrl+N or their Shift and Alt variants, or
 // already another extension's; then it stays without a key, as on the Mac.
-// Keys go through keys.ts like Search's own, before the page, as in Chrome.
-// getAll answers with the key given; onCommand reaches the extension through
-// electron-chrome-extensions' event channel, whose preload defines
-// chrome.commands. _execute_action presses the extension's button.
+// Keys go through keys.ts like Oriel's own, before the page, as in Chrome,
+// and are given back when the extension goes. getAll answers with the key
+// given; onCommand reaches the extension through electron-chrome-extensions'
+// event channel, whose preload defines chrome.commands. _execute_action
+// presses the extension's button.
 
-import fs from 'node:fs'
-import path from 'node:path'
 import type { ElectronChromeExtensions } from 'electron-chrome-extensions'
-import { shortcut, findAction } from '../keys'
+import { shortcut, unshortcut, findAction, reserved, type Action } from '../keys'
 import type { WindowController } from '../views/window'
-import { handleApi, sendEvent, activeTab, tabDetails, pressAction } from './lib'
+import { handleApi, sendEvent, activeTab, tabDetails } from './lib'
+import { localize } from './ask'
+import { press } from './ui'
 
 interface Command { name: string; description: string; shortcut: string }
 
 const EXECUTE = new Set(['_execute_action', '_execute_browser_action', '_execute_page_action'])
-const RESERVED = /^Ctrl\+(Shift\+)?(Alt\+)?[WTN]$/
+const KEPT = /^Ctrl\+(Shift\+)?(Alt\+)?[WTN]$/
 
-/** Bound chords: "Ctrl+Shift+Y" → which extension's command. */
-const bound = new Map<string, { extensionId: string; command: string }>()
-/** Chords this module put in keys.ts (keys.ts has no removal yet). */
-const ours = new Set<string>()
+/** Bound chords: "Ctrl+Shift+Y" → which extension's command, and the action
+ * put in keys.ts for it. */
+const bound = new Map<string, { extensionId: string; command: string; action: Action }>()
 const byExtension = new Map<string, Command[]>()
 
 const KEYS: Record<string, string> = {
-  Comma: ',', Period: '.', Space: ' ', Up: 'ArrowUp', Down: 'ArrowDown', Left: 'Left', Right: 'Right',
+  Comma: ',', Period: '.', Space: 'Space', Up: 'Up', Down: 'Down', Left: 'Left', Right: 'Right',
   Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', Insert: 'Insert', Delete: 'Delete',
   MediaNextTrack: 'MediaTrackNext', MediaPrevTrack: 'MediaTrackPrevious', MediaPlayPause: 'MediaPlayPause', MediaStop: 'MediaStop',
 }
@@ -53,33 +53,14 @@ export function toChord(suggested: string): string | null {
   return [ctrl && 'Ctrl', shift && 'Shift', alt && 'Alt', name].filter(Boolean).join('+')
 }
 
-/** "__MSG_name__" in the extension's default language. */
-function localize(ext: Electron.Extension, text: string | undefined): string {
-  const m = /^__MSG_(\w+)__$/.exec(text ?? '')
-  if (!m) return text ?? ''
-  const locale = (ext.manifest as { default_locale?: string }).default_locale ?? 'en'
-  try {
-    const messages = JSON.parse(fs.readFileSync(path.join(ext.path, '_locales', locale, 'messages.json'), 'utf8'))
-    const entry = Object.entries(messages).find(([k]) => k.toLowerCase() === m[1].toLowerCase())?.[1] as { message?: string } | undefined
-    return entry?.message ?? ''
-  } catch { return '' }
-}
-
 let library: ElectronChromeExtensions | null = null
 
-function run(chord: string, c: WindowController): null {
+function run(chord: string, c: WindowController): boolean {
   const b = bound.get(chord)
-  if (!b || !library) return null
-  const tab = activeTab(library)
-  if (EXECUTE.has(b.command)) {
-    // No button on screen yet: the popup hangs from the window's top right,
-    // the Mac's fallback (studio/04 §2.4).
-    const { width } = c.base.getContentBounds()
-    if (tab) pressAction(library, b.extensionId, tab.id, { x: width - 60, y: 40, width: 1, height: 1 })
-  } else {
-    sendEvent(library, b.extensionId, 'commands.onCommand', b.command, tabDetails(library, tab))
-  }
-  return null
+  if (!b || !library) return false
+  if (EXECUTE.has(b.command)) press(c, b.extensionId)
+  else sendEvent(library, b.extensionId, 'commands.onCommand', b.command, tabDetails(library, activeTab(library)))
+  return true
 }
 
 export function bindCommands(ext: Electron.Extension): void {
@@ -89,21 +70,24 @@ export function bindCommands(ext: Electron.Extension): void {
     const suggested = cmd?.suggested_key?.windows ?? cmd?.suggested_key?.default
     let given = ''
     const chord = suggested ? toChord(suggested) : null
-    const free = chord && !RESERVED.test(chord) && !bound.has(chord)
-      && (ours.has(chord) || (!findAction(chord, 'first') && !findAction(chord, 'later')))
+    const free = chord && !KEPT.test(chord) && !reserved(chord) && !bound.has(chord) && !findAction(chord, 'first') && !findAction(chord, 'later')
     if (chord && free) {
-      bound.set(chord, { extensionId: ext.id, command: name })
-      if (!ours.has(chord)) { ours.add(chord); shortcut(chord, 'first', c => run(chord, c)) }
+      const action: Action = c => run(chord, c)
+      bound.set(chord, { extensionId: ext.id, command: name, action })
+      shortcut(chord, 'first', action)
       given = suggested!
     }
-    list.push({ name, description: localize(ext, cmd?.description), shortcut: given })
+    list.push({ name, description: localize(ext.path, ext.manifest as never, cmd?.description), shortcut: given })
   }
   byExtension.set(ext.id, list)
 }
 
 export function unbindCommands(ext: Electron.Extension): void {
   byExtension.delete(ext.id)
-  for (const [chord, b] of bound) if (b.extensionId === ext.id) bound.delete(chord)
+  for (const [chord, b] of [...bound]) if (b.extensionId === ext.id) {
+    bound.delete(chord)
+    unshortcut(chord, b.action)
+  }
 }
 
 export function setupCommands(e: ElectronChromeExtensions): void {
@@ -113,5 +97,5 @@ export function setupCommands(e: ElectronChromeExtensions): void {
 
 /** For the bench. */
 export function boundCommands(): Record<string, { extensionId: string; command: string }> {
-  return Object.fromEntries(bound)
+  return Object.fromEntries([...bound].map(([k, v]) => [k, { extensionId: v.extensionId, command: v.command }]))
 }

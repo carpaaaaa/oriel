@@ -11,6 +11,11 @@ import { benchMatcher } from './dnr/bench'
 import { boundCommands } from './commands'
 import { badgeOf } from './lib'
 import { runtimes } from '../views/tabs'
+import { allControllers, focusedController } from '../views/window'
+import { answerNext, asked } from './ask'
+import { popupOf } from './popup'
+import { panelOf } from './sidepanel'
+import { offscreenOf } from './offscreen'
 
 const profile = () => { const p = getProfile(); if (!p) throw new Error('no profile'); return p }
 
@@ -104,4 +109,50 @@ benchRequest('extensions.badge', req => {
 /** The webContents id of a tab: the id extensions see as tabId. */
 benchRequest('extensions.tabId', req => {
   return { tabId: runtimes.get(String(req.tab))?.contents?.id ?? null }
+})
+
+// The interface and the APIs added in the second round (test/extensions_ui.py,
+// test/extensions_apis.py).
+
+/** The buttons to press for the next questions (none shows in a test world). */
+benchRequest('extensions.answer', req => { answerNext((req.answers as string[]) ?? []); return {} })
+benchRequest('extensions.asked', () => ({ asked }))
+
+function windowOf(req: Record<string, unknown>) {
+  const c = req.window ? allControllers().find(x => x.record.id === req.window) : focusedController()
+  if (!c) throw new Error('no window')
+  return c
+}
+
+benchRequest('extensions.popup', req => {
+  const p = popupOf(windowOf(req))
+  if (!p) return { open: false }
+  const wc = p.view.webContents
+  return { open: true, id: p.id, url: wc.getURL(), title: wc.getTitle(), loading: wc.isLoading(), shown: p.shown, bounds: p.view.getBounds(), size: p.size }
+})
+benchRequest('extensions.popupEval', async req => {
+  const p = popupOf(windowOf(req))
+  if (!p) throw new Error('no popup')
+  return { value: await p.view.webContents.executeJavaScript(String(req.js), true) }
+})
+
+benchRequest('extensions.panel', req => {
+  const c = windowOf(req)
+  const panel = panelOf(c)
+  const id = c.record.active[c.record.space]
+  const page = id ? runtimes.get(id)?.view?.getBounds() ?? null : null
+  if (!panel) return { open: false, page }
+  const wc = panel.view.webContents
+  return { open: true, id: panel.id, url: wc.getURL(), title: wc.getTitle(), bounds: panel.view.getBounds(), page }
+})
+benchRequest('extensions.panelEval', async req => {
+  const panel = panelOf(windowOf(req))
+  if (!panel) throw new Error('no panel')
+  return { value: await panel.view.webContents.executeJavaScript(String(req.js), true) }
+})
+
+benchRequest('extensions.offscreen', async req => {
+  const wc = offscreenOf(String(req.id))
+  if (!wc) return { open: false }
+  return { open: true, url: wc.getURL(), value: req.js ? await wc.executeJavaScript(String(req.js), true) : null }
 })

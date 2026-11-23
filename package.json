@@ -11,7 +11,8 @@
     "build": "node scripts/build.mjs",
     "start": "node scripts/build.mjs && electron .",
     "typecheck": "tsc -p .",
-    "dist": "node scripts/build.mjs && electron-builder --win --x64 --arm64"
+    "dist": "node scripts/build.mjs && electron-builder --win --x64 --arm64",
+    "licenses": "node scripts/licenses.mjs"
   },
   "engines": {
     "node": ">=24"
@@ -73,6 +74,20 @@
     ],
     "portable": {
       "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "THIRD_PARTY_LICENSES.md",
+        "to": "THIRD_PARTY_LICENSES.md"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "CREDITS.md",
+        "to": "CREDITS.md"
+      }
+    ]
   }
 }
