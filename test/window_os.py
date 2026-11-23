@@ -201,7 +201,7 @@ def backdrop_clicks():
 
 t = b.T()
 b.use("window-os")
-b.launch()
+b.launch(env={"SEARCH_LOOK": os.environ["FRAME_LOOK"]} if os.environ.get("FRAME_LOOK") else None)
 
 
 def cleanup():
@@ -394,6 +394,18 @@ try:
     t.ok(f["state"] == "fullScreen", "F11: full screen (%s)" % f["state"])
     chord("f11")
     t.ok(frame()["state"] == "free", "F11 again: back")
+
+    # 11. Another window in front: the resting shadow and dimmer buttons.
+    other = subprocess.Popen(["powershell", "-NoProfile", "-Command",
+        "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.Form; $f.Text = 'other'; "
+        "$f.StartPosition = 'Manual'; $a = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea; "
+        "$f.SetBounds($a.Right - 230, $a.Bottom - 140, 220, 130); $f.TopMost = $true; [System.Windows.Forms.Application]::Run($f)"])
+    time.sleep(4)
+    f = frame()
+    grab("9-inactive")
+    note("inactive", frame=f, focused=b.window()["focused"])
+    t.ok(not b.window()["focused"], "another window in front: ours is drawn at rest")
+    other.kill()
 
 except Exception:
     traceback.print_exc()

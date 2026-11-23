@@ -136,8 +136,8 @@ export class Frame {
       // windows; do ours instead.
       c.base.hookWindowMessage(WM_SYSCOMMAND, wParam => {
         const command = Number(wParam.length >= 8 ? wParam.readBigUInt64LE(0) : BigInt(wParam.readUInt32LE(0))) & 0xfff0
-        if (command === SC_MAXIMIZE && this.state !== 'maximized') setImmediate(() => this.maximize())
-        else if (command === SC_RESTORE && this.state === 'maximized' && !c.base.isMinimized()) setImmediate(() => this.unmaximize())
+        if (command === SC_MAXIMIZE && this.state !== 'maximized') setImmediate(() => { if (this.compute() !== 'maximized') this.maximize() })
+        else if (command === SC_RESTORE && this.state === 'maximized' && !c.base.isMinimized()) setImmediate(() => { if (this.compute() === 'maximized') this.unmaximize() })
       })
       c.base.hookWindowMessage(WM_EXITSIZEMOVE, () => setImmediate(() => this.refresh()))
     }
@@ -234,7 +234,7 @@ export class Frame {
     const w = win32()
     if (this.manual || !w || !this.hwnd || this.state === 'fullScreen') return
     // A really maximized window (native) is brought back by Windows itself.
-    if (this.state === 'maximized' && variant.maximize === 'emulated') this.restoreUnder(screen.getCursorScreenPoint())
+    if (this.state === 'maximized' && !this.zoomed()) this.restoreUnder(screen.getCursorScreenPoint())
     w.beginMove(this.hwnd, w.cursor())
   }
 
@@ -317,11 +317,15 @@ export class Frame {
   }
 
   unmaximize(): void {
-    const b = this.c.base
-    if (this.hwnd && variant.maximize === 'native') win32()?.show(this.hwnd, SW_RESTORE)
-    else b.unmaximize()
+    // Aero Snap to the top (and native maximize) make a really maximized
+    // window, which Electron's unmaximize for transparent windows doesn't know.
+    if (this.zoomed()) win32()?.show(this.hwnd, SW_RESTORE)
+    else this.c.base.unmaximize()
     this.refresh()
   }
+
+  /** Maximized by Windows itself (WS_MAXIMIZE), not by bounds. */
+  private zoomed(): boolean { return !!this.hwnd && !!win32()?.zoomed(this.hwnd) }
 
   setFullScreen(on = !this.c.base.isFullScreen()): void {
     this.c.base.setFullScreen(on)

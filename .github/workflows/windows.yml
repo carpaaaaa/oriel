@@ -97,6 +97,14 @@ jobs:
           SHOTS_DIR: shots
           FRAME_VARIANT: thick
         run: python test/window_os.py
+      - name: Real input, frame as shipped, dark
+        if: always()
+        continue-on-error: true
+        env:
+          SHOTS_DIR: shots
+          FRAME_VARIANT: thick-dark
+          FRAME_LOOK: dark
+        run: python test/window_os.py
       - name: Real input, plain transparent window
         if: always()
         continue-on-error: true
@@ -131,6 +139,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # koffi's prebuilt binary for the other architecture too (npm only
+      # installs the one of the machine it runs on).
+      - run: npm install --no-save --force @koromix/koffi-win32-x64@3.3.8 @koromix/koffi-win32-arm64@3.3.8
       - run: npm run build
       - run: npx electron-builder --win nsis portable --x64 --arm64 --publish never
       - uses: actions/upload-artifact@v4

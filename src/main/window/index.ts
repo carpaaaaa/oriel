@@ -30,7 +30,8 @@ benchRequest('window.frame', req => ({ frame: pick(req.window).frame.diagnose(),
 benchRequest('window.place', req => {
   const c = pick(req.window)
   const r = { x: Number(req.x), y: Number(req.y), width: Number(req.width), height: Number(req.height) }
-  if (c.base.isMaximized()) c.base.unmaximize()
+  if (c.base.isFullScreen()) c.frame.setFullScreen(false)
+  if (c.base.isMaximized()) c.frame.unmaximize()
   c.base.setBounds(req.visual ? c.frame.boundsFor(r) : r)
   c.frame.refresh()
   return { bounds: c.base.getBounds(), visual: c.frame.visual() }
