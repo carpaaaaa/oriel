@@ -45,12 +45,14 @@ type State = FrameView['state']
 const variant = {
   /** plain: Electron's transparent window; thick: plus WS_THICKFRAME, so
    * Windows treats it as resizable (Snap) with DWM's own border turned off. */
-  style: process.env.SEARCH_FRAME_STYLE === 'plain' ? 'plain' : 'thick',
+  style: (process.env.SEARCH_FRAME_STYLE === 'plain' ? 'plain' : 'thick') as 'plain' | 'thick',
   /** emulated: Electron's maximize for transparent windows (bounds = work
    * area); native: ShowWindow, a real maximized window. */
   maximize: process.env.SEARCH_FRAME_MAX === 'native' ? 'native' : 'emulated',
-  /** nc: WM_NCLBUTTONDOWN on an edge; syscommand: SC_SIZE; manual: by hand. */
-  resize: (['nc', 'syscommand', 'manual'] as const).find(v => v === process.env.SEARCH_FRAME_RESIZE) ?? 'nc',
+  /** syscommand: SC_SIZE; nc: WM_NCLBUTTONDOWN on an edge; manual: by hand. */
+  resize: (['nc', 'syscommand', 'manual'] as const).find(v => v === process.env.SEARCH_FRAME_RESIZE) ?? 'syscommand',
+  /** syscommand: SC_MOVE; nc: WM_NCLBUTTONDOWN on the caption. */
+  move: (process.env.SEARCH_FRAME_MOVE === 'nc' ? 'nc' : 'syscommand') as 'nc' | 'syscommand',
 }
 
 export function frameKind(chrome: 'windows' | 'mac'): FrameKind {
@@ -77,8 +79,11 @@ export function windowOptions(kind: FrameKind, dark: boolean): BaseWindowConstru
       backgroundColor: '#00000000',
       width: VISIBLE.width + ROOM.left + ROOM.right,
       height: VISIBLE.height + ROOM.top + ROOM.bottom,
-      minWidth: VISIBLE.minWidth + ROOM.left + ROOM.right,
-      minHeight: VISIBLE.minHeight + ROOM.top + ROOM.bottom,
+      // The window's own minimum is the visible one, so Snap can make a
+      // window without margin 640 wide; free, the margin is added on top
+      // (will-resize in Frame, boundsFor).
+      minWidth: VISIBLE.minWidth,
+      minHeight: VISIBLE.minHeight,
     }
   }
   const base = { ...common, width: VISIBLE.width, height: VISIBLE.height, minWidth: VISIBLE.minWidth, minHeight: VISIBLE.minHeight, backgroundColor: frame }
@@ -119,6 +124,8 @@ export class Frame {
   private poll: NodeJS.Timeout | null = null
   private drag: { bounds: Rectangle; x: number; y: number } | null = null
   private restoreTo: Rectangle | null = null
+  /** Full screen as we asked it (Electron doesn't know it for transparent windows on Windows). */
+  private full = false
 
   constructor(private readonly c: WindowController, kind: FrameKind) {
     this.kind = kind
@@ -143,6 +150,12 @@ export class Frame {
       c.base.hookWindowMessage(WM_EXITSIZEMOVE, () => setImmediate(() => this.refresh()))
     }
     this.manual = kind === 'drawn' && !(w && this.hwnd)
+    if (kind === 'drawn') {
+      c.base.on('will-resize', (e, next) => {
+        if (this.state !== 'free') return
+        if (next.width - ROOM.left - ROOM.right < VISIBLE.minWidth || next.height - ROOM.top - ROOM.bottom < VISIBLE.minHeight) e.preventDefault()
+      })
+    }
     this.state = this.compute()
     c.base.on('closed', () => this.stopPoll())
   }
@@ -167,10 +180,12 @@ export class Frame {
     return { x: n.x + m.left, y: n.y + m.top, width: n.width - m.left - m.right, height: n.height - m.top - m.bottom }
   }
 
-  /** Window bounds for a visible rectangle (free state). */
+  /** Window bounds for a visible rectangle (free state), never under the
+   * visible minimum (studio/01 §1.4). */
   boundsFor(v: Rectangle): Rectangle {
     const m = this.kind === 'drawn' ? ROOM : NONE
-    return { x: v.x - m.left, y: v.y - m.top, width: v.width + m.left + m.right, height: v.height + m.top + m.bottom }
+    const width = Math.max(VISIBLE.minWidth, v.width), height = Math.max(VISIBLE.minHeight, v.height)
+    return { x: v.x - m.left, y: v.y - m.top, width: width + m.left + m.right, height: height + m.top + m.bottom }
   }
 
   view(): FrameView {
@@ -179,7 +194,7 @@ export class Frame {
 
   private compute(): State {
     const b = this.c.base
-    if (b.isFullScreen()) return 'fullScreen'
+    if (this.isFullScreen()) return 'fullScreen'
     if (b.isMaximized()) return 'maximized'
     if (this.hwnd && win32()?.arranged(this.hwnd)) return 'snapped'
     return 'free'
@@ -237,7 +252,7 @@ export class Frame {
     if (this.manual || !w || !this.hwnd || this.state === 'fullScreen') return
     // A really maximized window (native) is brought back by Windows itself.
     if (this.state === 'maximized' && !this.zoomed()) this.restoreUnder(screen.getCursorScreenPoint())
-    w.beginMove(this.hwnd, w.cursor())
+    w.beginMove(this.hwnd, w.cursor(), variant.move)
   }
 
   /** Dragging a maximized window: it comes back to its size under the
@@ -288,7 +303,8 @@ export class Frame {
     if (!this.drag) return
     if (phase === 'end') { this.drag = null; this.refresh(); return }
     const s = this.drag.bounds
-    const [minW, minH] = b.getMinimumSize()
+    const m = this.kind === 'drawn' ? ROOM : NONE
+    const minW = VISIBLE.minWidth + m.left + m.right, minH = VISIBLE.minHeight + m.top + m.bottom
     const dx = Math.round(x - this.drag.x), dy = Math.round(y - this.drag.y)
     let { x: nx, y: ny, width: nw, height: nh } = s
     if (edge.includes('left')) { nw = Math.max(minW, s.width - dx); nx = s.x + s.width - nw }
@@ -329,8 +345,22 @@ export class Frame {
   /** Maximized by Windows itself (WS_MAXIMIZE), not by bounds. */
   private zoomed(): boolean { return !!this.hwnd && !!win32()?.zoomed(this.hwnd) }
 
-  setFullScreen(on = !this.c.base.isFullScreen()): void {
+  isFullScreen(): boolean { return this.c.base.isFullScreen() || this.full }
+
+  setFullScreen(on = !this.isFullScreen()): void {
+    if (on === this.isFullScreen()) return
+    this.full = on && !!this.hwnd
     this.c.base.setFullScreen(on)
+    this.refresh()
+    this.c.mark('window')
+  }
+
+  /** Back to free from whatever Windows or we made of the window (tests,
+   * placing a window somewhere). */
+  release(): void {
+    if (this.isFullScreen()) this.setFullScreen(false)
+    if (this.zoomed() || (this.hwnd && win32()?.arranged(this.hwnd))) win32()?.show(this.hwnd, SW_RESTORE)
+    else if (this.c.base.isMaximized()) this.c.base.unmaximize()
     this.refresh()
   }
 

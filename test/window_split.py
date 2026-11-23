@@ -77,7 +77,8 @@ before = panes()[0]["width"]
 b.call({"do": "window.drag", "path": [[x0, y0], [x0 + 40, y0], [x0 + 80, y0], [x0 + 100, y0]]})
 time.sleep(0.4)
 after = panes()[0]["width"]
-t.ok(near(after, before + 100, 2), "dragging the divider widens the left page (%s -> %s)" % (before, after))
+room = stage["width"] - 7
+t.ok(near(after, min(before + 100, room - 250), 2), "dragging the divider widens the left page (%s -> %s)" % (before, after))
 s = splits()[0]
 t.ok(near(s["sizes"][0] * (stage["width"] - 7), after, 2), "the split keeps the new shares")
 pages = {x["id"]: x["rect"] for x in frame()["pages"]}

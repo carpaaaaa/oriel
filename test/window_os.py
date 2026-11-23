@@ -180,6 +180,10 @@ public class Backdrop : Form {
   // Never activated nor raised by a click: Oriel stays in front.
   protected override CreateParams CreateParams { get { var p = base.CreateParams; p.ExStyle |= 0x08000000; return p; } }
   protected override bool ShowWithoutActivation { get { return true; } }
+  [System.Runtime.InteropServices.DllImport("user32.dll")]
+  static extern bool SetWindowPos(System.IntPtr h, System.IntPtr after, int x, int y, int cx, int cy, uint flags);
+  // On top of the other windows, still without taking the keys.
+  protected override void OnShown(System.EventArgs e) { base.OnShown(e); SetWindowPos(Handle, System.IntPtr.Zero, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); }
 }
 '@
 $f = New-Object Backdrop
@@ -191,6 +195,7 @@ $f.Bounds = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
 $f.Add_MouseDown({ param($s, $e) $p = [System.Windows.Forms.Cursor]::Position; [System.IO.File]::AppendAllText('%s', "$($p.X),$($p.Y)`n") })
 [System.Windows.Forms.Application]::Run($f)
 """ % str(BACKDROP_LOG).replace("'", "''")
+chord("esc")  # a Start menu or a first-run screen left open
 backdrop = subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", BACKDROP])
 time.sleep(4)
 

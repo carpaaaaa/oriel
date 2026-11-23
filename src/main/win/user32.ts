@@ -11,6 +11,7 @@ const nodeRequire = createRequire(import.meta.url)
 const WM_NCLBUTTONDOWN = 0x00a1
 const WM_SYSCOMMAND = 0x0112
 const SC_SIZE = 0xf000
+const SC_MOVE = 0xf010
 const GWL_STYLE = -16
 const GWL_EXSTYLE = -20
 const SWP_FLAGS = 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020 // NOSIZE NOMOVE NOZORDER NOACTIVATE FRAMECHANGED
@@ -31,7 +32,7 @@ export interface Win32 {
   primaryDown(): boolean
   cursor(): { x: number; y: number }
   /** Hand the press over to Windows' move loop (as a press on a caption). */
-  beginMove(hwnd: number, at: { x: number; y: number }): boolean
+  beginMove(hwnd: number, at: { x: number; y: number }, how: 'nc' | 'syscommand'): boolean
   /** Hand the press over to Windows' size loop, from an edge. */
   beginSize(hwnd: number, edge: keyof typeof WMSZ, at: { x: number; y: number }, how: 'nc' | 'syscommand'): boolean
   style(hwnd: number): number
@@ -94,10 +95,13 @@ function load(): Win32 {
     hwnd: handle => Number(handle.length >= 8 ? handle.readBigUInt64LE(0) : BigInt(handle.readUInt32LE(0))),
     primaryDown,
     cursor,
-    beginMove(hwnd, at) {
+    beginMove(hwnd, at, how) {
       // A press that already ended would leave the window glued to the pointer.
       if (!primaryDown()) return false
       ReleaseCapture()
+      // SC_MOVE | HTCAPTION: the move loop of a press on a caption. A posted
+      // WM_NCLBUTTONDOWN is taken by the page view under the pointer instead.
+      if (how === 'syscommand') return PostMessageW(hwnd, WM_SYSCOMMAND, SC_MOVE + HT.caption, lparam(at)) !== 0
       return PostMessageW(hwnd, WM_NCLBUTTONDOWN, HT.caption, lparam(at)) !== 0
     },
     beginSize(hwnd, edge, at, how) {
