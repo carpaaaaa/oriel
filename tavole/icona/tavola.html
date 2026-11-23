@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Oriel, icona e segno</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #F4F4F4; --card: #FFFFFF; --ink: #171717; --muted: #8C8C8C; --soft: #5E5E5E;
+  --line: rgba(23,23,23,.08); --tile: #F7F7F7;
+  --r-card: 24px; --pad: 16px; --r-in: calc(var(--r-card) - var(--pad));
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
+main { max-width: 1400px; margin: 0 auto; padding: 40px 32px 64px; }
+.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
+h1 { font-size: 40px; line-height: 1; margin: 0 0 10px; font-weight: 650; letter-spacing: -0.02em; }
+.sub { margin: 0; color: var(--soft); font-size: 15px; line-height: 1.5; max-width: 760px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.chips span { font-size: 13px; color: var(--muted); margin-right: 4px; }
+.chips button { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.chips button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.ref { display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start; background: var(--card); border-radius: var(--r-card); padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 0 0 1px var(--line); }
+.ref h3, .pn h3 { font-size: 12px; font-weight: 600; color: var(--soft); margin: 0 0 8px; letter-spacing: .01em; }
+.ref ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; color: var(--ink); }
+.ref li { margin-bottom: 3px; }
+.ref .scart { margin: 8px 0 0; font-size: 13px; color: var(--soft); line-height: 1.5; }
+.ref .src { text-align: center; font-size: 12px; color: var(--muted); }
+.prop { background: var(--card); border-radius: var(--r-card); padding: var(--pad); margin-bottom: 20px; box-shadow: 0 0 0 1px var(--line); }
+.ph { display: grid; grid-template-columns: 260px 1fr; gap: 16px; padding: 8px 8px 16px; align-items: start; }
+.ttl { display: flex; align-items: baseline; gap: 10px; }
+.ph h2 { font-size: 30px; margin: 0; font-weight: 650; letter-spacing: -0.015em; }
+.tag { font-size: 13px; color: var(--muted); }
+.ph p { margin: 2px 0 0; font-size: 14.5px; line-height: 1.55; color: var(--ink); max-width: 900px; }
+.hero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.tile { margin: 0; background: var(--tile); border-radius: var(--r-in); padding: 16px; display: flex; flex-direction: column; justify-content: space-between; min-height: 330px; }
+.tile .art { flex: 1; display: grid; place-items: center; }
+.tile.mark svg { width: 210px; height: 210px; }
+.tile.build svg { width: 250px; height: 220px; }
+.tile figcaption { font-size: 12px; color: var(--soft); line-height: 1.45; margin-top: 10px; }
+.tile .mis { display: block; color: var(--muted); margin-top: 3px; }
+.tile.x256 { background: #FFFFFF; box-shadow: inset 0 0 0 1px var(--line); }
+.fi { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: #1A1A1A; }
+.sizes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
+.pn { background: var(--tile); border-radius: var(--r-in); padding: 14px; }
+.pn .leg { font-size: 11.5px; color: var(--muted); margin: 6px 0 0; }
+.tb { display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: 8px; margin-bottom: 6px; }
+.tb.light { background: #F3F3F3; box-shadow: inset 0 1px 0 #E3E3E3, 0 0 0 1px rgba(0,0,0,.05); }
+.tb.dark { background: #1C1C1C; }
+.tb.s24 { height: 48px; } .tb.s24 .btn { width: 40px; height: 40px; }
+.tb.s32 { height: 62px; } .tb.s32 .btn { width: 52px; height: 52px; }
+.tb .btn { position: relative; display: grid; place-items: center; border-radius: 4px; }
+.tb.light .btn.on { background: rgba(0,0,0,.045); }
+.tb.dark .btn.on { background: rgba(255,255,255,.07); }
+.tb .btn::after { content: ""; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 6px; height: 3px; border-radius: 1.5px; background: #8A8A8A; }
+.tb .btn.on::after { width: 16px; background: #5A5A5A; }
+.tb.dark .btn.on::after { background: #CFCFCF; }
+.tb.s32 .btn::after { bottom: 3px; }
+.tt { display: flex; align-items: center; height: 32px; padding-left: 10px; gap: 8px; border-radius: 8px; margin-bottom: 6px; font-size: 12px; overflow: hidden; }
+.tt.light { background: #F3F3F3; color: #1A1A1A; box-shadow: 0 0 0 1px rgba(0,0,0,.05); }
+.tt.dark { background: #202020; color: #FFFFFF; }
+.tt .tn { flex: 1; }
+.tt .ctl { width: 40px; height: 32px; display: grid; place-items: center; }
+.sm { display: flex; gap: 4px; padding: 8px; border-radius: 8px; margin-bottom: 6px; }
+.sm.light { background: #F9F9F9; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+.sm.dark { background: #2C2C2C; }
+.st { width: 96px; height: 84px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 12px; border-radius: 4px; }
+.sm.light .st { color: #1A1A1A; } .sm.dark .st { color: #FFFFFF; }
+.ex { display: flex; gap: 8px; padding: 10px; border-radius: 8px; margin-bottom: 6px; }
+.ex.light { background: #FFFFFF; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+.ex.dark { background: #191919; }
+.ex .fi { width: 116px; }
+.ex.dark .fi { color: #FFFFFF; }
+.zr { display: flex; gap: 14px 18px; align-items: flex-end; flex-wrap: wrap; }
+.zr figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.zr figcaption { font-size: 11.5px; color: var(--muted); }
+canvas { image-rendering: pixelated; display: block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+.foot { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; padding: 14px 8px 4px; }
+.n16 { margin: 0; font-size: 13.5px; line-height: 1.55; max-width: 720px; }
+.n16 b { font-weight: 600; }
+.st-no { color: #A23A1E; }
+.st-mid { color: #8A5A00; }
+.skies { display: flex; gap: 10px; }
+.skies figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.skies figcaption { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.end { font-size: 13px; color: var(--soft); line-height: 1.6; padding: 4px 8px; }
+.end code { font-size: 12px; }
+@media (max-width: 1100px) {
+  .hero { grid-template-columns: 1fr 1fr; }
+  .sizes { grid-template-columns: 1fr 1fr; }
+  .ph { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  main { padding: 24px 16px 48px; }
+  .hero, .sizes { grid-template-columns: 1fr; }
+  .foot { grid-template-columns: 1fr; }
+  .skies { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <h1>Oriel</h1>
+      <p class="sub">Icona e segno, quattro direzioni per il port di Search su Windows. Qui si sceglie soltanto: nulla è installato e nulla sostituisce l’icona di adesso. Ogni misura è a grandezza vera, un pixel come su Windows al 100%.</p>
+    </div>
+    <div class="chips" role="group" aria-label="Cielo della piastra"><span>Cielo</span><button type="button" data-sky="alba" aria-pressed="true">Alba</button><button type="button" data-sky="notte" aria-pressed="false">Notte</button><button type="button" data-sky="oliva" aria-pressed="false">Oliva</button><button type="button" data-sky="brace" aria-pressed="false">Brace</button><button type="button" data-sky="bianco" aria-pressed="false">Bianco, come Search</button></div>
+  </div>
+
+  <section class="ref">
+    <div class="src"><svg viewBox="0 0 1024 1024" width="96" height="96" role="img" aria-label="Icona di Search"><rect x="64" y="72" width="896" height="896" rx="200.44" fill="#000" opacity="0.08"/><rect x="64" y="64" width="896" height="896" rx="200.44" fill="#fff" stroke="#000" stroke-opacity="0.08" stroke-width="2"/><path fill="#171717" fill-rule="evenodd" transform="translate(174.21 358.66) scale(1.1111600000000001)" d="M469.443 0C545.471 0.00013198 607.103 61.6325 607.104 137.66C607.104 213.688 545.471 275.321 469.443 275.321H137.66C61.6323 275.321 0 213.688 0 137.66C0.00016085 61.6325 61.6325 0.000140192 137.66 0H469.443ZM138.104 51.5977C127.234 51.5977 117.512 53.5115 108.938 57.3389C100.518 61.0132 93.8581 66.2188 88.959 72.9551C84.2132 79.5381 81.8398 87.3464 81.8398 96.3789C81.8399 105.258 83.6773 112.607 87.3516 118.425C91.0258 124.089 95.9251 128.682 102.049 132.203C108.173 135.571 114.833 138.327 122.028 140.471L151.652 149.197C158.389 151.188 163.9 154.249 168.187 158.383C172.473 162.516 174.617 168.028 174.617 174.917C174.617 182.572 171.402 188.849 164.972 193.748C158.695 198.494 150.122 200.867 139.252 200.867C132.21 200.867 125.702 199.413 119.731 196.504C113.914 193.442 109.091 189.308 105.264 184.103C101.436 178.744 99.2169 172.697 98.6045 165.961H97.6855L75.4102 171.013C76.3287 180.658 79.697 189.308 85.5146 196.963C91.3322 204.618 98.9103 210.665 108.249 215.104C117.741 219.544 128.076 221.765 139.252 221.765C151.193 221.765 161.68 219.774 170.713 215.794C179.746 211.813 186.711 206.225 191.61 199.029C196.662 191.834 199.188 183.414 199.188 173.769C199.188 164.124 197.352 156.239 193.678 150.115C190.003 143.838 185.104 138.863 178.98 135.188C172.857 131.514 166.044 128.605 158.542 126.462L128.229 117.735C121.799 115.898 116.516 113.219 112.383 109.698C108.402 106.177 106.412 101.354 106.412 95.2305C106.412 88.188 109.168 82.6758 114.68 78.6953C120.344 74.5619 128.152 72.4951 138.104 72.4951C147.901 72.4952 155.939 74.9448 162.216 79.8438C168.493 84.7428 172.397 91.1729 173.928 99.1338H174.847L196.663 93.8525C195.745 85.5853 192.605 78.3131 187.247 72.0361C181.889 65.6061 174.923 60.6306 166.35 57.1094C157.929 53.4351 148.514 51.5977 138.104 51.5977Z"/></svg><div>Search per Mac</div></div>
+    <div>
+      <h3>Prima di disegnare</h3>
+      <ul>
+        <li>La finestra di Windows del 2012 (Pentagram): la prospettiva da sola dice «finestra». Presa la prospettiva; lasciati i quattro vetri, che sono il loro marchio.</li>
+        <li>Le piante dei bovindi nei disegni d’architettura: muro dritto, due lati a 45° e il vetro di fronte. Preso il mezzo ottagono.</li>
+        <li>Le O dei marchi essenziali (Opera, Oculus, Oura): una O pesante vive di com’è fatto il suo vuoto. Evitato il vuoto ovale e stretto di Opera, che è già un browser.</li>
+        <li>Search: un solo segno pieno su una piastra bianca col raggio al 22,37% del lato. Presi la calma e la piastra; il cielo è nuovo e si cambia qui sopra.</li>
+      </ul>
+      <p class="scart">Scartate prima della tavola perché sembravano altro: mensola a punta (matita, scudo), pianta piena (ciotola), O col vuoto a trapezio (tasto play), O spezzata in due (icona di aggiornamento), sguincio (occhiali da sole), tessera col bovindo (batteria), O sul davanzale (Ω).</p>
+    </div>
+  </section>
+
+  
+<article class="prop" id="smusso">
+  <header class="ph">
+    <div class="ttl"><h2>Smusso</h2><span class="tag">la pianta</span></div>
+    <p>Una O pesante, tonda a sinistra; a destra ha la pianta di un bovindo: muro dritto, due lati a 45° e il vetro di fronte.<br>Lettera e finestra sono una forma sola: calma come Search dove è tonda, con gli spigoli vivi dove la finestra sporge.</p>
+  </header>
+  <div class="hero">
+    <figure class="tile mark"><div class="art"><svg viewBox="-448 -448 896 896"><path fill="#171717" fill-rule="evenodd" d="M0 -400 L165.69 -400 L400 -165.69 L400 165.69 L165.69 400 L0 400 A400 400 0 0 1 0 -400Z M0 -232 L96.1 -232 L232 -96.1 L232 96.1 L96.1 232 L0 232 A232 232 0 0 1 0 -232Z"/></svg></div><figcaption>Il segno</figcaption></figure>
+    <figure class="tile build"><div class="art"><svg viewBox="-550 -550 1100 1100" role="img" aria-label="Costruzione di Smusso" font-family="Segoe UI, system-ui, sans-serif"><path d="M0 -400 L165.69 -400 L400 -165.69 L400 165.69 L165.69 400 L0 400 A400 400 0 0 1 0 -400Z M0 -232 L96.1 -232 L232 -96.1 L232 96.1 L96.1 232 L0 232 A232 232 0 0 1 0 -232Z" fill="#171717" fill-opacity="0.1" fill-rule="evenodd"/><circle r="400" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><circle r="232" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><path d="M400 165.69 L165.69 400 L-165.69 400 L-400 165.69 L-400 -165.69 L-165.69 -400 L165.69 -400 L400 -165.69Z" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><path d="M232 96.1 L96.1 232 L-96.1 232 L-232 96.1 L-232 -96.1 L-96.1 -232 L96.1 -232 L232 -96.1Z" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><path d="M0 -490 V490" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke"/><path d="M0 0 H-400" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke"/><text x="-200" y="-18" text-anchor="middle" font-size="52" fill="#5E5E5E">raggio 400</text><text x="344" y="-312" text-anchor="start" font-size="52" fill="#5E5E5E">45°</text><text x="0" y="530" text-anchor="middle" font-size="52" fill="#5E5E5E">muro: qui finisce il tondo</text></svg></div><figcaption>Costruzione <span class="mis">Raggio 400, spessore 168 costante. Il mezzo ottagono ha lo stesso apotema del cerchio, così il suo lato dritto prosegue la tangente senza scalino; il vuoto è la stessa forma rientrata di 168.</span></figcaption></figure>
+    <figure class="tile x256"><div class="art fi"><img class="ic" data-m="smusso" data-p="1" data-size="256" width="256" height="256" alt=""><span>Oriel</span></div><figcaption>Con piastra · 256 px, Esplora file a icone molto grandi</figcaption></figure>
+    <figure class="tile x256"><div class="art fi"><img class="ic" data-m="smusso" data-p="0" data-size="256" width="256" height="256" alt=""><span>Oriel</span></div><figcaption>Senza piastra · 256 px, il segno porta il cielo</figcaption></figure>
+  </div>
+  <div class="sizes">
+    <section class="pn"><h3>Barra delle applicazioni · 24 px</h3><div class="tb light s24"><span class="btn on"><img class="ic" data-m="smusso" data-p="1" data-size="24" width="24" height="24" alt=""></span><span class="btn run"><img class="ic" data-m="smusso" data-p="0" data-size="24" width="24" height="24" alt=""></span></div><div class="tb dark s24"><span class="btn on"><img class="ic" data-m="smusso" data-p="1" data-size="24" width="24" height="24" alt=""></span><span class="btn run"><img class="ic" data-m="smusso" data-p="0" data-size="24" width="24" height="24" alt=""></span></div><p class="leg">a sinistra con piastra, a destra senza</p></section>
+    <section class="pn"><h3>Barra delle applicazioni · 32 px</h3><div class="tb light s32"><span class="btn on"><img class="ic" data-m="smusso" data-p="1" data-size="32" width="32" height="32" alt=""></span><span class="btn run"><img class="ic" data-m="smusso" data-p="0" data-size="32" width="32" height="32" alt=""></span></div><div class="tb dark s32"><span class="btn on"><img class="ic" data-m="smusso" data-p="1" data-size="32" width="32" height="32" alt=""></span><span class="btn run"><img class="ic" data-m="smusso" data-p="0" data-size="32" width="32" height="32" alt=""></span></div><p class="leg">a sinistra con piastra, a destra senza</p></section>
+    <section class="pn"><h3>Titolo della finestra · 16 px</h3><div class="tt light"><img class="ic" data-m="smusso" data-p="1" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#1A1A1A" stroke-width="1"/></svg></span></div><div class="tt light"><img class="ic" data-m="smusso" data-p="0" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#1A1A1A" stroke-width="1"/></svg></span></div><div class="tt dark"><img class="ic" data-m="smusso" data-p="1" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#FFFFFF" stroke-width="1"/></svg></span></div><div class="tt dark"><img class="ic" data-m="smusso" data-p="0" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#FFFFFF" stroke-width="1"/></svg></span></div></section>
+    <section class="pn"><h3>Start · 48 px</h3><div class="sm light"><span class="st"><img class="ic" data-m="smusso" data-p="1" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span><span class="st"><img class="ic" data-m="smusso" data-p="0" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span></div><div class="sm dark"><span class="st"><img class="ic" data-m="smusso" data-p="1" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span><span class="st"><img class="ic" data-m="smusso" data-p="0" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span></div></section>
+    <section class="pn"><h3>Esplora file · 96 px</h3><div class="ex light"><span class="fi"><img class="ic" data-m="smusso" data-p="1" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span><span class="fi"><img class="ic" data-m="smusso" data-p="0" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span></div><div class="ex dark"><span class="fi"><img class="ic" data-m="smusso" data-p="1" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span><span class="fi"><img class="ic" data-m="smusso" data-p="0" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span></div></section>
+    <section class="pn px"><h3>Pixel veri, ingranditi 4 volte</h3>
+      <div class="zr">
+        <figure><canvas data-m="smusso" data-p="1" data-size="16" data-bg="#F3F3F3" style="width:64px;height:64px"></canvas><figcaption>16</figcaption></figure>
+        <figure><canvas data-m="smusso" data-p="1" data-size="24" data-bg="#F3F3F3" style="width:96px;height:96px"></canvas><figcaption>24</figcaption></figure>
+        <figure><canvas data-m="smusso" data-p="1" data-size="32" data-bg="#F3F3F3" style="width:128px;height:128px"></canvas><figcaption>32</figcaption></figure>
+        <figure><canvas data-m="smusso" data-p="0" data-size="16" data-bg="#F3F3F3" style="width:64px;height:64px"></canvas><figcaption>16 senza</figcaption></figure>
+        <figure><canvas data-m="smusso" data-p="0" data-size="16" data-bg="#1C1C1C" style="width:64px;height:64px"></canvas><figcaption>16 senza, scuro</figcaption></figure>
+      </div>
+    </section>
+  </div>
+  <div class="foot">
+    <p class="n16"><b class="st-ok">A 16 px si legge.</b> Resta una O netta: lo spessore regge anche con il segno largo 8 pixel. Gli smussi del bovindo qui valgono mezzo pixel sfumato e la O sembra quasi tonda; il bovindo si riconosce da 24 px in su.</p>
+    <div class="skies"><figure><img class="ic" data-m="smusso" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="alba"><figcaption>Alba</figcaption></figure><figure><img class="ic" data-m="smusso" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="notte"><figcaption>Notte</figcaption></figure><figure><img class="ic" data-m="smusso" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="oliva"><figcaption>Oliva</figcaption></figure><figure><img class="ic" data-m="smusso" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="brace"><figcaption>Brace</figcaption></figure><figure><img class="ic" data-m="smusso" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="bianco"><figcaption>Bianco, come Search</figcaption></figure></div>
+  </div>
+</article>
+
+<article class="prop" id="corsiva">
+  <header class="ph">
+    <div class="ttl"><h2>Corsiva</h2><span class="tag">la O</span></div>
+    <p>Una O piena e inclinata di 10°, morbida fuori; il vuoto è un vetro con gli spigoli vivi, visto di sbieco come una finestra.<br>Prende da Windows l’idea della finestra in prospettiva ma non i quattro riquadri: un solo vetro dentro una sola lettera.</p>
+  </header>
+  <div class="hero">
+    <figure class="tile mark"><div class="art"><svg viewBox="-435.01 -436.8 870.02 873.6"><path fill="#171717" fill-rule="evenodd" d="M-101.79 -390 L158.21 -390 A230 230 0 0 1 384.72 -120.06 L328.29 199.94 A230 230 0 0 1 101.79 390 L-158.21 390 A230 230 0 0 1 -384.72 120.06 L-328.29 -199.94 A230 230 0 0 1 -101.79 -390 Z M-101.79 -160 L158.21 -160 L101.79 160 L-158.21 160Z"/></svg></div><figcaption>Il segno</figcaption></figure>
+    <figure class="tile build"><div class="art"><svg viewBox="-538.21 -540 1076.42 1080" role="img" aria-label="Costruzione di Corsiva" font-family="Segoe UI, system-ui, sans-serif"><path d="M-101.79 -390 L158.21 -390 A230 230 0 0 1 384.72 -120.06 L328.29 199.94 A230 230 0 0 1 101.79 390 L-158.21 390 A230 230 0 0 1 -384.72 120.06 L-328.29 -199.94 A230 230 0 0 1 -101.79 -390 Z M-101.79 -160 L158.21 -160 L101.79 160 L-158.21 160Z" fill="#171717" fill-opacity="0.1" fill-rule="evenodd"/><path d="M-101.79 -160 L158.21 -160 L101.79 160 L-158.21 160Z" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke"/><circle cx="-101.79" cy="-160" r="230" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><circle cx="158.21" cy="-160" r="230" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><circle cx="101.79" cy="160" r="230" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><circle cx="-158.21" cy="160" r="230" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><path d="M-158.21 220 V-300" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke"/><path d="M-166.68 208 L-82.04 -272" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke"/><text x="-138.21" y="-320" text-anchor="start" font-size="52" fill="#5E5E5E">10°</text><text x="0" y="510" text-anchor="middle" font-size="52" fill="#5E5E5E">archi di raggio 230 sugli spigoli del vetro</text></svg></div><figcaption>Costruzione <span class="mis">Vuoto 260 × 320 inclinato di 10°. Il contorno è il vuoto allargato di 230: lati paralleli e archi di raggio 230 centrati sugli spigoli del vuoto, quindi concentrici.</span></figcaption></figure>
+    <figure class="tile x256"><div class="art fi"><img class="ic" data-m="corsiva" data-p="1" data-size="256" width="256" height="256" alt=""><span>Oriel</span></div><figcaption>Con piastra · 256 px, Esplora file a icone molto grandi</figcaption></figure>
+    <figure class="tile x256"><div class="art fi"><img class="ic" data-m="corsiva" data-p="0" data-size="256" width="256" height="256" alt=""><span>Oriel</span></div><figcaption>Senza piastra · 256 px, il segno porta il cielo</figcaption></figure>
+  </div>
+  <div class="sizes">
+    <section class="pn"><h3>Barra delle applicazioni · 24 px</h3><div class="tb light s24"><span class="btn on"><img class="ic" data-m="corsiva" data-p="1" data-size="24" width="24" height="24" alt=""></span><span class="btn run"><img class="ic" data-m="corsiva" data-p="0" data-size="24" width="24" height="24" alt=""></span></div><div class="tb dark s24"><span class="btn on"><img class="ic" data-m="corsiva" data-p="1" data-size="24" width="24" height="24" alt=""></span><span class="btn run"><img class="ic" data-m="corsiva" data-p="0" data-size="24" width="24" height="24" alt=""></span></div><p class="leg">a sinistra con piastra, a destra senza</p></section>
+    <section class="pn"><h3>Barra delle applicazioni · 32 px</h3><div class="tb light s32"><span class="btn on"><img class="ic" data-m="corsiva" data-p="1" data-size="32" width="32" height="32" alt=""></span><span class="btn run"><img class="ic" data-m="corsiva" data-p="0" data-size="32" width="32" height="32" alt=""></span></div><div class="tb dark s32"><span class="btn on"><img class="ic" data-m="corsiva" data-p="1" data-size="32" width="32" height="32" alt=""></span><span class="btn run"><img class="ic" data-m="corsiva" data-p="0" data-size="32" width="32" height="32" alt=""></span></div><p class="leg">a sinistra con piastra, a destra senza</p></section>
+    <section class="pn"><h3>Titolo della finestra · 16 px</h3><div class="tt light"><img class="ic" data-m="corsiva" data-p="1" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#1A1A1A" stroke-width="1"/></svg></span></div><div class="tt light"><img class="ic" data-m="corsiva" data-p="0" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#1A1A1A" stroke-width="1"/></svg></span></div><div class="tt dark"><img class="ic" data-m="corsiva" data-p="1" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#FFFFFF" stroke-width="1"/></svg></span></div><div class="tt dark"><img class="ic" data-m="corsiva" data-p="0" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#FFFFFF" stroke-width="1"/></svg></span></div></section>
+    <section class="pn"><h3>Start · 48 px</h3><div class="sm light"><span class="st"><img class="ic" data-m="corsiva" data-p="1" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span><span class="st"><img class="ic" data-m="corsiva" data-p="0" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span></div><div class="sm dark"><span class="st"><img class="ic" data-m="corsiva" data-p="1" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span><span class="st"><img class="ic" data-m="corsiva" data-p="0" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span></div></section>
+    <section class="pn"><h3>Esplora file · 96 px</h3><div class="ex light"><span class="fi"><img class="ic" data-m="corsiva" data-p="1" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span><span class="fi"><img class="ic" data-m="corsiva" data-p="0" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span></div><div class="ex dark"><span class="fi"><img class="ic" data-m="corsiva" data-p="1" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span><span class="fi"><img class="ic" data-m="corsiva" data-p="0" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span></div></section>
+    <section class="pn px"><h3>Pixel veri, ingranditi 4 volte</h3>
+      <div class="zr">
+        <figure><canvas data-m="corsiva" data-p="1" data-size="16" data-bg="#F3F3F3" style="width:64px;height:64px"></canvas><figcaption>16</figcaption></figure>
+        <figure><canvas data-m="corsiva" data-p="1" data-size="24" data-bg="#F3F3F3" style="width:96px;height:96px"></canvas><figcaption>24</figcaption></figure>
+        <figure><canvas data-m="corsiva" data-p="1" data-size="32" data-bg="#F3F3F3" style="width:128px;height:128px"></canvas><figcaption>32</figcaption></figure>
+        <figure><canvas data-m="corsiva" data-p="0" data-size="16" data-bg="#F3F3F3" style="width:64px;height:64px"></canvas><figcaption>16 senza</figcaption></figure>
+        <figure><canvas data-m="corsiva" data-p="0" data-size="16" data-bg="#1C1C1C" style="width:64px;height:64px"></canvas><figcaption>16 senza, scuro</figcaption></figure>
+      </div>
+    </section>
+  </div>
+  <div class="foot">
+    <p class="n16"><b class="st-ok">A 16 px si legge.</b> Si legge come una O pesante con il vuoto aperto. La pendenza di 10° a questa misura vale mezzo pixel e quasi sparisce: resta una O squadrata, che rischia di sembrare uno zero.</p>
+    <div class="skies"><figure><img class="ic" data-m="corsiva" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="alba"><figcaption>Alba</figcaption></figure><figure><img class="ic" data-m="corsiva" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="notte"><figcaption>Notte</figcaption></figure><figure><img class="ic" data-m="corsiva" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="oliva"><figcaption>Oliva</figcaption></figure><figure><img class="ic" data-m="corsiva" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="brace"><figcaption>Brace</figcaption></figure><figure><img class="ic" data-m="corsiva" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="bianco"><figcaption>Bianco, come Search</figcaption></figure></div>
+  </div>
+</article>
+
+<article class="prop" id="scorcio">
+  <header class="ph">
+    <div class="ttl"><h2>Scorcio</h2><span class="tag">i vetri</span></div>
+    <p>Il bovindo visto dalla strada: il vetro centrale di fronte, i due di lato più stretti e più corti perché girano verso il muro.<br>È la finestra che sporge detta nel modo più diretto; i soli tagli sono le fessure fra un vetro e l’altro.</p>
+  </header>
+  <div class="hero">
+    <figure class="tile mark"><div class="art"><svg viewBox="-414.4 -324.4 828.8 648.8"><path fill="#171717" fill-rule="evenodd" d="M-150 -230 A50 50 0 0 1 -100 -280 L100 -280 A50 50 0 0 1 150 -230 L150 190 A50 50 0 0 1 100 240 L-100 240 A50 50 0 0 1 -150 190 Z M188 -190.52 A50 50 0 0 1 264.2 -233.1 L346.2 -182.64 A50 50 0 0 1 370 -140.06 L370 217.82 A50 50 0 0 1 309.27 266.65 L227.27 248.63 A50 50 0 0 1 188 199.8 Z M-264.2 -233.1 A50 50 0 0 1 -188 -190.52 L-188 199.8 A50 50 0 0 1 -227.27 248.63 L-309.27 266.65 A50 50 0 0 1 -370 217.82 L-370 -140.06 A50 50 0 0 1 -346.2 -182.64 Z"/></svg></div><figcaption>Il segno</figcaption></figure>
+    <figure class="tile build"><div class="art"><svg viewBox="-520 -430 1040 860" role="img" aria-label="Costruzione di Scorcio" font-family="Segoe UI, system-ui, sans-serif"><path d="M-150 -230 A50 50 0 0 1 -100 -280 L100 -280 A50 50 0 0 1 150 -230 L150 190 A50 50 0 0 1 100 240 L-100 240 A50 50 0 0 1 -150 190 Z M188 -190.52 A50 50 0 0 1 264.2 -233.1 L346.2 -182.64 A50 50 0 0 1 370 -140.06 L370 217.82 A50 50 0 0 1 309.27 266.65 L227.27 248.63 A50 50 0 0 1 188 199.8 Z M-264.2 -233.1 A50 50 0 0 1 -188 -190.52 L-188 199.8 A50 50 0 0 1 -227.27 248.63 L-309.27 266.65 A50 50 0 0 1 -370 217.82 L-370 -140.06 A50 50 0 0 1 -346.2 -182.64 Z" fill="#171717" fill-opacity="0.1" fill-rule="evenodd"/><path d="M188 -280 L591.43 -31.73" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><path d="M188 240 L623.94 335.81" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><path d="M-188 -280 L-591.43 -31.73" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><path d="M-188 240 L-623.94 335.81" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><path d="M-430 370 H430" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke"/><text x="0" y="430" text-anchor="middle" font-size="52" fill="#5E5E5E">i fianchi scendono verso l’orizzonte</text></svg></div><figcaption>Costruzione <span class="mis">Vetro centrale 300 × 520; fianchi larghi 182 (0,6 del centrale), col bordo esterno 112 più basso in alto e 40 in basso, come visti da sotto. Fessure 38, raggio 50 per tutti.</span></figcaption></figure>
+    <figure class="tile x256"><div class="art fi"><img class="ic" data-m="scorcio" data-p="1" data-size="256" width="256" height="256" alt=""><span>Oriel</span></div><figcaption>Con piastra · 256 px, Esplora file a icone molto grandi</figcaption></figure>
+    <figure class="tile x256"><div class="art fi"><img class="ic" data-m="scorcio" data-p="0" data-size="256" width="256" height="256" alt=""><span>Oriel</span></div><figcaption>Senza piastra · 256 px, il segno porta il cielo</figcaption></figure>
+  </div>
+  <div class="sizes">
+    <section class="pn"><h3>Barra delle applicazioni · 24 px</h3><div class="tb light s24"><span class="btn on"><img class="ic" data-m="scorcio" data-p="1" data-size="24" width="24" height="24" alt=""></span><span class="btn run"><img class="ic" data-m="scorcio" data-p="0" data-size="24" width="24" height="24" alt=""></span></div><div class="tb dark s24"><span class="btn on"><img class="ic" data-m="scorcio" data-p="1" data-size="24" width="24" height="24" alt=""></span><span class="btn run"><img class="ic" data-m="scorcio" data-p="0" data-size="24" width="24" height="24" alt=""></span></div><p class="leg">a sinistra con piastra, a destra senza</p></section>
+    <section class="pn"><h3>Barra delle applicazioni · 32 px</h3><div class="tb light s32"><span class="btn on"><img class="ic" data-m="scorcio" data-p="1" data-size="32" width="32" height="32" alt=""></span><span class="btn run"><img class="ic" data-m="scorcio" data-p="0" data-size="32" width="32" height="32" alt=""></span></div><div class="tb dark s32"><span class="btn on"><img class="ic" data-m="scorcio" data-p="1" data-size="32" width="32" height="32" alt=""></span><span class="btn run"><img class="ic" data-m="scorcio" data-p="0" data-size="32" width="32" height="32" alt=""></span></div><p class="leg">a sinistra con piastra, a destra senza</p></section>
+    <section class="pn"><h3>Titolo della finestra · 16 px</h3><div class="tt light"><img class="ic" data-m="scorcio" data-p="1" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#1A1A1A" stroke-width="1"/></svg></span></div><div class="tt light"><img class="ic" data-m="scorcio" data-p="0" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#1A1A1A" stroke-width="1"/></svg></span></div><div class="tt dark"><img class="ic" data-m="scorcio" data-p="1" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#FFFFFF" stroke-width="1"/></svg></span></div><div class="tt dark"><img class="ic" data-m="scorcio" data-p="0" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#FFFFFF" stroke-width="1"/></svg></span></div></section>
+    <section class="pn"><h3>Start · 48 px</h3><div class="sm light"><span class="st"><img class="ic" data-m="scorcio" data-p="1" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span><span class="st"><img class="ic" data-m="scorcio" data-p="0" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span></div><div class="sm dark"><span class="st"><img class="ic" data-m="scorcio" data-p="1" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span><span class="st"><img class="ic" data-m="scorcio" data-p="0" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span></div></section>
+    <section class="pn"><h3>Esplora file · 96 px</h3><div class="ex light"><span class="fi"><img class="ic" data-m="scorcio" data-p="1" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span><span class="fi"><img class="ic" data-m="scorcio" data-p="0" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span></div><div class="ex dark"><span class="fi"><img class="ic" data-m="scorcio" data-p="1" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span><span class="fi"><img class="ic" data-m="scorcio" data-p="0" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span></div></section>
+    <section class="pn px"><h3>Pixel veri, ingranditi 4 volte</h3>
+      <div class="zr">
+        <figure><canvas data-m="scorcio" data-p="1" data-size="16" data-bg="#F3F3F3" style="width:64px;height:64px"></canvas><figcaption>16</figcaption></figure>
+        <figure><canvas data-m="scorcio" data-p="1" data-size="24" data-bg="#F3F3F3" style="width:96px;height:96px"></canvas><figcaption>24</figcaption></figure>
+        <figure><canvas data-m="scorcio" data-p="1" data-size="32" data-bg="#F3F3F3" style="width:128px;height:128px"></canvas><figcaption>32</figcaption></figure>
+        <figure><canvas data-m="scorcio" data-p="0" data-size="16" data-bg="#F3F3F3" style="width:64px;height:64px"></canvas><figcaption>16 senza</figcaption></figure>
+        <figure><canvas data-m="scorcio" data-p="0" data-size="16" data-bg="#1C1C1C" style="width:64px;height:64px"></canvas><figcaption>16 senza, scuro</figcaption></figure>
+      </div>
+    </section>
+  </div>
+  <div class="foot">
+    <p class="n16"><b class="st-mid">A 16 px è al limite.</b> Le fessure sono più sottili di un pixel e diventano due righe sfumate: si vede un blocco a strisce più che tre vetri. Per 16 e 20 px servirebbe un disegno a parte con fessure da un pixel pieno.</p>
+    <div class="skies"><figure><img class="ic" data-m="scorcio" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="alba"><figcaption>Alba</figcaption></figure><figure><img class="ic" data-m="scorcio" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="notte"><figcaption>Notte</figcaption></figure><figure><img class="ic" data-m="scorcio" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="oliva"><figcaption>Oliva</figcaption></figure><figure><img class="ic" data-m="scorcio" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="brace"><figcaption>Brace</figcaption></figure><figure><img class="ic" data-m="scorcio" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="bianco"><figcaption>Bianco, come Search</figcaption></figure></div>
+  </div>
+</article>
+
+<article class="prop" id="sporto">
+  <header class="ph">
+    <div class="ttl"><h2>Sporto</h2><span class="tag">libera</span></div>
+    <p>Il bovindo come un volume visto dall’alto: sopra il tetto, che è la sua pianta a mezzo ottagono, sotto i tre vetri.<br>La più architettonica delle quattro: dice «una finestra che esce dal muro» anche a chi non conosce la parola oriel.</p>
+  </header>
+  <div class="hero">
+    <figure class="tile mark"><div class="art"><svg viewBox="-403.2 -245.45 806.4 490.9"><path fill="#171717" fill-rule="evenodd" d="M-360 -202.25 L-110 -114.75 L110 -114.75 L360 -202.25Z M-360 -168.25 L-126.05 -86.37 L-126.05 196.63 L-360 114.75Z M-93 -80.75 L93 -80.75 L93 202.25 L-93 202.25Z M126.05 -86.37 L360 -168.25 L360 114.75 L126.05 196.63Z"/></svg></div><figcaption>Il segno</figcaption></figure>
+    <figure class="tile build"><div class="art"><svg viewBox="-510 -602.25 1020 974.5" role="img" aria-label="Costruzione di Sporto" font-family="Segoe UI, system-ui, sans-serif"><path d="M-360 -202.25 L-110 -114.75 L110 -114.75 L360 -202.25Z M-360 -168.25 L-126.05 -86.37 L-126.05 196.63 L-360 114.75Z M-93 -80.75 L93 -80.75 L93 202.25 L-93 202.25Z M126.05 -86.37 L360 -168.25 L360 114.75 L126.05 196.63Z" fill="#171717" fill-opacity="0.1" fill-rule="evenodd"/><path d="M-360 -492.25 L-110 -242.25 L110 -242.25 L360 -492.25" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-dasharray="5 5"/><path d="M-420 -492.25 H420" fill="none" stroke="#8C8C8C" stroke-width="1.2" vector-effect="non-scaling-stroke"/><text x="223.2" y="-354.75" text-anchor="start" font-size="52" fill="#5E5E5E">45°</text><text x="0" y="-522.25" text-anchor="middle" font-size="52" fill="#5E5E5E">pianta vera</text><text x="0" y="312.25" text-anchor="middle" font-size="52" fill="#5E5E5E">la stessa pianta schiacciata al 35% è il tetto</text></svg></div><figcaption>Costruzione <span class="mis">Pianta: muro 720, profondità 250, lati a 45°, schiacciata al 35% come vista dall’alto. Vetri alti 300, fessure 34 sia fra tetto e vetri sia fra vetro e vetro.</span></figcaption></figure>
+    <figure class="tile x256"><div class="art fi"><img class="ic" data-m="sporto" data-p="1" data-size="256" width="256" height="256" alt=""><span>Oriel</span></div><figcaption>Con piastra · 256 px, Esplora file a icone molto grandi</figcaption></figure>
+    <figure class="tile x256"><div class="art fi"><img class="ic" data-m="sporto" data-p="0" data-size="256" width="256" height="256" alt=""><span>Oriel</span></div><figcaption>Senza piastra · 256 px, il segno porta il cielo</figcaption></figure>
+  </div>
+  <div class="sizes">
+    <section class="pn"><h3>Barra delle applicazioni · 24 px</h3><div class="tb light s24"><span class="btn on"><img class="ic" data-m="sporto" data-p="1" data-size="24" width="24" height="24" alt=""></span><span class="btn run"><img class="ic" data-m="sporto" data-p="0" data-size="24" width="24" height="24" alt=""></span></div><div class="tb dark s24"><span class="btn on"><img class="ic" data-m="sporto" data-p="1" data-size="24" width="24" height="24" alt=""></span><span class="btn run"><img class="ic" data-m="sporto" data-p="0" data-size="24" width="24" height="24" alt=""></span></div><p class="leg">a sinistra con piastra, a destra senza</p></section>
+    <section class="pn"><h3>Barra delle applicazioni · 32 px</h3><div class="tb light s32"><span class="btn on"><img class="ic" data-m="sporto" data-p="1" data-size="32" width="32" height="32" alt=""></span><span class="btn run"><img class="ic" data-m="sporto" data-p="0" data-size="32" width="32" height="32" alt=""></span></div><div class="tb dark s32"><span class="btn on"><img class="ic" data-m="sporto" data-p="1" data-size="32" width="32" height="32" alt=""></span><span class="btn run"><img class="ic" data-m="sporto" data-p="0" data-size="32" width="32" height="32" alt=""></span></div><p class="leg">a sinistra con piastra, a destra senza</p></section>
+    <section class="pn"><h3>Titolo della finestra · 16 px</h3><div class="tt light"><img class="ic" data-m="sporto" data-p="1" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#1A1A1A" stroke-width="1"/></svg></span></div><div class="tt light"><img class="ic" data-m="sporto" data-p="0" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#1A1A1A" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#1A1A1A" stroke-width="1"/></svg></span></div><div class="tt dark"><img class="ic" data-m="sporto" data-p="1" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#FFFFFF" stroke-width="1"/></svg></span></div><div class="tt dark"><img class="ic" data-m="sporto" data-p="0" data-size="16" width="16" height="16" alt=""><span class="tn">Oriel</span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5.5 H10" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="none" stroke="#FFFFFF" stroke-width="1"/></svg></span><span class="ctl"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="#FFFFFF" stroke-width="1"/></svg></span></div></section>
+    <section class="pn"><h3>Start · 48 px</h3><div class="sm light"><span class="st"><img class="ic" data-m="sporto" data-p="1" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span><span class="st"><img class="ic" data-m="sporto" data-p="0" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span></div><div class="sm dark"><span class="st"><img class="ic" data-m="sporto" data-p="1" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span><span class="st"><img class="ic" data-m="sporto" data-p="0" data-size="48" width="48" height="48" alt=""><span>Oriel</span></span></div></section>
+    <section class="pn"><h3>Esplora file · 96 px</h3><div class="ex light"><span class="fi"><img class="ic" data-m="sporto" data-p="1" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span><span class="fi"><img class="ic" data-m="sporto" data-p="0" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span></div><div class="ex dark"><span class="fi"><img class="ic" data-m="sporto" data-p="1" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span><span class="fi"><img class="ic" data-m="sporto" data-p="0" data-size="96" width="96" height="96" alt=""><span>Oriel</span></span></div></section>
+    <section class="pn px"><h3>Pixel veri, ingranditi 4 volte</h3>
+      <div class="zr">
+        <figure><canvas data-m="sporto" data-p="1" data-size="16" data-bg="#F3F3F3" style="width:64px;height:64px"></canvas><figcaption>16</figcaption></figure>
+        <figure><canvas data-m="sporto" data-p="1" data-size="24" data-bg="#F3F3F3" style="width:96px;height:96px"></canvas><figcaption>24</figcaption></figure>
+        <figure><canvas data-m="sporto" data-p="1" data-size="32" data-bg="#F3F3F3" style="width:128px;height:128px"></canvas><figcaption>32</figcaption></figure>
+        <figure><canvas data-m="sporto" data-p="0" data-size="16" data-bg="#F3F3F3" style="width:64px;height:64px"></canvas><figcaption>16 senza</figcaption></figure>
+        <figure><canvas data-m="sporto" data-p="0" data-size="16" data-bg="#1C1C1C" style="width:64px;height:64px"></canvas><figcaption>16 senza, scuro</figcaption></figure>
+      </div>
+    </section>
+  </div>
+  <div class="foot">
+    <p class="n16"><b class="st-no">A 16 px non si legge.</b> Le fessure scendono sotto il pixel e resta un trapezio pieno, una vaschetta. Già a 24 px è al limite, e anche in grande può sembrare un cassetto aperto: per le misure piccole servirebbe un disegno semplificato.</p>
+    <div class="skies"><figure><img class="ic" data-m="sporto" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="alba"><figcaption>Alba</figcaption></figure><figure><img class="ic" data-m="sporto" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="notte"><figcaption>Notte</figcaption></figure><figure><img class="ic" data-m="sporto" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="oliva"><figcaption>Oliva</figcaption></figure><figure><img class="ic" data-m="sporto" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="brace"><figcaption>Brace</figcaption></figure><figure><img class="ic" data-m="sporto" data-p="1" data-size="48" width="48" height="48" alt="" data-sky="bianco"><figcaption>Bianco, come Search</figcaption></figure></div>
+  </div>
+</article>
+
+  <p class="end">File sorgente accanto a questa pagina, una cartella per proposta: <code>segno.svg</code> (inchiostro, monocromo), <code>icona.svg</code> (piastra con il cielo Alba, tela 1024, piastra 896 con raggio 200,4) e <code>icona-senza-piastra.svg</code>. La grana compare solo da 96 px in su: sotto diventerebbe rumore. Senza piastra un’app classica di Windows ha una sola icona per barra chiara e scura, per questo il segno porta il colore del cielo invece del bianco o del nero.</p>
+</main>
+<script>
+const DATA = {"SKIES":{"alba":{"nome":"Alba","base":["#FF7E6E","#E2878E"],"ink":"#FFFBF4","grain":0.13,"bare":["#FF7466","#DE7C9E","#8E98D2"],"blobs":[[520,1095,600,130,60,0.95,"#E792AA"],[590,950,280,110,70,0.95,"#D9D0E0"],[470,800,390,235,90,1,"#8DA0D2"],[512,720,470,300,120,0.9,"#BF87AC"],[-60,640,170,420,110,0.85,"#E77B80"],[1010,1010,230,230,110,0.9,"#F29CC2"],[390,330,460,160,110,1,"#FF9670"],[930,110,300,260,120,0.9,"#FF6F88"]]},"notte":{"nome":"Notte","base":["#09122B","#152652"],"ink":"#FFFBF4","grain":0.12,"bare":["#8FA8E8","#4D69B4","#2E4688"],"blobs":[[300,1000,560,210,120,0.9,"#2C4C95",-28],[620,940,300,110,90,0.55,"#6A82C4",-28],[-40,560,180,420,110,0.5,"#1F3A78"],[860,120,380,260,130,0.75,"#050A1C"]]},"oliva":{"nome":"Oliva","base":["#2B3019","#525932"],"ink":"#FFFBF4","grain":0.13,"bare":["#B9B27A","#7F8549","#565D30"],"blobs":[[260,980,580,210,120,0.9,"#7D8050",-26],[640,900,280,110,90,0.6,"#A9A36D",-26],[-60,560,180,420,110,0.5,"#3C4325"],[880,130,360,260,130,0.75,"#1C200E"]]},"brace":{"nome":"Brace","base":["#110E0C","#1B1613"],"ink":"#FFFBF4","grain":0.12,"bare":["#F58A47","#D4572A","#A0361A"],"blobs":[[170,1000,540,210,130,0.95,"#A6381A",-32],[110,1030,270,110,80,0.85,"#E3672C",-32],[700,720,420,260,150,0.35,"#3B2A21"],[900,120,300,240,120,0.6,"#070605"]]},"bianco":{"nome":"Bianco, come Search","base":["#FFFFFF","#FFFFFF"],"ink":"#171717","grain":0,"bare":["#171717"],"blobs":[],"shadow":true}},"MARKS":{"smusso":{"d":"M0 -400 L165.69 -400 L400 -165.69 L400 165.69 L165.69 400 L0 400 A400 400 0 0 1 0 -400Z M0 -232 L96.1 -232 L232 -96.1 L232 96.1 L96.1 232 L0 232 A232 232 0 0 1 0 -232Z","box":[-400,-400,400,400],"fit":0.58,"fitBare":0.9},"corsiva":{"d":"M-101.79 -390 L158.21 -390 A230 230 0 0 1 384.72 -120.06 L328.29 199.94 A230 230 0 0 1 101.79 390 L-158.21 390 A230 230 0 0 1 -384.72 120.06 L-328.29 -199.94 A230 230 0 0 1 -101.79 -390 Z M-101.79 -160 L158.21 -160 L101.79 160 L-158.21 160Z","box":[-388.21231691335436,-390,388.21231691335436,390],"fit":0.6,"fitBare":0.9},"scorcio":{"d":"M-150 -230 A50 50 0 0 1 -100 -280 L100 -280 A50 50 0 0 1 150 -230 L150 190 A50 50 0 0 1 100 240 L-100 240 A50 50 0 0 1 -150 190 Z M188 -190.52 A50 50 0 0 1 264.2 -233.1 L346.2 -182.64 A50 50 0 0 1 370 -140.06 L370 217.82 A50 50 0 0 1 309.27 266.65 L227.27 248.63 A50 50 0 0 1 188 199.8 Z M-264.2 -233.1 A50 50 0 0 1 -188 -190.52 L-188 199.8 A50 50 0 0 1 -227.27 248.63 L-309.27 266.65 A50 50 0 0 1 -370 217.82 L-370 -140.06 A50 50 0 0 1 -346.2 -182.64 Z","box":[-370,-280,370,280],"fit":0.66,"fitBare":0.94},"sporto":{"d":"M-360 -202.25 L-110 -114.75 L110 -114.75 L360 -202.25Z M-360 -168.25 L-126.05 -86.37 L-126.05 196.63 L-360 114.75Z M-93 -80.75 L93 -80.75 L93 202.25 L-93 202.25Z M126.05 -86.37 L360 -168.25 L360 114.75 L126.05 196.63Z","box":[-360,-202.25,360,202.25],"fit":0.68,"fitBare":0.96}}};
+const iconSVG = function iconSVG(m, sky, plate, grain) {
+  const r = n => Math.round(n * 100) / 100;
+  const P0 = 64, PS = 896, PR = r(PS * 0.2237);
+  const [x0, y0, x1, y1] = m.box, w = x1 - x0, h = y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  let defs = '', body = '';
+  const sky1 = () => {
+    let g = '<rect width="1024" height="1024" fill="url(#sb)"/>';
+    defs += `<linearGradient id="sb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky.base[0]}"/><stop offset="1" stop-color="${sky.base[1]}"/></linearGradient>`;
+    const seen = {};
+    for (const [bx, by, rx, ry, bl, op, col, rot] of sky.blobs) {
+      if (!seen[bl]) { seen[bl] = 1; defs += `<filter id="b${bl}" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="${bl}"/></filter>`; }
+      g += `<ellipse cx="${bx}" cy="${by}" rx="${rx}" ry="${ry}" fill="${col}" opacity="${op}" filter="url(#b${bl})"${rot ? ` transform="rotate(${rot} ${bx} ${by})"` : ''}/>`;
+    }
+    if (grain && sky.grain) {
+      defs += '<filter id="gr" x="0" y="0" width="1024" height="1024" filterUnits="userSpaceOnUse"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="7" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>';
+      g += `<rect width="1024" height="1024" filter="url(#gr)" opacity="${sky.grain}" style="mix-blend-mode:overlay"/>`;
+    }
+    return g;
+  };
+  if (plate) {
+    const s = m.fit * PS / Math.max(w, h);
+    const tx = r(512 - cx * s), ty = r(512 - cy * s);
+    if (sky.shadow) {
+      defs += '<filter id="sh" x="-0.2" y="-0.2" width="1.4" height="1.4"><feGaussianBlur stdDeviation="14"/></filter>';
+      body += `<rect x="${P0}" y="${P0 + 8}" width="${PS}" height="${PS}" rx="${PR}" fill="#000" opacity="0.16" filter="url(#sh)"/>`;
+    }
+    defs += `<clipPath id="pl"><rect x="${P0}" y="${P0}" width="${PS}" height="${PS}" rx="${PR}"/></clipPath>`;
+    body += `<g clip-path="url(#pl)">${sky1()}</g>`;
+    if (sky.shadow) body += `<rect x="${P0 + 1}" y="${P0 + 1}" width="${PS - 2}" height="${PS - 2}" rx="${PR - 1}" fill="none" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>`;
+    body += `<path fill="${sky.ink}" fill-rule="evenodd" transform="translate(${tx} ${ty}) scale(${r(s * 10000) / 10000})" d="${m.d}"/>`;
+  } else {
+    const s = m.fitBare * 1024 / Math.max(w, h);
+    const tx = r(512 - cx * s), ty = r(512 - cy * s);
+    let fill = sky.bare[0];
+    if (sky.bare.length > 1) {
+      const n = sky.bare.length - 1;
+      defs += `<linearGradient id="bg" x1="0.2" y1="0" x2="0.8" y2="1">${sky.bare.map((c, i) => `<stop offset="${r(i / n)}" stop-color="${c}"/>`).join('')}</linearGradient>`;
+      fill = 'url(#bg)';
+    }
+    body += `<path fill="${fill}" fill-rule="evenodd" transform="translate(${tx} ${ty}) scale(${r(s * 10000) / 10000})" d="${m.d}"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs>${defs}</defs>${body}</svg>`;
+};
+const url = s => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
+let sky = 'alba';
+function paint() {
+  for (const el of document.querySelectorAll('img.ic')) {
+    const sk = DATA.SKIES[el.dataset.sky || sky];
+    el.src = url(iconSVG(DATA.MARKS[el.dataset.m], sk, el.dataset.p === '1', +el.dataset.size >= 96));
+  }
+  for (const c of document.querySelectorAll('canvas[data-m]')) {
+    const n = +c.dataset.size; c.width = n; c.height = n;
+    const ctx = c.getContext('2d');
+    const im = new Image();
+    im.onload = () => { ctx.fillStyle = c.dataset.bg; ctx.fillRect(0, 0, n, n); ctx.drawImage(im, 0, 0, n, n); };
+    im.src = url(iconSVG(DATA.MARKS[c.dataset.m], DATA.SKIES[sky], c.dataset.p === '1', false));
+  }
+}
+for (const b of document.querySelectorAll('.chips button')) {
+  b.addEventListener('click', () => {
+    sky = b.dataset.sky;
+    for (const o of document.querySelectorAll('.chips button')) o.setAttribute('aria-pressed', String(o === b));
+    paint();
+  });
+}
+paint();
+</script>
+</body>
+</html>
