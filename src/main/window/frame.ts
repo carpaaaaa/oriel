@@ -18,6 +18,7 @@ import type { Edge, FrameView, Insets } from '../../shared/modules/window'
 import { model } from '../model/model'
 import { DWMWA, WS, win32 } from '../win/user32'
 import type { WindowController } from '../views/window'
+import { quietTests } from '../context'
 
 /** Clear room for the window's shadow (tokens.css --window-shadow fits in it). */
 export const ROOM: Insets = { top: 30, right: 40, bottom: 50, left: 40 }
@@ -205,7 +206,8 @@ export class Frame {
     if (this.kind !== 'drawn' || this.state !== 'free' || this.c.base.isDestroyed()) hollow = false
     if (hollow === this.hollow) return
     this.hollow = hollow
-    this.c.base.setIgnoreMouseEvents(hollow)
+    // A quiet test world on a Mac always lets clicks through (context.ts).
+    if (!quietTests) this.c.base.setIgnoreMouseEvents(hollow)
     if (hollow) this.startPoll()
     else this.stopPoll()
     this.c.mark('frame')
