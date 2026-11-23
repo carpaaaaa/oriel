@@ -203,20 +203,48 @@
   :root { --dur-quick: 0ms; --dur-glide: 0ms; --dur-settle: 0ms; --dur-fold-out: 0ms; --dur-fold-in: 0ms; }
 }
 
-/* Corners: as on the Mac (chosen 23 Nov 2026: as close to Search as possible).
-   The window is drawn by Search itself (frameless, transparent) with 17.5 px
-   corners; the page card sits 8 in with radius 10. The native-frame fallback
-   (Windows 11's own 8 px corners) derives the card so corners stay concentric. */
+/* The window (owned by the window module). As on the Mac (chosen 23 Nov 2026:
+   as close to Search as possible): drawn by Search itself, frameless and
+   transparent, 17.5 px corners, the page card 8 in with radius 10
+   (studio/02 §4.1, §4.7), and a shadow of its own in a clear margin around
+   it (the margin is the main process's, window/frame.ts ROOM). Maximized,
+   snapped and full screen windows have square corners and no shadow, as
+   Windows 11 has them. The native-frame fallback (Windows 11's own 8 px
+   corners) derives the card so corners stay concentric. */
 :root {
   --window-radius: 17.5px;
   --card-gap: 8px;
   --card-radius: 10px;
+  /* hairline round the window, and macOS-like key / resting shadows */
+  --window-edge: rgba(0,0,0,.20);
+  --window-inner-edge: transparent;
+  --window-shadow: 0 0 0 .5px var(--window-edge), 0 2px 6px rgba(0,0,0,.10), 0 16px 44px rgba(0,0,0,.26);
+  --window-shadow-rest: 0 0 0 .5px var(--window-edge), 0 1px 4px rgba(0,0,0,.07), 0 8px 26px rgba(0,0,0,.15);
+  /* Windows 11 caption buttons (Fluent: SubtleFillColorSecondary / Tertiary,
+     TextFillColorDisabled; close is always #C42B1C) */
+  --caption-width: 46px;
+  --caption-height: 40px;
+  --caption-hover: rgba(0,0,0,.0353);
+  --caption-press: rgba(0,0,0,.0235);
+  --caption-rest: rgba(0,0,0,.3608);
+  --caption-close: #C42B1C;
+  --caption-close-press: rgba(196,43,28,.9);
+}
+:root[data-look="dark"] {
+  --window-edge: rgba(0,0,0,.55);
+  --window-inner-edge: rgba(255,255,255,.12);
+  --caption-hover: rgba(255,255,255,.0605);
+  --caption-press: rgba(255,255,255,.0419);
+  --caption-rest: rgba(255,255,255,.3647);
 }
 :root[data-frame="native"] {
   --window-radius: 8px;
   --card-gap: 4px;
   --card-radius: max(0px, calc(var(--window-radius) - var(--card-gap)));
 }
-:root[data-maximized="true"] {
+:root[data-maximized="true"],
+:root[data-state="maximized"],
+:root[data-state="snapped"],
+:root[data-state="fullScreen"] {
   --window-radius: 0px;
 }

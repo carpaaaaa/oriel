@@ -24,13 +24,18 @@ handle('sidebar.fold', ({ folded }, ctx) => {
   model.touch(c.record, ['sidebar'])
 })
 
-// the window
+// the window (studio/01 §1.12, §1.19; the frame in frame.ts)
 
 handle('window.minimize', (_a, ctx) => need(ctx).base.minimize())
-handle('window.maximize', (_a, ctx) => { const b = need(ctx).base; b.isMaximized() ? b.unmaximize() : b.maximize() })
+handle('window.maximize', (_a, ctx) => need(ctx).frame.toggleMaximize())
+handle('window.fullScreen', ({ on }, ctx) => need(ctx).frame.setFullScreen(on))
 handle('window.close', (_a, ctx) => need(ctx).base.close())
 handle('window.new', ({ shy }) => { openWindow({ shy }) })
-handle('window.startDrag', () => { /* win/drag.ts (koffi) on Windows; the CSS drag region elsewhere */ })
+handle('window.startDrag', (_a, ctx) => need(ctx).frame.startDrag())
+handle('window.startResize', ({ edge }, ctx) => need(ctx).frame.startResize(edge))
+handle('window.moveDrag', ({ phase, x, y }, ctx) => need(ctx).frame.moveDrag(phase, x, y))
+handle('window.resizeDrag', ({ edge, phase, x, y }, ctx) => need(ctx).frame.resizeDrag(edge, phase, x, y))
+handle('window.hollow', ({ hollow }, ctx) => need(ctx).frame.setHollow(hollow))
 handle('window.menu', () => {})
 
 // layout

@@ -14,6 +14,8 @@ import { IPC } from '../../shared/ipc'
 import { model, type Slice, type WindowRecord } from '../model/model'
 import { chromeKind } from '../paths'
 import { runtimeFor, runtimes, type TabRuntime } from './tabs'
+import { Frame, frameColour, frameKind, overlayColours, windowOptions } from '../window/frame'
+import type { Insets } from '../../shared/modules/window'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const uiPreload = path.join(here, '../preload/ui.cjs')
@@ -41,6 +43,7 @@ export class WindowController {
   readonly ui: WebContentsView
   readonly overlay: WebContentsView
   readonly chrome = chromeKind()
+  readonly frame: Frame
   private slots = new Map<ID, Slot>()
   private shown = new Set<ID>()
   private rev = 0
@@ -51,21 +54,12 @@ export class WindowController {
 
   constructor(readonly record: WindowRecord, readonly pageSession: Session) {
     const dark = nativeTheme.shouldUseDarkColors
-    const frame = dark ? '#131313' : '#F4F4F4'
-    const windows = this.chrome === 'windows'
-    this.base = new BaseWindow({
-      width: 1180,
-      height: 780,
-      minWidth: 400,
-      minHeight: 300,
-      show: false,
-      backgroundColor: frame,
-      titleBarStyle: 'hidden',
-      ...(process.platform === 'darwin'
-        ? { trafficLightPosition: { x: 19, y: 19 } }
-        : { titleBarOverlay: { color: frame, symbolColor: dark ? '#EDEDED' : '#171717', height: 52 } }),
-    })
-    if (process.platform === 'darwin' && windows) this.base.setWindowButtonVisibility(false)
+    const kind = frameKind(this.chrome)
+    this.base = new BaseWindow(windowOptions(kind, dark))
+    // Developing the Windows look on a Mac with Windows' frame: our buttons.
+    if (process.platform === 'darwin' && kind === 'native') this.base.setWindowButtonVisibility(false)
+    this.frame = new Frame(this, kind)
+    const ground = kind === 'drawn' ? '#00000000' : frameColour(dark)
 
     const uiPrefs = (root: string) => ({
       preload: uiPreload,
@@ -76,7 +70,7 @@ export class WindowController {
       backgroundThrottling: false,
     })
     this.ui = new WebContentsView({ webPreferences: uiPrefs('chrome') })
-    this.ui.setBackgroundColor(frame)
+    this.ui.setBackgroundColor(ground)
     this.overlay = new WebContentsView({ webPreferences: uiPrefs('overlay') })
     this.overlay.setBackgroundColor('#00000000')
     this.base.contentView.addChildView(this.ui)
@@ -87,11 +81,12 @@ export class WindowController {
     this.ui.webContents.once('did-finish-load', () => { if (!this.base.isVisible()) this.base.show() })
 
     this.layout()
-    this.base.on('resize', () => this.layout())
-    this.base.on('maximize', () => this.mark('window'))
-    this.base.on('unmaximize', () => this.mark('window'))
-    this.base.on('enter-full-screen', () => this.mark('window'))
-    this.base.on('leave-full-screen', () => this.mark('window'))
+    // The frame is read again first, so the margin is right before the pages move.
+    this.base.on('resize', () => { this.frame.refresh(); this.layout() })
+    this.base.on('moved', () => this.frame.refresh())
+    for (const e of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'restore'] as const) {
+      this.base.on(e as 'maximize', () => { this.frame.refresh(); this.mark('window') })
+    }
     this.base.on('focus', () => this.mark('window'))
     this.base.on('blur', () => this.mark('window'))
     this.base.on('closed', () => {
@@ -107,9 +102,8 @@ export class WindowController {
 
   private onTheme = () => {
     const dark = nativeTheme.shouldUseDarkColors
-    const frame = dark ? '#131313' : '#F4F4F4'
-    this.ui.setBackgroundColor(frame)
-    if (process.platform !== 'darwin') this.base.setTitleBarOverlay({ color: frame, symbolColor: dark ? '#EDEDED' : '#171717' })
+    if (this.frame.kind !== 'drawn') this.ui.setBackgroundColor(frameColour(dark))
+    if (this.frame.kind === 'native' && process.platform !== 'darwin') this.base.setTitleBarOverlay(overlayColours(dark))
     this.mark('window')
   }
 
@@ -120,6 +114,12 @@ export class WindowController {
     this.dirty.add(slice)
     if (!this.flushTimer) this.flushTimer = setTimeout(() => this.flush(), 0)
     if (slice === 'activeID' || slice === 'space' || slice === 'tabs') this.placePages()
+  }
+
+  /** Send a part at once, not on the next tick (the frame, before pages move). */
+  push(slice: string): void {
+    this.dirty.add(slice)
+    this.flush()
   }
 
   private flush(): void {
@@ -148,7 +148,7 @@ export class WindowController {
       focused: this.base.isFocused(),
       maximized: this.base.isMaximized(),
       fullScreen: this.base.isFullScreen(),
-      controlsWidth: this.chrome === 'windows' ? 138 : 0,
+      controlsWidth: this.chrome === 'windows' && !this.base.isFullScreen() ? 138 : 0,
       space: r.space,
       spaces: model.spaces,
       tabs: model.spaceTabs(r).map(id => model.tabs.get(id)!).filter(Boolean).map(({ home, touched, letGo, ...view }) => view),
@@ -201,6 +201,15 @@ export class WindowController {
     this.placePages()
   }
 
+  /** The margin around the window changed: the card moves with it at once,
+   * before the interface measures it again. */
+  shiftSlots(by: Insets): void {
+    if (!by.top && !by.right && !by.bottom && !by.left) return
+    for (const slot of this.slots.values()) {
+      slot.insets = { top: slot.insets.top + by.top, right: slot.insets.right + by.right, bottom: slot.insets.bottom + by.bottom, left: slot.insets.left + by.left }
+    }
+  }
+
   private rectFor(id: ID): Rect | null {
     const slot = this.slots.get(id)
     if (!slot) return null
@@ -240,6 +249,11 @@ export class WindowController {
     if (!rt?.view || !rect) return
     rt.view.setBounds(rect)
     rt.view.setBorderRadius(Math.round(this.slots.get(id)?.radius ?? 0))
+  }
+
+  /** Where the pages on screen are (for the tests). */
+  pageBounds(): { id: ID; rect: Rect }[] {
+    return [...this.shown].map(id => ({ id, rect: runtimes.get(id)?.view?.getBounds() })).filter((p): p is { id: ID; rect: Rect } => !!p.rect)
   }
 
   setOverlayRegion(rect: Rect | null, focus = false): void {
