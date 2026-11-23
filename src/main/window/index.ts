@@ -3,6 +3,7 @@
 
 import { BaseWindow } from 'electron'
 import './commands'
+import './split'
 import '../../shared/modules/window'
 import { registerSlice } from '../views/window'
 import { shortcut } from '../keys'

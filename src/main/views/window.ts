@@ -26,6 +26,8 @@ const uiPage = path.join(here, '../ui/index.html')
 interface Slot { insets: { left: number; top: number; right: number; bottom: number }; radius: number }
 
 const controllers = new Map<ID, WindowController>()
+/** Pages whose focus is already watched (a click in a page of a split gives it the keys). */
+const watched = new WeakSet<Electron.WebContents>()
 
 /** Modules add parts of the window's state without touching this file:
  * registerSlice('downloads', c => ...). Send a part again with c.mark(key). */
@@ -235,6 +237,14 @@ export class WindowController {
     for (const id of want) {
       const rt = runtimeFor(id, this.pageSession)
       const view = rt.ensure()
+      if (!watched.has(view.webContents)) {
+        watched.add(view.webContents)
+        // studio/01 §8.16: a click (or Tab) in a page of a split gives it the keys.
+        view.webContents.on('focus', () => {
+          const r = this.record
+          if (r.active[r.space] !== id && r.splits.some(s => s.tabs.includes(id))) model.selectTab(r, id)
+        })
+      }
       if (!this.shown.has(id)) {
         // Under the overlay, above the interface.
         this.base.contentView.addChildView(view, this.base.contentView.children.indexOf(this.overlay))

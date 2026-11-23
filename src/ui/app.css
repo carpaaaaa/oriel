@@ -75,6 +75,18 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .grip-bottom-left { clip-path: polygon(0 0, calc(var(--grip-out) + var(--grip-in)) 0, 100% calc(100% - var(--grip-out) - var(--grip-in)), 100% 100%, 0 100%); }
 .grip-bottom-right { clip-path: polygon(calc(100% - var(--grip-out) - var(--grip-in)) 0, 100% 0, 100% 100%, 0 100%, 0 calc(100% - var(--grip-out) - var(--grip-in))); }
 
+/* Split View (studio/01 §8.13, §8.14): each page a card, a 7 pt gutter, a
+   divider with a pill that lights after a short stay. */
+.card.stage { background: transparent; box-shadow: none; border-radius: 0; }
+.pane { position: absolute; top: 0; bottom: 0; border-radius: var(--card-radius); background: var(--ground); box-shadow: 0 0 0 1px var(--card-edge), var(--card-shadow); }
+.divider { position: absolute; top: 0; bottom: 0; width: 7px; cursor: col-resize; display: grid; place-items: center; -webkit-app-region: no-drag; }
+.divider .pill { width: var(--grip-w); height: var(--grip-rest); border-radius: calc(var(--grip-w) / 2); background: var(--faint); transition: height var(--dur-quick) var(--ease-quick), background-color var(--dur-quick) var(--ease-quick); }
+.divider:hover .pill { transition-delay: 100ms; }
+.divider:hover .pill, .divider.held .pill { height: var(--grip-lit); background: var(--muted); }
+:root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .card.stage { background: var(--ground); }
+:root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .pane { border-radius: 0; box-shadow: none; }
+:root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .divider::before { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 1px; background: var(--hairline); }
+
 .error-page { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 10px; }
 .error-page h1 { font-size: var(--fs-panel-title); font-weight: 600; }
 .error-page p { color: var(--muted); }

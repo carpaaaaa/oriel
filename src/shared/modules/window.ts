@@ -36,6 +36,13 @@ declare module '../commands' {
     'window.moveDrag': { phase: 'start' | 'move' | 'end'; x: number; y: number }
     /** Resizing by hand: screen DIP of the pointer. */
     'window.resizeDrag': { edge: Edge; phase: 'start' | 'move' | 'end'; x: number; y: number }
+    // Split View (studio/01 §8)
+    /** Split Current Page / Separate Split Tabs (§8.19). */
+    'split.toggle': { id?: string }
+    /** The keys to the page on the left (-1) or right (1) (§8.24). */
+    'split.focus': { by: 1 | -1 }
+    /** New shares of the split whose first page is `first` (§8.14). */
+    'split.resize': { first: string; sizes: number[] }
   }
 }
 
