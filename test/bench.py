@@ -11,6 +11,7 @@ socket, so a test never touches the Search someone is using.
     b.shot("/tmp/x.png")
     b.quit()
 """
+import atexit
 import json
 import os
 import shutil
@@ -53,6 +54,12 @@ def use(world, wipe=True):
 
 def launch(*args, chrome="windows", env=None, wait=30):
     global PROC
+    # A world left running by an earlier test that failed: close it first.
+    try:
+        call({"do": "quit"}, timeout=3)
+        time.sleep(1)
+    except Exception:
+        pass
     electron = ROOT / "node_modules" / ".bin" / ("electron.cmd" if IS_WIN else "electron")
     e = dict(os.environ, SEARCH_PROBE=WORLD, SEARCH_CHROME=chrome, **(env or {}))
     PROC = subprocess.Popen([str(electron), str(ROOT), *args], env=e, cwd=ROOT,
@@ -154,6 +161,16 @@ def quit():
         try:
             PROC.wait(10)
         except Exception:
+            PROC.kill()
+            PROC.wait(5)
+
+
+@atexit.register
+def _always_close():
+    """Never leave an app running behind a test, even one that failed."""
+    if PROC and PROC.poll() is None:
+        quit()
+        if PROC.poll() is None:
             PROC.kill()
 
 
