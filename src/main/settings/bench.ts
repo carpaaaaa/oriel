@@ -1,6 +1,8 @@
 // The settings module's bench requests (test/settings_*.py).
 
+import { writeFileSync } from 'node:fs'
 import { benchRequest } from '../bench/server'
+import { runtimes } from '../views/tabs'
 import { refused } from './internal'
 import { probeAnswers, said, mergedValues } from './prefs'
 import { asked, saved } from './permissions'
@@ -16,6 +18,15 @@ benchRequest('settings.state', () => ({
   merged: mergedValues(),
   downloads: downloadsState(),
 }))
+
+/** A picture of one tab's page (an Oriel page), PNG to `path`. */
+benchRequest('settings.shot', async req => {
+  const wc = runtimes.get(String(req.id))?.contents
+  if (!wc) throw new Error('tab has no page')
+  const image = await wc.capturePage()
+  writeFileSync(String(req.path), image.toPNG())
+  return { width: image.getSize().width, height: image.getSize().height }
+})
 
 /** Answers a dialog would give, in a test world (never a dialog on screen). */
 benchRequest('settings.answers', req => {
