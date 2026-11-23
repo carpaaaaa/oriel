@@ -10,6 +10,7 @@ import { benchRequest } from '../bench/server'
 import { bookmarks, history, mark } from './store'
 import { getMeta, setMeta } from './meta'
 import { editable, identity } from './urls'
+import { forgetAll, forgetPage, iconFor } from './icons'
 import { isFolder } from './bookmarks'
 import type { BookmarkNode } from '../../shared/modules/data'
 
@@ -40,16 +41,18 @@ export function placeOffers(typed: string, limit = 3): Suggestion[] {
 /** data.suggest: each kind on its own, up to `limit` of each; the field
  * puts them in order (05 §3.5, studio/03 §1.3). */
 export function kindsFor(typed: string, limit: number): Suggestion[] {
+  const withIcon = (s: Suggestion): Suggestion => { const icon = iconFor(s.url); return icon ? { ...s, favicon: icon } : s }
   const visited = history().suggestions(typed, limit).map((v): Suggestion =>
-    ({ kind: v.kind === 'known' ? 'url' : 'history', title: v.title, detail: v.key, url: v.url }))
+    withIcon({ kind: v.kind === 'known' ? 'url' : 'history', title: v.title, detail: v.key, url: v.url }))
   const kept = bookmarks().places(typed, limit)
-  const marks = [...kept.found, ...kept.slips].slice(0, limit).map((p): Suggestion => ({ kind: 'bookmark', title: p.title, detail: p.key, url: p.url }))
+  const marks = [...kept.found, ...kept.slips].slice(0, limit).map((p): Suggestion => withIcon({ kind: 'bookmark', title: p.title, detail: p.key, url: p.url }))
   return [...visited, ...marks]
 }
 
 provideData({
   async suggest(text, limit) { return kindsFor(text, limit) },
   visits(sites) { return history().visitsTo(sites) },
+  icon(url, shy) { return iconFor(url, shy) },
   everything(matching, limit = 500) {
     return history().everything(matching).slice(0, limit).map(v => ({ url: v.url, title: v.title, lastVisit: v.last, visits: v.count }))
   },
@@ -112,8 +115,9 @@ handle('bookmark.list', ({ query }) => query
 
 handle('history.list', ({ query }) => history().everything(query ?? '').slice(0, 500)
   .map(v => ({ url: v.url, title: v.title, address: v.address, count: v.count, last: v.last })))
-handle('history.forget', ({ url }) => { history().forget(url) })
-handle('history.clear', () => { history().clear() })
+// Forgetting a page forgets its icon too; Clear History, every icon (studio/01 §2.13).
+handle('history.forget', ({ url }) => { history().forget(url); forgetPage(url) })
+handle('history.clear', () => { history().clear(); forgetAll() })
 
 // bench (test worlds only)
 

@@ -19,7 +19,7 @@ b.use("data-pwimport")
 folder = b.folder()
 home = folder / "Import"
 home.mkdir(parents=True, exist_ok=True)
-subprocess.run(["node", str(ROOT / "test/fixtures/data/make.mjs"), str(home)], check=True, capture_output=True)
+subprocess.run(["node", str(ROOT / "test/fixtures/data/make.mjs"), str(home)], check=True, stdout=subprocess.DEVNULL)
 b.launch()
 t = b.T()
 

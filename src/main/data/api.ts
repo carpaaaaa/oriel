@@ -26,6 +26,10 @@ export const data = {
    * words (History.everything(matching:)): the past searches of a site are
    * read from these (SiteSearch.pastSearches). */
   everything(_matching: string, _limit?: number): HistoryTrace[] { return [] },
+  /** The site icon kept for a page, as a data URL, before the page has said
+   * anything (studio/01 §2.12-2.13): its own, or its site's. A private tab
+   * also sees the icons of its own private pages. */
+  icon(_url: string, _shy?: boolean): string | undefined { return undefined },
   /** A page was visited (called by the tabs module on every main-frame navigation). */
   recordVisit(_visit: HistoryVisit): void {},
   /** Title of a page changed after the visit. */

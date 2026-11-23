@@ -8,7 +8,7 @@ import type { BookmarkNode } from '../../shared/modules/data'
 import { folder, site } from '../data/bookmarks'
 import type { ChromiumSource, Profile } from './sources'
 import { chromiumProfiles } from './sources'
-import { bytes, count, query, readJSONIn, unreadableJSON } from './read'
+import { bytes, count, query, readJSONIn, snapshot, unreadableJSON } from './read'
 
 export interface Place { url: string; title: string; count: number; last: number }
 
@@ -173,4 +173,45 @@ export function preview(source: ChromiumSource, only: string | null, limit = 300
 
 function countMarks(nodes: BookmarkNode[]): number {
   return nodes.reduce((s, n) => s + (n.url == null ? countMarks(n.children ?? []) : 1), 0)
+}
+
+/** The browser's icons for these pages: the largest bitmap it kept for the
+ * page, or else for the site's front door; at most 400 sites
+ * (Chromium.icons, studio/05 §1.3). */
+export function icons(source: ChromiumSource, only: string | null, urls: string[], limit = 400): Map<string, Buffer> {
+  return iconsFrom(profilesFor(source, only).map(p => ({ file: path.join(p.dir, 'Favicons'), root: p.root })), urls, limit, `
+    SELECT b.image_data AS data FROM icon_mapping m JOIN favicon_bitmaps b ON b.icon_id = m.icon_id
+    WHERE m.page_url = ? AND b.width BETWEEN 16 AND 256 ORDER BY b.width DESC LIMIT 1`)
+}
+
+/** One query per page and per front door, on a copy of each icons file;
+ * one icon per site. */
+export function iconsFrom(files: { file: string; root: string }[], urls: string[], limit: number, sql: string): Map<string, Buffer> {
+  const out = new Map<string, Buffer>()
+  const wanted: { url: string; door: string }[] = []
+  const seen = new Set<string>()
+  for (const url of urls) {
+    let u: URL
+    try { u = new URL(url) } catch { continue }
+    if (!web(u.href) || seen.has(u.host)) continue
+    seen.add(u.host)
+    wanted.push({ url: u.href, door: `${u.protocol}//${u.host}/` })
+    if (wanted.length >= limit) break
+  }
+  for (const { file, root } of files) {
+    if (!wanted.length || !existsSync(file)) continue
+    const snap = snapshot(file, root)
+    if (!snap) continue
+    try {
+      const statement = snap.db.prepare(sql)
+      for (const w of wanted) {
+        if (out.has(w.url)) continue
+        for (const page of [w.url, w.door]) {
+          const data = bytes((statement.get(page) as { data?: unknown } | undefined)?.data)
+          if (data.length > 60) { out.set(w.url, data); break }
+        }
+      }
+    } catch { /* an icons file of another shape: no icons */ } finally { snap.close() }
+  }
+  return out
 }

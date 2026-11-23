@@ -9,7 +9,14 @@ import { folder, site } from '../data/bookmarks'
 import type { GeckoSource, Profile } from './sources'
 import { geckoProfiles } from './sources'
 import { count, query, readJSONIn } from './read'
-import type { Place } from './chromium'
+import { iconsFrom, type Place } from './chromium'
+
+/** Firefox's icons for these pages, from favicons.sqlite beside places.sqlite. */
+export function icons(source: GeckoSource, only: string | null, urls: string[], limit = 400): Map<string, Buffer> {
+  return iconsFrom(profilesFor(source, only).map(p => ({ file: path.join(p.dir, 'favicons.sqlite'), root: p.root })), urls, limit, `
+    SELECT i.data AS data FROM moz_pages_w_icons p JOIN moz_icons_to_pages m ON m.page_id = p.id JOIN moz_icons i ON i.id = m.icon_id
+    WHERE p.page_url = ? AND i.data IS NOT NULL ORDER BY i.width DESC LIMIT 1`)
+}
 
 export function profilesFor(source: GeckoSource, only: string | null): Profile[] {
   const all = geckoProfiles(source)

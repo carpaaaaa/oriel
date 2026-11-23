@@ -111,6 +111,8 @@ function load() {
   const GetWindow = user32.func('__stdcall', 'GetWindow', 'void *', ['void *', 'uint32'])
   const IsWindowVisible = user32.func('__stdcall', 'IsWindowVisible', 'bool', ['void *'])
   const PostMessageW = user32.func('__stdcall', 'PostMessageW', 'bool', ['void *', 'uint32', 'uintptr_t', 'intptr_t'])
+  const GetWindowThreadProcessId = user32.func('__stdcall', 'GetWindowThreadProcessId', 'uint32', ['void *', out('uint32')])
+  const GetClassNameW = user32.func('__stdcall', 'GetClassNameW', 'int', ['void *', 'void *', 'int'])
 
   /** One method of a COM interface, by its place in the vtable. */
   const method = (obj: unknown, index: number, p: unknown) => {
@@ -124,7 +126,7 @@ function load() {
     koffi, RoInitialize, WindowsCreateString, WindowsDeleteString, RoGetActivationFactory, P, method, release, address,
     CREDUI_INFOW, CredUIPromptForWindowsCredentialsW, CredUnPackAuthenticationBufferW, CredUIParseUserNameW,
     LogonUserW, CloseHandle, RtlZeroMemory, CoTaskMemFree, GetLastError,
-    EnumWindowsProc, EnumWindows, GetWindow, IsWindowVisible, PostMessageW,
+    EnumWindowsProc, EnumWindows, GetWindow, IsWindowVisible, PostMessageW, GetWindowThreadProcessId, GetClassNameW,
   }
 }
 
@@ -254,9 +256,13 @@ async function windowsPassword(a: NonNullable<typeof api>, reason: string, hwnd:
   return false
 }
 
+/** The proof under way or last made, step by step as it goes. */
+export let current: HelloTrace | null = null
+
 /** Proof by Windows Hello, else the Windows password, over `win`. */
 export async function windowsProof(reason: string, win: BaseWindow | null, caption: string, options: { within?: number } = {}): Promise<HelloTrace> {
   const trace: HelloTrace = { steps: [], verdict: 'error' }
+  current = trace
   try {
     const a = (api ??= load())
     const hwnd = win ? a.koffi.decode(win.getNativeWindowHandle(), 'void *') : null
@@ -273,19 +279,27 @@ export async function windowsProof(reason: string, win: BaseWindow | null, capti
   return trace
 }
 
-/** Closes the dialogs a window owns (a test world's stand-in for a person
- * pressing Cancel). How many were asked to close. */
-export function closeOwnedDialogs(win: BaseWindow): number {
+/** Closes the visible windows of this process that aren't Oriel's own (the
+ * credential dialog, owned by Oriel or not): a test world's stand-in for a
+ * person pressing Cancel. What was closed, by window class. */
+export function closeOwnedDialogs(ours: BaseWindow[]): { closed: string[]; seen: string[] } {
   const a = (api ??= load())
-  const owner = a.address(a.koffi.decode(win.getNativeWindowHandle(), 'void *'))
-  const found: unknown[] = []
+  const mine = new Set(ours.map(w => a.address(a.koffi.decode(w.getNativeWindowHandle(), 'void *'))))
+  const found: unknown[] = [], closed: string[] = [], seen: string[] = []
   const each = a.koffi.register((hwnd: unknown) => {
-    if (a.IsWindowVisible(hwnd) && a.address(a.GetWindow(hwnd, 4 /* GW_OWNER */)) === owner) found.push(hwnd)
+    const pid = [0]
+    a.GetWindowThreadProcessId(hwnd, pid)
+    if (pid[0] !== process.pid || !a.IsWindowVisible(hwnd)) return true
+    const name = Buffer.alloc(512)
+    const n = a.GetClassNameW(hwnd, name, 256)
+    const cls = name.subarray(0, n * 2).toString('utf16le')
+    seen.push(cls)
+    if (!mine.has(a.address(hwnd))) { found.push(hwnd); closed.push(cls) }
     return true
   }, a.koffi.pointer(a.EnumWindowsProc))
   try { a.EnumWindows(each, 0) } finally { a.koffi.unregister(each) }
   for (const hwnd of found) a.PostMessageW(hwnd, 0x0010 /* WM_CLOSE */, 0, 0)
-  return found.length
+  return { closed, seen }
 }
 
 /** Whether the factories answer, the one that owns the dialog by window

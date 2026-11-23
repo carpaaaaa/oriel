@@ -43,22 +43,30 @@ worker.start()
 
 # The app answers while Hello or the password dialog is up.
 slowest = 0.0
-closed = 0
+closed = []
+said = ""
 while worker.is_alive() and time.time() - started < 90:
     t0 = time.time()
     b.state()
     slowest = max(slowest, time.time() - t0)
+    now = json.dumps((b.call({"do": "data.helloNow"}).get("trace") or {}).get("steps"))
+    if now != said:
+        print(f"       {time.time() - started:5.1f} s  {now}")
+        said = now
     # What a person would do on a machine with nothing to recognise: Cancel.
     if time.time() - started > 3:
-        closed += b.call({"do": "data.helloClose"})["closed"]
+        c = b.call({"do": "data.helloClose"})
+        if c["closed"]:
+            print("       closed:", c["closed"], "of", c["seen"])
+        closed += c["closed"]
     time.sleep(0.4)
 worker.join(5)
 
 t.ok(not worker.is_alive(), f"it ends: no hang ({time.time() - started:.1f} s)")
 t.ok(slowest < 2.0, f"the app keeps answering meanwhile (slowest {slowest:.2f} s)")
-trace = (result.get("reply") or {}).get("trace") or {}
+trace = (result.get("reply") or {}).get("trace") or b.call({"do": "data.helloNow"}).get("trace") or {}
 print("       trace:", json.dumps(trace))
-print("       dialogs closed:", closed)
+print("       dialogs closed:", closed, result.get("error", ""))
 steps = trace.get("steps", [])
 t.ok(any(s == "factory 0x00000000" for s in steps), "the call starts")
 t.ok(trace.get("availability") is not None, f"Hello says whether it can ask ({trace.get('availability')})")
