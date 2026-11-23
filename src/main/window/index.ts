@@ -44,9 +44,15 @@ benchRequest('window.restore', req => { const c = pick(req.window); c.base.resto
 benchRequest('window.drag', async req => {
   const c = pick(req.window)
   const wc = c.ui.webContents
+  // The path is fixed on the screen, like a real pointer's: while the window
+  // moves under it, the point inside the window changes.
   const origin = c.base.getContentBounds()
   const path = req.path as [number, number][]
-  const at = ([x, y]: [number, number]) => ({ x, y, globalX: origin.x + x, globalY: origin.y + y })
+  const at = ([x, y]: [number, number]) => {
+    const now = c.base.getContentBounds()
+    const gx = origin.x + x, gy = origin.y + y
+    return { x: gx - now.x, y: gy - now.y, globalX: gx, globalY: gy }
+  }
   wc.sendInputEvent({ type: 'mouseMove', ...at(path[0]) })
   wc.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...at(path[0]) })
   for (const p of path.slice(1)) {
