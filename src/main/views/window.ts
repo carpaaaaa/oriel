@@ -131,7 +131,8 @@ export class WindowController {
 
   private flush(): void {
     this.flushTimer = null
-    if (!this.dirty.size) return
+    // Marked just before it closed: no window left to tell.
+    if (!this.dirty.size || this.base.isDestroyed()) return
     const keys = [...this.dirty]
     this.dirty.clear()
     const full = this.state()
