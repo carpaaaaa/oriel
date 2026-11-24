@@ -46,10 +46,11 @@
   --card-shadow: 0 1px 12px rgba(0,0,0,.07);
 
   /* tipografia */
-  --font-ui: "Inter Variable", "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-  /* Inter is a little wider than SF Pro: tracked in so a tab title takes the
-     Mac's room ("Rec…" 32 px, "Wea…" 35 px at 12.5, Design.swift:224). */
-  --tracking-ui: -0.03em;
+  --font-ui: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  /* Plus Jakarta Sans (chosen 24 Nov 2026 in place of SF Pro, which only
+     Apple's platforms may use) takes SF Pro's room as it is: "Rec…" 31.4 px,
+     "Wea…" 35.1 px at 12.5, against 32 and 35 on the Mac (Design.swift:224). */
+  --tracking-ui: 0em;
   --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
   --fs-tab: 12.5px;
   --fs-tab-roomy: 14px;

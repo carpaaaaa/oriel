@@ -36,7 +36,7 @@ The full list of what ships inside the app, with each license, is in `THIRD_PART
 
 ## Typeface
 
-[Inter](https://rsms.me/inter/), by Rasmus Andersson, under the SIL Open Font License 1.1, packaged by [Fontsource](https://fontsource.org). It stands in for SF Pro, which only Apple's platforms may use.
+[Plus Jakarta Sans](https://github.com/tokotype/PlusJakartaSans), by Tokotype (Gumpita Rahayu), under the SIL Open Font License 1.1, packaged by [Fontsource](https://fontsource.org). It stands in for SF Pro, which only Apple's platforms may use, and takes the same room.
 
 ## Data
 
