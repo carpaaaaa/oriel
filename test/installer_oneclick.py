@@ -130,7 +130,8 @@ run(["/S"])
 kill()
 t.ok(version_of(CUSTOM / "Oriel.exe") == NEW and not (DEFAULT / "Oriel.exe").exists(), "run again by hand (/S): still that folder, still one copy")
 e = entries()
-t.ok(len(e) == 1 and str(CUSTOM).lower() in (e[0][1] or "").lower(), f"one entry in Apps, at that folder ({e})")
+# The Apps entry may not say where (electron-builder keeps InstallLocation under its own key).
+t.ok(len(e) == 1 and (not e[0][1] or str(CUSTOM).lower() in e[0][1].lower()), f"one entry in Apps ({e})")
 
 # 3. Gone.
 uninstall(CUSTOM)
