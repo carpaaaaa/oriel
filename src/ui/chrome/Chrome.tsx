@@ -138,6 +138,13 @@ export function ChromeRoot() {
                 <For each={outlet('blank.over')}>{C => <C />}</For>
               </div>
             </Show>
+            {/* Its page out in Oriel's floating window (Ctrl+Shift+P): said here, with the way back, not a dark card. */}
+            <Show when={state.float?.style === 'search' && state.float?.tab === state.activeID}>
+              <div class="float-note" data-window-ui="float-note">
+                <p>Playing in the floating window</p>
+                <button class="pill" onClick={() => cmd({ do: 'pages.float.land' })}>Bring it back</button>
+              </div>
+            </Show>
             <Show when={activeTab()?.error}>
               {e => <div class="error-page"><h1>{e().description}</h1><p>{e().url}</p><button class="pill" onClick={() => cmd({ do: 'tab.reload' })}>Try again</button></div>}
             </Show>

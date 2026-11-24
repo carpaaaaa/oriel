@@ -223,3 +223,7 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .window.bm .loading-line { top: calc(var(--top, var(--card-gap)) + var(--bookmarks-bar) - 2px); }
 :root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .window.bm .card { top: var(--bookmarks-bar); }
 :root[data-state="fullScreen"] .window.top.bm :is(.card, .side-room) { top: calc(var(--top) + var(--bookmarks-bar)); }
+
+/* The tab whose page is in Oriel's floating window (Chrome.tsx). */
+.float-note { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; text-align: center; }
+.float-note p { font-size: 13px; color: var(--muted); }

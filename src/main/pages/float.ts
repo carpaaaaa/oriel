@@ -187,6 +187,7 @@ function openWindow(tab: ID, win: ID, view: WebContentsView, away: boolean): Flo
   base.on('closed', () => { if (floating === f) land() })
   base.showInactive()
   alpha = 1
+  solidUntil = Date.now() + SOLID_FIRST
   setImmediate(fadeWatch)
   return f
 }
@@ -328,6 +329,11 @@ function goBack(): void {
 const FADE_MOST = 0.8
 /** A tick of the fade: about 30 a second, only while something floats. */
 const FADE_TICK = 33
+/** Just out, it stays solid this long, so you see where it went: with the
+ * slider at its end it came out at a fifth, over a dark page, and seemed
+ * not to come out at all (carpa, 24 Nov 2026). */
+const SOLID_FIRST = 2500
+let solidUntil = 0
 
 const fadeLevel = () => { const v = Number(pref('float.fade')); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0 }
 let alpha = 1
@@ -379,7 +385,7 @@ function fadeStep(): void {
   if (quietTests) return
   const { base, hwnds } = fadingWindows()
   if (!base && !hwnds.length) { if (!floating && !pictured) stopFade(); return }
-  const target = pointerOn(base, hwnds) ? 1 : 1 - FADE_MOST * fadeLevel()
+  const target = pointerOn(base, hwnds) || Date.now() < solidUntil ? 1 : 1 - FADE_MOST * fadeLevel()
   if (Math.abs(target - alpha) < 0.005 && target === 1 && fadeLevel() === 0) { setAlpha(base, hwnds, 1); stopFade(); return }
   const next = Math.abs(target - alpha) < 0.01 ? target : alpha + (target - alpha) * 0.3
   if (next === alpha) return
@@ -406,7 +412,7 @@ ipcMain.on('float:pip', (event, on: unknown) => {
   if (event.senderFrame !== event.sender.mainFrame) return
   const rt = [...runtimes.values()].find(r => r.contents === event.sender)
   if (!rt) return
-  if (on === true) { pictured = rt.id; pipWindow = 0; alpha = 1; setImmediate(fadeWatch) }
+  if (on === true) { pictured = rt.id; pipWindow = 0; alpha = 1; solidUntil = Date.now() + SOLID_FIRST; setImmediate(fadeWatch) }
   else if (pictured === rt.id) { pictured = null; pipWindow = 0 }
   markAll()
 })
