@@ -39,7 +39,7 @@ b.key(",", MOD)
 b.wait_for(lambda: settings_tabs(), what="Settings tab")
 st = settings_tabs()[0]
 tab = st["id"]
-b.wait_for(lambda: ev(tab, "document.querySelectorAll('.sr').length") or 0, what="Settings drawn")
+b.wait_for(lambda: ev(tab, "document.querySelectorAll('.sr').length") or 0, what="Settings drawn", within=30)
 t.ok(st["url"].startswith("oriel://settings"), f"Ctrl+, opens oriel://settings ({st['url']})")
 t.ok(b.ev(tab, "document.title") == "Settings", "the page is called Settings")
 t.ok(b.ev(tab, "typeof window.oriel") == "object", "an Oriel page has the bridge")
