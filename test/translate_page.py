@@ -44,7 +44,7 @@ t.ok(k.text(tab, "#p3").startswith(M + "Usa il comando ls -la " + M), "the sente
 t.ok(k.text(tab, "#nt") == "Questo testo resta in italiano.", 'translate="no" is left alone')
 t.ok(k.attr(tab, "#img", "alt") == M + "Una bella foto del mare d'estate", "an image's alt is translated")
 t.ok(k.attr(tab, "#in", "placeholder") == M + "Cerca una ricetta", "a field's placeholder is translated")
-t.ok(b.ev(tab, "document.title") == M + "La cucina toscana", "the title is translated")
+t.ok(b.ev(tab, "document.title") == "La cucina toscana", "the title stays the page's own (History keeps what the site says)")
 t.ok(b.ev(tab, "document.querySelector('#in').value") == "", "a field's value is never touched")
 
 # What the page adds later follows.

@@ -31,6 +31,8 @@ const INLINE: Record<string, 1> = { a: 1, abbr: 1, b: 1, bdi: 1, bdo: 1, big: 1,
 const FIXED: Record<string, 1> = { code: 1, kbd: 1, samp: 1, var: 1 }
 const ATTRS = ['title', 'alt', 'placeholder', 'aria-label']
 const LETTER = /\p{L}/u
+/** The page's <title> too (Translate.swift does): off, see collect(). */
+const TITLE = false as boolean
 const SPACE = /\S/
 
 /** One page's translation state: the Mac's __searchTr, as a closure. */
@@ -190,7 +192,10 @@ function translator(dirty: () => void) {
       if (document.designMode === 'on') return []
       out = []
       watch(document)
-      const title = window === window.top && document.querySelector('title')
+      // The Mac translates the title too but keeps it out of History; here a
+      // new title goes straight into History (the tabs module records it),
+      // so it stays the page's own until that can be told apart.
+      const title = TITLE && window === window.top && document.querySelector('title')
       if (title && title.firstChild?.nodeType === 3 && LETTER.test(title.textContent ?? '')) { text(title.firstChild as Text); close() }
       const roots = whole ? [document.body ?? document.documentElement] : touched
       whole = false; touched = []

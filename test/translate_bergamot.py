@@ -3,7 +3,7 @@
 engine, with Mozilla's own models (fetched once into out/translate-models,
 shared by every run). Italian into English: the words come out in English,
 the links and bold stay in their places, code and translate="no" stay as
-they are, the attributes and the title are translated; Show Original puts
+they are, the attributes are translated; Show Original puts
 the page back exactly. French into English. Italian into French through
 English, as Firefox does. On a page quoting other languages each block goes
 from its own (English kept, French from French). A page of usual length:
@@ -51,7 +51,7 @@ t.ok(ok, f"and the sentence round it reads whole: {got!r}")
 t.ok(k.text(tab, "#nt") == "Questo testo resta in italiano.", 'translate="no" stays in Italian')
 t.ok("sea" in k.attr(tab, "#img", "alt").lower(), f"the image's alt: {k.attr(tab, '#img', 'alt')!r}")
 t.ok("recipe" in k.attr(tab, "#in", "placeholder").lower(), f"the field's placeholder: {k.attr(tab, '#in', 'placeholder')!r}")
-t.ok("tuscan" in b.ev(tab, "document.title").lower(), f"the title: {b.ev(tab, 'document.title')!r}")
+t.ok(b.ev(tab, "document.title") == "La cucina toscana", "the title stays the page's own (History keeps what the site says)")
 b.cmd("page.untranslate", id=tab)
 time.sleep(0.4)
 t.ok(k.body(tab) == before, "Show Original: the page exactly as it came")
