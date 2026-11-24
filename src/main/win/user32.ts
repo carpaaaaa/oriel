@@ -39,6 +39,8 @@ export interface Win32 {
   hwnd(handle: Buffer): number
   /** Is the (logical) left button down right now? */
   primaryDown(): boolean
+  /** Is a key held right now, as the keyboard says (a virtual-key code)? */
+  keyHeld(vk: number): boolean
   cursor(): { x: number; y: number }
   /** Hand the press over to Windows' move loop (as a press on a caption). */
   beginMove(hwnd: number, at: { x: number; y: number }, how: 'nc' | 'syscommand'): boolean
@@ -111,6 +113,7 @@ function load(): Win32 {
   }
 
   return {
+    keyHeld: vk => (GetAsyncKeyState(vk) & 0x8000) !== 0,
     hwnd: handle => Number(handle.length >= 8 ? handle.readBigUInt64LE(0) : BigInt(handle.readUInt32LE(0))),
     primaryDown,
     cursor,

@@ -38,6 +38,8 @@ export const popups = {
 
 /** Every key and click a page sees (the tabs module's ⌘Z listens). */
 export const pageInput: ((id: ID, kind: 'key' | 'mouse', input: Electron.Input | Electron.MouseInputEvent) => void)[] = []
+/** Modules told when a tab's page stops loading (tabs/previews.ts). */
+export const pageLoaded: ((id: ID) => void)[] = []
 
 /** The window view holding a page, if any (set by the tabs module's wiring). */
 export const viewHost = { parentOf: (_view: WebContentsView): Electron.View | null => null }
@@ -166,7 +168,9 @@ export class TabRuntime {
         // in frames too; nothing of Node's is there (sandboxed).
         nodeIntegrationInSubFrames: true,
         spellcheck: true,
-        scrollBounce: false,
+        // The page may bounce at its ends (a Mac's rubber band; on Windows
+        // ElasticOverscroll, index.ts); Settings › Bounce decides per page.
+        scrollBounce: true,
       },
     })
     view.setBackgroundColor('#FFFFFF')
@@ -365,7 +369,7 @@ export class TabRuntime {
       update({ url, ...(t.url !== url ? { title: '' } : {}) })
     })
     wc.on('did-start-loading', () => update({ loading: true }))
-    wc.on('did-stop-loading', () => { update({ loading: false }); nav() })
+    wc.on('did-stop-loading', () => { update({ loading: false }); nav(); for (const f of pageLoaded) f(this.id) })
     wc.on('did-navigate', (_e, url) => {
       if (!mine()) return
       // A new document: whatever the last one captured has ended with it.

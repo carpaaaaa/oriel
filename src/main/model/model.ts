@@ -1659,7 +1659,8 @@ class Model extends EventEmitter {
     const current = win.active[win.space]
     const back = this.pref<boolean>('tabs.switcherBehindFirst') ? [] : win.recent.filter(x => x !== current && valid.has(x)).slice(0, 1)
     const seen = new Set<ID>()
-    return [...(current ? [current] : []), ...back, ...win.used, ...row].filter(id => valid.has(id) && !seen.has(id) && !!seen.add(id)).slice(0, 10)
+    // Every page of the space, as Alt+Tab shows every window (the Mac stops at ten).
+    return [...(current ? [current] : []), ...back, ...win.used, ...row].filter(id => valid.has(id) && !seen.has(id) && !!seen.add(id))
   }
 
   switchStep(win: WindowRecord, by: 1 | -1): void {

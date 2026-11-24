@@ -67,9 +67,9 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
       "include": "build/installer.nsh"

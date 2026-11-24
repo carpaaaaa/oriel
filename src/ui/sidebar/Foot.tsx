@@ -10,7 +10,7 @@ import { Dynamic } from 'solid-js/web'
 import { state, cmd } from '../lib/store'
 import { outlet } from '../lib/registry'
 import { Glyph } from './glyphs'
-import { P, pref, spaceSymbol, currentSpace } from './derive'
+import { P, pref, spaceSymbol, currentSpace, spaceKeyMod } from './derive'
 import { tint, tintAlpha } from './look'
 import { openMenu } from '../menus/open'
 import { spaceMenu } from '../menus/build'
@@ -108,7 +108,7 @@ export function SpaceDot() {
     <button ref={el} class="space-dot door" data-space={state.space}
       style={{ '--tint': tint(space()) ?? '', '--tint-wash': tintAlpha(space(), 0.14) ?? '', '--tint-hover': tintAlpha(space(), 0.24) ?? '' }}
       classList={{ tinted: !!tint(space()) }}
-      title={`${space()?.name ?? ''}: Alt+1 to Alt+9, or two fingers sideways over the tabs, to switch`}
+      title={`${space()?.name ?? ''}: ${spaceKeyMod()}+1 to ${spaceKeyMod()}+9, or two fingers sideways over the tabs, to switch`}
       onClick={e => openMenu(spaceMenu(), { x: e.clientX, y: e.clientY }, 'space')}
       onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(spaceMenu(), { x: e.clientX, y: e.clientY }, 'space') }}>
       <span class="dot-clip">

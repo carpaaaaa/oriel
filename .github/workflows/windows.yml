@@ -151,6 +151,11 @@ jobs:
           Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
       - name: Every resize of the window, full screen in and out every way (real input)
         run: python test/window_resize_all.py
+      - name: Ctrl+Tab, tab numbers, number keys and the bounce (real input)
+        if: always()
+        env:
+          SHOTS_DIR: shots
+        run: python test/real_switcher.py
       - name: Frame (bench)
         if: always()
         env:

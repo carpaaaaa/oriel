@@ -10,6 +10,8 @@ import { shortcut } from '../keys'
 import { openWindow } from '../context'
 import { startSleeping } from './sleep'
 import { closeField } from '../field/commands'
+import { win32 } from '../win/user32'
+import { pictureFront } from './previews'
 import type { Command } from '../../shared/commands'
 
 // the window's state (WindowState keeps its shape: these say how it is made)
@@ -34,25 +36,57 @@ const active = (c: WindowController) => c.record.active[c.record.space]
 shortcut('Ctrl+Shift+N', 'first', () => ({ do: 'tab.newPrivate' }))
 shortcut('Ctrl+W', 'first', () => ({ do: 'tab.closeFront' }))
 shortcut('Ctrl+F4', 'first', () => ({ do: 'tab.closeFront' }))
-shortcut('Ctrl+Tab', 'first', () => ({ do: 'tab.switch', by: 1 }))
-shortcut('Ctrl+Shift+Tab', 'first', () => ({ do: 'tab.switch', by: -1 }))
+shortcut('Ctrl+Tab', 'first', c => switchKey(c, 1))
+shortcut('Ctrl+Shift+Tab', 'first', c => switchKey(c, -1))
 shortcut('Ctrl+PageDown', 'first', () => ({ do: 'tab.step', by: 1 }))
 shortcut('Ctrl+PageUp', 'first', () => ({ do: 'tab.step', by: -1 }))
 shortcut('Ctrl+Shift+]', 'later', () => ({ do: 'tab.step', by: 1 }))
 shortcut('Ctrl+Shift+[', 'later', () => ({ do: 'tab.step', by: -1 }))
 shortcut('Ctrl+D', 'later', c => { const id = active(c); return id ? { do: 'tab.duplicate', id } : null })
 
+/** Ctrl+Tab, or Ctrl+Shift+Tab: the switcher a step on (§3.25-§3.27). A
+ * quick press goes straight to the tab before; held, the switcher shows
+ * after 0.15 s (ui/switcher) and Ctrl let go picks its card. */
+function switchKey(c: WindowController, by: 1 | -1): Command {
+  if (!c.record.switcher) { pictureFront(c.record.id); watchControl(c) }
+  return { do: 'tab.switch', by }
+}
+
+/** Ctrl let go, on Windows asked of the keyboard itself. Chromium drops a
+ * key's keyUp, and every key event after it until the next keyDown, once
+ * before-input-event took that keyDown (suppress_events_until_keydown_): so
+ * after Ctrl+Tab, or Ctrl+W, Ctrl+R, Ctrl+M in the switcher, the page or the
+ * overlay may never hear Ctrl come up, and a quick Ctrl+Tab left the
+ * switcher open instead of going back a tab. Every 16 ms while it is open. */
+const VK_CONTROL = 0x11
+const watching = new WeakSet<WindowController>()
+function watchControl(c: WindowController): void {
+  const w = win32()
+  if (!w || watching.has(c)) return
+  watching.add(c)
+  const tick = setInterval(() => {
+    const done = () => { clearInterval(tick); watching.delete(c) }
+    if (c.base.isDestroyed() || !c.record.switcher) return done()
+    if (!w.keyHeld(VK_CONTROL)) { done(); model.switchEnd(c.record) }
+  }, 16)
+}
+
 /** ⌘1-⌘9 the tabs and ⌃1-⌃9 the spaces; swapped with ⌘1-⌘9 switch spaces,
- * as in Arc. On Windows: Ctrl for tabs, Alt for spaces (§7.16). */
+ * as in Arc. On Windows: Ctrl for tabs, Alt for spaces, and with Settings ›
+ * Spaces & Pins › Ctrl+1 to Ctrl+9 switch spaces, Ctrl for spaces and Alt for
+ * tabs (§7.16). Taken before the page, as the table's own Ctrl+1-9 are:
+ * these win over them (keys.ts findAction), so the switch really swaps. A
+ * space's key moved in Settings › Shortcuts still wins (changedOwner). */
 const swapped = () => model.spacesOn() && model.pref<boolean>('spaces.commandNumbers')
-const spaceKey = (n: number): Command | null => {
-  if (!model.spacesOn()) return null
+const spaceKey = (n: number): Command | false => {
+  if (!model.spacesOn() || model.spaces.length < 2) return false
   const s = model.spaces[n - 1]
-  return s ? { do: 'space.select', id: s.id } : null
+  return s ? { do: 'space.select', id: s.id } : false
 }
 for (let n = 1; n <= 9; n++) {
-  shortcut(`Ctrl+${n}`, 'later', () => (swapped() ? spaceKey(n) : { do: 'tab.nth', n }))
-  shortcut(`Alt+${n}`, 'later', () => (swapped() ? { do: 'tab.nth', n } : spaceKey(n)))
+  shortcut(`Ctrl+${n}`, 'first', () => (swapped() ? spaceKey(n) : { do: 'tab.nth', n }))
+  // Also Space n's action when Settings gave it a key of its own (actionOf).
+  shortcut(`Alt+${n}`, 'first', (_c, k) => (swapped() && k.chord === `Alt+${n}` ? { do: 'tab.nth', n } : spaceKey(n)))
 }
 
 // windows: focus, ⌃ let go, the pages' histories before they close
