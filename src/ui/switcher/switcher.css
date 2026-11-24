@@ -1,0 +1,14 @@
+/* The Ctrl+Tab switcher (studio/01 §3.26, TabSwitcher.swift 399-677). */
+.switcher { position: fixed; inset: 0; background: rgba(0, 0, 0, .12); display: grid; place-items: center; animation: switcher-in var(--dur-quick) var(--ease-quick); }
+@keyframes switcher-in { from { opacity: 0; } }
+.switcher-panel { padding: 12px; border-radius: 12px; background: var(--ground); box-shadow: inset 0 0 0 1px var(--hairline); color: var(--ink); }
+.switcher-grid { position: relative; }
+.switcher-chosen { position: absolute; left: 0; top: 0; border-radius: 8px; background: var(--faint); }
+.sw-card { position: absolute; left: 0; top: 0; padding: 8px; display: flex; flex-direction: column; gap: 7px; }
+.picture { border-radius: 5px; overflow: hidden; background: var(--hover); display: grid; place-items: center; flex: none; }
+.no-picture { font-weight: 500; color: var(--muted); line-height: 1; }
+.caption { display: flex; align-items: center; gap: 6px; min-width: 0; height: 16px; }
+.card-title { flex: 1; min-width: 0; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.card-muted { flex: none; color: var(--muted); }
+.switcher-keys { display: flex; justify-content: center; gap: 14px; padding-top: 2px; margin-top: 8px; font-size: 10.5px; color: var(--muted); }
+.switcher-keys b { font-weight: 500; color: var(--ink); margin-right: 4px; }

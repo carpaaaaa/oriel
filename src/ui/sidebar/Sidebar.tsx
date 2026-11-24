@@ -1,129 +1,344 @@
-// The column: the doors at the top (Back, Forward, Reload), pins as squares,
-// then the tabs as rows with the grey of the active one gliding between them
-// (studio/01 §5, studio/02 §4.2).
+// The column (studio/01 §5, studio/02 §4.2; Side.swift `SideBar`): the band
+// at the top with back, forward and reload; the pinned squares; the rows
+// that scroll (pinned rows and their folders, groups, the keep line, the
+// tabs, New tab); the foot. The live tab's grey glides from line to line on
+// the `glide` spring; lines come and go on `settle`; the space's colour or
+// gradient washes the chrome.
 
 import './sidebar.css'
-import { createEffect, createSignal, For, Show } from 'solid-js'
-import { state, cmd, activeTab } from '../lib/store'
-import { Back, Forward, Reload, Stop, Close, Globe, Speaker, SpeakerOff } from '../lib/icons'
-import type { TabView, PinView } from '../../shared/state'
+import { batch, createEffect, createMemo, createSignal, For, Match, on, onCleanup, onMount, Show, Switch, untrack } from 'solid-js'
+import { state, cmd } from '../lib/store'
 import { outlet } from '../lib/registry'
 import { Dynamic } from 'solid-js/web'
+import { G } from './glyphs'
+import { P, currentSpace, pref } from './derive'
+import { layout, pinCells, type Item } from './layout'
+import { Row } from './Row'
+import { GroupHeading, FolderHeading, KeepLine, NewTabRow, RowGhost, openColumnMenu } from './Lines'
+import { PinGrid } from './Pins'
+import { Foot, spaceStep } from './Foot'
+import { Tiles } from './Tiles'
+import { wash, grain } from './look'
+import { Chase, Springs, leave, arrive, swipe, reducedMotion, type Box } from './motion'
+import { carry, shifted, dropMark, rowGhost, wireMenuPicks, activeTab } from './ui'
+import { setColumn } from './drag'
+import { TabBar } from '../tabbar/TabBar'
 
 export function Sidebar() {
-  let list!: HTMLDivElement
-  const [grey, setGrey] = createSignal<{ y: number; h: number } | null>(null)
-
-  createEffect(() => {
-    const id = state.activeID
-    void state.tabs.length
-    queueMicrotask(() => {
-      const row = list?.querySelector<HTMLElement>(`[data-tab="${id}"]`)
-      setGrey(row ? { y: row.offsetTop, h: row.offsetHeight } : null)
-    })
-  })
-
-  const loose = () => state.tabs.filter(t => !t.pinID)
-  const tab = activeTab
-
-  const startResize = (e: PointerEvent) => {
-    const start = e.clientX, width = state.sidebar.width
-    const move = (m: PointerEvent) => void cmd({ do: 'sidebar.resize', width: width + (m.clientX - start) })
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-  }
-
+  wireMenuPicks()
   return (
-    <aside class="sidebar" style={{ width: `${state.sidebar.width}px` }}>
-      <div class="helm drag">
-        <button class="door" disabled={!tab()?.canGoBack} onClick={() => cmd({ do: 'tab.back' })} title="Back"><Back size={14} /></button>
-        <button class="door" disabled={!tab()?.canGoForward} onClick={() => cmd({ do: 'tab.forward' })} title="Forward"><Forward size={14} /></button>
-        <button class="door" disabled={!tab() || tab()!.empty} onClick={() => cmd({ do: tab()?.loading ? 'tab.stop' : 'tab.reload' })} title="Reload">
-          {tab()?.loading ? <Stop size={14} /> : <Reload size={14} />}
-        </button>
-      </div>
-
-      <button class="address-line" onClick={() => cmd({ do: 'field.open', target: 'here' })}>
-        <span>{tab() && !tab()!.empty ? hostOf(tab()!.url) : 'Search or type an address'}</span>
-      </button>
-
-      <Show when={state.pins.length}>
-        <div class="pins">
-          <For each={state.pins}>{pin => <Pin pin={pin} />}</For>
-        </div>
-      </Show>
-
-      <div class="rows" ref={list} onDblClick={e => { if (e.target === list) void cmd({ do: 'tab.new' }) }}>
-        <Show when={grey()}>{g => <div class="grey" style={{ transform: `translateY(${g().y}px)`, height: `${g().h}px` }} />}</Show>
-        <For each={loose()}>{t => <Row tab={t} />}</For>
-      </div>
-
-      <For each={outlet('sidebar.afterPins')}>{c => <Dynamic component={c} />}</For>
-      <div class="foot">
-        <For each={outlet('sidebar.foot')}>{c => <Dynamic component={c} />}</For>
-        <For each={state.spaces}>{s => (
-          <button class="door space-dot" classList={{ on: s.id === state.space }} title={s.name} onClick={() => cmd({ do: 'space.select', id: s.id })}>
-            <span class="dot" />
-          </button>
-        )}</For>
-      </div>
-      <div class="grip" onPointerDown={startResize} />
-    </aside>
+    <Show when={state.sidebar.layout !== 'top'} fallback={<TabBar />}>
+      <Column />
+    </Show>
   )
 }
 
-function Row(p: { tab: TabView }) {
-  const t = () => p.tab
+/** The space's colour or gradient over the chrome, never the page: one layer
+ * the size of the window under the column, the bars and the card, so each
+ * shows its piece of the same gradient (§2.6). A change crossfades (quick). */
+export function Wash() {
+  const look = () => wash(currentSpace(), state.look === 'dark')
+  const [layers, setLayers] = createSignal<{ bg: string; id: number }[]>([])
+  let n = 0
+  createEffect(on(look, bg => {
+    const id = ++n
+    // The new one fades in over the old, which goes once it has.
+    setLayers(l => [...l.slice(-1), ...(bg ? [{ bg, id }] : [])])
+    setTimeout(() => { if (id === n) setLayers(l => l.filter(x => x.id === id)) }, 160)
+  }))
+  const grainy = () => !!(currentSpace()?.gradient as { grain?: boolean } | undefined)?.grain
   return (
-    <div class="row" data-tab={t().id} classList={{ active: t().id === state.activeID, asleep: t().asleep }}
-      onPointerDown={e => { if (e.button === 0 && !(e.target as HTMLElement).closest('.x')) void cmd({ do: 'tab.select', id: t().id }) }}
-      onAuxClick={e => { if (e.button === 1) void cmd({ do: 'tab.close', id: t().id }) }}
-      onContextMenu={e => { e.preventDefault(); void cmd({ do: 'tab.menu', id: t().id, x: e.clientX, y: e.clientY }) }}>
-      <Mark url={t().url} favicon={t().favicon} loading={t().loading} />
-      <span class="title">{t().name || t().title || (t().empty ? 'New Tab' : hostOf(t().url))}</span>
-      <Show when={t().audible || t().muted}>
-        <button class="speaker" onClick={() => cmd({ do: 'tab.mute', id: t().id, muted: !t().muted })}>
-          {t().muted ? <SpeakerOff size={12} /> : <Speaker size={12} />}
-        </button>
+    <div class="wash" aria-hidden="true">
+      <For each={layers()}>{l => <div class="wash-layer" style={{ background: l.bg }} />}</For>
+      <Show when={grainy()}>
+        <div class="wash-grain" style={{ 'background-image': `url(${grain()})`, opacity: state.look === 'dark' ? 0.04 : 0.035 }} />
       </Show>
-      <button class="x" onClick={() => cmd({ do: 'tab.close', id: t().id })} title="Close Tab"><Close size={11} /></button>
     </div>
   )
 }
 
-function Pin(p: { pin: PinView }) {
+/** Back, forward and reload (TabBar.swift `Helm`, Side.swift `Door`):
+ * doors of 26, radius 8, 4 apart; greyed to 0.3 with nowhere to go. On
+ * Windows the window's buttons are at the far end, so the doors start at
+ * the column's edge, as the Mac's do in full screen (lights 0). */
+function Helm(p: { vertical?: boolean }) {
+  const tab = activeTab
+  const back = () => !!tab() && !tab()!.empty && tab()!.canGoBack
+  const forward = () => !!tab() && !tab()!.empty && tab()!.canGoForward
+  const web = () => !!tab() && !tab()!.empty && !tab()!.internal
+  const lights = () => (state.chrome === 'mac' && !state.fullScreen ? Math.max(0, Math.min(80, state.sidebar.width - 20 - 86 - (P.foldButton() ? 30 : 0))) : 0)
   return (
-    <button class="pin" classList={{ active: !!p.pin.tabID && p.pin.tabID === state.activeID, open: !!p.pin.tabID }}
-      title={p.pin.title}
-      onClick={() => p.pin.tabID ? cmd({ do: 'tab.select', id: p.pin.tabID }) : cmd({ do: 'pin.open', id: p.pin.id })}>
-      <Mark url={p.pin.home} favicon={p.pin.favicon} size={16} />
-    </button>
-  )
-}
-
-export function Mark(p: { url: string; favicon?: string; loading?: boolean; size?: number }) {
-  const [broken, setBroken] = createSignal(false)
-  createEffect(() => { void p.favicon; setBroken(false) })
-  const size = () => p.size ?? 15
-  return (
-    <span class="mark" style={{ width: `${size()}px`, height: `${size()}px` }}>
-      <Show when={p.loading} fallback={
-        <Show when={p.favicon && !broken()} fallback={<Letter url={p.url} />}>
-          <img src={p.favicon} width={size()} height={size()} onError={() => setBroken(true)} draggable={false} />
-        </Show>
-      }>
-        <svg class="ring" viewBox="0 0 12 12" width="10" height="10"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="24.5 31.4" /></svg>
+    <div class="helm" classList={{ vertical: !!p.vertical }} style={{ 'padding-left': p.vertical ? undefined : `${10 + lights()}px` }}>
+      <Show when={P.foldButton() && !p.vertical}>
+        <button class="door fold-door" title="Hide Sidebar   Ctrl+S" onClick={() => void cmd({ do: 'sidebar.fold', folded: true })}>
+          <G.sidebarLeft pt={11} weight="medium" />
+        </button>
       </Show>
-    </span>
+      <button class="door" disabled={!back()} title="Back   Alt+Left" onClick={() => void cmd({ do: 'tab.back' })}><G.chevronLeft pt={11} weight="medium" /></button>
+      <button class="door" disabled={!forward()} title="Forward   Alt+Right" onClick={() => void cmd({ do: 'tab.forward' })}><G.chevronRight pt={11} weight="medium" /></button>
+      <button class="door" disabled={!web()} title={tab()?.loading ? 'Stop   Esc' : 'Reload   Ctrl+R'}
+        onClick={() => void cmd({ do: tab()?.loading ? 'tab.stop' : 'tab.reload' })}>
+        {tab()?.loading ? <G.xmark pt={11} weight="medium" /> : <G.reload pt={11} weight="medium" />}
+      </button>
+      <Show when={!p.vertical}>
+        <For each={outlet('sidebar.helm')}>{c => <Dynamic component={c} />}</For>
+      </Show>
+    </div>
   )
 }
 
-function Letter(p: { url: string }) {
-  const h = () => hostOf(p.url)
-  return <Show when={h()} fallback={<Globe size={13} />}><span class="letter">{h()[0]?.toUpperCase()}</span></Show>
+export function Column() {
+  let body!: HTMLDivElement
+  let scroller!: HTMLDivElement
+  let content!: HTMLDivElement
+  let pillEl!: HTMLDivElement
+
+  const icons = () => P.iconColumn()
+  const width = () => (icons() ? 52 : state.sidebar.width)
+  const L = createMemo(() => layout())
+  const byKey = createMemo(() => new Map(L().items.map(i => [i.key, i])))
+
+  // lines going: kept a moment where they were, fading (settle)
+  const [ghosts, setGhosts] = createSignal<Map<string, Item>>(new Map())
+  const [arrivals, setArrivals] = createSignal(false)
+  const [still, setStill] = createSignal(true)
+  let seenSpace = state.space
+  let lastKeys = new Set<string>()
+  let lastItems = new Map<string, Item>()
+
+  createEffect(on(L, l => {
+    const keys = new Set(l.items.map(i => i.key))
+    const items = new Map(l.items.map(i => [i.key, i]))
+    queueMicrotask(() => {
+      const switched = state.space !== seenSpace
+      seenSpace = state.space
+      if (switched) {
+        batch(() => { setGhosts(new Map()); setStill(true) })
+        requestAnimationFrame(() => requestAnimationFrame(() => setStill(false)))
+        slideIn()
+      } else if (arrivals()) {
+        const gone = [...lastKeys].filter(k => !keys.has(k) && lastItems.get(k)?.kind !== 'wash')
+        if (gone.length) setGhosts(g => { const m = new Map(g); for (const k of gone) m.set(k, lastItems.get(k)!); return m })
+        const back = [...ghosts().keys()].filter(k => keys.has(k))
+        if (back.length) setGhosts(g => { const m = new Map(g); for (const k of back) m.delete(k); return m })
+      }
+      lastKeys = keys
+      lastItems = items
+    })
+  }))
+  onMount(() => { requestAnimationFrame(() => { setStill(false); setArrivals(true) }) })
+
+  const keys = createMemo(() => [...L().items.map(i => i.key), ...[...ghosts().keys()].filter(k => !byKey().has(k))])
+  const itemOf = (key: string) => byKey().get(key) ?? ghosts().get(key)
+
+  // the space's rows sliding in, the way the spaces went (§7.18, §7.21)
+  let stopSlide = () => {}
+  function slideIn() {
+    stopSlide()
+    const x0 = spaceStep() * width()
+    const targets = [content, body.querySelector<HTMLElement>('.pins')].filter(Boolean) as HTMLElement[]
+    stopSlide = swipe(x0, x => { for (const t of targets) t.style.translate = x ? `${x}px 0` : '' }, () => {})
+  }
+
+  // the grey that glides (LivePill, §5.12)
+  const [gliding, setGliding] = createSignal<string | null>(null)
+  let chase: Chase | null = null
+  const rectIn = (el: Element): Box => {
+    const b = body.getBoundingClientRect(), r = el.getBoundingClientRect()
+    return { x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height }
+  }
+  const liveEl = (id: string | null) => (id ? body.querySelector<HTMLElement>(`.row[data-tab="${id}"], .square[data-tab="${id}"], .tile[data-tab="${id}"]`) : null)
+  createEffect(on(() => state.activeID, (id, prev) => {
+    if (!prev || !id || prev === id) return
+    const spaceThen = state.space
+    queueMicrotask(() => {
+      if (state.space !== spaceThen || seenSpace !== spaceThen) return
+      const from = liveEl(prev) ?? body.querySelector(`[data-ghost-tab="${prev}"]`)
+      const to = liveEl(id)
+      if (!from || !to || reducedMotion()) return
+      const start = chase ? { x: chase.pos[0], y: chase.pos[1], w: chase.pos[2], h: chase.pos[3] } : rectIn(from)
+      chase?.stop()
+      const paint = (b: Box) => {
+        pillEl.style.transform = `translate(${b.x}px, ${b.y}px)`
+        pillEl.style.width = `${b.w}px`
+        pillEl.style.height = `${b.h}px`
+      }
+      const square = to.classList.contains('square') || to.classList.contains('tile')
+      pillEl.classList.toggle('on-square', square)
+      pillEl.style.borderRadius = square ? getComputedStyle(to).getPropertyValue('--r') || '9px' : '9px'
+      paint(start)
+      setGliding(id)
+      chase = new Chase(Springs.glide, start, () => { const el = liveEl(state.activeID); return el ? rectIn(el) : null }, paint,
+        () => { chase = null; setGliding(null) })
+      chase.start()
+    })
+  }))
+  onCleanup(() => chase?.stop())
+
+  // the tab in front kept in sight (§5.10): scrolled to, or centred
+  createEffect(on(() => state.activeID, id => {
+    queueMicrotask(() => {
+      const el = id ? scroller.querySelector<HTMLElement>(`.row[data-tab="${id}"], .tile[data-tab="${id}"]`) : null
+      if (!el) return
+      const it = byKey().get(`t:${id}`)
+      if (!it) return
+      const top = scroller.scrollTop, h = scroller.clientHeight
+      if (it.y < top || it.y + it.h > top + h) {
+        const centre = Math.max(0, it.y + it.h / 2 - h / 2)
+        scroller.scrollTo({ top: centre, behavior: reducedMotion() || still() ? 'instant' : 'smooth' })
+      }
+    })
+  }))
+
+  onMount(() => {
+    setColumn({
+      body, scroller,
+      width,
+      rowsTop: () => scroller.offsetTop - scroller.scrollTop,
+      gridHeight: () => { const g = body.querySelector<HTMLElement>('.pins'); return g ? g.offsetHeight : 0 },
+    })
+  })
+  onCleanup(() => setColumn(null))
+
+  // the edge (§5.3): 9 wide, the pill 4 × 28, 40 lit; double click, 232
+  const [gripping, setGripping] = createSignal(false)
+  const startResize = (e: PointerEvent) => {
+    if (e.button !== 0 || icons() && !P.narrowIcons()) return
+    e.preventDefault()
+    const start = e.clientX
+    const from = icons() ? 200 - 24 : state.sidebar.width
+    setGripping(true)
+    let raf = 0, wanted = from
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* synthetic */ }
+    const move = (m: PointerEvent) => {
+      wanted = from + (m.clientX - start)
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        // Narrow to icons: under 200 the strip, pulled 24 out of it the titles (§5.4).
+        if (P.narrowIcons()) {
+          const narrow = wanted < 200
+          if (narrow !== !!pref('sidebar.narrowed', false)) void cmd({ do: 'prefs.set', key: 'sidebar.narrowed', value: narrow })
+          if (narrow) return
+        }
+        void cmd({ do: 'sidebar.resize', width: wanted })
+      })
+    }
+    const up = () => {
+      setGripping(false)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
+  // the void under the rows: a new tab on a double click, the column's menu
+  // on a right click; dragged, the window (asked of the window module).
+  const voidDown = (e: PointerEvent) => {
+    if (e.button !== 0) return
+    const x0 = e.screenX, y0 = e.screenY
+    const move = (m: PointerEvent) => {
+      if (Math.abs(m.screenX - x0) + Math.abs(m.screenY - y0) > 3) {
+        stop()
+        void cmd({ do: 'window.startDrag', x: m.screenX, y: m.screenY })
+      }
+    }
+    const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop) }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
+
+  const rowsHeight = () => L().height
+
+  return (
+    <aside class="sidebar on-frame" data-tabs-ui="column" classList={{ icons: icons(), right: state.sidebar.side === 'right' }}
+      style={{ width: `${width()}px` }}
+      onContextMenu={e => { if (!(e.target as HTMLElement).closest('.row, .square, .tile, .group-heading, .folder-heading, .door, .foot > *')) { e.preventDefault(); void openColumnMenu(e) } }}>
+      <Wash />
+      <div class="band drag">
+        <Show when={!icons()}><Helm /></Show>
+        <For each={outlet('sidebar.top')}>{c => <Dynamic component={c} />}</For>
+      </div>
+      <Show when={icons()}>
+        <Show when={!pref('sidebar.narrowed', false) || state.sidebar.icons}><Helm vertical /></Show>
+      </Show>
+      <div class="side-body" ref={body}>
+        <div class="pill-layer" aria-hidden="true">
+          <div ref={pillEl} class="live-pill" classList={{ on: !!gliding() }} />
+        </div>
+        <Show when={!icons()} fallback={<Tiles still={still()} glidingTo={gliding()} />}>
+          <PinGrid squares={L().squares} width={width()} still={still()} glidingTo={gliding()} />
+        </Show>
+        <For each={outlet('sidebar.afterPins')}>{c => <Dynamic component={c} />}</For>
+        <Show when={!icons()}>
+          <div class="rows" ref={scroller} onDblClick={e => { if (e.target === scroller) void cmd({ do: 'tab.new' }) }}>
+            <div class="rows-content" ref={content} classList={{ still: still() }} style={{ height: `${rowsHeight()}px` }}>
+              <For each={keys()}>{key => <Line key={key} item={itemOf(key)} leaving={!byKey().has(key)} arrivals={arrivals()} gliding={gliding()}
+                done={() => setGhosts(g => { const m = new Map(g); m.delete(key); return m })} />}</For>
+              <Show when={rowGhost()}>{g => {
+                const t = () => state.tabs.find(x => x.id === g().tab)
+                return <Show when={t()}><div class="line ghost-line" style={{ transform: `translateY(${g().block}px)`, height: `${L().items[0]?.h ?? 28}px` }}><RowGhost tab={t()!} /></div></Show>
+              }}</Show>
+            </div>
+          </div>
+        </Show>
+        <div class="void" onDblClick={() => void cmd({ do: 'tab.new' })} onPointerDown={voidDown} />
+      </div>
+      <Foot vertical={icons()} />
+      <div class="grip" classList={{ held: gripping() }} onPointerDown={startResize}
+        onDblClick={() => { void cmd({ do: 'prefs.set', key: 'sidebar.narrowed', value: false }); void cmd({ do: 'sidebar.resize', width: 232 }) }}>
+        <span class="grip-pill" />
+      </div>
+    </aside>
+  )
 }
 
-export function hostOf(url: string): string {
-  try { return new URL(url).host.replace(/^www\./, '') } catch { return '' }
+/** One line of the rows, at its place. */
+function Line(p: { key: string; item: Item | undefined; leaving: boolean; arrivals: boolean; gliding: string | null; done: () => void }) {
+  let el!: HTMLDivElement
+  const c = () => carry()
+  const carried = () => c()?.key === p.key
+  const y = () => {
+    if (carried()) return c()!.y
+    const s = shifted()[p.key]
+    return s ?? p.item?.y ?? 0
+  }
+  onMount(() => {
+    const it = p.item
+    queueMicrotask(() => { if (p.arrivals && !p.leaving && it && it.kind !== 'wash' && untrack(() => !carry())) arrive(el, it.kind === 'row' ? 0.94 : 0.94) })
+  })
+  createEffect(on(() => p.leaving, l => { if (l) leave(el, 0.94, p.done) }))
+  const mark = () => dropMark()?.key === p.key ? dropMark() : null
+  return (
+    <Show when={p.item}>{it => (
+      <div ref={el} class="line" data-key={p.key} data-kind={it().kind}
+        data-ghost-tab={p.leaving && it().kind === 'row' ? (it() as Extract<Item, { kind: 'row' }>).tab.id : undefined}
+        classList={{ carried: carried(), faded: carried() && !!c()?.faded, leaving: p.leaving, wash: it().kind === 'wash', gliding: it().kind === 'row' && p.gliding === (it() as Extract<Item, { kind: 'row' }>).tab.id }}
+        style={{ transform: `translateY(${y()}px)`, height: `${it().h}px`, left: `${it().x}px`, right: `${it().r}px` }}>
+        <Switch>
+          <Match when={it().kind === 'row' && (it() as Extract<Item, { kind: 'row' }>)}>{r => <Row tab={r().tab} grouped={!!r().group} pinned={!!r().pinned} />}</Match>
+          <Match when={it().kind === 'group' && (it() as Extract<Item, { kind: 'group' }>)}>{g => <GroupHeading group={g().group} />}</Match>
+          <Match when={it().kind === 'folder' && (it() as Extract<Item, { kind: 'folder' }>)}>{f => <FolderHeading folder={f().folder} depth={f().depth} />}</Match>
+          <Match when={it().kind === 'keep' && (it() as Extract<Item, { kind: 'keep' }>)}>{k => <KeepLine clears={k().clears} />}</Match>
+          <Match when={it().kind === 'new'}><NewTabRow /></Match>
+          <Match when={it().kind === 'wash' && (it() as Extract<Item, { kind: 'wash' }>)}>{w => <GroupWash colour={w().group.colour} />}</Match>
+        </Switch>
+        <Show when={mark()}>{m => <span class="drop-mark" classList={{ after: m().after }} />}</Show>
+      </div>
+    )}</Show>
+  )
 }
+
+function GroupWash(p: { colour: number }) {
+  return <div class="group-wash" style={{ background: groupColour(p.colour) }} />
+}
+
+export function groupColour(colour: number): string {
+  const c = [[0.26, 0.52, 0.96], [0.20, 0.66, 0.45], [0.96, 0.62, 0.20], [0.90, 0.33, 0.40], [0.62, 0.40, 0.90]][colour - 1]
+  if (!c) return 'transparent'
+  const a = state.look === 'dark' ? 0.11 : 0.07
+  return `rgba(${c.map(v => Math.round(v * 255)).join(', ')}, ${a})`
+}
+
+export { pinCells }
