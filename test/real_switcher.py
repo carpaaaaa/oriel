@@ -182,9 +182,26 @@ def focus_window():
     time.sleep(0.3)
 
 
+user32.GetForegroundWindow.restype = ctypes.c_void_p
+user32.GetAncestor.restype = ctypes.c_void_p
+user32.GetAncestor.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+
+
 def focus_page():
+    """Oriel in front with the page's keys, as a person gives them: a click
+    on an empty part of the page, then the page focused by Oriel too."""
+    f = frame()
+    x = (f["bounds"]["x"] + f["bounds"]["width"] * 0.78) * f["scale"]
+    y = (f["bounds"]["y"] + f["bounds"]["height"] * 0.7) * f["scale"]
+    click(x, y)
     b.cmd("window.focusPage")
     time.sleep(0.2)
+    fg = user32.GetAncestor(user32.GetForegroundWindow(), 2)
+    if fg != f["hwnd"]:
+        print(f"  (Oriel isn't in front: {fg} != {f['hwnd']})", flush=True)
+    # The ARM machine loses the first keys after a window comes up.
+    for _ in range(2):
+        tap("shift")
 
 
 b.call({"do": "window.place", "x": 120, "y": 80, "width": 1100, "height": 720})
@@ -212,6 +229,7 @@ t.ok(got, f"again: back to the first ({title()}, switcher {switcher()})")
 
 # 2. Held: the panel, Tab and Shift+Tab, Ctrl let go.
 say('2. held')
+focus_page()
 down("ctrl"); tap("tab")
 time.sleep(0.5)
 sw = switcher()
@@ -399,6 +417,7 @@ def first_red(col):
     return None
 
 
+print(f"  switches: {b.call({'do': 'app.switches'})}", flush=True)
 page = "data:text/html,<title>bounce</title><style>html{background:%2300c060}body{margin:0;background:%23fff}</style><div style='height:160px;background:%23e00000'></div><div style='height:3000px'>tall</div>"
 b.cmd("tab.go", input=page)
 b.wait_for(lambda: title() == "bounce", what="bounce page")
@@ -414,6 +433,20 @@ ok_touch = user32.InitializeTouchInjection(1, 3)  # TOUCH_FEEDBACK_NONE
 if not ok_touch:
     print(f"  (touch injection refused here, error {ctypes.get_last_error()}: step 7 skipped)")
 else:
+    # The finger reaches the page: pushed up, it scrolls the page down.
+    b.cmd("settings.set", id="pages.bounce", value=False)
+    focus_page()
+    touch(DOWN, fx, fy + 150)
+    for i in range(1, 16):
+        touch(UPDATE, fx, fy + 150 - i * 12)
+        time.sleep(0.016)
+    touch(UP_, fx, fy - 30)
+    time.sleep(0.8)
+    scrolled = b.ev(b.active()["id"], "scrollY")
+    t.ok(scrolled and scrolled > 20, f"a finger reaches the page: pushed up, it scrolls ({scrolled})")
+    b.ev(b.active()["id"], "scrollTo(0, 0)")
+    time.sleep(0.4)
+
     def stretch(on):
         b.cmd("settings.set", id="pages.bounce", value=on)
         time.sleep(0.6)

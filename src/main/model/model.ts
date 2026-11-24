@@ -1681,6 +1681,8 @@ class Model extends EventEmitter {
     win.switcher = null
     this.touch(win, ['switcher'])
     if (!cancel && s.cards[s.index]) this.selectTab(win, s.cards[s.index])
+    // The keys to the page in front (tabs/wiring.ts), however it ended.
+    this.emit('switch-ended', win)
   }
 
   // MARK: groups (§6.34-§6.41, §6.50)

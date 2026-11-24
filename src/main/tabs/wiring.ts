@@ -114,6 +114,12 @@ model.on('window-opened', (id: string) => setImmediate(() => {
   }
 }))
 
+// The switcher gone, by Ctrl let go (a keyUp, or the keyboard asked), Esc,
+// a click or Enter: the page in front has the keys. Without this a quick
+// Ctrl+Tab left them with the page it came from, now out of sight, and the
+// next key (a second Ctrl+Tab too) went nowhere.
+model.on('switch-ended', (w: { id: string }) => controllerFor(w.id)?.focusPage())
+
 // Another tab in front: the field it was raised for goes (Browser.select
 // sets editing off, §3.9); an empty tab's field is the tab itself.
 model.on('selected', (w: { id: string }, id: string) => {
