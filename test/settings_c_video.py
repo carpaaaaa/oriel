@@ -41,21 +41,25 @@ def send(tab, *events):
     b.call({"do": "pages.input", "id": tab, "events": list(events)})
 
 
-def tab_titled(title, url):
+def tab_titled(title, url, paint=True):
     b.cmd("tab.new", url=url)
     b.wait_for(lambda: b.active()["title"] == title, within=30, what=title)
+    tab = b.active()["id"]
+    # Painted, so the page takes input (a loaded machine paints late).
+    if paint:  # (the bench's reads count as a click: not before a page's own play())
+        b.wait_for(lambda: ev(tab, "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))") == 1, within=30, what="painted")
     time.sleep(0.4)
-    return b.active()["id"]
+    return tab
 
 
 # 1. Videos wait for a click (off by default).
 # (The bench's own reads count as a click for five seconds: none until the page has tried.)
-tab = tab_titled("auto", H + "/auto")
+tab = tab_titled("auto", H + "/auto", paint=False)
 time.sleep(2.5)
 t.ok(ev(tab, "document.getElementById('v').paused") is False, "off: a muted autoplay video starts by itself")
 t.ok(ev(tab, "window.r") == "played", "off: a page's script can start one")
 setting("media.click", True)
-tab = tab_titled("auto", H + "/auto?on")
+tab = tab_titled("auto", H + "/auto?on", paint=False)
 time.sleep(2.5)
 t.ok(ev(tab, "document.getElementById('v').paused") is True, "on: an autoplay video waits, even without sound")
 t.ok(ev(tab, "window.r") != "played" and ev(tab, "document.getElementById('w').paused") is True, f"on: a script's play() without a click doesn't start it ({ev(tab, 'window.r')})")

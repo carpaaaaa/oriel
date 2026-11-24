@@ -63,8 +63,11 @@ def peeks():
 def tab_titled(title, url):
     b.cmd("tab.new", url=url)
     b.wait_for(lambda: b.active()["title"] == title, within=30, what=title)
+    tab = b.active()["id"]
+    # Painted, so the page takes input (a loaded machine paints late).
+    b.wait_for(lambda: ev(tab, "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))") == 1, within=30, what="painted")
     time.sleep(0.4)
-    return b.active()["id"]
+    return tab
 
 
 src = tab_titled("source", H + "/source")
@@ -186,5 +189,63 @@ t.ok(ev(other, "getComputedStyle(document.getElementById('p')).color") == "rgb(2
 b.cmd("pages.style.set", host="127.0.0.1", css="  ")
 time.sleep(0.6)
 t.ok(ev(other, "getComputedStyle(document.getElementById('p')).color") == "rgb(0, 0, 0)", "a style of nothing but spaces is no style")
+
+# 9. Capture pages: an element clicked, an area dragged, the whole page.
+import struct
+import tempfile
+folder = tempfile.mkdtemp(prefix="oriel-capture-")
+setting("downloads", folder)
+web.PAGES["/snap"] = ("<title>snap</title><body style='margin:0;height:3000px;background:#fff'>"
+                      "<div id='box' style='position:absolute;left:40px;top:40px;width:200px;height:100px;background:#c33'></div>")
+sn = tab_titled("snap", H + "/snap")
+
+
+def png_size(path):
+    with open(path, "rb") as f:
+        head = f.read(24)
+    return struct.unpack(">II", head[16:24])
+
+
+def caps():
+    return b.call({"do": "pages.state"})["captures"]
+
+
+r = b.cmd("view.capture")
+t.ok("said" in r and not caps(), f"off: Capture… does nothing ({r})")
+setting("pages.capture", True)
+dpr = ev(sn, "devicePixelRatio")
+r = b.cmd("view.capture")
+t.ok(r.get("layer") is True, "on: the layer comes over the page")
+time.sleep(0.5)
+t.ok(ev(sn, "!!document.querySelector('[data-oriel-capture]')") is True, "with its bar: drag an area or click an element")
+send(sn, {"type": "mouseMove", "x": 140, "y": 90})
+send(sn, {"type": "mouseDown", "x": 140, "y": 90, "button": "left", "clickCount": 1},
+     {"type": "mouseUp", "x": 140, "y": 90, "button": "left", "clickCount": 1})
+b.wait_for(lambda: caps(), within=15, what="element capture")
+c = caps()[-1]
+w, h = png_size(c["path"])
+t.ok(c["kind"] == "element" and (w, h) == (round(200 * dpr), round(100 * dpr)), f"a click takes the element under it ({w}x{h}, {c['said']})")
+t.ok(Path(c["path"]).name.startswith("Capture ") and Path(c["path"]).parent == Path(folder), f"saved in the downloads folder as Capture <time>.png ({Path(c['path']).name})")
+t.ok(c["said"] == f"Copied and saved to {Path(folder).name}", "copied and said so")
+t.ok(ev(sn, "!document.querySelector('[data-oriel-capture]')") is True, "the layer is gone")
+b.cmd("view.capture")
+time.sleep(0.5)
+send(sn, {"type": "mouseDown", "x": 300, "y": 200, "button": "left", "clickCount": 1},
+     {"type": "mouseMove", "x": 340, "y": 220, "buttons": 1}, {"type": "mouseMove", "x": 420, "y": 260, "buttons": 1},
+     {"type": "mouseUp", "x": 420, "y": 260, "button": "left", "clickCount": 1})
+b.wait_for(lambda: len(caps()) >= 2, within=15, what="area capture")
+c = caps()[-1]
+w, h = png_size(c["path"])
+t.ok(c["kind"] == "area" and (w, h) == (round(120 * dpr), round(60 * dpr)), f"a drag takes the area ({w}x{h})")
+b.cmd("view.capture")
+time.sleep(0.5)
+send(sn, {"type": "keyDown", "keyCode": "Escape"}, {"type": "keyUp", "keyCode": "Escape"})
+time.sleep(1)
+t.ok(len(caps()) == 2 and ev(sn, "!document.querySelector('[data-oriel-capture]')") is True, "Escape: the layer goes and nothing is taken")
+r = b.cmd("view.capture", mode="page")
+c = caps()[-1]
+w, h = png_size(c["path"])
+t.ok(c["kind"] == "page" and h >= round(3000 * dpr) - 2, f"Whole Page takes all of it, past the window ({w}x{h})")
+t.ok(len(set(x["path"] for x in caps())) == 3, "each capture its own file")
 
 t.done()

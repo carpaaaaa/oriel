@@ -54,8 +54,11 @@ def send(tab, *events):
 def tab_titled(title, url):
     b.cmd("tab.new", url=url)
     b.wait_for(lambda: b.active()["title"] == title, within=30, what=title)
+    tab = b.active()["id"]
+    # Painted, so the page takes input (a loaded machine paints late).
+    b.wait_for(lambda: ev(tab, "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))") == 1, within=30, what="painted")
     time.sleep(0.4)
-    return b.active()["id"]
+    return tab
 
 
 # 1. Scroll with the middle button (off by default).
