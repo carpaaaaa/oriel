@@ -25,6 +25,7 @@ import { ask, askToAdd, localize, iconOf } from './ask'
 import { panelOf, togglePanel, closePanel, behaviour, setPanelWidth, forget as forgetPanel, followTab } from './sidepanel'
 import { closeOffscreen } from './offscreen'
 import { stopHosts } from './native'
+import { setupStore, offerFor } from './store'
 
 const STORE = 'https://chromewebstore.google.com/category/extensions'
 /** The profile's partition, for crx:// icons (main/index.ts makes it). */
@@ -109,6 +110,7 @@ export function sliceFor(c: WindowController): ExtState {
     said,
     manage: s.manage,
     panel: panel ? { id: panel.id, side: c.record.sidebar.side === 'right' ? 'left' : 'right', width: panel.width } : null,
+    store: offerFor(c),
   }
 }
 
@@ -332,39 +334,6 @@ function setPinned(id: string, on: boolean): void {
   markAll()
 }
 
-// ---- the Web Store page: "Add to Oriel" (studio/04 §2.2, 1; StoreRelay)
-
-const relay = (name: string) => `(() => {
-  if (window.__orielRelay) return; window.__orielRelay = true
-  const fix = () => {
-    for (const b of document.querySelectorAll('button')) {
-      if ([...b.querySelectorAll('span')].some(s => /^(Install|Switch to) /.test(s.textContent.trim()))) { b.style.display = 'none'; continue }
-      const label = [...b.querySelectorAll('span')].find(s => /^(Add to|Remove from|Added to) /.test(s.textContent.trim()))
-      if (!label) continue
-      const t = label.textContent.trim()
-      if (t.startsWith('Add to ') && t !== 'Add to ${name}') label.textContent = 'Add to ${name}'
-      if (t.startsWith('Remove from ')) { label.textContent = 'Added to ${name}'; b.disabled = true }
-    }
-    for (const el of document.querySelectorAll('div, section, aside')) {
-      if (el.childElementCount < 8 && /^Switch to Chrome/.test((el.textContent || '').trim()) && el.offsetHeight < 400) el.style.display = 'none'
-    }
-  }
-  let timer = 0
-  new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(fix, 60) }).observe(document, { subtree: true, childList: true, characterData: true })
-  fix()
-})()`
-
-function watchStore(wc: Electron.WebContents): void {
-  const go = () => {
-    try {
-      if (new URL(wc.getURL()).hostname !== 'chromewebstore.google.com') return
-      void wc.executeJavaScriptInIsolatedWorld(1999, [{ code: relay(brand.name) }]).catch(() => {})
-    } catch { /* no page */ }
-  }
-  wc.on('dom-ready', go)
-  wc.on('did-navigate-in-page', go)
-}
-
 // ---- wiring
 
 export function setupUI(e: ElectronChromeExtensions, p: Session, roots: { extensions: string; unpacked: string }): void {
@@ -381,7 +350,10 @@ export function setupUI(e: ElectronChromeExtensions, p: Session, roots: { extens
   model.on('selected', (win: { id: string }) => {
     for (const c of allControllers()) if (c.record.id === win.id && !c.base.isDestroyed()) { closePopup(c); followTab(c); c.mark('ext') }
   })
-  app.on('web-contents-created', (_e, wc) => { if (wc.session === p) watchStore(wc) })
+  setupStore(p, {
+    icon: id => (lib ? `crx://extension-icon/${id}/32/2?partition=${encodeURIComponent(PARTITION)}` : null),
+    changed: c => { if (!c.base.isDestroyed()) c.mark('ext') },
+  })
   // action.openPopup(): Oriel's popup, at the button.
   handleApi(e, 'browserAction.openPopup', ext => {
     const c = focusedController()
