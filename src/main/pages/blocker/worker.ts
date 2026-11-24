@@ -6,6 +6,8 @@
 //     with a gzipped copy of each list beside it (lists/<id>.txt.gz): the
 //     last good copy of a list whose update fails before Oriel ever got one
 
+import http from 'node:http'
+import https from 'node:https'
 import { parentPort } from 'node:worker_threads'
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
@@ -26,10 +28,36 @@ if (parentPort) {
   cli(process.argv[2], process.argv.slice(3)).catch(error => { console.error(`[blocker] ${error?.message ?? error}`); process.exit(1) })
 }
 
+// Node's https, not fetch: on the Windows release machine Node 24's fetch
+// (undici) crashed the whole build on parallel downloads with an assertion
+// thrown outside any promise. Redirects followed, 30 s per try, three tries.
+function once(url: string, redirects = 5): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const req = (url.startsWith('http:') ? http : https).get(url, { headers: { 'cache-control': 'no-cache', 'user-agent': 'Oriel (lists)' }, timeout: 30_000 }, res => {
+      const code = res.statusCode ?? 0
+      if (code >= 300 && code < 400 && res.headers.location && redirects > 0) {
+        res.resume()
+        once(new URL(res.headers.location, url).toString(), redirects - 1).then(resolve, reject)
+        return
+      }
+      if (code !== 200) { res.resume(); reject(new Error(`${url}: ${code}`)); return }
+      res.setEncoding('utf8')
+      let body = ''
+      res.on('data', chunk => { body += chunk })
+      res.on('end', () => resolve(body))
+      res.on('error', reject)
+    })
+    req.on('timeout', () => req.destroy(new Error(`${url}: timed out`)))
+    req.on('error', reject)
+  })
+}
+
 async function get(url: string): Promise<string> {
-  const r = await fetch(url, { headers: { 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(30_000) })
-  if (!r.ok) throw new Error(`${url}: ${r.status}`)
-  return r.text()
+  let last: unknown
+  for (let i = 0; i < 3; i++) {
+    try { return await once(url) } catch (error) { last = error; await new Promise(r => setTimeout(r, 1000 * (i + 1))) }
+  }
+  throw last
 }
 
 async function first(s: Source, isList: boolean): Promise<{ url: string; text: string }> {
