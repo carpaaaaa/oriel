@@ -9,6 +9,7 @@ import { SettingsPage } from './Settings'
 import { DownloadsDoor, DownloadsFloat, DownloadsPage } from './Downloads'
 import { PermissionQuestion } from './Permission'
 import { UpdatePopup } from './UpdatePopup'
+import { DefaultOffer } from './DefaultOffer'
 import './settings.css'
 
 registerPage('settings', SettingsPage)
@@ -16,5 +17,6 @@ registerPage('downloads', DownloadsPage)
 registerPanel('settings.permission', PermissionQuestion)
 registerPanel('settings.downloads', DownloadsFloat)
 registerPanel('settings.update', UpdatePopup)
+registerPanel('settings.default', DefaultOffer)
 registerOutlet('sidebar.foot', () => <DownloadsDoor where="foot" />)
 registerOutlet('strip.end', () => <DownloadsDoor where="strip" />)

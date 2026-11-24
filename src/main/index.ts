@@ -18,6 +18,7 @@ import { startBench } from './bench/server'
 import './bench/checks'
 import type { Command } from '../shared/commands'
 import { testEnv } from './testhooks'
+import { linkArgs } from './settings/browser'
 
 setupPaths()
 setupUserAgent()
@@ -111,12 +112,18 @@ ipcMain.on('search:leftover-key', (event, key) => {
   }
 })
 
+/** Links and files from another app, in order (studio/03 §3.1). */
+async function arriveAll(urls: string[], c: WindowController): Promise<void> {
+  for (const url of urls) await run({ do: 'link.arrive', url } as never, { window: c }).catch(e => keep('link.arrive', e))
+}
+
 app.on('second-instance', (_e, argv) => {
   // A link from another app goes where Settings › Browsing and Spaces say
-  // (a small window, a space, a tab: the tabs module's link.arrive).
-  const url = argv.find(a => /^(https?|file|mailto):/i.test(a))
+  // (a small window, a space, a tab: the tabs module's link.arrive); a file
+  // Windows hands over (Oriel opening .html, settings/browser.ts) too.
+  const urls = linkArgs(argv.slice(1))
   const c = allControllers()[0] ?? openWindow({ restore: false })
-  if (url) { void run({ do: 'link.arrive', url } as never, { window: c }); return }
+  if (urls.length) { void arriveAll(urls, c); return }
   if (c.base.isMinimized()) c.base.restore()
   c.base.focus()
 })
@@ -156,8 +163,8 @@ app.whenReady().then(async () => {
 
   const first = openWindow({ restore: !model.pref<boolean>('start.fresh') })
 
-  const url = process.argv.slice(1).find(a => /^(https?|file|mailto):/i.test(a))
-  if (url) void run({ do: 'link.arrive', url } as never, { window: first })
+  const urls = linkArgs(process.argv.slice(1))
+  if (urls.length) void arriveAll(urls, first)
 
   if (probe) startBench(probe)
 })

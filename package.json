@@ -70,7 +70,8 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
-      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "include": "build/installer.nsh"
     },
     "protocols": [
       {
