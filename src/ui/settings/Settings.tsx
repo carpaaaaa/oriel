@@ -23,7 +23,10 @@ type Prefs = Record<string, unknown>
 type Stage = { kind: 'none' } | { kind: 'fetching' | 'ready' | 'waiting'; version: string; notes?: string }
 interface Pending { version: string; notes?: string; ready: boolean; fetching: boolean }
 interface UpdateFacts { stage: Stage; checking: boolean; checked: number | null; active: boolean; portable?: boolean; pending: Pending | null }
-interface Facts { downloadsFolder: string; downloadsFolderName: string; isDefault: boolean; mailDefault: boolean; arcHere: boolean; arcUndoable: boolean; version: string; name: string; platform: string; update?: UpdateFacts; sync?: string }
+/** How Oriel can become the default (settings/browser.ts): through Windows Settings, not as the portable copy, not until installed. */
+type DefaultHow = 'settings' | 'portable' | 'unregistered'
+interface DefaultFacts { isDefault: boolean; mailDefault: boolean; defaultHow?: DefaultHow; defaultAsked?: boolean; mailAsked?: boolean }
+interface Facts extends DefaultFacts { downloadsFolder: string; downloadsFolderName: string; arcHere: boolean; arcUndoable: boolean; version: string; name: string; platform: string; update?: UpdateFacts; sync?: string }
 interface Values { prefs: Prefs; merged: Record<string, unknown>; facts: Facts }
 
 const [values, setValues] = createSignal<Values | null>(null)
@@ -148,8 +151,18 @@ function ago(ms: number): string {
 function detail(i: Item): string {
   const f = facts()
   switch (i.id) {
-    case 'general.default': return f?.isDefault ? 'Oriel is the default browser on this PC' : i.detail
-    case 'mail.default': return f?.mailDefault ? 'Email links from other apps open here' : i.detail
+    // Windows lets no app make itself the default: the row opens Oriel's
+    // page in Settings and says what to click there (settings/browser.ts).
+    case 'general.default':
+      if (f?.isDefault) return 'Oriel is the default browser on this PC'
+      if (f?.defaultHow === 'portable') return "Portable Oriel can't be the default browser. Install Oriel to make it one"
+      if (f?.defaultHow === 'unregistered') return "Windows doesn't list Oriel as a browser. Installing Oriel again puts it there"
+      return f?.defaultAsked ? 'In Windows Settings, click Set default at the top' : i.detail
+    case 'mail.default':
+      if (f?.mailDefault) return 'Email links from other apps open here'
+      if (f?.defaultHow === 'portable') return "Portable Oriel can't open email links from other apps. Install Oriel for that"
+      if (f?.defaultHow === 'unregistered') return "Windows doesn't list Oriel as a browser. Installing Oriel again puts it there"
+      return f?.mailAsked ? 'In Windows Settings, find MAILTO and choose Oriel' : i.detail
     case 'downloads.folder': return f?.downloadsFolder ?? ''
     case 'sync': return p<string>('sync.folder') ? f?.sync || p<string>('sync.folder') : i.detail
     case 'search.engine': {
@@ -203,10 +216,10 @@ const check = () => <span class="st-done"><Symbol name="checkmark" size={12} wei
 function control(i: Item): JSX.Element {
   switch (i.id) {
     // General
-    case 'general.default': return facts()?.isDefault ? check() : <Pill title="Make default" filled act={() => void act('general.default')} />
+    case 'general.default': return facts()?.isDefault ? check() : facts()?.defaultHow === 'settings' ? <Pill title="Make default" filled act={() => void act('general.default')} /> : null
     case 'mail.webmail': return <Menu label="Email links open in" value={p<string>('mail.webmail') ?? 'none'} set={v => void set('mail.webmail', v)}
       options={[['none', 'Your mail app'], null, ['gmail', 'Gmail'], ['outlook', 'Outlook.com'], ['fastmail', 'Fastmail'], ['proton', 'Proton Mail']]} />
-    case 'mail.default': return facts()?.mailDefault ? check() : <Pill title="Make default" filled act={() => void act('mail.default')} />
+    case 'mail.default': return facts()?.mailDefault ? check() : facts()?.defaultHow === 'settings' ? <Pill title="Make default" filled act={() => void act('mail.default')} /> : null
     case 'general.import': return <Pill title="Bring Things Over…" act={() => void act('general.import')} />
     case 'sync': return <Switch on={!!p('sync.folder')} set={v => void set('sync', v)} />
     case 'quit.confirm': return sw('quit.confirm')
@@ -448,6 +461,13 @@ export function SettingsPage() {
     onCleanup(off3)
     const off4 = onUpdate('sync', v => setValues(old => (old ? { ...old, facts: { ...old.facts, sync: String(v) } } : old)))
     onCleanup(off4)
+    // What Windows chose, read again when Oriel comes back to the front.
+    const off5 = onUpdate('default', v => {
+      const { said: now, ...got } = v as DefaultFacts & { said?: string }
+      setValues(old => (old ? { ...old, facts: { ...old.facts, ...got } } : old))
+      announce(now)
+    })
+    onCleanup(off5)
     const off2 = onUpdate('go', v => {
       const url = new URL(String(v))
       const n = url.pathname.replace(/^\//, '').split('/')[0] ?? ''

@@ -17,6 +17,7 @@ import { openInternal, scheme } from './internal'
 import { forgetPermissions } from './permissions'
 import { forgetDownloadAddresses } from './downloads'
 import { check, install, relaunch, updateFacts, updateNow } from './updater'
+import { askDefault, defaultFacts, dismissOffer, recheck } from './browser'
 import { testEnv } from '../testhooks'
 
 /** What Oriel said last (the Mac's announcement line), for the bench. */
@@ -167,8 +168,8 @@ export function settingsValues() {
     facts: {
       downloadsFolder: tilde(downloadsFolder()),
       downloadsFolderName: path.basename(downloadsFolder()),
-      isDefault: probe ? false : safe(() => app.isDefaultProtocolClient('https')),
-      mailDefault: probe ? false : safe(() => app.isDefaultProtocolClient('mailto')),
+      // What Windows chose for https and mailto (settings/browser.ts).
+      ...defaultFacts(),
       arcHere: !!arcFile() && existsSync(arcFile()),
       arcUndoable: !!arcBefore && looksLikeArc(),
       version: app.getVersion(),
@@ -180,9 +181,8 @@ export function settingsValues() {
     },
   }
 }
-const safe = (f: () => boolean) => { try { return f() } catch { return false } }
-
-handle('settings.values', () => settingsValues())
+// Settings opening reads Windows' answer afresh (settings/browser.ts).
+handle('settings.values', async () => { await recheck(); return settingsValues() })
 
 handle('settings.open', async ({ page, find }, ctx) => {
   const c = need(ctx)
@@ -219,7 +219,7 @@ function pageSessions(): Electron.Session[] {
 }
 
 /** Opens a link of Windows' own (Settings › Default apps). Never in a test. */
-function openSystem(url: string): void {
+export function openSystem(url: string): void {
   if (probe) { probeAnswers.opened.push(url); return }
   void shell.openExternal(url)
 }
@@ -228,11 +228,16 @@ handle('settings.do', async ({ id, arg }, ctx) => {
   const c = need(ctx)
   switch (id) {
     case 'general.default':
-      // Windows lets a browser only open the page where you choose it.
-      if (process.platform === 'win32' || probe) openSystem(`ms-settings:defaultapps?registeredAppUser=${encodeURIComponent(brand.name)}`)
+      // Windows lets a browser only open its page in Settings, where the
+      // person presses Set default (settings/browser.ts).
+      askDefault('browser')
       return settingsValues()
     case 'mail.default':
-      if (process.platform === 'win32' || probe) openSystem(`ms-settings:defaultapps?registeredAppUser=${encodeURIComponent(brand.name)}`)
+      askDefault('mail')
+      return settingsValues()
+    case 'default.dismiss':
+      // The first launch's offer put away (its X, Escape, Done).
+      dismissOffer()
       return settingsValues()
     case 'general.import':
       return run({ do: 'import.open' } as never, { window: c })

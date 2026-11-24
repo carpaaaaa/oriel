@@ -216,6 +216,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - run: npm ci
       # koffi's prebuilt binary for the other architecture too (npm only
       # installs the one of the machine it runs on).
@@ -229,3 +232,16 @@ jobs:
           name: installer
           path: |
             dist/*.exe
+      # Oriel as the default browser (studio/07 4.1): the x64 setup installed
+      # with /S lists Oriel among Windows' browsers; Settings opens on its page,
+      # Set default is pressed there, links and .html files open in Oriel;
+      # the uninstaller takes the keys away.
+      - name: Default browser (installed, Set default, links and files, uninstalled)
+        env:
+          SHOTS_DIR: shots
+        run: python test/default_browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: default-browser
+          path: shots/

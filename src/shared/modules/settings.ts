@@ -68,6 +68,10 @@ export interface SettingsState {
   downloadsStarted: number
   /** The update popup in this window, at launch (updates.dismissed puts it away). */
   update?: { version: string; notes?: string; ready: boolean; fetching: boolean } | null
+  /** The first launch's offer to be the default browser in this window
+   * (settings/browser.ts): whether Windows has it now, and whether Make
+   * Oriel the default was pressed. */
+  defaultOffer?: { isDefault: boolean; asked: boolean } | null
 }
 
 declare module '../commands' {
