@@ -447,7 +447,7 @@ try:
         place()
 
     # 8. A size of its own (a corner dragged), full screen and out: that size.
-    mine = {"x": P["x"] + 40, "y": P["y"] + 30, "width": P["width"] - 160, "height": P["height"] - 90}
+    mine = {"x": P["x"] + 30, "y": P["y"] + 20, "width": P["width"] - 70, "height": P["height"] - 60}  # above the 640 × 420 minimum
     answer({"do": "window.place", "visual": True, "window": WID, **mine})
     focus()
     click(px(mine["x"] + mine["width"] / 2), px(mine["y"] + mine["height"] / 2), 0.4)
@@ -489,7 +489,8 @@ try:
             page_full(True)
             healthy(f"{base}, the page full screen ({way})")
             f = frame()
-            t.ok(near_rect(f["bounds"], f["display"], 1), f"{base}, the page full screen: the window covers the screen ({f['bounds']})")
+            f = settle(lambda: (lambda f: f if near_rect(f["bounds"], f["display"], 1) else None)(frame()), 4) or frame()
+            t.ok(near_rect(f["bounds"], f["display"], 1), f"{base}, the page full screen: the window covers the screen ({f['state']}, {f['bounds']})")
             if way == "Escape":
                 chord("esc")
                 if settle(lambda: b.ev(tab, "!!document.fullscreenElement"), 0.6):
@@ -513,6 +514,7 @@ try:
 
     # 10. Minimize and restore, free and maximized (the button, then the taskbar).
     for base in ("free", "maximized"):
+        place()
         focus()
         if base == "maximized":
             click(*button("maximize"), 0.8)
@@ -539,6 +541,9 @@ try:
         time.sleep(1)
         start(wipe=False)
         settle(lambda: state_of() == "fullScreen", 10)
+        # A data: page isn't kept across a restart: the tab comes back empty, with no page to place.
+        b.cmd("tab.go", window=WID, input="data:text/html,<title>sizes</title><body style='margin:0;background:%23fff'>again")
+        b.wait_for(lambda: (b.active() or {}).get("title") == "sizes", what="page again")
         focus()
         expect(f"{before}, launched again in full screen", "fullScreen")
         chord("f11")

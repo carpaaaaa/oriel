@@ -145,8 +145,9 @@ export class Frame {
    * full screen and maximized again after, with the size it is restored to
    * kept as it was. */
   private fromMax: Placement | null = null
-  /** The last bounds while free: where a page's own full screen comes back to. */
-  private lastFree: Rectangle | null = null
+  /** What the window was the last time it wasn't in full screen (read at
+   * each refresh): where full screen comes back to, whoever started it. */
+  private notFull: { state: State; bounds: Rectangle; visual: Rectangle; normal: Rectangle } | null = null
 
   constructor(private readonly c: WindowController, kind: FrameKind) {
     this.kind = kind
@@ -195,8 +196,8 @@ export class Frame {
     this.state = this.compute()
     c.base.on('closed', () => this.stopPoll())
     // Full screen by F11, by a page (a video) or after a restart: all come here.
-    c.base.on('enter-full-screen', () => this.entered())
-    c.base.on('leave-full-screen', () => this.left())
+    c.base.on('enter-full-screen', () => setImmediate(() => this.refresh()))
+    c.base.on('leave-full-screen', () => setImmediate(() => this.refresh()))
     c.base.on('focus', () => this.refocusSoon())
     c.base.on('restore', () => this.refocusSoon())
   }
@@ -245,10 +246,21 @@ export class Frame {
    * told at once, before the pages move, so it measures the right card. */
   refresh(): boolean {
     if (this.c.base.isDestroyed()) return false
+    const b = this.c.base
+    const was = this.state
     const next = this.compute()
-    if (next === 'free' && !this.c.base.isMinimized()) this.lastFree = this.c.base.getBounds()
-    // Windows moved a window in full screen (Win+Left, Win+Right): it stays full screen.
-    if (next === 'fullScreen' && this.full) setImmediate(() => this.cover())
+    if (next !== 'fullScreen' && !b.isMinimized()) {
+      const bounds = b.getBounds(), m = this.kind === 'drawn' && next === 'free' ? ROOM : NONE
+      const visual = { x: bounds.x + m.left, y: bounds.y + m.top, width: bounds.width - m.left - m.right, height: bounds.height - m.top - m.bottom }
+      this.notFull = { state: next, bounds, visual, normal: next === 'free' ? bounds : this.restoreTo ?? b.getNormalBounds() }
+    }
+    // Into and out of full screen, by F11, a page (a video) or a restart:
+    // Electron doesn't always say so with its events, the window's state does.
+    if (next === 'fullScreen' && was !== 'fullScreen') this.entered()
+    if (was === 'fullScreen' && next !== 'fullScreen') this.left()
+    // In full screen it covers the screen: a maximized window Windows keeps at
+    // the work area, and Win+Left/Right moving it.
+    if (next === 'fullScreen') setImmediate(() => { this.leaveMaximized(); this.cover() })
     if (next === this.state) return false
     const before = this.margin()
     this.state = next
@@ -404,7 +416,8 @@ export class Frame {
   setFullScreen(on = !this.isFullScreen()): void {
     if (on === this.isFullScreen()) return
     if (on) {
-      this.beforeFull = this.state === 'free' ? this.c.base.getBounds() : this.restoreTo ?? this.c.base.getNormalBounds()
+      this.refresh()
+      this.beforeFull = this.comeBackTo()
       this.leaveMaximized()
     }
     this.full = on && !!this.hwnd
@@ -416,9 +429,21 @@ export class Frame {
   /** Into full screen, whoever asked (F11, a page, a restart). */
   private entered(): void {
     // A page's full screen: it comes back where it was.
-    if (!this.beforeFull) this.beforeFull = this.state === 'free' ? this.lastFree ?? this.c.base.getBounds() : this.restoreTo ?? this.c.base.getNormalBounds()
+    if (!this.beforeFull) this.beforeFull = this.comeBackTo()
     this.leaveMaximized()
     setImmediate(() => this.cover())
+  }
+
+  /** The bounds full screen comes back to: a free window's own; a snapped
+   * one's visible rectangle, now with its margin (Windows no longer calls it
+   * arranged once moved, so it comes back free where Snap had put it); a
+   * maximized one's restored size (it is maximized again: fromMax). */
+  private comeBackTo(): Rectangle | null {
+    const n = this.notFull
+    if (!n) return null
+    if (n.state === 'free') return n.bounds
+    if (n.state === 'snapped') return this.boundsFor(n.visual)
+    return n.normal
   }
 
   /** Out of full screen, whoever asked: once Electron has put its own bounds
@@ -432,7 +457,7 @@ export class Frame {
       const b = this.c.base
       if (b.isDestroyed() || this.isFullScreen()) return
       const w = win32()
-      if (max && w && this.hwnd) w.setPlacement(this.hwnd, { ...max, showCmd: SW_SHOWMAXIMIZED })
+      if (max && w && this.hwnd) { if (!this.zoomed()) w.setPlacement(this.hwnd, { ...max, showCmd: SW_SHOWMAXIMIZED }) }
       else if (before && this.compute() === 'free') {
         const now = b.getBounds()
         if (now.x !== before.x || now.y !== before.y || now.width !== before.width || now.height !== before.height) b.setBounds(before)
