@@ -87,6 +87,13 @@ function shieldSite(t: TabView): string | null {
   if (t.shy || state.prefs['shield'] === false) return null
   return siteOf(t)?.replace(/^www\./, '') ?? null
 }
+/** A tab's site for Allow Copying on This Site: not while every site is free, not a private tab's. */
+function copySite(t: TabView): string | null {
+  if (t.shy || state.prefs['pages.allowCopy'] || !/^https?:/i.test(t.url)) return null
+  return siteOf(t)?.replace(/^www\./, '') ?? null
+}
+const copyAllowed = (t: TabView) => { const s = copySite(t); return !!s && ((state.prefs['copy.sites'] as string[] | undefined) ?? []).includes(s) }
+
 function shieldPaused(t: TabView): boolean {
   const site = shieldSite(t)
   return !!site && ((state.prefs['shield.paused'] as string[] | undefined) ?? []).includes(site)
@@ -150,6 +157,8 @@ export function tabMenu(t: TabView): Entry[] {
     ...(shieldSite(t) ? [shieldPaused(t)
       ? { label: 'Block Ads and Trackers on This Site', act: { cmd: { do: 'pages.shield.site', id: t.id, on: true } as Command } }
       : { label: 'Stop Blocking Ads on This Site', act: { cmd: { do: 'pages.shield.site', id: t.id, on: false } as Command } }] : []),
+    // Copying set free here: on the tab, as the page itself may refuse the right click (sites.ts).
+    ...(copySite(t) ? [{ label: 'Allow Copying on This Site', checked: copyAllowed(t) || undefined, act: { cmd: { do: 'pages.copy.site', id: t.id, on: !copyAllowed(t) } as Command } }] : []),
     // Keep This Site Awake (§9.24): on the Mac it is on the site's card; Oriel has none yet.
     // Its tick only when on: a column for it would move every label (the Mac's tab menu has none).
     ...(siteOf(t) ? [{ label: 'Keep This Site Awake', checked: keptAwake(t) || undefined, act: { cmd: { do: 'tab.keepAwake', id: t.id, on: !keptAwake(t) } as Command } }] : []),

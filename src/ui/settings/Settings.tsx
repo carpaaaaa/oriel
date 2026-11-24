@@ -298,6 +298,7 @@ function control(i: Item): JSX.Element {
         <div class="st-pills"><Pill title="Cancel" act={() => setDraft(null)} /><Pill title="Save" filled disabled={!!keywordProblem(draft()!)} act={saveDraft} /></div>
       </Show>
     )
+    case 'window.fullScreenStyle': return <Segmented value={p<string>('window.fullScreenStyle') ?? 'full'} set={v => void set('window.fullScreenStyle', v)} options={[['full', 'Full screen'], ['borderless', 'Borderless window']]} />
     case 'float.style': return <Segmented value={p<string>('float.style') ?? 'search'} set={v => void set('float.style', v)} options={[['search', "Oriel's window"], ['system', 'Picture in picture']]} />
     case 'float.own': return <Segmented wide max={340} value={merged<string>('float.own')} set={v => void set('float.own', v)} options={[['never', 'Never'], ['tabs', 'Switching tabs'], ['tabsOrApps', 'Tabs or apps']]} />
     case 'translate.target': return <TranslateAdd value={p<string[]>(MENU_KEY) ?? MENU_DEFAULT} set={v => void set(MENU_KEY, v)} />

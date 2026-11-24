@@ -5,6 +5,8 @@
 // the Mac (it goes in before the page's own scripts).
 
 import { ipcMain, type WebContents } from 'electron'
+import { handle } from '../router'
+import { runtimes } from '../views/tabs'
 import { model } from '../model/model'
 import { gpcFor, protects } from './privacy'
 import { hostOf, pref, shieldOn, testHosts } from './facts'
@@ -31,6 +33,17 @@ export interface PagePrefs {
   peek: string
   bounce: boolean
   style: string
+  /** YouTube's hosts while Hide YouTube Shorts is on, null otherwise. */
+  noShorts: string[] | null
+  /** Copying set free on this page (everywhere, or this site). */
+  copyFree: boolean
+}
+
+/** Let me copy on every site, or this one (a tab's menu, copy.sites). */
+export function copyFreeOn(host: string | null): boolean {
+  if (pref<boolean>('pages.allowCopy')) return true
+  const site = host?.replace(/^www\./, '')
+  return !!site && (pref<string[]>('copy.sites') ?? []).includes(site)
 }
 
 const peekChoice = () => (pref<boolean>('links.peek') ? (pref<string>('links.peekClick') || 'shift') : 'off')
@@ -59,6 +72,8 @@ export function pagePrefs(wc: WebContents, address: string): PagePrefs | null {
     peek: peekChoice(),
     bounce: !!pref<boolean>('pages.bounce'),
     style: host ? siteStyle(host) : '',
+    noShorts: pref<boolean>('youtube.hideShorts') ? [...youtubeHosts, ...testHosts('test.youtubeHosts')] : null,
+    copyFree: copyFreeOn(host),
   }
 }
 
@@ -146,7 +161,7 @@ export function retell(): void {
   }
 }
 
-const watched = ['shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'pages.bounce', 'sites.styles', 'privacy.gpc']
+const watched = ['youtube.hideShorts', 'shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'pages.bounce', 'sites.styles', 'privacy.gpc']
 let last = ''
 let timer: NodeJS.Timeout | null = null
 model.on('window-changed', (_id: string, slices: string[]) => {
@@ -161,3 +176,14 @@ model.on('window-changed', (_id: string, slices: string[]) => {
 })
 
 styleChanged.push(() => retell())
+
+// A tab's menu › Allow Copying on This Site: kept by site, the page again.
+handle('pages.copy.site', ({ id, on }) => {
+  const t = model.tabs.get(id)
+  const site = t && /^https?:/i.test(t.url) ? hostOf(t.url)?.replace(/^www\./, '') : null
+  if (!t || !site) return
+  const sites = new Set(pref<string[]>('copy.sites') ?? [])
+  if (on) sites.add(site); else sites.delete(site)
+  model.setPref('copy.sites', [...sites].sort())
+  runtimes.get(id)?.contents?.reload()
+})

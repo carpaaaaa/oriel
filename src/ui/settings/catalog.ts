@@ -197,6 +197,35 @@ const added: (Item & { after: string })[] = [
     keys: ['float.fade'],
     words: ['pip', 'picture in picture', 'transparent', 'transparency', 'opacity', 'fade', 'see through'],
   },
+  {
+    id: 'window.fullScreenStyle', group: 'window', icon: 'arrow.up.left.and.arrow.down.right', after: 'layout.cardsFullScreen',
+    title: 'Full screen',
+    detail: "Full screen takes the page edge to edge and hides the window's buttons until the top. Borderless window fills the screen as it is, buttons and all",
+    keys: ['window.fullScreenStyle'],
+    words: ['full screen', 'borderless', 'windowed', 'f11', 'fullscreen'],
+  },
+  {
+    id: 'youtube.hideShorts', group: 'video', icon: 'play.slash', after: 'float.fade',
+    title: 'Hide YouTube Shorts',
+    detail: 'No Shorts shelves, button or results on YouTube; a Shorts link opens as an ordinary video',
+    keys: ['youtube.hideShorts'],
+    words: ['youtube', 'shorts', 'reels', 'hide'],
+  },
+  {
+    id: 'pages.allowCopy', group: 'pages', icon: 'doc.on.doc', after: 'translate.target',
+    title: 'Let me copy on every site',
+    detail: "Sites can't stop you selecting, copying or right-clicking. For one site only: right-click its tab › Allow Copying on This Site",
+    more: 'Pages opened after you turn it on. A few sites that do their own copy and paste, such as online editors, may work differently with it on.',
+    keys: ['pages.allowCopy'],
+    words: ['copy', 'select', 'right click', 'context menu', 'allow copy', 'protected'],
+  },
+  // Reading mode had only its two options here, so Find didn't find it (carpa, 24 Nov 2026).
+  {
+    id: 'note.reader', group: 'reading', icon: 'doc.text', kind: 'note', after: 'reader.follows',
+    title: 'Reading mode',
+    detail: "Always there: Ctrl+Shift+R shows the page's article alone, in clean type",
+    words: ['reading mode', 'reader', 'read', 'article', 'ctrl shift r'],
+  },
 ]
 
 export const groups: Group[] = (raw.groups as Group[])

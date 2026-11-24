@@ -14,6 +14,7 @@ import { setupCapture } from './capture'
 import { setupReader } from './reader'
 import { runScriptlets, watchPage, type Watch } from './blocker'
 import { handOn } from './blank'
+import { hideShorts, setCopyFree } from './sites'
 
 interface PagePrefs {
   /** Shield's hiding rules for this site, or nothing while it is off or paused. */
@@ -37,6 +38,10 @@ interface PagePrefs {
   bounce: boolean
   /** The site's own style (Edit Site Style…), when Your own style is on. */
   style: string
+  /** YouTube's hosts while Hide YouTube Shorts is on. */
+  noShorts: string[] | null
+  /** Copying set free on this page. */
+  copyFree: boolean
 }
 
 let p: PagePrefs | null = null
@@ -50,6 +55,9 @@ function start(first: PagePrefs): void {
   // Main world, before the page's own scripts: the lists' scriptlets, then
   // Search's own for YouTube.
   if (first.scripts?.length) runScriptlets(first.scripts)
+  // Before the page's own scripts too: copying set free, YouTube without Shorts (sites.ts).
+  setCopyFree(!!first.copyFree)
+  hideShorts(first.noShorts ?? null)
   if (first.youtube) {
     try { contextBridge.executeInMainWorld({ func: youtubePage, args: [first.youtube, first.standIn] }) } catch {}
     try { youtubeSkipper(first.youtube) } catch {}
@@ -123,6 +131,7 @@ function start(first: PagePrefs): void {
   ipcRenderer.on('pages:prefs', (_e, q: PagePrefs) => {
     const was = now
     now = q
+    hideShorts(q.noShorts ?? null)
     if (q.css !== was.css || q.bounce !== was.bounce || q.style !== was.style) dress(q)
     // Off or paused here, or back on: the page's own rules go or come back.
     if (!q.css !== !was.css || q.dom !== was.dom) follow(q)

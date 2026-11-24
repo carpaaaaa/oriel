@@ -51,6 +51,8 @@ declare module '../commands' {
     // Block Ads and Trackers for one site (Shield.pause; the Mac's site card,
     // Oriel's tab menu): the page reloads.
     'pages.shield.site': { id: ID; on: boolean }
+    /** A tab's menu › Allow Copying on This Site, or off again (copy.sites). */
+    'pages.copy.site': { id: ID; on: boolean }
   }
 }
 
