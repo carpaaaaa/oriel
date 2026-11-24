@@ -59,9 +59,6 @@ declare module '../commands' {
     'ctx.save': { id: ID; url: string; ask?: boolean }
     /** Save Page As…, Print…, View Page Source, Inspect (06 §5.2). */
     'ctx.page': { id: ID; action: 'save' | 'print' | 'source' | 'inspect'; x?: number; y?: number }
-    /** Translate to <language>, or Show Original (null): handed to the
-     * translation module's page.translate / page.untranslate. */
-    'ctx.translate': { id: ID; to: string | null }
     /** An extension's item (chrome.contextMenus), by the key it had in the menu. */
     'ctx.extension': { key: string }
     /** The menu is gone; `refocus` gives the page its keys back, `at` (a

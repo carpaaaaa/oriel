@@ -10,22 +10,24 @@ import { app, clipboard, dialog, type WebContents } from 'electron'
 import path from 'node:path'
 import type { ID } from '../../shared/state'
 import { CTX_MENU, type PageMenuData, type PageMenuEntry } from '../../shared/modules/contextmenu'
+import type { TranslateLanguage, TranslateTab } from '../../shared/modules/translate'
 import { model } from '../model/model'
 import { handle, handled, run } from '../router'
 import { need, openWindow } from '../context'
 import { probe } from '../paths'
 import { hooks, runtimeFor, runtimes, type TabRuntime } from '../views/tabs'
 import { controllerFor, type WindowController } from '../views/window'
-import { bindings, keysOf, live, shortcut, type Action } from '../keys'
+import { bindings, keysOf, live, shortcut } from '../keys'
 import { engineID, engineName, engineTable, engineTemplate, engineURL, searchURL, written, bareHost, type EngineID } from '../field/engines'
 import { closeField } from '../field/commands'
 import { getExtensions } from '../extensions'
 import { downloadsFolder } from '../settings/prefs'
 import { fileName, placeFor } from '../settings/downloads'
-import { MOST, splitOf } from '../window/split'
+import { openBeside } from '../pages/links'
+import { MENU as TABS_MENU } from '../tabs/menus'
 import { buildMenu, contextOf, type Facts } from './build'
 import { cleanLink } from './clean'
-import { fakes, log } from './probe'
+import { log } from './probe'
 
 /** The menu up in each window: the page it is for and what was clicked. */
 const current = new Map<ID, { tab: ID; params: Electron.ContextMenuParams; data: PageMenuData }>()
@@ -50,24 +52,18 @@ function engines(): { id: string; name: string }[] {
   return list
 }
 
-const languageNames = new Intl.DisplayNames(['en'], { type: 'language' })
-const languageName = (code: string) => { try { return languageNames.of(code) ?? code } catch { return code } }
-
-/** The translation module's languages (Settings) and the tab's state; a
- * stand-in (English only, never translated) until that module is here. */
+/** The translation module's languages (Settings › Translation languages)
+ * and what the tab's translation is doing: shown, or being made, is "Show
+ * Original"; one that failed offers to translate again. */
 async function translateFacts(c: WindowController, id: ID): Promise<Facts['translate']> {
-  let answer: unknown = { languages: fakes.languages, translated: fakes.translated.get(id) ?? null }
-  if (handled().includes('translate.menuLanguages' as never)) {
-    try { answer = await run({ do: 'translate.menuLanguages', id } as never, { window: c }) } catch (e) { console.warn('[ctxmenu] translate', e) }
+  if (!handled().includes('translate.menuLanguages')) return null
+  try {
+    const r = await run({ do: 'translate.menuLanguages', id }, { window: c }) as { languages: TranslateLanguage[]; tab: TranslateTab | null }
+    return { languages: r.languages ?? [], translated: r.tab && r.tab.phase !== 'failed' ? r.tab.to : null }
+  } catch (e) {
+    console.warn('[ctxmenu] translate', e)
+    return null
   }
-  const o = answer as { languages?: unknown; translated?: unknown; to?: unknown; language?: unknown } | string[] | null
-  const codes = (Array.isArray(o) ? o : Array.isArray(o?.languages) ? o!.languages : ['en']) as unknown[]
-  let translated: string | null = null
-  if (o && !Array.isArray(o)) {
-    if (typeof o.translated === 'string') translated = o.translated
-    else if (o.translated) translated = String(o.to ?? o.language ?? 'en')
-  }
-  return { languages: codes.filter((x): x is string => typeof x === 'string').map(code => ({ code, name: languageName(code) })), translated }
 }
 
 /** Extensions' items (electron-chrome-extensions' chrome.contextMenus),
@@ -110,6 +106,7 @@ async function show(tab: TabRuntime, params: Electron.ContextMenuParams): Promis
     tab: id,
     shy: !!t.shy,
     internal,
+    split: model.pref<boolean>('splitView') !== false,
     canBack: wc.navigationHistory.canGoBack(),
     canForward: wc.navigationHistory.canGoForward(),
     engine: { id: engineID(), name: engineName() },
@@ -156,14 +153,19 @@ function close(c: WindowController, refocus: boolean): void {
   else c.focusPage()
 }
 
-/** Escape with the menu up closes it. The keys table takes Escape before the
- * overlay hears it (escape, then stop), so the menu's own key never came:
- * with no menu of ours up, the table's Escape does what it always did. */
-const escapeKey: Action = (c, k) => {
+/** Escape with a drawn menu up (this one, or the tabs' menus and popovers):
+ * the keys table took it before the overlay heard it (escape, then stop),
+ * so no drawn menu ever closed with a real Escape. Now, from the overlay, the
+ * key goes on to the menu itself (a submenu closes first, as Menu does); from
+ * a page, this menu closes here. Otherwise the table's Escape, as always. */
+const drawn = (c: WindowController) => c.overlayLayer.kind === 'panel' && (c.overlayLayer.name === CTX_MENU || c.overlayLayer.name === TABS_MENU)
+const table = (id: string) => bindings.find(b => b.id === id)?.action
+shortcut('Escape', 'first', (c, k) => {
+  if (drawn(c) && !k.fromPage) return false
   if (ours(c)) { close(c, true); return true }
-  return bindings.find(b => b.id === 'escape')?.action?.(c, k) ?? false
-}
-shortcut('Escape', 'first', escapeKey)
+  return table('escape')?.(c, k) ?? false
+})
+shortcut('Escape', 'later', (c, k) => (drawn(c) && !k.fromPage ? false : table('stop')?.(c, k) ?? false))
 
 handle('ctx.close', ({ refocus, at, seq }, ctx) => {
   const c = need(ctx)
@@ -191,34 +193,14 @@ const contentsOf = (id: ID) => {
   return wc
 }
 
-/** Open Link in Split View (§3.38, Browser.openLinkBeside): a tab of its
- * own after the page, paired with it on the right, with the keys; from a
- * split already, one more page in it (4 at most), else it stays behind. */
-function openBeside(c: WindowController, url: string, from: ID | undefined): ID {
-  const w = c.record
-  const tab = model.open(w, url, { foreground: false, from, link: true })
-  const opener = from ? model.tabs.get(from) : undefined
-  const split = splitOf(w, from)
-  if (split) {
-    if (split.tabs.length >= MOST) return tab.id
-    const at = split.tabs.indexOf(from!) + 1
-    const tabs = [...split.tabs.slice(0, at), tab.id, ...split.tabs.slice(at)]
-    w.splits = w.splits.map(s => (s === split ? { ...s, tabs, sizes: tabs.map(() => 1 / tabs.length), focused: tab.id } : s))
-  } else if (opener && !opener.empty) {
-    w.splits = [...w.splits, { tabs: [opener.id, tab.id], axis: 'horizontal', sizes: [0.5, 0.5], focused: tab.id }]
-  } else return tab.id
-  model.selectTab(w, tab.id)
-  model.touch(w, ['splits', 'activeID'])
-  c.focusPage()
-  return tab.id
-}
-
 handle('ctx.open', ({ url, where, from }, ctx) => {
   const c = need(ctx)
   const w = c.record
   // Behind, after its page and the links it opened already (§3.31, §3.38).
   if (where === 'tab') return model.open(w, url, { foreground: false, from, link: true }).id
-  if (where === 'split') return openBeside(c, url, from)
+  // Split View: the pages module's pairing, the one Alt-click uses (§3.37,
+  // §3.38, §8): beside its page with the keys, in its split up to 4 pages.
+  if (where === 'split') return from && model.tabs.has(from) ? openBeside(w, from, url) : model.open(w, url, { foreground: true }).id
   // A window of its own: private for Private Window, or from a private page.
   const source = from ? model.tabs.get(from) : undefined
   const other = openWindow({ shy: where === 'private' || !!source?.shy || w.shy })
@@ -337,18 +319,6 @@ handle('ctx.page', async ({ id, action, x, y }, ctx) => {
       wc.inspectElement(x ?? 0, y ?? 0)
       return
   }
-})
-
-handle('ctx.translate', async ({ id, to }, ctx) => {
-  const name = to === null ? 'page.untranslate' : 'page.translate'
-  if (handled().includes(name as never)) {
-    await run((to === null ? { do: name, id } : { do: name, id, to }) as never, ctx)
-    return
-  }
-  // The stand-in until the translation module is merged: remembered, so the
-  // next menu says Show Original.
-  log.translated.push({ id, to })
-  if (to === null) fakes.translated.delete(id); else fakes.translated.set(id, to)
 })
 
 handle('ctx.extension', ({ key }) => {

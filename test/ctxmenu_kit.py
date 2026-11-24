@@ -52,6 +52,11 @@ PAGE = """<!doctype html><meta charset=utf-8><title>ctx</title>
 <div id=empty></div>"""
 
 
+# The same page in Italian, for Translate (the translation module).
+PAGE_IT = PAGE.replace("<!doctype html><meta charset=utf-8>", "<!doctype html><html lang=it><meta charset=utf-8>").replace(
+    "Gentle words to pick from this page", "La biblioteca comunale apre alle nove del mattino, tutti i giorni tranne la domenica.")
+
+
 class Site(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?")[0]
@@ -60,6 +65,8 @@ class Site(BaseHTTPRequestHandler):
         else:
             if path == "/ctx":
                 body = PAGE
+            elif path == "/it":
+                body = PAGE_IT
             elif path == "/search":
                 body = "<title>results</title><body>results"
             else:
@@ -84,14 +91,15 @@ def url(path):
     return BASE + path
 
 
-def world(name, look="light", **prefs):
+def world(name, look="light", env=None, **prefs):
     """A world of its own; searches go to this site (search.custom), and the
-    real engines' hosts never leave the machine."""
+    real engines' hosts never leave the machine; the translation module's
+    stand-in translator (SEARCH_TRANSLATE_FAKE) marks what it translates."""
     b.use(name)
     f = b.folder() / "prefs.json"
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(json.dumps({"search.engine": "custom", "search.custom": BASE + "/search?q=%s", **prefs}))
-    b.launch(*FRAMES, env={"SEARCH_LOOK": look})
+    b.launch(*FRAMES, env={"SEARCH_LOOK": look, "SEARCH_TRANSLATE_FAKE": "1", **(env or {})})
     time.sleep(0.8)
     b.call({"do": "ctxmenu.clipboard", "op": "save"})
     atexit.register(lambda: _restore())
@@ -104,6 +112,11 @@ def _restore():
         b.call({"do": "ctxmenu.clipboard", "op": "restore"}, timeout=5)
     except Exception:
         pass
+
+
+def mark(tab):
+    """What the tab's translation is doing (the translation module's slice)."""
+    return ((b.state()["windows"][0].get("translate") or {}).get("tabs") or {}).get(tab)
 
 
 def done(t):
@@ -127,7 +140,9 @@ def page(path="/ctx"):
 
 
 def page_rect(id=None):
-    return b.call({"do": "ctxmenu.page", **({"id": id} if id else {})})["rect"]
+    """Where the page is in its window, once the window has placed it."""
+    get = lambda: b.call({"do": "ctxmenu.page", **({"id": id} if id else {})})["rect"]
+    return b.wait_for(get, within=5, what="the page on screen")
 
 
 def element(id, sel):
@@ -209,8 +224,17 @@ def is_open():
     return bool(last()["open"])
 
 
+def _reopen_if_gone(menu):
+    """A test window loses its focus now and then on a Mac shared with other
+    windows (and the menu goes with it, as it should): open it again."""
+    if menu == 0 and not dom_items(0) and LAST_CLICK[0]:
+        print("  (the window lost its focus: the menu again)")
+        right_click_at(*LAST_CLICK[0])
+
+
 def pick(label, menu=0, wait=0.6):
     """Pointer over the row, then released on it."""
+    _reopen_if_gone(menu)
     ok = ojs(f"const m = document.querySelectorAll('.ctx-host .menu')[{menu}]; const e = m && [...m.querySelectorAll('.menu-item')].find(x => x.dataset.label === {json.dumps(label)});"
              " if (!e) return false; e.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true })); e.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 })); return true")
     if not ok:
@@ -219,6 +243,7 @@ def pick(label, menu=0, wait=0.6):
 
 
 def hover(label, menu=0):
+    _reopen_if_gone(menu)
     ojs(f"const m = document.querySelectorAll('.ctx-host .menu')[{menu}]; const e = [...m.querySelectorAll('.menu-item')].find(x => x.dataset.label === {json.dumps(label)});"
         " e.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true })); return true")
     time.sleep(0.35)
@@ -263,6 +288,7 @@ def shot(name):
 def style_check(t):
     """The rows as the menus are drawn (studio/02 §4.6): 24 high, corners of
     12, the highlight 5 in with corners of 7, in grey, never blue."""
+    _reopen_if_gone(0)
     first = ojs("const m = document.querySelector('.ctx-host .menu'); const i = [...m.querySelectorAll('.menu-item')].find(x => !x.classList.contains('off'));"
                 " i.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true })); return i.dataset.label")
     time.sleep(0.25)
@@ -286,6 +312,7 @@ def style_check(t):
 
 
 def near_click(t, at, what="the menu"):
+    _reopen_if_gone(0)
     r = menu_rect()
     room = last()["menu"]["room"]
     inside = r["x"] >= 0 and r["y"] >= 0 and r["x"] + r["w"] <= room["w"] and r["y"] + r["h"] <= room["h"]

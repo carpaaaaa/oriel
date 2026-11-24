@@ -20,6 +20,9 @@ for f in OUT.iterdir():
 k.world("ctxmenu-link", look="dark", downloads=str(OUT))
 t = b.T()
 LINK = k.url("/target?utm_source=news&id=7&fbclid=abc#top")
+# Opened, the address loses its click IDs (Remove click trackers, on by
+# default: studio/06 §2.3, the pages module): either is the link.
+OPENED = (LINK, k.url("/target?utm_source=news&id=7#top"))
 
 page = k.page("/ctx")
 at = k.right_click(page, "#link")
@@ -50,7 +53,7 @@ w = b.state()["windows"][0]
 ids = [x["id"] for x in w["tabs"]]
 new = ids[ids.index(page) + 1] if page in ids and ids.index(page) + 1 < len(ids) else None
 nt = k.tab(new) if new else None
-t.ok(nt and nt["url"] == LINK and w["activeID"] == page, f"Open Link in New Tab: right after its page, behind it ({nt and nt['url']})")
+t.ok(nt and nt["url"] in OPENED and w["activeID"] == page, f"Open Link in New Tab: right after its page, behind it ({nt and nt['url']})")
 if nt:
     b.cmd("tab.close", id=new)
 
@@ -61,7 +64,7 @@ k.pick("Open Link in New Window")
 b.wait_for(lambda: len(b.state()["windows"]) == before + 1, what="a new window")
 w2 = b.state()["windows"][-1]
 a2 = next(x for x in w2["tabs"] if x["id"] == w2["activeID"])
-t.ok(a2["url"] == LINK and not a2.get("shy"), f"Open Link in New Window: a window of its own with the link ({a2['url']})")
+t.ok(a2["url"] in OPENED and not a2.get("shy"), f"Open Link in New Window: a window of its own with the link ({a2['url']})")
 b.wait_for(lambda: not k.tab(a2["id"])["loading"] and k.tab(a2["id"])["title"] == "target", what="the link loaded there")
 t.ok(True, "…loaded there")
 b.cmd("window.close", window=w2["windowID"])
@@ -73,7 +76,7 @@ k.pick("Open Link in Private Window")
 b.wait_for(lambda: len(b.state()["windows"]) == before + 1, what="a private window")
 w3 = b.state()["windows"][-1]
 a3 = next(x for x in w3["tabs"] if x["id"] == w3["activeID"])
-t.ok(a3["url"] == LINK and a3.get("shy"), f"Open Link in Private Window: a private window with the link (shy={a3.get('shy')})")
+t.ok(a3["url"] in OPENED and a3.get("shy"), f"Open Link in Private Window: a private window with the link (shy={a3.get('shy')})")
 b.wait_for(lambda: k.tab(a3["id"])["title"] == "target", what="loaded privately")
 b.ev(a3["id"], "document.cookie = 'shy=1; path=/'")
 t.ok(b.ev(page, "document.cookie") == "", "…keeping its cookies to itself")
@@ -99,7 +102,7 @@ w = b.state()["windows"][0]
 split = next((s for s in w["splits"] if page in s["tabs"]), None)
 t.ok(split and len(split["tabs"]) == 2 and split["tabs"][0] == page, f"Open Link in Split View: the page and the link, as a pair ({split})")
 other = split and split["tabs"][1]
-t.ok(other and k.tab(other)["url"] == LINK and w["activeID"] == other, "…the link on the right, with the keys")
+t.ok(other and k.tab(other)["url"] in OPENED and w["activeID"] == other, "…the link on the right, with the keys")
 b.wait_for(lambda: len(k.page_rect(other) and [1] or []) and len(b.call({"do": "ctxmenu.page"})["views"]) >= 4, within=5, what="both pages on screen")
 t.ok(True, "…both pages on screen")
 b.cmd("split.separate")
