@@ -20,6 +20,43 @@ permissions:
   contents: read
 
 jobs:
+  # The installer on its own, the ways winget and the tests start it: with
+  # the switches winget passes, without them, and with the download mark that
+  # winget puts on the file.
+  direct:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: The installer alone
+        shell: pwsh
+        run: |
+          $arch = if ('${{ matrix.os }}' -match 'arm') { 'arm64' } else { 'x64' }
+          $f = Join-Path $env:RUNNER_TEMP 'Oriel-Setup.exe'
+          Invoke-WebRequest "https://github.com/carpaaaaa/oriel/releases/download/v${{ inputs.version }}/Oriel-Setup-${{ inputs.version }}-$arch.exe" -OutFile $f -MaximumRetryCount 5 -RetryIntervalSec 5
+          function Attempt($label, $a) {
+            $p = Start-Process -FilePath $f -ArgumentList $a -PassThru
+            if (-not $p.WaitForExit(150000)) {
+              "${label}: still running after 2.5 minutes. Windows open:"
+              Get-Process | Where-Object { $_.MainWindowTitle } | Format-Table ProcessName, Id, MainWindowTitle -AutoSize
+              Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'Oriel|Setup|^ns|Un_' } | Format-Table Name, ProcessId, ParentProcessId, CommandLine -AutoSize -Wrap
+              Get-Process | Where-Object { $_.Path -like "$env:TEMP*" -or $_.Path -like "$env:RUNNER_TEMP*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+              Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+              return
+            }
+            $exe = Join-Path $env:LOCALAPPDATA 'Programs\Oriel\Oriel.exe'
+            "${label}: exit $($p.ExitCode), Oriel.exe installed: $(Test-Path $exe)"
+            $un = Join-Path $env:LOCALAPPDATA 'Programs\Oriel\Uninstall Oriel.exe'
+            if (Test-Path $un) { Start-Process $un -ArgumentList '/S' -Wait; Start-Sleep 8 }
+          }
+          Attempt '/S' @('/S')
+          Attempt '/S /currentuser' @('/S', '/currentuser')
+          Set-Content -Path $f -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3"
+          Attempt '/S, marked as downloaded' @('/S')
+
   manifest:
     strategy:
       fail-fast: false
@@ -71,7 +108,16 @@ jobs:
           Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer' -Name SmartScreenEnabled -Value 'Off'
       - name: Install
         timeout-minutes: 8
-        run: winget install --manifest manifests --silent --accept-package-agreements --accept-source-agreements --disable-interactivity --verbose-logs
+        shell: pwsh
+        run: |
+          $p = Start-Process winget -ArgumentList 'install', '--manifest', 'manifests', '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity', '--verbose-logs' -PassThru -NoNewWindow
+          if (-not $p.WaitForExit(240000)) {
+            'Still installing after 4 minutes. Windows open:'
+            Get-Process | Where-Object { $_.MainWindowTitle } | Format-Table ProcessName, Id, MainWindowTitle -AutoSize
+            Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'Oriel|Setup|winget|^ns|Un_' } | Format-Table Name, ProcessId, ParentProcessId, CommandLine -AutoSize -Wrap
+            exit 1
+          }
+          exit $p.ExitCode
       - name: What the installer wrote
         shell: pwsh
         run: |
