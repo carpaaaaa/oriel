@@ -58,6 +58,17 @@ jobs:
           $out
           if ($out -notmatch 'Manifest validation succeeded') { exit 1 }
           exit 0
+      # On this test machine only. The installer isn't code-signed, so
+      # SmartScreen holds it at "Windows protected your PC" (More info, Run
+      # anyway), which on a runner nobody can click: winget sat at "Starting
+      # package install..." with CHXSmartScreen open. People installing with
+      # winget see the same question as from the website, until Oriel is signed.
+      - name: SmartScreen off (test machine only)
+        shell: pwsh
+        run: |
+          New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' -Force | Out-Null
+          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' -Name EnableSmartScreen -Value 0 -Type DWord
+          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer' -Name SmartScreenEnabled -Value 'Off'
       - name: Install
         timeout-minutes: 8
         run: winget install --manifest manifests --silent --accept-package-agreements --accept-source-agreements --disable-interactivity --verbose-logs
