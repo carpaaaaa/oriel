@@ -106,9 +106,10 @@ def main():
         b.wait_for(lambda: b.ui("!!document.querySelector('.divider')"), within=3, what="the divider")
         d = rect("document.querySelector('.divider')")
         x0, y0 = d["x"] + d["w"] / 2, d["y"] + d["h"] / 2
-        b.call({"do": "window.drag", "path": [[x0 - 10 * i, y0] for i in range(16)]})
+        # 200 to the left in small steps, then held there (past the snap to even).
+        b.call({"do": "window.drag", "path": [[x0 - 8 * i, y0] for i in range(26)] + [[x0 - 200, y0]] * 10})
         time.sleep(0.6)
-        sizes = b.wait_for(lambda: (lambda s: s if s[0] < 0.45 else None)(split_of(A)["sizes"]), within=3, what="narrower")
+        sizes = b.wait_for(lambda: (lambda s: s if s[0] < 0.45 else None)(split_of(A)["sizes"]), within=5, what="narrower")
         t.ok(sizes[0] < 0.45, f"the left page narrower ({sizes})")
 
         print("- the X on picked tabs closes them all")

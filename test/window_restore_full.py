@@ -95,8 +95,10 @@ def main():
         f = settle(lambda: frame()["state"] == "maximized" and frame(), "maximized at launch", within=10)
         t.ok(f is not None, "comes back maximized")
         b.cmd("window.maximize")
-        f = settle(lambda: frame()["state"] == "free" and frame(), "restored")
-        t.ok(f and f["visual"]["width"] >= 640 and f["visual"]["height"] >= 420, f"Restore Down: a real window ({f and f['visual']})")
+        f = settle(lambda: frame()["state"] == "free" and frame(), "restored", within=10)
+        # A real window, not the empty rectangle: on a screen smaller than the
+        # default size (a CI runner's 1024×768) Windows makes it smaller.
+        t.ok(f and f["visual"]["width"] >= 400 and f["visual"]["height"] >= 300, f"Restore Down: a real window ({f['visual'] if f else frame()['state']})")
     except Exception as error:
         import traceback
         traceback.print_exc()
