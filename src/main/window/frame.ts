@@ -18,9 +18,10 @@ import type { Edge, FrameView, Insets } from '../../shared/modules/window'
 import { model } from '../model/model'
 import { DWMWA, WS, win32 } from '../win/user32'
 import type { WindowController } from '../views/window'
+import { testEnv } from '../testhooks'
 
 /** As quietTests in context.ts (not imported: frame.ts loads before it). */
-const quietTests = process.platform === 'darwin' && !!process.env.SEARCH_PROBE && process.env.SEARCH_SHOW !== '1'
+const quietTests = process.platform === 'darwin' && !!testEnv('SEARCH_PROBE') && testEnv('SEARCH_SHOW') !== '1'
 
 /** Clear room for the window's shadow (tokens.css --window-shadow fits in it). */
 export const ROOM: Insets = { top: 30, right: 40, bottom: 50, left: 40 }
@@ -48,20 +49,20 @@ const variant = {
   /** plain: Electron's transparent window; thick: plus WS_THICKFRAME, so
    * Windows treats it as resizable (Snap) with DWM's own border turned off;
    * caption: plus WS_CAPTION and WS_SYSMENU too (Win+Up, animations). */
-  style: ((['plain', 'caption'] as const).find(v => v === process.env.SEARCH_FRAME_STYLE) ?? 'thick') as 'plain' | 'thick' | 'caption',
+  style: ((['plain', 'caption'] as const).find(v => v === testEnv('SEARCH_FRAME_STYLE')) ?? 'thick') as 'plain' | 'thick' | 'caption',
   /** native: ShowWindow, a really maximized window, so Windows knows it
    * (Win+Down restores instead of minimizing, dragging it down restores it);
    * emulated: Electron's maximize for transparent windows (bounds = work area). */
-  maximize: process.env.SEARCH_FRAME_MAX === 'emulated' ? 'emulated' : 'native',
+  maximize: testEnv('SEARCH_FRAME_MAX') === 'emulated' ? 'emulated' : 'native',
   /** syscommand: SC_SIZE; nc: WM_NCLBUTTONDOWN on an edge; manual: by hand. */
-  resize: (['nc', 'syscommand', 'manual'] as const).find(v => v === process.env.SEARCH_FRAME_RESIZE) ?? 'syscommand',
+  resize: (['nc', 'syscommand', 'manual'] as const).find(v => v === testEnv('SEARCH_FRAME_RESIZE')) ?? 'syscommand',
   /** syscommand: SC_MOVE; nc: WM_NCLBUTTONDOWN on the caption. */
-  move: (process.env.SEARCH_FRAME_MOVE === 'nc' ? 'nc' : 'syscommand') as 'nc' | 'syscommand',
+  move: (testEnv('SEARCH_FRAME_MOVE') === 'nc' ? 'nc' : 'syscommand') as 'nc' | 'syscommand',
 }
 
 export function frameKind(chrome: 'windows' | 'mac'): FrameKind {
   if (chrome === 'mac') return 'mac'
-  const forced = process.env.SEARCH_FRAME
+  const forced = testEnv('SEARCH_FRAME')
   if (forced === 'native' || forced === 'drawn') return forced
   return model.pref<boolean>('window.nativeFrame') ? 'native' : 'drawn'
 }
@@ -162,7 +163,7 @@ export class Frame {
       })
       c.base.hookWindowMessage(WM_EXITSIZEMOVE, () => setImmediate(() => this.refresh()))
       // For the tests: which window messages arrive (Win+Up, Snap).
-      if (process.env.SEARCH_PROBE) {
+      if (testEnv('SEARCH_PROBE')) {
         for (const m of [0x0005, 0x0018, 0x0024, 0x0046, 0x0047, 0x0086, 0x0231, 0x0313]) {
           if (m === WM_EXITSIZEMOVE) continue
           c.base.hookWindowMessage(m, (wp, lp) => {

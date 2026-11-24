@@ -16,10 +16,23 @@ import { chromeKind } from '../paths'
 import { runtimeFor, runtimes, type TabRuntime } from './tabs'
 import { Frame, cascadeFrom, frameColour, frameKind, overlayColours, windowOptions } from '../window/frame'
 import type { Insets } from '../../shared/modules/window'
+import { run } from '../router'
+import { keepOnPage } from './guard'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const uiPreload = path.join(here, '../preload/ui.cjs')
+export const uiPreload = path.join(here, '../preload/ui.cjs')
 const uiPage = path.join(here, '../ui/index.html')
+
+/** The interface's own file (either root), never anything else. Compared as
+ * a path: Chromium and Node spell a file: address of an unusual folder
+ * (spaces, accents) differently; Windows paths ignore case. */
+export function isInterfacePage(url: string): boolean {
+  if (!/^file:/i.test(url)) return false
+  let file: string
+  try { file = path.resolve(fileURLToPath(url.split(/[?#]/)[0])) } catch { return false }
+  const want = path.resolve(uiPage)
+  return process.platform === 'win32' ? file.toLowerCase() === want.toLowerCase() : file === want
+}
 
 /** Distances of a page's rectangle from the window's edges, so a resize can
  * move pages at once, before the interface measures again. */
@@ -74,6 +87,9 @@ export class WindowController {
       session: electronSession.defaultSession,
       additionalArguments: [`--search-root=${root}`],
       backgroundThrottling: false,
+      // A link or file dropped on the interface asks to navigate, and
+      // keepOnPage below opens it in a tab (studio/09 §1.1).
+      navigateOnDragDrop: true,
     })
     this.ui = new WebContentsView({ webPreferences: uiPrefs('chrome') })
     this.ui.setBackgroundColor(ground)
@@ -82,6 +98,10 @@ export class WindowController {
     this.base.contentView.addChildView(this.ui)
     this.base.contentView.addChildView(this.overlay)
     this.overlay.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+    // The interface never leaves its page; what's dropped on it opens in a tab.
+    const dropped = (url: string) => void run({ do: 'tab.new', url } as never, { window: this }).catch(() => {})
+    keepOnPage(this.ui.webContents, dropped)
+    keepOnPage(this.overlay.webContents, dropped)
     this.ui.webContents.loadFile(uiPage, { query: { root: 'chrome' } })
     this.overlay.webContents.loadFile(uiPage, { query: { root: 'overlay' } })
     // A window closed before its interface had loaded: nothing to show.

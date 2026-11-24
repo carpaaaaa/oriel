@@ -19,6 +19,7 @@ import { model } from '../model/model'
 import { allControllers, registerSlice, focusedController, type WindowController } from '../views/window'
 import { runtimes } from '../views/tabs'
 import { probe } from '../paths'
+import { writeFileAtomic } from '../model/persist'
 import { actionOf, popupUrl, sendEvent, tabDetails, onActionsChanged, handleApi } from './lib'
 import { openPopup, closePopup, popupOf, onPopupChange, placeBeside, POP_ROOM, closedRecently } from './popup'
 import { ask, askToAdd, localize, iconOf } from './ask'
@@ -40,7 +41,8 @@ interface Saved { pinned: string[]; disabled: Record<string, string>; sources: R
 let saved: Saved = { pinned: [], disabled: {}, sources: {}, order: [] }
 const savedFile = () => path.join(app.getPath('userData'), 'extensions.json')
 function save(): void {
-  try { fs.writeFileSync(savedFile(), JSON.stringify(saved, null, 2)) } catch (e) { console.warn('[extensions] save', e) }
+  // Atomic: a half-written file would lose the pins and the extensions turned off (studio/09 §3).
+  try { writeFileAtomic(savedFile(), JSON.stringify(saved, null, 2)) } catch (e) { console.warn('[extensions] save', e) }
 }
 
 const busy = new Set<string>()

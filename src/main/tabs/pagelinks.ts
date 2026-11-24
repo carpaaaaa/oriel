@@ -13,6 +13,7 @@ import { model, type TabRecord } from '../model/model'
 import { runtimes, runtimeFor } from '../views/tabs'
 import { controllerFor, type WindowController } from '../views/window'
 import { benchRequest } from '../bench/server'
+import { keepOnPage } from '../views/guard'
 
 const tabOf = (sender: Electron.WebContents): TabRecord | undefined => {
   for (const [id, r] of runtimes) if (r.contents === sender) return model.tabs.get(id)
@@ -40,6 +41,7 @@ function bubbleFor(c: WindowController): Bubble {
   const view = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, javascript: true } })
   view.setBackgroundColor('#00000000')
   view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+  keepOnPage(view.webContents)
   void view.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(page(nativeTheme.shouldUseDarkColors)))
   b = { view, url: '', right: false, timer: null, serial: 0 }
   bubbles.set(c.record.id, b)

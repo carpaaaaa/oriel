@@ -6,6 +6,7 @@ import { controllerFor, focusedController, WindowController } from './views/wind
 import { runtimeFor } from './views/tabs'
 import type { Context } from './router'
 import { wireKeys } from './keys'
+import { testEnv } from './testhooks'
 
 export function need(ctx: Context): WindowController {
   const c = ctx.window ?? focusedController()
@@ -25,7 +26,7 @@ export function setSessions(f: typeof pageSessionFor): void { pageSessionFor = f
  * invisible window that lets clicks through. Pages still draw (it is not
  * hidden, only transparent), so pictures and timings stay true.
  * SEARCH_SHOW=1 shows them, for a person to use a test world. */
-export const quietTests = process.platform === 'darwin' && !!process.env.SEARCH_PROBE && process.env.SEARCH_SHOW !== '1'
+export const quietTests = process.platform === 'darwin' && !!testEnv('SEARCH_PROBE') && testEnv('SEARCH_SHOW') !== '1'
 
 function quiet(c: WindowController): void {
   const base = c.base

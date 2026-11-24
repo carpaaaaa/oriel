@@ -7,13 +7,14 @@
 
 import { model } from '../model/model'
 import { allControllers, registerSlice } from '../views/window'
+import { testEnv } from '../testhooks'
 
 let saver = false
 let status: ((s: Record<string, number>) => number) | null | undefined
 
 /** Windows' battery saver, from GetSystemPowerStatus (SystemStatusFlag). */
 function batterySaver(): boolean {
-  if (process.env.SEARCH_LOW_POWER === '1') return true
+  if (testEnv('SEARCH_LOW_POWER') === '1') return true
   if (process.platform !== 'win32') return false
   try {
     if (status === undefined) {

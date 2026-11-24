@@ -13,6 +13,7 @@ import { resolveInput } from '../address'
 import { applyUserAgent } from '../ua'
 import { attachNet } from '../net'
 import { data } from '../data/api'
+import { pageMayNotOpen } from '../settings/openers'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 export const pagePreload = path.join(here, '../preload/page.cjs')
@@ -396,6 +397,8 @@ export class TabRuntime {
     })
     wc.on('context-menu', (_e, params) => hooks.contextMenu?.(this, params))
     wc.setWindowOpenHandler(details => {
+      // A website gets no Oriel page, script, data: or file (studio/09 §1.4).
+      if (pageMayNotOpen(wc.getURL(), details.url, 'window.open')) return { action: 'deny' }
       // A sized pop-up (a sign-in, a call): its own small window with Open
       // sized pop-ups in small windows, a tab otherwise (§3.35). Either way
       // its page is the one Chromium made, so the opener can talk to it.

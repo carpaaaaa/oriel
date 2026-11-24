@@ -14,10 +14,11 @@ import { registerSlice } from '../views/window'
 import { addDefaults } from '../../shared/prefs'
 import { benchRequest } from '../bench/server'
 import { allControllers, controllerFor, focusedController } from '../views/window'
+import { testEnv } from '../testhooks'
 
 // In a test world on Windows, a window covered by another (a console on the
 // test machine) keeps drawing, so pictures and layout stay true.
-if (process.platform === 'win32' && process.env.SEARCH_PROBE) app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
+if (process.platform === 'win32' && testEnv('SEARCH_PROBE')) app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
 
 // Windows' own frame instead of ours, a hidden setting (read when a window opens).
 addDefaults({ 'window.nativeFrame': false, 'window.buttons': 'inline' })

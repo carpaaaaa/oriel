@@ -13,6 +13,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import { writeFileAtomic } from '../../model/persist'
 
 interface War { globs: RegExp[]; dynamic: boolean }
 
@@ -36,8 +37,9 @@ export function prepare(dir: string): void {
     }
   })
   if (!changed.length) return
-  fs.writeFileSync(file, JSON.stringify(manifest, null, 2))
-  fs.writeFileSync(path.join(dir, PREPARED), JSON.stringify({ use_dynamic_url: changed }))
+  // Atomic: a manifest cut short would leave an extension that won't load (studio/09 §3).
+  writeFileAtomic(file, JSON.stringify(manifest, null, 2))
+  writeFileAtomic(path.join(dir, PREPARED), JSON.stringify({ use_dynamic_url: changed }))
 }
 
 export class OwnFiles {

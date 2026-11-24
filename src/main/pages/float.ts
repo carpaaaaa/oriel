@@ -25,6 +25,7 @@ import { probe } from '../paths'
 import { runtimes } from '../views/tabs'
 import { allControllers, controllerFor, registerSlice } from '../views/window'
 import { pref } from './facts'
+import { keepOnPage } from '../views/guard'
 
 const PRELOAD_WORLD = 999
 
@@ -168,6 +169,7 @@ function openWindow(tab: ID, win: ID, view: WebContentsView, away: boolean): Flo
   if (quietTests) { base.setOpacity(0); base.setIgnoreMouseEvents(true) }
   const controls = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: true } })
   controls.setBackgroundColor('#00000000')
+  keepOnPage(controls.webContents)
   base.contentView.addChildView(view)
   base.contentView.addChildView(controls)
   view.setBorderRadius(0)

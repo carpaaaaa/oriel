@@ -22,7 +22,7 @@ import './settings.css'
 type Prefs = Record<string, unknown>
 type Stage = { kind: 'none' } | { kind: 'fetching' | 'ready' | 'waiting'; version: string; notes?: string }
 interface Pending { version: string; notes?: string; ready: boolean; fetching: boolean }
-interface UpdateFacts { stage: Stage; checking: boolean; checked: number | null; active: boolean; pending: Pending | null }
+interface UpdateFacts { stage: Stage; checking: boolean; checked: number | null; active: boolean; portable?: boolean; pending: Pending | null }
 interface Facts { downloadsFolder: string; downloadsFolderName: string; isDefault: boolean; mailDefault: boolean; arcHere: boolean; arcUndoable: boolean; version: string; name: string; platform: string; update?: UpdateFacts; sync?: string }
 interface Values { prefs: Prefs; merged: Record<string, unknown>; facts: Facts }
 
@@ -179,6 +179,8 @@ function detail(i: Item): string {
     case 'updates.version': {
       const u = f?.update
       const s = u?.stage
+      // The portable build doesn't update itself (settings/updater.ts).
+      if (u?.portable) return "Portable Oriel doesn't update on its own. To update, download the new version"
       if (!s || s.kind === 'none') return u?.checked ? `Checked ${ago(u.checked)}, every hour on its own` : 'Checked every hour on its own'
       if (s.kind === 'fetching') return s.notes ?? 'Quietly, in the background. Nothing you have set is touched'
       if (s.kind === 'ready') return s.notes ?? "It's there the next time you open Oriel"
@@ -290,6 +292,7 @@ function control(i: Item): JSX.Element {
     case 'updates.version': {
       const u = facts()?.update
       const s = u?.stage
+      if (u?.portable) return <Pill title="Download…" act={() => void call({ do: 'tab.new', url: 'https://github.com/carpaaaaa/oriel/releases/latest' })} />
       if (!s || s.kind === 'none') return <Pill title={u?.checking ? 'Checking…' : 'Check now'} disabled={u?.checking} act={() => void act('updates.check')} />
       if (s.kind === 'fetching') return <span class="st-ring" aria-label="Downloading" />
       if (s.kind === 'ready') return <Pill title="Relaunch now" filled act={() => void act('updates.relaunch')} />

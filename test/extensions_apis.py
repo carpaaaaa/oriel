@@ -46,7 +46,8 @@ PORT = server.server_address[1]
 threading.Thread(target=server.serve_forever, daemon=True).start()
 
 b.use("extensions-apis")
-b.launch()
+# A host that never answers gives up after 1.5 s here (60 s in Oriel; studio/09 §1.8).
+b.launch(env={"ORIEL_NATIVE_TIMEOUT": "1500"})
 t = b.T()
 
 ext = b.call({"do": "extensions.loadUnpacked", "path": str(FIXTURE), "copy": True})
@@ -129,6 +130,14 @@ r = api("""new Promise(done => {
   setTimeout(() => done('connected'), 3000)
 })""")
 t.ok(r == "refused", "a host that doesn't name the extension is refused")
+start = time.time()
+r = api("new Promise(done => chrome.runtime.sendNativeMessage('com.oriel.test_echo', { silent: true }, v => done(chrome.runtime.lastError ? 'error: ' + chrome.runtime.lastError.message : (v === undefined ? null : v))))")
+took = time.time() - start
+# The library hands a failed call back as no answer (as for an unknown host,
+# below); the reason is in the main process's error.
+log = (b.ROOT / "out" / f"bench-{b.WORLD}.log").read_text(encoding="utf-8", errors="replace")
+t.ok(r in (None, "error: Native host did not answer in time.") and 1.2 <= took < 6 and "Native host did not answer in time." in log,
+     f"sendNativeMessage to a host that never answers ends at the time limit, with a clear error ({r}, {took:.1f} s)")
 r = api("chrome.runtime.sendNativeMessage('com.oriel.nobody', {})")
 t.ok(r in (None, "error: Specified native messaging host not found."), f"an unknown host answers nothing ({r})")
 

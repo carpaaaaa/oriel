@@ -22,6 +22,7 @@ import { pagePreload, runtimeFor, runtimes, sessionFor } from '../views/tabs'
 import { controllerFor, registerSlice, type WindowController } from '../views/window'
 import { hidePanel, showPanel } from '../settings/slice'
 import { pref } from './facts'
+import { pageMayNotOpen } from '../settings/openers'
 
 const PRELOAD_WORLD = 999
 
@@ -137,6 +138,7 @@ function wire(p: Peek): void {
   // A window a page in the peek opens goes into the row, from the tab the
   // peek came from.
   wc.setWindowOpenHandler(details => {
+    if (pageMayNotOpen(wc.getURL(), details.url, 'peek')) return { action: 'deny' }
     const win = model.windows.get(p.win)
     if (win && model.tabs.has(p.from)) model.openFromPage(win, p.from, details.url, details.disposition)
     return { action: 'deny' }
