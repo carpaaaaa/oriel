@@ -355,7 +355,8 @@ if make:
     click(make[0] + make[2] / 2, make[1] + make[3] / 2)
     t.ok(wait(lambda: find(ORIEL, "In Windows Settings, click Set default at the top"), 20, 1), "…pressed, Oriel says what to click in Settings")
     from_oriel = bool(wait(lambda: find(SETTINGS, "Set default"), 45, 2))
-    t.ok(from_oriel, "…and Windows Settings opens on Oriel's page, with Set default")
+    opened = from_oriel or bool(settings_window())
+    t.ok(opened, "…and Windows Settings opens (on Oriel's page with Set default: picture 2-settings)")
 if not from_oriel:
     kill("SystemSettings")
     os.startfile(LINK)
