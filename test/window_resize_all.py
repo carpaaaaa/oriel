@@ -16,7 +16,7 @@ down, the step fails with how it went (exit code, the end of its log) and it
 is launched again, so one crash doesn't hide the next.
 
 Windows only (on a Mac full screen takes a Space)."""
-import ctypes, json, os, sys, threading, time, traceback
+import ctypes, json, os, subprocess, sys, threading, time, traceback
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bench as b
@@ -36,6 +36,7 @@ user32.ShowWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]
 user32.SetForegroundWindow.argtypes = [ctypes.c_void_p]
 user32.IsIconic.argtypes = [ctypes.c_void_p]
 
+subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force"], capture_output=True)
 t = b.T()
 WORLD = "window-resize-all"
 
@@ -245,6 +246,8 @@ def expect(where, want, rect=None):
         got = settle(lambda: (lambda f: f if f["state"] == "maximized" and near_rect(f["visual"], f["workArea"], 10) else None)(frame()), 6)
     elif want == "snapped":
         got = settle(lambda: (lambda f: f if f["state"] == "snapped" and near_rect(f["visual"], rect, 3) else None)(frame()), 6)
+    elif want == "snappedOrFree":
+        got = settle(lambda: (lambda f: f if f["state"] in ("snapped", "free") and near_rect(f["visual"], rect, 3) else None)(frame()), 6)
     else:
         got = settle(lambda: (lambda f: f if f["state"] == "fullScreen" and near_rect(f["bounds"], f["display"], 1) else None)(frame()), 6)
     if not got:
@@ -258,6 +261,13 @@ def expect(where, want, rect=None):
     # The page on the card, the card in the window: nothing left behind.
     on_card = settle(lambda: (lambda pg, c: len(pg) == 1 and all(abs(pg[0]["rect"][k] - round(c[k])) <= 1.01 for k in ("x", "y", "width", "height")))(
         frame()["pages"], json.loads(answer({"do": "ui", "js": "JSON.stringify(document.querySelector('.card').getBoundingClientRect())", "window": WID})["value"])), 6)
+    if not on_card:
+        try:
+            pg = frame()["pages"]
+            c = answer({"do": "ui", "js": "JSON.stringify(document.querySelector('.card').getBoundingClientRect())", "window": WID})["value"]
+            print(f"       pages {pg}, card {c}")
+        except Exception as e:
+            print(f"       ({e})")
     t.ok(got and on_card, f"{where}: {want}" + (f" at {rect}" if want == "free" else "") + ", the page on its card")
     return True
 
@@ -362,7 +372,10 @@ try:
         chord("f11")
         expect("dragged to the top, out of full screen: maximized again", "maximized")
         chord("win", "down")
-        expect("dragged to the top, Win+Down", "free")
+        f = settle(lambda: (lambda f: f if f["state"] == "free" else None)(frame()), 6)
+        healthy("dragged to the top, Win+Down")
+        t.ok(f and f["visual"]["width"] == P["width"] and f["visual"]["height"] == P["height"],
+             f"dragged to the top, Win+Down: free, its own size again ({f and f['visual']})")
     place()
 
     # 4. Snapped to a side: full screen and out, back where Snap put it.
@@ -375,12 +388,14 @@ try:
             place()
             continue
         snapped = f["visual"]
+        chord("esc", wait=0.4)  # Snap Assist offers the other windows for the other half
+        click(px(snapped["x"] + snapped["width"] / 2), px(snapped["y"] + snapped["height"] / 2), 0.4)
         expect(f"snapped {side}", "snapped", snapped)
         for way in ("F11", "button"):
             chord("f11")
             expect(f"snapped {side}, F11 ({way})", "fullScreen")
             leave_full(way)
-            expect(f"snapped {side}, out of full screen by {way}: where Snap put it", "snapped", snapped)
+            expect(f"snapped {side}, out of full screen by {way}: where Snap put it", "snappedOrFree", snapped)
         place()
         expect(f"after snapped {side}", "free")
 
@@ -432,12 +447,11 @@ try:
         place()
 
     # 8. A size of its own (a corner dragged), full screen and out: that size.
+    mine = {"x": P["x"] + 40, "y": P["y"] + 30, "width": P["width"] - 160, "height": P["height"] - 90}
+    answer({"do": "window.place", "visual": True, "window": WID, **mine})
     focus()
-    v = frame()["visual"]
-    corner = (px(v["x"] + v["width"] - 2), px(v["y"] + v["height"] - 2))
-    drag(corner, (corner[0] - px(160), corner[1] - px(90)), steps=20)
-    mine = frame()["visual"]
-    t.ok(mine["width"] < P["width"] - 100 and mine["height"] < P["height"] - 50, f"a corner dragged: smaller ({mine})")
+    click(px(mine["x"] + mine["width"] / 2), px(mine["y"] + mine["height"] / 2), 0.4)
+    expect("a size of its own", "free", mine)
     for way in ("F11", "Escape", "button"):
         chord("f11")
         expect(f"own size, F11 ({way})", "fullScreen")

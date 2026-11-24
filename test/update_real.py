@@ -184,6 +184,8 @@ def clean_env():
     return {k: v for k, v in os.environ.items() if not (k.startswith("SEARCH_") or k.startswith("ORIEL_"))}
 
 
+# A fresh Windows image can show its first-run privacy screen over everything.
+subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force"], capture_output=True)
 print(f"Oriel {FROM} installed, {TO} published ({ARCH})")
 t.ok(FROM != TO, f"a newer version is out ({FROM} → {TO})")
 
@@ -237,6 +239,8 @@ try:
             reg = b.call({"do": "window.edges", "window": wid})["region"]
             x = (f["bounds"]["x"] + reg["x"] + plate["r"]["x"] + plate["r"]["width"] / 2) * s
             y = (f["bounds"]["y"] + reg["y"] + plate["r"]["y"] + plate["r"]["height"] / 2) * s
+            subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force"], capture_output=True)
+            time.sleep(1)
             click(x, y)
             gone = wait(lambda: not oriels(), 60)
             t.ok(gone, "Update and Restart: Oriel closes")

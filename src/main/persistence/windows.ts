@@ -25,7 +25,8 @@ export function placementNow(c: WindowController): Placement | null {
   const f = c.frame
   f.refresh()
   const p: Placement = { frame: frameString(f.normalVisual()) }
-  if (f.state === 'maximized' || b.isMaximized()) p.maximized = true
+  // Maximized under full screen too: it comes back maximized, then full screen.
+  if (f.state === 'maximized' || b.isMaximized() || f.maximizedUnderFull()) p.maximized = true
   if (f.isFullScreen()) p.fullScreen = true
   if (f.state === 'snapped') p.snapped = frameString(f.visual())
   const d = screen.getDisplayMatching(f.state === 'free' ? f.visual() : b.getBounds())

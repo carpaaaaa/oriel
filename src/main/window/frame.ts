@@ -16,7 +16,7 @@
 import { screen, type BaseWindowConstructorOptions, type Rectangle } from 'electron'
 import type { Edge, FrameView, Insets } from '../../shared/modules/window'
 import { model } from '../model/model'
-import { DWMWA, WS, win32 } from '../win/user32'
+import { DWMWA, WS, win32, type Placement } from '../win/user32'
 import type { WindowController } from '../views/window'
 
 /** As quietTests in context.ts (not imported: frame.ts loads before it). */
@@ -39,6 +39,7 @@ const SC_MAXIMIZE = 0xf030
 const SC_RESTORE = 0xf120
 const SW_MAXIMIZE = 3
 const SW_RESTORE = 9
+const SW_SHOWMAXIMIZED = 3
 
 export type FrameKind = FrameView['kind']
 type State = FrameView['state']
@@ -137,6 +138,14 @@ export class Frame {
    * itself for transparent windows on Windows, where getNormalBounds says the
    * full screen, and windows.json would bring it back screen-sized. */
   private beforeFull: Rectangle | null = null
+  /** Maximized by Windows when full screen began: Windows keeps a maximized
+   * window at the work area whatever bounds it is given (the taskbar showed
+   * under F11 and under a video's full screen), so it is made normal for
+   * full screen and maximized again after, with the size it is restored to
+   * kept as it was. */
+  private fromMax: Placement | null = null
+  /** The last bounds while free: where a page's own full screen comes back to. */
+  private lastFree: Rectangle | null = null
 
   constructor(private readonly c: WindowController, kind: FrameKind) {
     this.kind = kind
@@ -157,6 +166,8 @@ export class Frame {
       c.base.hookWindowMessage(WM_SYSCOMMAND, wParam => {
         const command = Number(wParam.length >= 8 ? wParam.readBigUInt64LE(0) : BigInt(wParam.readUInt32LE(0))) & 0xfff0
         if (this.tracing) this.trace.push('syscommand 0x' + command.toString(16))
+        // In full screen Win+Up and Win+Down change nothing (F11 leaves it).
+        if (this.isFullScreen()) return
         if (command === SC_MAXIMIZE && this.state !== 'maximized') setImmediate(() => { if (this.compute() !== 'maximized') this.maximize() })
         else if (command === SC_RESTORE && this.state === 'maximized' && !c.base.isMinimized()) setImmediate(() => { if (this.compute() === 'maximized') this.unmaximize() })
       })
@@ -182,6 +193,11 @@ export class Frame {
     }
     this.state = this.compute()
     c.base.on('closed', () => this.stopPoll())
+    // Full screen by F11, by a page (a video) or after a restart: all come here.
+    c.base.on('enter-full-screen', () => this.entered())
+    c.base.on('leave-full-screen', () => this.left())
+    c.base.on('focus', () => this.refocusSoon())
+    c.base.on('restore', () => this.refocusSoon())
   }
 
   // geometry
@@ -229,6 +245,9 @@ export class Frame {
   refresh(): boolean {
     if (this.c.base.isDestroyed()) return false
     const next = this.compute()
+    if (next === 'free' && !this.c.base.isMinimized()) this.lastFree = this.c.base.getBounds()
+    // Windows moved a window in full screen (Win+Left, Win+Right): it stays full screen.
+    if (next === 'fullScreen' && this.full) setImmediate(() => this.cover())
     if (next === this.state) return false
     const before = this.margin()
     this.state = next
@@ -383,11 +402,85 @@ export class Frame {
 
   setFullScreen(on = !this.isFullScreen()): void {
     if (on === this.isFullScreen()) return
-    this.beforeFull = on ? (this.state === 'free' ? this.c.base.getBounds() : this.restoreTo ?? this.c.base.getNormalBounds()) : null
+    if (on) {
+      this.beforeFull = this.state === 'free' ? this.c.base.getBounds() : this.restoreTo ?? this.c.base.getNormalBounds()
+      this.leaveMaximized()
+    }
     this.full = on && !!this.hwnd
     this.c.base.setFullScreen(on)
     this.refresh()
     this.c.mark('window')
+  }
+
+  /** Into full screen, whoever asked (F11, a page, a restart). */
+  private entered(): void {
+    // A page's full screen: it comes back where it was.
+    if (!this.beforeFull) this.beforeFull = this.state === 'free' ? this.lastFree ?? this.c.base.getBounds() : this.restoreTo ?? this.c.base.getNormalBounds()
+    this.leaveMaximized()
+    setImmediate(() => this.cover())
+  }
+
+  /** Out of full screen, whoever asked: once Electron has put its own bounds
+   * back, maximized again if it was, else the size it had before (Electron's
+   * own can be the screen's after a page went full screen inside F11's). */
+  private left(): void {
+    const max = this.fromMax, before = this.beforeFull
+    this.fromMax = null
+    this.beforeFull = null
+    setImmediate(() => {
+      const b = this.c.base
+      if (b.isDestroyed() || this.isFullScreen()) return
+      const w = win32()
+      if (max && w && this.hwnd) w.setPlacement(this.hwnd, { ...max, showCmd: SW_SHOWMAXIMIZED })
+      else if (before && this.compute() === 'free') {
+        const now = b.getBounds()
+        if (now.x !== before.x || now.y !== before.y || now.width !== before.width || now.height !== before.height) b.setBounds(before)
+      }
+      this.refresh()
+      this.refocusSoon()
+    })
+  }
+
+  /** A window Windows maximized is made normal (no animation: the style bit
+   * alone), its placement kept to maximize it again after full screen. */
+  private leaveMaximized(): void {
+    const w = win32()
+    if (!w || !this.hwnd || this.fromMax || !this.zoomed()) return
+    this.fromMax = w.placement(this.hwnd)
+    w.setStyle(this.hwnd, w.style(this.hwnd) & ~WS.MAXIMIZE)
+    this.c.base.setBounds(screen.getDisplayMatching(this.c.base.getBounds()).bounds)
+  }
+
+  /** In full screen the window covers its screen. */
+  private cover(): void {
+    const b = this.c.base
+    if (b.isDestroyed() || b.isMinimized() || !this.isFullScreen()) return
+    const d = screen.getDisplayMatching(b.getBounds()).bounds
+    const now = b.getBounds()
+    if (now.x !== d.x || now.y !== d.y || now.width !== d.width || now.height !== d.height) b.setBounds(d)
+  }
+
+  /** Was maximized under full screen (windows.json keeps it maximized). */
+  maximizedUnderFull(): boolean { return !!this.fromMax }
+
+  /** Keys need the page or the interface focused. After the full-screen
+   * strip's buttons (in the overlay, which then shrinks away), a restore or
+   * Win+arrows, Windows can leave none of them focused, and F11, Escape and
+   * every shortcut went nowhere until a click. */
+  refocusSoon(): void {
+    setTimeout(() => this.refocus(), 60)
+    setTimeout(() => this.refocus(), 300)
+  }
+
+  private refocus(): void {
+    const c = this.c
+    if (c.base.isDestroyed() || !c.base.isFocused() || c.base.isMinimized()) return
+    const page = c.activeRuntime()?.contents
+    const overlayShown = c.overlay.getBounds().width > 0 && c.overlay.getBounds().height > 0
+    const views = [c.ui.webContents, overlayShown ? c.overlay.webContents : null, page]
+    if (views.some(w => w && !w.isDestroyed() && w.isFocused())) return
+    if (page && !page.isDestroyed()) page.focus()
+    else c.ui.webContents.focus()
   }
 
   /** Back to free from whatever Windows or we made of the window (tests,

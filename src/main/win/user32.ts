@@ -22,8 +22,16 @@ const SM_SWAPBUTTON = 23
 export const HT = { caption: 2, left: 10, right: 11, top: 12, 'top-left': 13, 'top-right': 14, bottom: 15, 'bottom-left': 16, 'bottom-right': 17 } as const
 const WMSZ = { left: 1, right: 2, top: 3, 'top-left': 4, 'top-right': 5, bottom: 6, 'bottom-left': 7, 'bottom-right': 8 } as const
 
-export const WS = { THICKFRAME: 0x00040000, MAXIMIZEBOX: 0x00010000, MINIMIZEBOX: 0x00020000, SYSMENU: 0x00080000, CAPTION: 0x00c00000 }
+export const WS = { MAXIMIZE: 0x01000000, THICKFRAME: 0x00040000, MAXIMIZEBOX: 0x00010000, MINIMIZEBOX: 0x00020000, SYSMENU: 0x00080000, CAPTION: 0x00c00000 }
 export const DWMWA = { NCRENDERING_POLICY: 2, EXTENDED_FRAME_BOUNDS: 9, WINDOW_CORNER_PREFERENCE: 33, BORDER_COLOR: 34 }
+
+/** GetWindowPlacement's answer, given back as it was to SetWindowPlacement
+ * (its rectangles are in Windows' own workspace coordinates). */
+export interface Placement {
+  length: number; flags: number; showCmd: number
+  ptMinPosition: { x: number; y: number }; ptMaxPosition: { x: number; y: number }
+  rcNormalPosition: { left: number; top: number; right: number; bottom: number }
+}
 
 export interface Win32 {
   /** HWND from BaseWindow.getNativeWindowHandle(). */
@@ -42,6 +50,9 @@ export interface Win32 {
   arranged(hwnd: number): boolean | null
   zoomed(hwnd: number): boolean
   show(hwnd: number, cmd: number): void
+  /** Where Windows keeps the window, maximized or not, and its restored size. */
+  placement(hwnd: number): Placement | null
+  setPlacement(hwnd: number, placement: Placement): void
   dwmSet(hwnd: number, attribute: number, value: number): number
   dwmFrame(hwnd: number): { left: number; top: number; right: number; bottom: number } | null
   windowRect(hwnd: number): { left: number; top: number; right: number; bottom: number }
@@ -69,6 +80,7 @@ function load(): Win32 {
   const dwmapi = koffi.load('dwmapi.dll')
   const POINT = koffi.struct('SEARCH_POINT', { x: 'int32_t', y: 'int32_t' })
   const RECT = koffi.struct('SEARCH_RECT', { left: 'int32_t', top: 'int32_t', right: 'int32_t', bottom: 'int32_t' })
+  koffi.struct('SEARCH_WINDOWPLACEMENT', { length: 'uint32_t', flags: 'uint32_t', showCmd: 'uint32_t', ptMinPosition: POINT, ptMaxPosition: POINT, rcNormalPosition: RECT })
 
   const ReleaseCapture = user32.func('int __stdcall ReleaseCapture()')
   const PostMessageW = user32.func('int __stdcall PostMessageW(intptr_t hwnd, uint32_t msg, uintptr_t wParam, intptr_t lParam)')
@@ -80,6 +92,8 @@ function load(): Win32 {
   const SetWindowPos = user32.func('int __stdcall SetWindowPos(intptr_t hwnd, intptr_t after, int x, int y, int cx, int cy, uint32_t flags)')
   const IsZoomed = user32.func('int __stdcall IsZoomed(intptr_t hwnd)')
   const ShowWindow = user32.func('int __stdcall ShowWindow(intptr_t hwnd, int cmd)')
+  const GetWindowPlacement = user32.func('int __stdcall GetWindowPlacement(intptr_t hwnd, _Inout_ SEARCH_WINDOWPLACEMENT *placement)')
+  const SetWindowPlacement = user32.func('int __stdcall SetWindowPlacement(intptr_t hwnd, const SEARCH_WINDOWPLACEMENT *placement)')
   const GetWindowRect = user32.func('int __stdcall GetWindowRect(intptr_t hwnd, _Out_ SEARCH_RECT *rect)')
   const WindowFromPoint = user32.func('intptr_t __stdcall WindowFromPoint(SEARCH_POINT point)')
   const GetAncestor = user32.func('intptr_t __stdcall GetAncestor(intptr_t hwnd, uint32_t flags)')
@@ -123,6 +137,11 @@ function load(): Win32 {
     arranged: hwnd => (IsWindowArranged ? IsWindowArranged(hwnd) !== 0 : null),
     zoomed: hwnd => IsZoomed(hwnd) !== 0,
     show: (hwnd, cmd) => { ShowWindow(hwnd, cmd) },
+    placement(hwnd) {
+      const p = { length: 44, flags: 0, showCmd: 0, ptMinPosition: { x: 0, y: 0 }, ptMaxPosition: { x: 0, y: 0 }, rcNormalPosition: { left: 0, top: 0, right: 0, bottom: 0 } }
+      return GetWindowPlacement(hwnd, p) ? p : null
+    },
+    setPlacement: (hwnd, placement) => { SetWindowPlacement(hwnd, { ...placement, length: 44 }) },
     dwmSet: (hwnd, attribute, value) => DwmSetWindowAttribute(hwnd, attribute, Uint32Array.of(value >>> 0), 4),
     dwmFrame(hwnd) {
       const r = { left: 0, top: 0, right: 0, bottom: 0 }
