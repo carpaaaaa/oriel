@@ -10,12 +10,14 @@
 
 import { BaseWindow, WebContentsView, nativeTheme, screen } from 'electron'
 import { brand } from '../../shared/brand'
-import { model, newID, type TabRecord } from '../model/model'
+import { model, newID, type TabRecord, type WindowRecord } from '../model/model'
 import { frameString, parseFrame } from '../model/formats'
 import { pagePreload, runtimeFor, sessionFor } from '../views/tabs'
 import { controllerFor, allControllers } from '../views/window'
 import { quietTests } from '../context'
 import { benchRequest } from '../bench/server'
+import { handle } from '../router'
+import { need } from '../context'
 
 const LINE = 34
 const MIN = { width: 420, height: 320 }
@@ -185,6 +187,22 @@ export function littleWith(url: string): Little | undefined {
   return [...littles].reverse().find(l => !l.base.isDestroyed() && l.page && same(l.page.webContents.getURL() || l.url, url))
 }
 
+/** A tab's menu › Open in Small Window (Browser.openInLittleWindow, with
+ * links.little on): the tab out of its row, its page in a small window
+ * beside this one. Not a pin, a private tab or one of Oriel's pages. The
+ * page loads again there: Electron moves a tab's page between windows
+ * only with what the tabs module wired to it. */
+export function liftTab(win: WindowRecord, id: string): Little | null {
+  const t = model.tabs.get(id)
+  if (!t || win.shy || t.shy || t.pinID || t.internal || !/^https?:/i.test(t.url)) return null
+  const url = t.url
+  const back = win.active[win.space] === id ? model.tabBefore(win, id) : null
+  model.closeParked(win, id)
+  if (back) model.selectTab(win, back)
+  else if (!win.active[win.space]) model.newTab(win)
+  return openLittle(url, t.space)
+}
+
 export function front(l: Little): void {
   if (l.base.isMinimized()) l.base.restore()
   if (quietTests) l.base.showInactive(); else { l.base.show(); l.base.focus() }
@@ -214,3 +232,5 @@ benchRequest('settingsb.littleKey', req => {
   if (!wc.isDestroyed()) wc.sendInputEvent({ type: 'keyUp', keyCode: String(req.key), modifiers: mods })
   return {}
 })
+
+handle('tab.little', ({ id }, ctx) => !!liftTab(need(ctx).record, String(id)))

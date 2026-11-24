@@ -120,6 +120,8 @@ export function tabMenu(t: TabView): Entry[] {
   if (routeItem) items.push(routeItem)
   items.push(off('Open in Split View'))
   if (!t.pinID) items.push(off('Move to New Window'))
+  // With links from other apps in a small window on (Browser.liftable).
+  if (state.prefs['links.little'] !== false && !t.pinID) items.push({ label: 'Open in Small Window', enabled: web(t) && !t.shy && /^https?:/i.test(t.url), act: { cmd: { do: 'tab.little', id: t.id } } })
   items.push(
     sep,
     { label: 'Rename', act: { ui: 'rename', id: t.id } },
@@ -128,7 +130,8 @@ export function tabMenu(t: TabView): Entry[] {
     { label: 'Copy Address', enabled: web(t), act: { copy: t.url } },
     { label: 'Copy as Markdown Link', enabled: web(t), act: { copy: `[${label(t).replace(/([[\]])/g, '\\$1')}](${t.url})` } },
     off('Copy Clean Link'),
-    off('Open in Side Panel'),
+    // Websites in the side panel (SidePanel.swift openInSidePanel): not a private tab's.
+    { label: 'Open in Side Panel', enabled: web(t) && !t.shy && /^https?:/i.test(t.url), act: { cmd: { do: 'panel.site', url: t.url } } },
     { label: t.muted ? 'Unmute Tab' : 'Mute Tab', act: { cmd: { do: 'tab.mute', id: t.id, muted: !t.muted } } },
     // Keep This Site Awake (§9.24): on the Mac it is on the site's card; Oriel has none yet.
     ...(siteOf(t) ? [{ label: 'Keep This Site Awake', checked: keptAwake(t), act: { cmd: { do: 'tab.keepAwake', id: t.id, on: !keptAwake(t) } as Command } }] : []),

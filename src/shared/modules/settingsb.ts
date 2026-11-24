@@ -10,6 +10,13 @@ declare module '../commands' {
   interface Commands {
     /** Quit Oriel, asking first with Confirm before quitting. */
     'app.quit': None
+    /** Websites in the side panel: Show Side Panel, a site into it, and its line's buttons. */
+    'view.sidePanel': None
+    'panel.site': { url: string }
+    'panel.siteToTab': None
+    'panel.siteClose': None
+    /** A tab's menu › Open in Small Window (links.little). */
+    'tab.little': { id: ID }
     /** A pin's ⌘-click: a new tab with pins.commandNewTab, picked otherwise. */
     'pin.commandClick': { id: ID }
     /** History › Archived Tabs… (oriel://archive) and its page's commands. */

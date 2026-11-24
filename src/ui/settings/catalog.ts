@@ -77,6 +77,8 @@ export const removed: Record<string, string> = {
   // The pages module (studio/08 area C):
   'swipe.history': 'Windows tells an app no start or end of a touchpad swipe',
   'agents': 'no bridge for coding agents yet (studio/03 §8.2): back with it',
+  // The tabs module (studio/08 area B):
+  'profiles.oneWindow': 'no profiles in Oriel yet (Personal alone): back with them',
 }
 
 /** The Mac's keys as Windows has them (src/main/keys.ts's table). */
@@ -146,6 +148,10 @@ const overrides: Record<string, Partial<Item>> = {
   'links.optionSplit': { more: 'Off, Alt-click follows the link as a click does. In Chrome it downloads the link instead.' },
   'autoscroll': { detail: 'Click the wheel, then move the mouse to scroll, as in Chrome' },
   'wheel.smooth': { more: 'A touchpad, and a mouse that scrolls smoothly on its own, are left as they are. With Ctrl or Alt held a notch goes to the page as it comes, for zooming.' },
+  // The tabs module (studio/08 area B): Oriel has no View menu, and no site card yet.
+  'note.panel': { detail: 'Always there: right-click a tab › Open in Side Panel' },
+  'note.awake': { detail: 'Always there: right-click a tab › Keep This Site Awake' },
+  'mail.webmail': { more: "Email (mailto:) links clicked in a page open the webmail's new message in a tab beside it, with the address, subject and text filled in. From a private tab too, in an ordinary tab, where you're signed in. Links from other apps go there once Oriel opens email links." },
   'launcher.on': { detail: "A key of your own raises it over the app you're in, as the Start menu's search does" },
   'bench': { detail: 'A local pipe for testing; its tabs never take over' },
   'autocorrect': { detail: 'Now in Edit › Spelling and Grammar' },
