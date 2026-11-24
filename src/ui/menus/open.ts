@@ -2,7 +2,7 @@
 // pick asks of this side (an inline rename), know which menu is up.
 
 import { createSignal } from 'solid-js'
-import { state } from '../lib/store'
+import { state, cmd } from '../lib/store'
 import { listen, post, type Entry } from './bridge'
 
 const [openFor, setOpenFor] = createSignal<string | null>(null)
@@ -24,15 +24,17 @@ function wire() {
 
 const room = () => ({ w: window.innerWidth, h: window.innerHeight })
 
+/** The main process raises the menu over the page (menu.open); the overlay
+ * draws it (host.tsx). */
 export function openMenu(entries: Entry[], at: { x: number; y: number }, source: string): void {
   wire()
   setOpenFor(source)
-  post({ type: 'menu', window: state.windowID, entries, at, source, room: room() } as never)
+  void cmd({ do: 'menu.open', entries, at, source, room: room() })
 }
 
 export function openPanel(panel: string, at: { x: number; y: number }, data?: unknown): void {
   wire()
-  post({ type: 'panel', window: state.windowID, panel, at, data, room: room() } as never)
+  void cmd({ do: 'menu.open', panel, at, data, room: room() })
 }
 
 /** What a pick sends back here ({ ui: name }). */

@@ -15,18 +15,50 @@ import { tabMenu } from '../menus/build'
 import { press } from './drag'
 import { TabField } from '../field/TabField'
 
+/** Icons asked of the data module, once per address. */
+const asked = new Map<string, Promise<string | null>>()
+function keptIcon(url: string, shy: boolean): Promise<string | null> {
+  const key = `${shy ? 'shy:' : ''}${url}`
+  let got = asked.get(key)
+  if (!got) {
+    got = Promise.resolve(cmd({ do: 'data.icon', url, shy })).then(v => (typeof v === 'string' ? v : null)).catch(() => null)
+    asked.set(key, got)
+    // Learnt later (the page loads, its icon is kept): ask again next time.
+    void got.then(v => { if (!v) setTimeout(() => asked.delete(key), 5000) })
+  }
+  return got
+}
+
 /** The site's mark (Icons.swift `Mark` 752-794): its icon with a radius of
  * 22%, or its letter at 56% on ink at 6%. */
-export function Mark(p: { tab: { url: string; favicon?: string; internal?: string; label?: string; title?: string }; size: number; dim?: boolean; icon?: boolean }) {
+export function Mark(p: { tab: { url: string; favicon?: string; internal?: string; label?: string; title?: string; empty?: boolean; shy?: boolean }; size: number; dim?: boolean; icon?: boolean }) {
   const [broken, setBroken] = createSignal(false)
-  createEffect(on(() => p.tab.favicon, () => setBroken(false)))
-  const icon = () => (p.icon ?? P.icons()) && !!p.tab.favicon && !broken()
+  // Before the page says its own, or when its own doesn't load (a site's
+  // /favicon.ico that isn't there): the icon kept for its site (data.icon).
+  const [ownFailed, setOwnFailed] = createSignal(false)
+  const [kept, setKept] = createSignal<string | null>(null)
+  const ask = (url: string) => {
+    if (!url || p.tab.internal || p.tab.empty || !(p.icon ?? P.icons())) return
+    void keptIcon(url, !!p.tab.shy).then(i => { if (p.tab.url === url) setKept(i) })
+  }
+  createEffect(on(() => [p.tab.favicon, p.tab.url] as const, ([own, url]) => {
+    setBroken(false)
+    setOwnFailed(false)
+    setKept(null)
+    if (!own) ask(url)
+  }))
+  const src = () => (p.tab.favicon && !ownFailed() ? p.tab.favicon : kept()) || undefined
+  const icon = () => (p.icon ?? P.icons()) && !!src() && !broken()
+  const failed = () => {
+    if (p.tab.favicon && !ownFailed()) { setOwnFailed(true); if (!kept()) ask(p.tab.url) }
+    else setBroken(true)
+  }
   return (
     <span class="mark" classList={{ dim: !!p.dim }} style={{ width: `${p.size}px`, height: `${p.size}px`, 'border-radius': `${p.size * 0.22}px` }}>
       <Show when={icon()} fallback={
         <span class="letter" style={{ 'font-size': `${+(p.size * 0.56).toFixed(2)}px` }}>{monogram(p.tab)}</span>
       }>
-        <img src={p.tab.favicon} width={p.size} height={p.size} draggable={false} onError={() => setBroken(true)} />
+        <img src={src()} width={p.size} height={p.size} draggable={false} onError={failed} />
       </Show>
     </span>
   )

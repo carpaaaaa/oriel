@@ -112,9 +112,14 @@ t.ok(len(vault()["logins"]) == before, "bringing in again adds nothing twice")
 said = bring("Edge", consent=True)
 t.ok(said == ["Edge locks its passwords to itself: export them from it and bring in the CSV file"], f"Edge: v20 only ({said})")
 b.cmd("import.how", source="Edge")
-time.sleep(0.3)
+steps = "In Edge, open edge://wallet/passwords, choose Export passwords, and save the file."
+# The panel draws in the overlay: a slow runner (Windows on ARM) takes longer than a moment.
+try:
+    b.wait_for(lambda: steps in (b.ui("document.body.innerText", root="overlay") or ""), within=8, what="the CSV steps")
+except AssertionError:
+    pass
 text = b.ui("document.body.innerText", root="overlay")
-t.ok("In Edge, open edge://wallet/passwords, choose Export passwords, and save the file." in text, "the CSV steps, with where Edge keeps them")
+t.ok(steps in text, f"the CSV steps, with where Edge keeps them ({text[-160:]!r})")
 
 # Opera GX: the site's hash before the password.
 said = bring("Opera GX", consent=True)

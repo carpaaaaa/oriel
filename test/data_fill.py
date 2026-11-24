@@ -89,7 +89,13 @@ def open_page(path, title):
         b.cmd("tab.go", input=url)
     else:
         b.cmd("field.commit", text=url)
-    b.wait_for(lambda: (b.active() or {}).get("url") == url and b.active().get("title") == title and not b.active()["loading"], what=title)
+    # Generous: the first page of a cold app on a slow runner (Windows on ARM).
+    try:
+        b.wait_for(lambda: (b.active() or {}).get("url") == url and b.active().get("title") == title and not b.active()["loading"], within=45, what=title)
+    except AssertionError:
+        a = b.active() or {}
+        print("       active tab:", {k: a.get(k) for k in ("url", "title", "loading", "empty", "error")})
+        raise
     time.sleep(0.3)
     return b.active()["id"]
 

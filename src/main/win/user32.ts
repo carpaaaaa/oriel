@@ -45,6 +45,8 @@ export interface Win32 {
   dwmSet(hwnd: number, attribute: number, value: number): number
   dwmFrame(hwnd: number): { left: number; top: number; right: number; bottom: number } | null
   windowRect(hwnd: number): { left: number; top: number; right: number; bottom: number }
+  /** The top-level window under a point (physical pixels), 0 for none. */
+  rootAt(at: { x: number; y: number }): number
 }
 
 let cached: Win32 | null | undefined
@@ -79,6 +81,8 @@ function load(): Win32 {
   const IsZoomed = user32.func('int __stdcall IsZoomed(intptr_t hwnd)')
   const ShowWindow = user32.func('int __stdcall ShowWindow(intptr_t hwnd, int cmd)')
   const GetWindowRect = user32.func('int __stdcall GetWindowRect(intptr_t hwnd, _Out_ SEARCH_RECT *rect)')
+  const WindowFromPoint = user32.func('intptr_t __stdcall WindowFromPoint(SEARCH_POINT point)')
+  const GetAncestor = user32.func('intptr_t __stdcall GetAncestor(intptr_t hwnd, uint32_t flags)')
   let IsWindowArranged: ((hwnd: number) => number) | null = null
   try { IsWindowArranged = user32.func('int __stdcall IsWindowArranged(intptr_t hwnd)') } catch { /* before Windows 10 2004 */ }
   const DwmSetWindowAttribute = dwmapi.func('int32_t __stdcall DwmSetWindowAttribute(intptr_t hwnd, uint32_t attribute, const void *value, uint32_t size)')
@@ -128,6 +132,10 @@ function load(): Win32 {
       const r = { left: 0, top: 0, right: 0, bottom: 0 }
       GetWindowRect(hwnd, r)
       return r
+    },
+    rootAt(at) {
+      const h = Number(WindowFromPoint(at))
+      return h ? Number(GetAncestor(h, 2 /* GA_ROOT */)) : 0
     },
   }
 }

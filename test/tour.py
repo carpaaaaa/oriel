@@ -18,7 +18,7 @@ for look in ("light", "dark"):
     time.sleep(1.5)
     b.shot(out / f"{look}-2-typing.png")
     b.cmd("field.commit", text="https://en.wikipedia.org/wiki/Web_browser")
-    b.wait_for(lambda: not b.active()["loading"] and b.active()["title"], within=30, what="page")
+    b.wait_for(lambda: not b.active()["loading"] and b.active()["title"], within=90, what="page")  # over the network, on slow runners too
     for url in ("https://example.com", "https://www.iana.org/help/example-domains"):
         b.cmd("tab.new", url=url, background=True)
     time.sleep(3)

@@ -109,6 +109,9 @@ jobs:
       - name: Page zoom (bench)
         if: always()
         run: python test/window_zoom.py
+      - name: States in a row, the buttons and doors always there (bench)
+        if: always()
+        run: python test/window_states.py
       - name: Real input, frame as shipped
         if: always()
         env:

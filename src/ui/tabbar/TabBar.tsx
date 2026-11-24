@@ -14,7 +14,7 @@ import { state, cmd } from '../lib/store'
 import { outlet } from '../lib/registry'
 import type { GroupView, TabView } from '../../shared/state'
 import { G, Ring } from '../sidebar/glyphs'
-import { P, label, monogram, pinOf, picked, restOf } from '../sidebar/derive'
+import { P, label, monogram, pinOf, picked, pref, restOf } from '../sidebar/derive'
 import { Mark } from '../sidebar/Row'
 import { SpaceDot, SpaceButtons } from '../sidebar/Foot'
 import { Wash, groupColour } from '../sidebar/Sidebar'
@@ -45,13 +45,24 @@ export function TabBar() {
   let row!: HTMLDivElement
   let far!: HTMLDivElement
   let pillEl!: HTMLDivElement
+  let bar!: HTMLElement
   const [width, setWidth] = createSignal(window.innerWidth)
   const [farW, setFarW] = createSignal(0)
+  const [nearW, setNearW] = createSignal(0)
   const [inside, setInside] = createSignal(false)
+  // Back, forward and reload on the left (toolbar.left, on by default here;
+  // studio/01 §4.3, §4.4): after the room of the window's buttons (12 on
+  // Windows, theirs is at the far end), before the tabs; off, at the far end.
+  const onLeft = () => pref('toolbar.left', true)
+  let near: HTMLDivElement | undefined
+  const nearNow = () => setNearW(near?.isConnected ? near.offsetWidth + GAP : 0)
   onMount(() => {
-    const ro = new ResizeObserver(() => { setWidth(window.innerWidth); setFarW(far.offsetWidth) })
-    ro.observe(document.documentElement)
+    // The strip's own width: the window drawn by Oriel is narrower than the
+    // view by its clear margin (window/frame.ts ROOM).
+    const ro = new ResizeObserver(() => { setWidth(bar.clientWidth); setFarW(far.offsetWidth); nearNow() })
+    ro.observe(bar)
     ro.observe(far)
+    createEffect(on(onLeft, () => queueMicrotask(() => { if (near?.isConnected) ro.observe(near); nearNow() })))
     onCleanup(() => ro.disconnect())
   })
 
@@ -63,7 +74,7 @@ export function TabBar() {
   const controls = () => (state.chrome === 'windows' ? state.controlsWidth : 0)
   // TabBar.swift:656-690: the room, what the pins, names and bands spend, each tab's width.
   const each = createMemo(() => {
-    const room = width() - controls() - lights() - dot() - 12 - PLUS - HOLD - farW() - 3 * GAP
+    const room = width() - controls() - lights() - (onLeft() ? nearW() : 0) - dot() - 12 - PLUS - HOLD - farW() - 3 * GAP
     const open = groups().filter(x => !x.g.folded)
     const shown = loose().length + open.reduce((n, x) => n + x.tabs.length, 0) + groups().filter(x => x.g.folded && x.tabs.some(t => t.id === state.activeID)).length
     const names = groups().reduce((w, x) => w + measure(x.g.name) + 20, 0)
@@ -102,13 +113,30 @@ export function TabBar() {
   const back = () => !!tab() && !tab()!.empty && tab()!.canGoBack
   const forward = () => !!tab() && !tab()!.empty && tab()!.canGoForward
 
+  const Helm = () => (
+    <div class="strip-helm">
+      <Show when={!pref('helm.back.hidden', false)}>
+        <button class="door" disabled={!back()} title="Back   Alt+Left" onClick={() => void cmd({ do: 'tab.back' })}><G.chevronLeft pt={11} weight="medium" /></button>
+      </Show>
+      <Show when={!pref('helm.forward.hidden', false)}>
+        <button class="door" disabled={!forward()} title="Forward   Alt+Right" onClick={() => void cmd({ do: 'tab.forward' })}><G.chevronRight pt={11} weight="medium" /></button>
+      </Show>
+      <Show when={!pref('helm.reload.hidden', false)}>
+        <button class="door" disabled={!tab() || tab()!.empty} title={tab()?.loading ? 'Stop   Esc' : 'Reload   Ctrl+R'}
+          onClick={() => void cmd({ do: tab()?.loading ? 'tab.stop' : 'tab.reload' })}>
+          {tab()?.loading ? <G.xmark pt={11} weight="medium" /> : <G.reload pt={11} weight="medium" />}
+        </button>
+      </Show>
+    </div>
+  )
+
   return (
-    <header class="tabbar drag" data-tabs-ui="strip" style={{ '--controls': `${controls()}px` }}
-      onPointerEnter={() => setInside(true)} onPointerLeave={() => setInside(false)}
-      onDblClick={e => { if (e.target === e.currentTarget) void cmd({ do: 'tab.new' }) }}>
+    <header ref={bar} class="tabbar drag" data-tabs-ui="strip" style={{ '--controls': `${controls()}px` }}
+      onPointerEnter={() => setInside(true)} onPointerLeave={() => setInside(false)}>
       <Wash />
       <div class="strip-band">
         <div class="strip-lights" style={{ width: `${lights()}px` }} />
+        <Show when={onLeft()}><div ref={near} class="strip-near"><Helm /></div></Show>
         <Show when={dot()}><SpaceDot /></Show>
         <div ref={row} class="strip-row">
           <div ref={pillEl} class="strip-pill" classList={{ on: !!gliding() }} />
@@ -120,17 +148,12 @@ export function TabBar() {
             <G.plus pt={10} weight="medium" />
           </button>
         </div>
-        <div class="strip-spring" />
+        {/* §4.20: a double click after the + opens a tab and doesn't zoom; on the
+            rest of the strip the window's frame zooms (chrome/frame.ts). */}
+        <div class="strip-spring" on:dblclick={e => { if (e.button === 0) { e.stopPropagation(); void cmd({ do: 'tab.new' }) } }} />
         <div ref={far} class="strip-far">
           <For each={outlet('strip.end')}>{c => <Dynamic component={c} />}</For>
-          <div class="strip-helm">
-            <button class="door" disabled={!back()} title="Back   Alt+Left" onClick={() => void cmd({ do: 'tab.back' })}><G.chevronLeft pt={11} weight="medium" /></button>
-            <button class="door" disabled={!forward()} title="Forward   Alt+Right" onClick={() => void cmd({ do: 'tab.forward' })}><G.chevronRight pt={11} weight="medium" /></button>
-            <button class="door" disabled={!tab() || tab()!.empty} title={tab()?.loading ? 'Stop   Esc' : 'Reload   Ctrl+R'}
-              onClick={() => void cmd({ do: tab()?.loading ? 'tab.stop' : 'tab.reload' })}>
-              {tab()?.loading ? <G.xmark pt={11} weight="medium" /> : <G.reload pt={11} weight="medium" />}
-            </button>
-          </div>
+          <Show when={!onLeft()}><Helm /></Show>
           <Show when={P.spaceButtons()}><SpaceButtons /></Show>
         </div>
       </div>
