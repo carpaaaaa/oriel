@@ -109,10 +109,66 @@ def settle(pred, within=3.0):
     return last
 
 
-# Oriel
+# Oriel, asked with a time limit (on Windows the bench's pipe waits forever
+# on an Oriel that doesn't answer), and every step said as it happens.
+
+import threading
+_call = b.call
+
+
+def timed_call(req, timeout=15):
+    out = {}
+
+    def ask():
+        try:
+            out["v"] = _call(req)
+        except Exception as e:
+            out["e"] = e
+    th = threading.Thread(target=ask, daemon=True)
+    th.start()
+    th.join(timeout)
+    if th.is_alive():
+        raise TimeoutError(f"Oriel didn't answer {req.get('do')} in {timeout}s")
+    if "e" in out:
+        raise out["e"]
+    return out["v"]
+
+
+b.call = timed_call
+
+
+def say(what):
+    print(f"  .. {what}", flush=True)
+
+
+def log_tail(n=60):
+    try:
+        lines = (b.ROOT / "out" / f"bench-{b.WORLD}.log").read_text(errors="replace").splitlines()
+        return "\n".join("       | " + l for l in lines[-n:])
+    except Exception as e:
+        return f"       (no log: {e})"
+
+
+def release_all():
+    for key in ("ctrl", "shift", "alt", "tab"):
+        user32.keybd_event(VK[key], 0, 0x2, 0)
+
+
+def watchdog():
+    time.sleep(420)
+    print("  !! real_switcher.py ran 7 minutes: stopping. Oriel's log:", flush=True)
+    print(log_tail(), flush=True)
+    release_all()
+    os._exit(1)
+
+
+threading.Thread(target=watchdog, daemon=True).start()
 
 b.use("real-switcher")
 b.launch()
+say("launched")
+import atexit
+atexit.register(release_all)
 WID = b.call({"do": "tabs.state"})["windows"][0]["id"]
 
 
@@ -146,6 +202,7 @@ title = lambda: b.active()["title"]
 switcher = lambda: b.window().get("switcher")
 
 # 1. Quick Ctrl+Tab: straight back a tab, and again.
+say('1. quick Ctrl+Tab')
 down("ctrl"); tap("tab"); up("ctrl")
 got = settle(lambda: title() == "three" and not switcher())
 t.ok(got, f"a quick Ctrl+Tab: the tab used before, no switcher left ({title()}, switcher {switcher()})")
@@ -154,6 +211,7 @@ got = settle(lambda: title() == "four" and not switcher())
 t.ok(got, f"again: back to the first ({title()}, switcher {switcher()})")
 
 # 2. Held: the panel, Tab and Shift+Tab, Ctrl let go.
+say('2. held')
 down("ctrl"); tap("tab")
 time.sleep(0.5)
 sw = switcher()
@@ -172,6 +230,7 @@ got = settle(lambda: not switcher() and b.active()["id"] == want)
 t.ok(got, f"Ctrl let go: that card's tab ({title()})")
 
 # 3. Ctrl+W in the switcher, then Ctrl let go.
+say('3. Ctrl+W')
 focus_page()
 count = len(b.window()["tabs"])
 down("ctrl"); tap("tab")
@@ -186,6 +245,7 @@ got = settle(lambda: not switcher())
 t.ok(got, f"Ctrl let go after Ctrl+W: the switcher picks and goes ({switcher()})")
 
 # 4. A click on a card; Esc; Enter.
+say('4. click, Esc, Enter')
 focus_page()
 down("ctrl"); tap("tab")
 time.sleep(0.5)
@@ -221,6 +281,7 @@ up("ctrl")
 t.ok(got, f"Enter: the chosen card's tab ({title()})")
 
 # 5. The tab numbers while Ctrl is held.
+say('5. numbers')
 b.cmd("settings.set", id="tabs.shortcuts", value=True)
 time.sleep(0.4)
 focus_page()
@@ -234,6 +295,7 @@ t.ok(held and held >= 3, f"Ctrl held, with the page's keys: the numbers ({held})
 t.ok(not numbers(), "Ctrl let go: they go")
 
 # 6. Ctrl+1 to Ctrl+9 switch spaces.
+say('6. spaces')
 b.cmd("prefs.set", key="spaces", value=True)
 time.sleep(0.3)
 work = b.call({"do": "cmd", "cmd": {"do": "space.create", "name": "Work"}}).get("value")
@@ -275,6 +337,7 @@ b.cmd("space.select", id=first_space)
 time.sleep(0.4)
 
 # 7. Bounce at the top and bottom, with a finger (touch injection).
+say('7. bounce')
 
 
 class POINTER_INFO(ctypes.Structure):
@@ -377,5 +440,9 @@ else:
     print(f"  bounce off: band at {rest}, while pulled {during}, after {after} (err {err})")
     t.ok(rest is not None and during is not None and abs(during - rest) <= 2, f"off: the page stays put ({rest} -> {during})")
 
-b.call({"do": "quit"})
+release_all()
+try:
+    b.call({"do": "quit"})
+except Exception:
+    pass
 t.done()
