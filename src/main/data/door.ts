@@ -35,6 +35,8 @@ const ASK = { name: 116, nameDetail: 156, sure: 106 }
 
 interface Open {
   anchor: Rect; card: string | null; expanded: Set<string>
+  /** Opened off a folder on the bookmarks bar: that folder's list alone. */
+  root?: string | null
   /** A row's right-click menu is up. */
   menu?: boolean
   /** A question in the list's place. */
@@ -142,12 +144,14 @@ function askHeight(a: BookmarkAskView): number {
 function view(c: WindowController): BookmarksPopover | null {
   const o = open.get(c.record.id)
   if (!o) return null
-  const roots = bookmarks().roots
+  const all = bookmarks().roots
+  const folder = o.root ? bookmarks().bookmark(o.root) : undefined
+  const roots = folder && isFolder(folder) ? folder.children ?? [] : all
   const page = keepable(c)
   const card = o.card ? bookmarks().bookmark(o.card) : undefined
   const ask = card ? null : askView(o)
   const height = card ? POP.card : ask ? askHeight(ask) : listHeight(roots, o.expanded) + 1 + POP.foot
-  const parent = card ? parentOf(card.id, roots) ?? null : null
+  const parent = card ? parentOf(card.id, all) ?? null : null
   return {
     ...place(c, o.anchor, height),
     room: POP.room,
@@ -157,14 +161,17 @@ function view(c: WindowController): BookmarksPopover | null {
     keepable: !!page,
     card: card ? {
       id: card.id, title: card.title, placeholder: card.url ? editable(card.url) : '',
-      folder: parent?.id ?? null, folderName: parent?.title ?? 'Top Level', folders: folders(roots),
+      folder: parent?.id ?? null, folderName: parent?.title ?? 'Top Level', folders: folders(all),
     } : null,
     ask,
     menu: !!o.menu && !card && !ask,
   }
 }
 
-dataPart(c => ({ popover: view(c) }))
+dataPart(c => ({ popover: view(c), bar: model.pref<boolean>('bookmarks.bar') ? lines(bookmarks().roots, new Set()) : null }))
+
+// The bookmarks bar turned on or off in Settings: every window's data again.
+model.on('window-changed', (id: ID, slices: string[]) => { if (slices?.includes('prefs')) mark(controllerFor(id)) })
 
 function show(c: WindowController): void {
   const v = view(c)
@@ -214,14 +221,18 @@ export function closePopover(c: WindowController, byClickElsewhere = false): voi
 }
 
 /** The button: the list, never a card left from before (Browser.toggleBookmarks). */
-handle('bookmark.popover', ({ anchor }, ctx) => {
+handle('bookmark.popover', ({ anchor, folder }, ctx) => {
   const c = need(ctx)
-  if (open.has(c.record.id) || Date.now() - (closedAt.get(c.record.id) ?? 0) < 300) {
+  const was = open.get(c.record.id)
+  // Another folder of the bar while one is open: that one's list instead.
+  const other = !!was && (was.root ?? null) !== (folder ?? null)
+  if (!other && (was || Date.now() - (closedAt.get(c.record.id) ?? 0) < 300)) {
     closedAt.delete(c.record.id)
     closePopover(c)
     return { open: false }
   }
-  open.set(c.record.id, { anchor, card: null, expanded: opening(bookmarks().roots) })
+  const inside = folder ? bookmarks().bookmark(folder) : undefined
+  open.set(c.record.id, { anchor, card: null, root: inside ? folder : null, expanded: opening(inside?.children ?? bookmarks().roots) })
   show(c)
   return { open: true }
 })

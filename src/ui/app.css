@@ -215,3 +215,11 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
   font-size: 13px; color: rgb(var(--ink-rgb) / .48); animation: split-drop-in var(--dur-quick, 140ms) cubic-bezier(0, 0, .58, 1); }
 .split-half span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .split-half.carried { background: rgb(var(--ink-rgb) / .1); border-color: rgb(var(--ink-rgb) / .3); color: rgb(var(--ink-rgb) / .78); font-weight: 500; }
+
+/* The bookmarks bar (data/BookmarksBar.tsx) right above the page: the card,
+   the room beside it and the loading line come down by its 30 (studio/01
+   §8.13 point 4: the bar's height above the card). */
+.window.bm :is(.card, .side-room) { top: calc(var(--top, var(--card-gap)) + var(--bookmarks-bar)); }
+.window.bm .loading-line { top: calc(var(--top, var(--card-gap)) + var(--bookmarks-bar) - 2px); }
+:root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .window.bm .card { top: var(--bookmarks-bar); }
+:root[data-state="fullScreen"] .window.top.bm :is(.card, .side-room) { top: calc(var(--top) + var(--bookmarks-bar)); }

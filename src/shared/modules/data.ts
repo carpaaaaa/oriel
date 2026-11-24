@@ -180,6 +180,9 @@ export interface DataState {
   import: ImportPanelState | null
   /** The bookmark button's list or card, open in this window. */
   popover?: BookmarksPopover | null
+  /** The bookmarks bar (Settings › Appearance › Show the bookmarks bar): the
+   * top level, left to right; null while it is off. */
+  bar?: BookmarkLine[] | null
 }
 
 declare module '../commands' {
@@ -197,7 +200,7 @@ declare module '../commands' {
     'bookmark.list': { query?: string }
     /** The bookmark button (BookmarkDoor, Browser.toggleBookmarks): its
      * list, opened or closed; `anchor` is the button in window coordinates. */
-    'bookmark.popover': { anchor: Rect }
+    'bookmark.popover': { anchor: Rect; folder?: ID }
     'bookmark.popoverClose': None
     /** A folder opened or closed in the button's list. */
     'bookmark.popoverFold': { id: ID }
