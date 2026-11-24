@@ -279,10 +279,15 @@ try:
         # 0.1.4); the update's popup waits for it to be put away, as it should.
         offer = wait(lambda: find("Links from other apps."), 15, 1)
         if offer:
-            x = find("Close")
-            if x:
-                click(x[0] + x[2] / 2, x[1] + x[3] / 2)
-                print("  the first launch's default-browser offer put away first")
+            # Its X is named Close, as the window's own button is: a click on
+            # the plate's words, then Escape, which puts it away.
+            click(offer[0] + 40, offer[1] + offer[3] / 2)
+            time.sleep(0.3)
+            user32.keybd_event(0x1B, 0, 0, 0)
+            time.sleep(0.05)
+            user32.keybd_event(0x1B, 0, 2, 0)
+            gone = wait(lambda: not find("Links from other apps."), 10, 1)
+            print(f"  the first launch's default-browser offer put away first ({'gone' if gone else 'still there'})")
         title = wait(lambda: find(f"Oriel {TO} is ready"), 60, 2)
         go = wait(lambda: find("Update and Restart"), 30, 1)
         t.ok(title and go, f"the popup over the window: Oriel {TO} is ready, Update and Restart ({title}, {go})")
