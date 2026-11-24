@@ -19,6 +19,8 @@
 :root .tabbar.resizing .strip-tab { transition: none !important; }
 :root[data-motion="light"] { --dur-glide: 160ms; --ease-glide: var(--ease-quick); --dur-settle: 160ms; --ease-settle: var(--ease-quick); }
 html, body, #root { height: 100%; overflow: hidden; }
+/* Oriel's own surfaces never bounce (ElasticOverscroll is on for pages, main/index.ts). */
+html { overscroll-behavior: none; }
 html { font-family: var(--font-ui); letter-spacing: var(--tracking-ui); font-size: var(--fs-body); color: var(--ink); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; user-select: none; cursor: default; }
 /* The window paints itself (.window); around it the view is clear. */
 html[data-root="chrome"] body { background: transparent; }

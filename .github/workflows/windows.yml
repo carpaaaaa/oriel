@@ -224,6 +224,41 @@ jobs:
             shots/
             out/*.log
 
+  # Ctrl+Tab and the switcher, the tab numbers, the number keys and the
+  # bounce, with real keys, mouse and touch from Windows (test/real_switcher.py).
+  keys:
+    name: keys (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run build
+      - name: Ctrl+Tab, tab numbers, number keys and the bounce (real input)
+        timeout-minutes: 9
+        env:
+          SHOTS_DIR: shots
+          PYTHONUNBUFFERED: '1'
+        run: python test/real_switcher.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: keys-${{ matrix.os }}
+          path: |
+            shots/
+            out/*.log
+
   installer:
     runs-on: windows-latest
     timeout-minutes: 30
@@ -257,6 +292,11 @@ jobs:
         env:
           SHOTS_DIR: shots
         run: python test/default_browser.py
+      # One click: a clean install, and over 0.1.4 put in a folder of its own
+      # by the old installer, as the updater and as a person run it.
+      - name: One-click installer (clean, over 0.1.4 in its own folder, uninstalled)
+        if: always()
+        run: python test/installer_oneclick.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

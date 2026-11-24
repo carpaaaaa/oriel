@@ -9,7 +9,7 @@ import type { Command } from '../../shared/commands'
 import type { TabView } from '../../shared/state'
 import type { Entry } from './bridge'
 import {
-  P, label, pinOf, folderEntries, canMakeIn, canMoveFolder, spaceSymbol, spaceIcons, spaceIconNames, currentSpace,
+  P, label, pinOf, folderEntries, canMakeIn, canMoveFolder, spaceSymbol, spaceIcons, spaceIconNames, currentSpace, spaceKeyMod,
 } from '../sidebar/derive'
 import { tint } from '../sidebar/look'
 
@@ -251,12 +251,12 @@ export function groupMenu(id: string): Entry[] {
   return items
 }
 
-/** The space's menu (Spaces.swift:1090-1207). Keys: Alt+1-9 on Windows. */
+/** The space's menu (Spaces.swift:1090-1207). Keys: Alt+1-9 on Windows, Ctrl+1-9 when swapped. */
 export function spaceMenu(): Entry[] {
   const here = currentSpace()
   const items: Entry[] = state.spaces.map((s, i) => ({
     label: s.name, glyph: spaceSymbol(s), tint: tint(s), checked: s.id === state.space,
-    accel: i < 9 ? `Alt+${i + 1}` : undefined, act: { cmd: { do: 'space.select', id: s.id } },
+    accel: i < 9 ? `${spaceKeyMod()}+${i + 1}` : undefined, act: { cmd: { do: 'space.select', id: s.id } },
   }))
   items.push(sep, { label: 'New Space…', act: { ui: 'panel:ask', data: { kind: 'space.new', icon: nextIcon() } } })
   if (!here) return items

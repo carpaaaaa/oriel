@@ -34,6 +34,9 @@ export interface KeyContext {
   /** The key came from a page (false: the interface or the overlay). */
   fromPage: boolean
   repeat: boolean
+  /** The chord pressed, as chordName spells it (a command's own key or one
+   * given to it in Settings › Shortcuts). */
+  chord?: string
 }
 
 /** A command to run, true for "taken" (done here), false to leave the key. */
@@ -368,6 +371,8 @@ export function chordName(k: Chord): string | null {
   const ctrl = process.platform === 'darwin' ? k.meta || k.ctrl : k.ctrl
   // Ctrl+Alt is AltGr on Windows: it types, it is never a shortcut.
   if (ctrl && k.alt) return null
+  // Alt with the keypad's digits types a character by its code (Alt+0233 é).
+  if (k.alt && /^Numpad[0-9]$/.test(k.code)) return null
   let key: string
   if (['+', '-', '='].includes(k.key)) key = k.key // zoom keys wherever they sit (+ is on ] in Italian and German)
   else if (places[k.code]) key = places[k.code]
@@ -383,7 +388,7 @@ function perform(c: WindowController, name: string, phases: ('first' | 'later')[
     if (!action) continue
     const found = findBinding(name, phase)
     if (k.repeat && found?.once) return true
-    const result = action(c, k)
+    const result = action(c, { ...k, chord: name })
     if (result === false) continue
     if (result && typeof result === 'object') void run(result as never, { window: c }).catch(e => console.warn('[keys]', e))
     return true

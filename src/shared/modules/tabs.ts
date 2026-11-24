@@ -84,6 +84,9 @@ declare module '../state' {
     /** Ctrl held with Settings › Show tab numbers while Ctrl is held: the
      * number Ctrl+1-9 gives each tab (TabShortcutHint.swift), else null. */
     tabHints?: Record<ID, number> | null
+    /** The Ctrl+Tab switcher up: a picture of each card's page, for those
+     * Oriel has one of (tabs/previews.ts), else null. */
+    switcherPictures?: Record<ID, string> | null
   }
   interface TabView {
     /** What the tab says, in Tab.label's order (§2.8). */

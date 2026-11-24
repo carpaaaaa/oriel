@@ -8,6 +8,10 @@ import type { GroupView, PinFolderView, PinView, SpaceView, TabView } from '../.
 
 // Settings as the Mac names them, with its defaults (Prefs.swift). The
 // settings module owns the keys; these are read here only.
+/** The spaces' key: Alt+1-9, or Ctrl+1-9 with Settings › Spaces & Pins ›
+ * Ctrl+1 to Ctrl+9 switch spaces (main/tabs/wiring.ts). */
+export const spaceKeyMod = (): 'Ctrl' | 'Alt' => (pref('spaces.commandNumbers', false) ? 'Ctrl' : 'Alt')
+
 export const pref = <T,>(key: string, fallback: T): T => {
   const v = state.prefs?.[key]
   return (v === undefined || v === null ? fallback : v) as T

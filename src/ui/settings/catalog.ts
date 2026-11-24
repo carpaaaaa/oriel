@@ -137,7 +137,10 @@ const overrides: Record<string, Partial<Item>> = {
     more: "Oriel's window floats a video without a click and keeps its page alive in it. Picture in picture is the one Chrome uses, with its own controls.",
   },
   'spaces': { more: 'Each space can be signed in where the others are or start afresh.' },
-  'spaces.commandNumbers': { more: "The two sets of keys swap places. A space's key you changed in Keyboard & Mouse › Shortcuts stays as you set it." },
+  'spaces.commandNumbers': {
+    detail: 'Spaces take Ctrl+1 to Ctrl+9; tabs move to Alt+1 to Alt+9, as in Arc',
+    more: "Off, the tabs have Ctrl+1 to Ctrl+9 and the spaces Alt+1 to Alt+9; on, the two swap. A space's key you changed in Keyboard & Mouse › Shortcuts stays as you set it.",
+  },
   'field.window': { more: 'As Arc and Zen place it: the column is dimmed with the page. Off, the field is centred on the page beside the column.' },
   // Translate Page on Windows: Bergamot and Mozilla's models, on the PC
   // (translate module). Several languages for the right-click menu where

@@ -2,6 +2,7 @@
 // it, and the few nudges a test needs that no person makes (moving a tab's
 // last look back in time, crashing a page, a sleep round now).
 
+import { app } from 'electron'
 import { benchRequest } from '../bench/server'
 import { model, type TabRecord, type WindowRecord } from '../model/model'
 import { runtimes, visits } from '../views/tabs'
@@ -95,3 +96,7 @@ benchRequest('tabs.closeWindow', req => {
   controllerFor(w.id)?.base.close()
   return {}
 })
+
+// The switches Chromium was started with (real_switcher.py: the bounce
+// needs ElasticOverscroll among the enabled features).
+benchRequest('app.switches', () => ({ enableFeatures: app.commandLine.getSwitchValue('enable-features') }))

@@ -63,7 +63,9 @@ function shown(b: Binding): boolean {
 }
 
 function lineOf(b: Binding, c: Changed): ShortcutLine {
-  const keys = keysOf(b).map(display)
+  // Swapped (Spaces & Pins), a space's own key is Ctrl+n (tabs/wiring.ts).
+  const own = keysOf(b)
+  const keys = (swapped() && !c[b.id] && /^spaces\.[1-9]$/.test(b.id) ? own.map(k => k.replace(/^Alt\+/, 'Ctrl+')) : own).map(display)
   return { id: b.id, title: b.title, key: keys[0] ?? null, also: keys.slice(1), changed: !!c[b.id] }
 }
 
