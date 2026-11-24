@@ -53,8 +53,9 @@ if (process.platform === 'darwin' && testEnv('SEARCH_PROBE') && testEnv('SEARCH_
 if (process.platform === 'win32' && app.isPackaged) app.setAppUserModelId('app.oriel.browser')
 // Windows 11's thin scrollbars that fade in, as Chrome has them; and
 // Chromium's elastic overscroll (chrome://flags/#elastic-overscroll, off by
-// default on Windows), the page stretching past its ends under a touchpad or
-// a finger and springing back on the compositor, as the Mac's rubber band.
+// default on Windows), the page stretching past its ends under a precision
+// touchpad and springing back on the compositor, as the Mac's rubber band
+// (a touchscreen's scroll never starts it: ElasticOverscrollController).
 // Settings › Bounce at the top and bottom decides per page: off, the page's
 // root says overscroll-behavior: none (preload/page/pages.ts). One switch:
 // a second enable-features would replace the first.

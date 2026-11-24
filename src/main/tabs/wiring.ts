@@ -118,7 +118,19 @@ model.on('window-opened', (id: string) => setImmediate(() => {
 // a click or Enter: the page in front has the keys. Without this a quick
 // Ctrl+Tab left them with the page it came from, now out of sight, and the
 // next key (a second Ctrl+Tab too) went nowhere.
-model.on('switch-ended', (w: { id: string }) => controllerFor(w.id)?.focusPage())
+// The new page's place comes from the interface a moment later (setSlots),
+// so its view may not be on screen yet: Oriel's interface keeps the keys
+// until it is (a second Ctrl+Tab at once still counts), then the page.
+function keysToPage(c: WindowController, tries = 0): void {
+  if (c.base.isDestroyed()) return
+  const tab = model.activeTab(c.record)
+  const view = c.activeRuntime()?.view
+  const shown = !!view && c.base.contentView.children.includes(view)
+  if (!tab || tab.empty || shown || tries > 40) { c.focusPage(); return }
+  if (tries === 0) c.ui.webContents.focus()
+  setTimeout(() => keysToPage(c, tries + 1), 16)
+}
+model.on('switch-ended', (w: { id: string }) => { const c = controllerFor(w.id); if (c) keysToPage(c) })
 
 // Another tab in front: the field it was raised for goes (Browser.select
 // sets editing off, §3.9); an empty tab's field is the tab itself.

@@ -12,12 +12,11 @@ from Windows (studio/01 §3.25-§3.28, §7.16; studio/06 §1.11 bounce):
 5. Show tab numbers while Ctrl is held: Ctrl held, the numbers; let go, gone.
 6. Ctrl+1 to Ctrl+9 switch spaces: Ctrl+2 the second space, Alt+3 the third
    tab, Alt held the tab numbers.
-7. Bounce at the top and bottom: a finger dragging down at the top of a page
-   stretches it past its end with the switch on (ElasticOverscroll), and it
-   springs back; off, the page stays put. (Touch injected by Windows; when a
-   machine refuses touch injection, said and skipped.)
+7. Bounce at the top and bottom: Chromium started with ElasticOverscroll,
+   and the page's rule follows the switch (the stretch itself needs a
+   precision touchpad, which no test machine has).
 
-Windows only. SHOTS_DIR=<folder> keeps the pictures of step 7."""
+Windows only."""
 import ctypes, json, os, struct, subprocess, sys, time, zlib
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -354,124 +353,24 @@ b.cmd("prefs.set", key="spaces.commandNumbers", value=False)
 b.cmd("space.select", id=first_space)
 time.sleep(0.4)
 
-# 7. Bounce at the top and bottom, with a finger (touch injection).
+# 7. Bounce at the top and bottom. Chromium stretches the page only under a
+# precision touchpad (ElasticOverscrollController: a scroll that begins
+# "non-momentum" in precise pixels; a touchscreen's never does), and no test
+# machine has one: what is checked is the engine's switch and the page's
+# own rule, both ways.
 say('7. bounce')
-
-
-class POINTER_INFO(ctypes.Structure):
-    _fields_ = [("pointerType", ctypes.c_uint32), ("pointerId", ctypes.c_uint32), ("frameId", ctypes.c_uint32), ("pointerFlags", ctypes.c_uint32),
-                ("sourceDevice", ctypes.c_void_p), ("hwndTarget", ctypes.c_void_p), ("ptPixelLocation", wt.POINT), ("ptHimetricLocation", wt.POINT),
-                ("ptPixelLocationRaw", wt.POINT), ("ptHimetricLocationRaw", wt.POINT), ("dwTime", wt.DWORD), ("historyCount", ctypes.c_uint32),
-                ("InputData", ctypes.c_int32), ("dwKeyStates", wt.DWORD), ("PerformanceCount", ctypes.c_uint64), ("ButtonChangeType", ctypes.c_int)]
-
-
-class POINTER_TOUCH_INFO(ctypes.Structure):
-    _fields_ = [("pointerInfo", POINTER_INFO), ("touchFlags", ctypes.c_uint32), ("touchMask", ctypes.c_uint32), ("rcContact", wt.RECT),
-                ("rcContactRaw", wt.RECT), ("orientation", ctypes.c_uint32), ("pressure", ctypes.c_uint32)]
-
-
-DOWN, UPDATE, UP_ = 0x10000 | 0x2 | 0x4, 0x20000 | 0x2 | 0x4, 0x40000
-
-
-def touch(flags, x, y):
-    p = POINTER_TOUCH_INFO()
-    p.pointerInfo.pointerType = 2  # PT_TOUCH
-    p.pointerInfo.pointerId = 0
-    p.pointerInfo.pointerFlags = flags
-    p.pointerInfo.ptPixelLocation = wt.POINT(int(x), int(y))
-    p.touchMask = 0x1 | 0x2 | 0x4  # contact, orientation, pressure
-    p.rcContact = wt.RECT(int(x) - 2, int(y) - 2, int(x) + 2, int(y) + 2)
-    p.orientation = 90
-    p.pressure = 32000
-    return user32.InjectTouchInput(1, ctypes.byref(p))
-
-
-class BITMAPINFOHEADER(ctypes.Structure):
-    _fields_ = [("biSize", wt.DWORD), ("biWidth", wt.LONG), ("biHeight", wt.LONG), ("biPlanes", wt.WORD), ("biBitCount", wt.WORD),
-                ("biCompression", wt.DWORD), ("biSizeImage", wt.DWORD), ("biXPelsPerMeter", wt.LONG), ("biYPelsPerMeter", wt.LONG),
-                ("biClrUsed", wt.DWORD), ("biClrImportant", wt.DWORD)]
-
-
-def grab_column(x, y0, y1, name=None):
-    """The screen's pixels down one column, (r, g, b) from y0 to y1."""
-    w, h = 1, y1 - y0
-    screen = user32.GetDC(None)
-    mem = gdi32.CreateCompatibleDC(screen)
-    bmp = gdi32.CreateCompatibleBitmap(screen, w, h)
-    gdi32.SelectObject(mem, bmp)
-    gdi32.BitBlt(mem, 0, 0, w, h, screen, int(x), int(y0), 0x00CC0020 | 0x40000000)
-    bi = BITMAPINFOHEADER(40, w, -h, 1, 32, 0, 0, 0, 0, 0, 0)
-    buf = ctypes.create_string_buffer(w * h * 4)
-    gdi32.GetDIBits(mem, bmp, 0, h, buf, ctypes.byref(bi), 0)
-    gdi32.DeleteObject(bmp)
-    gdi32.DeleteDC(mem)
-    user32.ReleaseDC(None, screen)
-    d = buf.raw
-    return [(d[i * 4 + 2], d[i * 4 + 1], d[i * 4]) for i in range(h)]
-
-
-def first_red(col):
-    for i, (r, g, bb) in enumerate(col):
-        if r > 200 and g < 70 and bb < 70:
-            return i
-    return None
-
-
-print(f"  switches: {b.call({'do': 'app.switches'})}", flush=True)
-page = "data:text/html,<title>bounce</title><style>html{background:%2300c060}body{margin:0;background:%23fff}</style><div style='height:160px;background:%23e00000'></div><div style='height:3000px'>tall</div>"
-b.cmd("tab.go", input=page)
+sw = b.call({"do": "app.switches"}).get("enableFeatures") or ""
+t.ok("ElasticOverscroll" in sw.split(","), f"Chromium started with ElasticOverscroll ({sw})")
+b.cmd("tab.go", input="data:text/html,<title>bounce</title><div style='height:3000px'>tall</div>")
 b.wait_for(lambda: title() == "bounce", what="bounce page")
-time.sleep(0.6)
-f = frame()
-S = f["scale"]
-bx, by, bw, bh = f["bounds"]["x"], f["bounds"]["y"], f["bounds"]["width"], f["bounds"]["height"]
-col_x = (bx + bw * 0.72) * S
-y0, y1 = int(by * S), int((by + bh) * S)
-fx, fy = (bx + bw * 0.72) * S, (by + bh * 0.45) * S
-
-ok_touch = user32.InitializeTouchInjection(1, 3)  # TOUCH_FEEDBACK_NONE
-if not ok_touch:
-    print(f"  (touch injection refused here, error {ctypes.get_last_error()}: step 7 skipped)")
-else:
-    # The finger reaches the page: pushed up, it scrolls the page down.
-    b.cmd("settings.set", id="pages.bounce", value=False)
-    focus_page()
-    touch(DOWN, fx, fy + 150)
-    for i in range(1, 16):
-        touch(UPDATE, fx, fy + 150 - i * 12)
-        time.sleep(0.016)
-    touch(UP_, fx, fy - 30)
-    time.sleep(0.8)
-    scrolled = b.ev(b.active()["id"], "scrollY")
-    t.ok(scrolled and scrolled > 20, f"a finger reaches the page: pushed up, it scrolls ({scrolled})")
-    b.ev(b.active()["id"], "scrollTo(0, 0)")
-    time.sleep(0.4)
-
-    def stretch(on):
-        b.cmd("settings.set", id="pages.bounce", value=on)
-        time.sleep(0.6)
-        focus_window()
-        rest = first_red(grab_column(col_x, y0, y1))
-        if not touch(DOWN, fx, fy):
-            return rest, None, None, ctypes.get_last_error()
-        time.sleep(0.05)
-        for i in range(1, 25):
-            touch(UPDATE, fx, fy + i * 10)
-            time.sleep(0.016)
-        time.sleep(0.05)
-        during = first_red(grab_column(col_x, y0, y1))
-        touch(UP_, fx, fy + 240)
-        time.sleep(1.0)
-        after = first_red(grab_column(col_x, y0, y1))
-        return rest, during, after, 0
-
-    rest, during, after, err = stretch(True)
-    print(f"  bounce on: band at {rest}, while pulled {during}, after {after} (err {err})")
-    t.ok(rest is not None and during is not None and during - rest >= 12, f"on: a finger pulling down at the top stretches the page past its end ({rest} -> {during})")
-    t.ok(after is not None and abs(after - rest) <= 2, f"let go, it springs back ({after})")
-    rest, during, after, err = stretch(False)
-    print(f"  bounce off: band at {rest}, while pulled {during}, after {after} (err {err})")
-    t.ok(rest is not None and during is not None and abs(during - rest) <= 2, f"off: the page stays put ({rest} -> {during})")
+tab = b.active()["id"]
+rule = lambda: b.ev(tab, "getComputedStyle(document.documentElement).overscrollBehaviorY")
+b.cmd("settings.set", id="pages.bounce", value=True)
+time.sleep(0.5)
+t.ok(rule() == "auto", f"on: the page may stretch past its ends ({rule()})")
+b.cmd("settings.set", id="pages.bounce", value=False)
+time.sleep(0.5)
+t.ok(rule() == "none", f"off: it stops at its ends ({rule()})")
 
 release_all()
 try:
