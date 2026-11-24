@@ -18,12 +18,12 @@ REQUESTS = []   # (scheme, host, path, headers dict)
 LOCK = threading.Lock()
 
 
-def wav(seconds=3.0, rate=8000):
+def wav(seconds=3.0, rate=8000, loud=3000):
     """A quiet tone, as a WAV file: enough for a <video> to play."""
     import math
     import struct
     n = int(seconds * rate)
-    data = b"".join(struct.pack("<h", int(3000 * math.sin(2 * math.pi * 440 * i / rate))) for i in range(n))
+    data = b"".join(struct.pack("<h", int(loud * math.sin(2 * math.pi * 440 * i / rate))) for i in range(n))
     return (b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt " + struct.pack("<IHHIIHH", 16, 1, 1, rate, rate * 2, 2, 16)
             + b"data" + struct.pack("<I", len(data)) + data)
 

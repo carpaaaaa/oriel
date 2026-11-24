@@ -9,6 +9,7 @@
 
 import { contextBridge, ipcRenderer, webFrame } from 'electron'
 import { youtubePage, youtubeSkipper } from './youtube'
+import { setupFloat } from './float'
 
 interface PagePrefs {
   /** Shield's hiding rules for this site, or nothing while it is off or paused. */
@@ -175,6 +176,7 @@ function start(first: PagePrefs): void {
   }, true)
 
   autoScroll(() => now.autoscroll)
+  setupFloat()
 
   // The element that filled the screen, to put back after an Escape.
   let full: WeakRef<Element> | null = null

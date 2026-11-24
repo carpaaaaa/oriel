@@ -69,7 +69,7 @@ setting("media.click", False)
 def full(tab):
     ev(tab, "document.getElementById('f').requestFullscreen().then(() => 1, () => 0)")
     b.wait_for(lambda: ev(tab, "!!document.fullscreenElement"), within=10, what="full screen")
-    time.sleep(0.5)
+    time.sleep(1.2)  # a Mac window animates into full screen
 
 
 def esc(tab):
@@ -92,9 +92,11 @@ esc(tab)
 st = b.call({"do": "pages.state"})
 t.ok(ev(tab, "!!document.fullscreenElement") is True, "on: the first Escape is kept, the page stays full screen")
 t.ok(st["reminder"]["showing"] and pill(tab), "the reminder is up over the page")
+time.sleep(0.8)  # a Mac's window takes its time going back into full screen
 esc(tab)
 b.wait_for(lambda: not ev(tab, "!!document.fullscreenElement"), within=5, what="left on the second press")
 t.ok(not b.call({"do": "pages.state"})["reminder"]["showing"] and not pill(tab), "a second within two seconds leaves, and takes the reminder")
+time.sleep(1.2)
 full(tab)
 esc(tab)
 time.sleep(2.4)
@@ -105,5 +107,126 @@ ev(tab, "document.exitFullscreen()")
 time.sleep(0.6)
 t.ok(not b.call({"do": "pages.state"})["reminder"]["showing"], "leaving full screen another way takes the reminder with it")
 setting("fullscreen.escapeTwice", False)
+
+# 3. The floating video. The test page's host counts as a player's site
+# (as the Mac's Players.benchHosts); its tone is too quiet to hear.
+import os
+web.PAGES["/quiet.wav"] = (web.wav(60, loud=40), "audio/wav")
+web.PAGES["/film"] = ("<title>film</title><body style='margin:0;background:#fff'><h1>film page</h1>"
+                      "<video id='v' loop src='/quiet.wav' style='width:640px;height:360px;background:#123'></video><p>words</p>")
+web.PAGES["/else"] = "<title>else</title>"
+b.call({"do": "pages.testHosts", "test.playerHosts": ["127.0.0.1"]})
+
+
+def fl():
+    return b.call({"do": "pages.state"})["float"]
+
+
+def playing_film():
+    tab = tab_titled("film", H + "/film")
+    ev(tab, "document.getElementById('v').play().then(() => 1)")
+    b.wait_for(lambda: next(x for x in b.state()["tabs"] if x["id"] == tab).get("audible"), within=15, what="audible")
+    return tab
+
+
+film = playing_film()
+other = tab_titled("else", H + "/else")
+b.wait_for(lambda: fl()["floating"], within=15, what="floated on leaving")
+f = fl()["floating"]
+t.ok(f["tab"] == film and f["holdsPage"], "leaving a tab with a video playing floats it, its page and all (Switching tabs, the default)")
+t.ok(ev(film, "document.documentElement.classList.contains('oriel-floating') && !document.getElementById('v').paused") is True, "the video goes on playing")
+size = ev(film, "(() => { const r = document.getElementById('v').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), innerWidth, innerHeight] })()")
+t.ok(size and size[0] == size[2] and size[1] == size[3] and 250 <= size[2] <= 460, f"everything else goes, the video fills the little window ({size})")
+t.ok(b.window()["float"] and b.window()["float"]["style"] == "search", "Oriel's own window, by default")
+b.cmd("tab.select", id=film)
+b.wait_for(lambda: not fl()["floating"], within=10, what="landed")
+time.sleep(0.5)
+t.ok(ev(film, "document.documentElement.classList.contains('oriel-floating')") is False and ev(film, "!document.getElementById('v').paused") is True, "back to its tab, it lands, still playing")
+size = ev(film, "innerWidth")
+t.ok(size and size > 460, f"and its page is the tab's size again ({size})")
+
+# Minimize, the buttons and the flick.
+b.cmd("tab.select", id=other)
+b.wait_for(lambda: fl()["floating"], within=15, what="floated again")
+time.sleep(1)
+ctl = lambda js: b.call({"do": "pages.floatControls", "js": js})["value"]
+t.ok(ctl("document.getElementById('tuck').classList.contains('off')") is True, "Minimize off: no button to tuck it")
+setting("float.minimize", True)
+t.ok(ctl("document.getElementById('tuck').classList.contains('off')") is False, "on: the button comes at once")
+wide = fl()["floating"]["bounds"]["width"]
+ctl("document.getElementById('tuck').click(); 1")
+time.sleep(0.6)
+f = fl()["floating"]
+t.ok(f["tucked"] and f["bounds"]["width"] == 220, f"the button tucks it small ({f['bounds']})")
+ctl("document.getElementById('tuck').click(); 1")
+time.sleep(0.6)
+f = fl()["floating"]
+t.ok(not f["tucked"] and f["bounds"]["width"] == wide, "the same button brings it back")
+setting("float.minimize", False)
+before = fl()["floating"]["bounds"]
+b.call({"do": "pages.floatControls", "events": [{"type": "mouseMove", "x": 100, "y": 100},
+        {"type": "mouseWheel", "x": 100, "y": 100, "deltaX": 400, "deltaY": 400, "hasPreciseScrollingDeltas": True, "canScroll": True}]})
+time.sleep(0.8)
+after = fl()["floating"]["bounds"]
+t.ok(after["x"] < before["x"] and after["y"] < before["y"], f"two fingers flick it to the corner they point at ({before['x']},{before['y']} to {after['x']},{after['y']})")
+ctl("document.getElementById('pause').click(); 1")
+time.sleep(0.6)
+t.ok(ev(film, "document.getElementById('v').paused") is True, "its pause button pauses the video")
+ctl("document.getElementById('pause').click(); 1")
+time.sleep(0.6)
+ctl("document.getElementById('back').click(); 1")
+b.wait_for(lambda: not fl()["floating"] and b.active()["id"] == film, within=10, what="back to the tab")
+t.ok(True, "its back button goes to the tab, and the video lands there")
+
+# Never; a site that isn't a player's; Ctrl+Shift+P by hand.
+setting("float.own", "never")
+b.cmd("tab.select", id=other)
+time.sleep(2)
+t.ok(not fl()["floating"], "Never: leaving the tab leaves the video in it")
+setting("float.own", "tabs")
+b.call({"do": "pages.testHosts", "test.playerHosts": []})
+b.cmd("tab.select", id=film)
+time.sleep(0.5)
+b.cmd("tab.select", id=other)
+time.sleep(2)
+t.ok(not fl()["floating"], "on its own, only from a site whose video is the point of the site")
+b.cmd("tab.select", id=film)
+time.sleep(0.5)
+r = b.cmd("view.float")
+t.ok(r.get("floating") and fl()["floating"]["tab"] == film, "Ctrl+Shift+P floats it by hand from any site")
+r = b.cmd("view.float")
+b.wait_for(lambda: not fl()["floating"], within=10, what="landed by hand")
+t.ok(r.get("landed") is True, "and again lands it")
+b.call({"do": "pages.testHosts", "test.playerHosts": ["127.0.0.1"]})
+
+# Tabs or apps: leaving Oriel floats the video, coming back lands it.
+setting("float.own", "tabsOrApps")
+b.call({"do": "pages.appFocus", "focused": False})
+b.wait_for(lambda: fl()["floating"], within=10, what="floated on leaving Oriel")
+t.ok(fl()["floating"]["tab"] == film and fl()["floating"]["away"], "Tabs or apps: another app in front floats the video")
+b.call({"do": "pages.appFocus", "focused": True})
+b.wait_for(lambda: not fl()["floating"], within=10, what="landed on coming back")
+t.ok(ev(film, "document.documentElement.classList.contains('oriel-floating')") is False, "back in Oriel on its tab, it lands")
+setting("float.own", "tabs")
+
+# A muted video isn't one somebody is watching: it stays.
+ev(film, "document.getElementById('v').muted = true; 1")
+time.sleep(1)
+b.cmd("tab.select", id=other)
+time.sleep(2)
+t.ok(not fl()["floating"], "a muted video doesn't float out on its own")
+b.cmd("tab.select", id=film)
+ev(film, "document.getElementById('v').muted = false; 1")
+
+# Picture in picture puts a window of Chromium's on the screen: only when asked (ORIEL_PIP=1).
+if os.environ.get("ORIEL_PIP") == "1":
+    setting("float.style", "system")
+    r = b.cmd("view.float")
+    t.ok(r.get("picture") == "in" and fl()["pictured"] == film, f"Picture in picture: Chromium's own window ({r})")
+    t.ok(ev(film, "!!document.pictureInPictureElement") is True, "the page's video is in picture in picture")
+    b.cmd("view.float")
+    time.sleep(0.5)
+    t.ok(ev(film, "!document.pictureInPictureElement") is True, "Ctrl+Shift+P again brings it back")
+    setting("float.style", "search")
 
 t.done()

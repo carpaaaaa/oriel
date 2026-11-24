@@ -9,6 +9,8 @@ import { reminder } from './escape'
 import { gliding } from './smooth'
 import { model } from '../model/model'
 import { peekContents, peekInfo } from './peek'
+import { floatControls, floatInfo } from './float'
+import { allControllers } from '../views/window'
 
 /** The last page menu each page asked for: its misspelt word, if any. */
 const menus = new Map<number, { misspelled: string; suggestions: string[] }>()
@@ -24,6 +26,7 @@ benchRequest('pages.state', req => {
     reminder: { ...reminder },
     gliding,
     peeks: peekInfo(),
+    float: floatInfo(),
     spelling: wc ? wc.session.isSpellCheckerEnabled() : null,
     menu: wc ? menus.get(wc.id) ?? null : null,
     commandLine: { smooth: app.commandLine.hasSwitch('enable-smooth-scrolling'), jumpy: app.commandLine.hasSwitch('disable-smooth-scrolling') },
@@ -42,7 +45,7 @@ benchRequest('pages.input', req => {
 /** A test world's stand-ins (test.youtubeHosts, test.redditHosts): keys
  * with no row in Settings, written only here. */
 benchRequest('pages.testHosts', req => {
-  for (const key of ['test.youtubeHosts', 'test.redditHosts']) if (key in req) model.setPref(key, req[key])
+  for (const key of ['test.youtubeHosts', 'test.redditHosts', 'test.playerHosts']) if (key in req) model.setPref(key, req[key])
   return {}
 })
 
@@ -58,5 +61,22 @@ benchRequest('pages.peekInput', req => {
   const wc = peekContents(req.window as string | undefined)
   if (!wc) throw new Error('no peek')
   for (const e of (req.events as Electron.InputEvent[]) ?? []) wc.sendInputEvent(e as never)
+  return {}
+})
+
+/** Script in the floating window's buttons (a click on one), or input to them. */
+benchRequest('pages.floatControls', async req => {
+  const wc = floatControls()
+  if (!wc) throw new Error('nothing floats')
+  for (const e of (req.events as Electron.InputEvent[]) ?? []) wc.sendInputEvent(e as never)
+  return { value: req.js ? await wc.executeJavaScript(String(req.js), true) : null }
+})
+
+/** Oriel left for another app, or back (a test world's windows never take
+ * the focus): the front window's blur or focus, as Windows would send it. */
+benchRequest('pages.appFocus', req => {
+  const c = allControllers()[0]
+  if (!c) throw new Error('no window')
+  if (req.focused) { c.base.isFocused = () => true; c.base.emit('focus') } else { c.base.isFocused = () => false; c.base.emit('blur') }
   return {}
 })
