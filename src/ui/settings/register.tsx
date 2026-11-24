@@ -10,9 +10,12 @@ import { DownloadsDoor, DownloadsFloat, DownloadsPage } from './Downloads'
 import { PermissionQuestion } from './Permission'
 import { UpdatePopup } from './UpdatePopup'
 import { DefaultOffer } from './DefaultOffer'
+import { ShortcutsEditor } from './Shortcuts'
 import './settings.css'
 
 registerPage('settings', SettingsPage)
+// Keyboard & Mouse › Shortcuts, under its group in Settings.tsx.
+registerPage('settings.shortcuts', ShortcutsEditor)
 registerPage('downloads', DownloadsPage)
 registerPanel('settings.permission', PermissionQuestion)
 registerPanel('settings.downloads', DownloadsFloat)

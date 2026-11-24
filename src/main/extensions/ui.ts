@@ -2,17 +2,18 @@
 // pinned buttons (their state in the `ext` slice), the puzzle's list, the
 // button's popup or side panel, the right-click menu, installing from a link
 // or an id, Load Unpacked, turning off and removing, and the page that
-// manages them. Pinned ids, turned-off extensions and unpacked sources are
-// kept in extensions.json.
+// manages them, Settings › Extensions and each one's "Runs on". Pinned ids,
+// turned-off extensions, unpacked sources and "Runs on" are kept in
+// extensions.json.
 
-import { app, dialog, Menu, type Session } from 'electron'
+import { app, dialog, Menu, webContents, type Session } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import { downloadExtension, uninstallExtension } from 'electron-chrome-web-store'
 import { brand } from '../../shared/brand'
 import type { Rect } from '../../shared/state'
-import type { ExtState, ExtView } from '../../shared/modules/extensions'
+import { SITE_ALL, siteAdding, siteCovers, siteHost, siteRemoving, siteTitles, type ExtSettings, type ExtState, type ExtView, type SiteAccess, type SiteMode } from '../../shared/modules/extensions'
 import { handle, run } from '../router'
 import { need } from '../context'
 import { model } from '../model/model'
@@ -27,6 +28,8 @@ import { panelOf, togglePanel, closePanel, behaviour, setPanelWidth, forget as f
 import { closeOffscreen } from './offscreen'
 import { stopHosts } from './native'
 import { setupStore, offerFor } from './store'
+import { allowPage, tellPages } from '../settings/internal'
+import { asksForSites, originalManifest, reaches, scriptsFor, writeSites } from './sites'
 
 const STORE = 'https://chromewebstore.google.com/category/extensions'
 /** The profile's partition, for crx:// icons (main/index.ts makes it). */
@@ -37,8 +40,15 @@ let profile: Session | null = null
 let extensionsRoot = ''
 let unpackedRoot = ''
 
-interface Saved { pinned: string[]; disabled: Record<string, string>; sources: Record<string, string>; order: string[] }
-let saved: Saved = { pinned: [], disabled: {}, sources: {}, order: [] }
+interface Saved {
+  pinned: string[]; disabled: Record<string, string>; sources: Record<string, string>; order: string[]
+  /** "Runs on", only where it isn't every site (SiteAccess.save). */
+  sites: Record<string, SiteAccess>
+  /** The id of each kept unpacked copy, by its folder: "Runs on" is written
+   * into the copy before it loads, when Electron hasn't named it yet. */
+  ids: Record<string, string>
+}
+let saved: Saved = { pinned: [], disabled: {}, sources: {}, order: [], sites: {}, ids: {} }
 const savedFile = () => path.join(app.getPath('userData'), 'extensions.json')
 function save(): void {
   // Atomic: a half-written file would lose the pins and the extensions turned off (studio/09 §3).
@@ -51,10 +61,16 @@ let said: ExtState['said'] = null
 const per = new WeakMap<WindowController, { menu: ExtState['menu']; puzzle: Rect | null; manage: boolean }>()
 const of = (c: WindowController) => { let s = per.get(c); if (!s) { s = { menu: null, puzzle: null, manage: false }; per.set(c, s) } return s }
 
-export function markAll(): void { for (const c of allControllers()) if (!c.base.isDestroyed()) c.mark('ext') }
-function say(text: string, bad = false): void { said = { text, bad }; markAll() }
+export function markAll(): void {
+  for (const c of allControllers()) if (!c.base.isDestroyed()) c.mark('ext')
+  tellSettings()
+}
+let saidCount = 0
+function say(text: string, bad = false): void { said = { text, bad, n: ++saidCount }; markAll() }
 
 const isStore = (folder: string) => path.resolve(folder).startsWith(path.resolve(extensionsRoot) + path.sep)
+/** A copy Oriel keeps (store or Load Unpacked), never a folder loaded in place. */
+const isKept = (folder: string) => isStore(folder) || path.resolve(folder).startsWith(path.resolve(unpackedRoot) + path.sep)
 const readManifest = (folder: string): Record<string, any> | null => { try { return JSON.parse(fs.readFileSync(path.join(folder, 'manifest.json'), 'utf8')) } catch { return null } }
 
 function activeContents(c: WindowController): Electron.WebContents | null {
@@ -68,9 +84,9 @@ function colour(c: unknown): string | undefined {
   return undefined
 }
 
-function view(c: WindowController, ext: Electron.Extension | null, id: string, folder: string): ExtView {
+function view(c: WindowController | null, ext: Electron.Extension | null, id: string, folder: string): ExtView {
   const m = (ext?.manifest ?? readManifest(folder) ?? {}) as Record<string, any>
-  const tabId = activeContents(c)?.id ?? -1
+  const tabId = (c && activeContents(c)?.id) ?? -1
   const a = ext && lib ? actionOf(lib, id, tabId) : null
   const name = ext?.name ?? localize(folder, m, m.name) ?? id
   return {
@@ -86,7 +102,17 @@ function view(c: WindowController, ext: Electron.Extension | null, id: string, f
     fromStore: isStore(folder),
     folder: isStore(folder) ? undefined : saved.sources[id] ?? folder,
     options: !!(m.options_ui?.page || m.options_page),
+    asksSites: asks(folder),
+    sites: siteAccess(id),
   }
+}
+
+/** Whether the extension as it came asks for websites, by folder. */
+const asking = new Map<string, boolean>()
+function asks(folder: string): boolean {
+  let v = asking.get(folder)
+  if (v === undefined) { v = asksForSites(originalManifest(folder) ?? {}); asking.set(folder, v) }
+  return v
 }
 
 /** Installed extensions in the order they came. */
@@ -157,6 +183,8 @@ function openMenu(c: WindowController, anchor: Rect): void {
 
 export function press(c: WindowController, id: string, anchor?: Rect): void {
   if (!lib || !profile?.extensions.getExtension(id)) return
+  // Held to fewer sites: the click gives it this tab's site first (§2.5).
+  if (wantsClick(c, id)) { void grantClick(c, id).then(given => { if (given) press(c, id, anchor) }); return }
   closeMenu(c)
   const tab = activeContents(c)
   if (behaviour(id)) { togglePanel(c, id); return }
@@ -169,6 +197,136 @@ export function press(c: WindowController, id: string, anchor?: Rect): void {
   }
   sendEvent(lib, id, 'browserAction.onClicked', tabDetails(lib, tab ?? undefined))
 }
+
+// ---- "Runs on" (ExtensionSiteAccess.swift, studio/04 §2.5)
+
+/** Sites given by a click while "Runs on" isn't every site: by extension,
+ * then tab, the site. They go when the tab leaves the site. */
+const clicks = new Map<string, Map<string, string>>()
+const clickHosts = (id: string) => [...new Set(clicks.get(id)?.values() ?? [])]
+
+export function siteAccess(id: string): SiteAccess { return saved.sites[id] ?? SITE_ALL }
+
+/** The site a page's address names: web pages only. */
+function siteOf(url: string | null | undefined): string | null {
+  try { const u = new URL(url ?? ''); return /^https?:$/.test(u.protocol) && u.hostname ? u.hostname.toLowerCase() : null } catch { return null }
+}
+const activeID = (c: WindowController) => c.record.active[c.record.space] ?? null
+const activeSite = (c: WindowController) => { const id = activeID(c); return siteOf(id ? model.tabs.get(id)?.url : null) }
+
+/** It may run on the tab in front now: by "Runs on", or by a click there. */
+function runsHere(c: WindowController, id: string): boolean {
+  const host = activeSite(c)
+  return !!host && (siteCovers(siteAccess(id), host) || clickHosts(id).includes(host))
+}
+
+function wantsClick(c: WindowController, id: string): boolean {
+  const ext = profile?.extensions.getExtension(id)
+  const host = activeSite(c)
+  if (!ext || !host || siteAccess(id).mode === 'all' || runsHere(c, id) || !isKept(ext.path)) return false
+  return reaches(originalManifest(ext.path) ?? {}, host)
+}
+
+/** The click's grant: this tab's site, as far as it asked, until the tab
+ * goes to another site (Extensions.grantClick). Chromium in Electron can't
+ * hand its scripts to a page already open, so a page they are for loads again. */
+async function grantClick(c: WindowController, id: string): Promise<boolean> {
+  if (!wantsClick(c, id)) return false
+  const tab = activeID(c)!
+  const url = model.tabs.get(tab)?.url ?? ''
+  const folder = profile!.extensions.getExtension(id)!.path
+  let tabs = clicks.get(id)
+  if (!tabs) clicks.set(id, (tabs = new Map()))
+  tabs.set(tab, siteOf(url)!)
+  await reloadInPlace(id)
+  if (scriptsFor(originalManifest(folder) ?? {}, url)) runtimes.get(tab)?.reload()
+  return !!profile?.extensions.getExtension(id)
+}
+
+/** A tab went somewhere (or closed): a click's grant goes once the tab is
+ * off its site, unless another tab still holds it (Extensions.leftSite). */
+function leftSite(tab: string, url: string | null): void {
+  const host = siteOf(url)
+  for (const [id, tabs] of [...clicks]) {
+    const given = tabs.get(tab)
+    if (!given || given === host) continue
+    tabs.delete(tab)
+    if (!tabs.size) clicks.delete(id)
+    if (clickHosts(id).includes(given) || siteCovers(siteAccess(id), given)) continue
+    void reloadInPlace(id)
+  }
+}
+
+/** What the copy says it may run on, for comparing. */
+const effective = (id: string, a: SiteAccess) =>
+  a.mode === 'all' ? 'all' : `${a.mode}:${a.mode === 'some' ? [...a.hosts].sort().join(',') : ''}:${clickHosts(id).sort().join(',')}`
+
+export async function setSiteAccess(id: string, a: SiteAccess): Promise<void> {
+  const before = effective(id, siteAccess(id))
+  const next: SiteAccess = { mode: a.mode, hosts: [...new Set(a.hosts.map(h => siteHost(h)).filter((h): h is string => !!h))] }
+  if (next.mode === 'all' && !next.hosts.length) delete saved.sites[id]
+  else saved.sites[id] = next
+  if (next.mode === 'all') clicks.delete(id)
+  save()
+  if (effective(id, next) !== before) await reloadInPlace(id)
+  markAll()
+}
+
+/** Before a kept copy loads (index.ts): its manifest made what "Runs on"
+ * and the clicks allow. */
+export function fitSites(folder: string): void {
+  if (!unpackedRoot || !isKept(folder)) return
+  const r = path.resolve(folder)
+  const first = path.relative(path.resolve(extensionsRoot), r).split(path.sep)[0]
+  const id = isStore(folder) && /^[a-p]{32}$/.test(first) ? first : saved.ids[r]
+  const access = (id && saved.sites[id]) || SITE_ALL
+  writeSites(folder, access, id && access.mode !== 'all' ? clickHosts(id) : [])
+}
+
+/** Loaded again from its own copy, so the copy's manifest counts. One at a
+ * time for each extension. */
+const reloading = new Map<string, Promise<void>>()
+function reloadInPlace(id: string): Promise<void> {
+  const go = async () => {
+    const ext = profile?.extensions.getExtension(id)
+    if (!ext || !isKept(ext.path)) return
+    letGo(id)
+    profile!.extensions.removeExtension(id)
+    try { await profile!.extensions.loadExtension(ext.path) } catch (e) { say(`${ext.name} couldn't start: ${(e as Error).message}`, true) }
+    markAll()
+  }
+  const next = (reloading.get(id) ?? Promise.resolve()).then(go, go)
+  reloading.set(id, next)
+  return next
+}
+
+// ---- Settings › Extensions (ExtensionsUI.swift Installer)
+
+/** Its icon for a row of Settings, 22 points at twice the pixels: the page
+ * in a tab can't load crx:// addresses, so a picture in the address. */
+const images = new Map<string, string | null>()
+function imageOf(folder: string): string | null {
+  if (!images.has(folder)) {
+    const image = iconOf(folder, originalManifest(folder) ?? {})
+    images.set(folder, image ? image.resize({ width: 44, height: 44, quality: 'best' }).toDataURL() : null)
+  }
+  return images.get(folder) ?? null
+}
+
+function settingsData(): ExtSettings {
+  return { list: installed().map(e => ({ ...view(null, e.ext, e.id, e.folder), image: imageOf(e.folder) })), busy: [...busy], said }
+}
+
+/** Told to oriel://settings when something changes, while one is open. */
+let telling: NodeJS.Timeout | null = null
+const settingsOpen = () => webContents.getAllWebContents().some(wc => !wc.isDestroyed() && wc.getURL().startsWith(`${brand.scheme}://settings`))
+function tellSettings(): void {
+  if (telling) return
+  telling = setTimeout(() => { telling = null; if (settingsOpen()) tellPages('ext', settingsData(), 'settings') }, 40)
+}
+
+// What oriel://settings may ask of this module.
+allowPage('settings', { commands: ['ext.settings', 'ext.sites', 'ext.enable', 'ext.pin', 'ext.options', 'ext.remove', 'ext.reload', 'ext.store', 'ext.loadUnpacked', 'ext.install'] })
 
 // ---- installing, turning off, removing
 
@@ -240,6 +398,9 @@ export async function remove(id: string, confirm = true): Promise<void> {
   saved.pinned = saved.pinned.filter(p => p !== id)
   delete saved.disabled[id]
   delete saved.sources[id]
+  delete saved.sites[id]
+  for (const [f, x] of Object.entries(saved.ids)) if (x === id) delete saved.ids[f]
+  clicks.delete(id)
   saved.order = saved.order.filter(p => p !== id)
   save()
   markAll()
@@ -325,6 +486,21 @@ function context(c: WindowController, id: string, x: number, y: number): void {
   ]
   if (m.options_ui?.page || m.options_page) items.push({ label: 'Options…', click: () => openOptions(c, id) })
   if (!isStore(ext.path)) items.push({ label: 'Reload', click: () => void reload(id) })
+  // Where it runs (Extensions.swift:2661-2680).
+  if (asks(ext.path)) {
+    const access = siteAccess(id)
+    const here = activeSite(c)
+    items.push({ type: 'separator' })
+    if (here && access.mode !== 'all') {
+      if (!runsHere(c, id)) items.push({ label: 'Run on This Site', click: () => void grantClick(c, id) })
+      const on = siteCovers(access, here)
+      items.push({ label: `Always on ${here}`, type: 'checkbox', checked: on, click: () => void setSiteAccess(id, on ? siteRemoving(access, here) : siteAdding(access, here)) })
+    }
+    items.push({
+      label: 'Runs On',
+      submenu: (['all', 'some', 'click'] as SiteMode[]).map(mode => ({ label: siteTitles[mode], type: 'radio' as const, checked: access.mode === mode, click: () => void setSiteAccess(id, { ...access, mode }) })),
+    })
+  }
   items.push({ type: 'separator' }, { label: `Remove “${ext.name}”…`, click: () => void remove(id) })
   Menu.buildFromTemplate(items).popup({ window: c.base as never, x: Math.round(x), y: Math.round(y) })
 }
@@ -344,11 +520,20 @@ export function setupUI(e: ElectronChromeExtensions, p: Session, roots: { extens
   extensionsRoot = roots.extensions
   unpackedRoot = roots.unpacked
   try { saved = { ...saved, ...JSON.parse(fs.readFileSync(savedFile(), 'utf8')) } } catch { /* first time */ }
+  saved.sites ??= {}
+  saved.ids ??= {}
   registerSlice('ext', sliceFor)
   onActionsChanged(e, markAll)
   onPopupChange(c => { if (!c.base.isDestroyed()) c.mark('ext') })
-  p.extensions.on('extension-loaded', markAll)
-  p.extensions.on('extension-unloaded', (_e, ext) => { letGo(ext.id); markAll() })
+  p.extensions.on('extension-loaded', (_e, ext) => {
+    asking.delete(ext.path); images.delete(ext.path)
+    const r = path.resolve(ext.path)
+    if (!isStore(ext.path) && isKept(ext.path) && saved.ids[r] !== ext.id) { saved.ids[r] = ext.id; save() }
+    markAll()
+  })
+  p.extensions.on('extension-unloaded', (_e, ext) => { asking.delete(ext.path); letGo(ext.id); markAll() })
+  model.on('tab-changed', (tab: { id: string; url?: string }, patch: Record<string, unknown>) => { if ('url' in patch && clicks.size) leftSite(tab.id, tab.url ?? null) })
+  model.on('tab-closed', (id: string) => { if (clicks.size) leftSite(id, null) })
   model.on('selected', (win: { id: string }) => {
     for (const c of allControllers()) if (c.record.id === win.id && !c.base.isDestroyed()) { closePopup(c); followTab(c); c.mark('ext') }
   })
@@ -406,3 +591,12 @@ handle('ext.manage', ({ open }, ctx) => {
 })
 handle('ext.panelClose', (_a, ctx) => closePanel(need(ctx)))
 handle('ext.panelWidth', ({ width }, ctx) => setPanelWidth(need(ctx), width))
+handle('ext.settings', () => settingsData())
+handle('ext.sites', async ({ id, mode, add, remove: gone, here }, ctx) => {
+  if (here) { await grantClick(need(ctx), id); return }
+  let a = siteAccess(id)
+  if (mode) a = { ...a, mode }
+  if (add) { const h = siteHost(add); if (h) a = siteAdding(a, h) }
+  if (gone) a = siteRemoving(a, gone)
+  await setSiteAccess(id, a)
+})

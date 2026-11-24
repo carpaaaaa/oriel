@@ -56,6 +56,35 @@ export interface DownloadEntry {
   there?: boolean
 }
 
+/** A key as the page read it (KeyboardEvent). */
+export interface KeyPress { key: string; code: string; ctrl: boolean; shift: boolean; alt: boolean; meta: boolean; altGraph?: boolean }
+
+/** One command in Settings › Shortcuts, its key as Windows writes it. */
+export interface ShortcutLine {
+  id: string
+  title: string
+  /** Its key now, or null for none. */
+  key: string | null
+  /** Windows' other keys for it (Close Tab: Ctrl+F4 too). */
+  also: string[]
+  changed: boolean
+  /** Shown, not changed here. */
+  fixed?: boolean
+  /** The extension a command comes from. */
+  detail?: string
+}
+
+export interface ShortcutsView {
+  sections: { name: string; lines: ShortcutLine[] }[]
+  /** The tab numbers' line, in Tabs. */
+  numbers: { keys: string; note: string }
+  extensions: ShortcutLine[]
+  /** Keys that are always these (keys.ts's fixed ones). */
+  fixed: ShortcutLine[]
+  /** Something to reset: a key changed, or the peek's click. */
+  changed: boolean
+}
+
 export interface SettingsState {
   asking: PermissionAsk | null
   /** The downloads card floating by the button. */
@@ -121,6 +150,16 @@ declare module '../commands' {
     'history.clearData': None
     /** Where Settings › Open Downloads says; the button toggles (Browser.showDownloads). */
     'downloads.show': { toggle?: boolean; anchor?: { x: number; y: number } }
+    // Keyboard & Mouse › Shortcuts (ShortcutsPage.swift, studio/03 §4.2)
+    'settings.shortcuts': None
+    /** A key pressed in a command's box; `again`: the key pressed once
+     * already, another command's, which now moves here. */
+    'settings.shortcutKey': { id: string; chord: KeyPress; again?: string }
+    'settings.shortcutClear': { id: string }
+    'settings.shortcutReset': { id: string }
+    'settings.shortcutResetAll': None
+    /** A box is reading a key: Oriel's own keys stand aside for this page. */
+    'settings.recordKeys': { on: boolean }
   }
 }
 
