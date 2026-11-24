@@ -1,0 +1,13 @@
+/* The tabs module's pieces of the interface (Settings' area B). */
+
+/* HomeGrid.swift: 4 columns, 8 apart, tiles 50 tall, radius 14, hairline, 12 muted. */
+.home-grid {
+  position: absolute; top: calc(50% + 5px); left: 50%; transform: translateX(-50%);
+  width: min(var(--field-width), calc(100% - 28px));
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
+}
+.home-tile {
+  height: 50px; padding: 0 10px; border-radius: 14px; border: 1px solid var(--hairline); background: transparent;
+  font: inherit; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;
+}
+.home-tile:hover { background: var(--hover); }

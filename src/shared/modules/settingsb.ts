@@ -24,6 +24,10 @@ declare module '../commands' {
 }
 
 declare module '../state' {
+  interface WindowState {
+    /** The Home bookmarks a blank tab shows, with home.grid on (HomeGrid.swift). */
+    homeSites?: { id: ID; title: string; url: string }[]
+  }
   interface TabView {
     /** A private tab's own Keep This Site Awake (an ordinary tab's is in
      * the prefs, tabs.awakeSites). */

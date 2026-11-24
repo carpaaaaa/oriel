@@ -7,6 +7,7 @@
 // tab. What WebKit doesn't offer a page is refused; what it gives without
 // asking is given.
 
+import { openCompose } from '../tabs/pagelinks'
 import type { Session, WebContents } from 'electron'
 import type { ID } from '../../shared/state'
 import type { PermissionAsk, PermissionKind, SavedPermission } from '../../shared/modules/settings'
@@ -238,6 +239,9 @@ function request(wc: WebContents | null, permission: string, callback: (granted:
     // mailto: and tel: go to their app without a question (Browser.swift:8791);
     // other apps' links wait for the question of 06 §3.4.
     const url = (details as Electron.OpenExternalPermissionRequest).externalURL ?? ''
+    // With a webmail chosen (Settings › General › Email links open in), a
+    // mailto: opens its compose page in a tab instead (the tabs module).
+    if (tab && /^mailto:/i.test(url) && openCompose(tab, url)) return callback(false)
     return callback(/^(mailto|tel):/i.test(url))
   }
   if (!tab || !record) return callback(false)
