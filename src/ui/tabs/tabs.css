@@ -1,0 +1,31 @@
+/* The tabs module's pieces of the interface (Settings' area B). */
+
+/* HomeGrid.swift: 4 columns, 8 apart, tiles 50 tall, radius 14, hairline, 12 muted. */
+.home-grid {
+  position: absolute; top: calc(50% + 5px); left: 50%; transform: translateX(-50%);
+  width: min(var(--field-width), calc(100% - 28px));
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
+}
+.home-tile {
+  height: 50px; padding: 0 10px; border-radius: 14px; border: 1px solid var(--hairline); background: transparent;
+  font: inherit; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default;
+}
+.home-tile:hover { background: var(--hover); }
+
+/* LinkChooserPanel.swift: 360 wide, padding 6, radius 14, hairline, shadow .16 r24 y8. */
+.ask-panel {
+  position: absolute; inset: 16px; width: 360px; max-height: calc(100% - 32px); box-sizing: border-box; padding: 6px; display: flex; flex-direction: column;
+  background: var(--ground); border: 1px solid var(--hairline); border-radius: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .16); outline: none;
+}
+.ask-head { padding: 8px 12px 6px; }
+.ask-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+.ask-address { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ask-rows { overflow: auto; }
+.ask-row { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; font: inherit; font-size: 13px; color: var(--ink); text-align: left; }
+.ask-row.marked { background: var(--wash); }
+.ask-dot { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; font-weight: 600; }
+.ask-name { flex: 1; }
+.ask-digit { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ask-foot { border-top: 1px solid var(--hairline); margin-top: 6px; padding: 9px 12px 6px; display: grid; gap: 8px; }
+.ask-always { font-size: 12px; color: var(--ink); display: flex; gap: 8px; align-items: center; }
+.ask-keys { font-size: 10.5px; color: var(--muted); }

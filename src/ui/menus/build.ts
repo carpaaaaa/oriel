@@ -57,6 +57,31 @@ function closeItems(t: TabView): Entry[] {
   ]
 }
 
+/** Always Open <site> in <space> / Stop Opening (SpaceRoutes, §7.29). */
+function siteRoute(t: TabView): Entry | null {
+  if (!P.spaces() || !state.prefs['spaces.links'] || t.shy) return null
+  let site = ''
+  try { const u = new URL(t.url); if (!/^https?:$/.test(u.protocol)) return null; site = u.hostname.toLowerCase().replace(/^www\.(?=.*\.)/, '') } catch { return null }
+  const space = state.spaces.find(s => s.id === state.space)
+  if (!site || !space) return null
+  const rules = (state.prefs['spaces.links.rules'] as { site: string; space: string }[] | undefined) ?? []
+  const here = rules.find(r => r.site === site && r.space.toUpperCase() === space.id.toUpperCase())
+  return here
+    ? { label: `Stop Opening ${site} in ${space.name}`, act: { cmd: { do: 'spaces.route', url: t.url, space: null } as Command } }
+    : { label: `Always Open ${site} in ${space.name}`, act: { cmd: { do: 'spaces.route', url: t.url, space: space.id } as Command } }
+}
+
+/** The host Keep This Site Awake keeps: http(s) only, any port. */
+function siteOf(t: TabView): string | null {
+  try { const u = new URL(t.url); return /^https?:$/.test(u.protocol) && u.hostname ? u.hostname.toLowerCase() : null } catch { return null }
+}
+function keptAwake(t: TabView): boolean {
+  const site = siteOf(t)
+  if (!site) return false
+  if (t.shy) return !!t.awake
+  return ((state.prefs['tabs.awakeSites'] as string[] | undefined) ?? []).includes(site)
+}
+
 /** A tab's or a pin's menu (§4.35). */
 export function tabMenu(t: TabView): Entry[] {
   const picked = state.picked ?? []
@@ -90,8 +115,13 @@ export function tabMenu(t: TabView): Entry[] {
     items.push({ label: 'Unpin', act: { cmd: { do: 'tab.unpin', id: t.id } } }, { label: 'Delete', act: { cmd: { do: 'pin.remove', id: pin.id } } })
   }
   if (!pin?.everywhere) { const s = spaceItems([t.id]); if (s) items.push(s) }
+  // Send links to a space (§7.29): this tab's site, to the space it is in.
+  const routeItem = siteRoute(t)
+  if (routeItem) items.push(routeItem)
   items.push(off('Open in Split View'))
   if (!t.pinID) items.push(off('Move to New Window'))
+  // With links from other apps in a small window on (Browser.liftable).
+  if (state.prefs['links.little'] !== false && !t.pinID) items.push({ label: 'Open in Small Window', enabled: web(t) && !t.shy && /^https?:/i.test(t.url), act: { cmd: { do: 'tab.little', id: t.id } } })
   items.push(
     sep,
     { label: 'Rename', act: { ui: 'rename', id: t.id } },
@@ -100,9 +130,13 @@ export function tabMenu(t: TabView): Entry[] {
     { label: 'Copy Address', enabled: web(t), act: { copy: t.url } },
     { label: 'Copy as Markdown Link', enabled: web(t), act: { copy: `[${label(t).replace(/([[\]])/g, '\\$1')}](${t.url})` } },
     off('Copy Clean Link'),
-    off('Open in Side Panel'),
+    // Websites in the side panel (SidePanel.swift openInSidePanel): not a private tab's.
+    { label: 'Open in Side Panel', enabled: web(t) && !t.shy && /^https?:/i.test(t.url), act: { cmd: { do: 'panel.site', url: t.url } } },
     { label: t.muted ? 'Unmute Tab' : 'Mute Tab', act: { cmd: { do: 'tab.mute', id: t.id, muted: !t.muted } } },
-    { label: 'Put to Sleep', enabled: !t.asleep && !t.empty && t.id !== state.activeID, act: { cmd: { do: 'tab.putToSleep', id: t.id } } },
+    // Keep This Site Awake (§9.24): on the Mac it is on the site's card; Oriel has none yet.
+    // Its tick only when on: a column for it would move every label (the Mac's tab menu has none).
+    ...(siteOf(t) ? [{ label: 'Keep This Site Awake', checked: keptAwake(t) || undefined, act: { cmd: { do: 'tab.keepAwake', id: t.id, on: !keptAwake(t) } as Command } }] : []),
+    { label: 'Put to Sleep', enabled: !t.asleep && !t.empty && t.id !== state.activeID && !keptAwake(t), act: { cmd: { do: 'tab.putToSleep', id: t.id } } },
     sep,
     ...closeItems(t),
   )

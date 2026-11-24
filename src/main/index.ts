@@ -90,9 +90,11 @@ ipcMain.on('search:leftover-key', (event, key) => {
 })
 
 app.on('second-instance', (_e, argv) => {
-  const url = argv.find(a => /^(https?|file):/i.test(a))
+  // A link from another app goes where Settings › Browsing and Spaces say
+  // (a small window, a space, a tab: the tabs module's link.arrive).
+  const url = argv.find(a => /^(https?|file|mailto):/i.test(a))
   const c = allControllers()[0] ?? openWindow({ restore: false })
-  if (url) void run({ do: 'tab.new', url } as never, { window: c })
+  if (url) { void run({ do: 'link.arrive', url } as never, { window: c }); return }
   if (c.base.isMinimized()) c.base.restore()
   c.base.focus()
 })
@@ -132,8 +134,8 @@ app.whenReady().then(async () => {
 
   const first = openWindow({ restore: !model.pref<boolean>('start.fresh') })
 
-  const url = process.argv.slice(1).find(a => /^(https?|file):/i.test(a))
-  if (url) void run({ do: 'tab.new', url } as never, { window: first })
+  const url = process.argv.slice(1).find(a => /^(https?|file|mailto):/i.test(a))
+  if (url) void run({ do: 'link.arrive', url } as never, { window: first })
 
   if (probe) startBench(probe)
 })

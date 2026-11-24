@@ -28,6 +28,15 @@ jobs:
       - run: npm install --no-save --force @koromix/koffi-win32-x64@3.3.8 @koromix/koffi-win32-arm64@3.3.8
       - run: npm run licenses
       - run: npm run build
+      # One release for every file: electron-builder's targets upload at once and
+      # would each create their own release if none existed yet.
+      - name: Make the release first
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "Oriel ${tag#v}" --notes "Building…"
       - name: Build and publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
