@@ -76,7 +76,7 @@ def main():
     try:
         b.launch()
         # Room for two pages side by side on a small screen too (a CI runner).
-        b.call({"do": "window.place", "window": b.window()["id"], "x": 0, "y": 0, "width": 1000, "height": 700, "visual": True})
+        b.call({"do": "window.place", "x": 0, "y": 0, "width": 1000, "height": 700, "visual": True})
         time.sleep(0.5)
         for n in ["a", "b", "c", "d"]:
             b.cmd("tab.open", url=f"{BASE}/?n={n}", foreground=True)

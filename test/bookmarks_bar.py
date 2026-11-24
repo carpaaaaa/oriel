@@ -55,7 +55,7 @@ def main():
     try:
         b.launch()
         # A window the same size on every screen (a CI runner).
-        b.call({"do": "window.place", "window": b.window()["id"], "x": 0, "y": 0, "width": 1000, "height": 700, "visual": True})
+        b.call({"do": "window.place", "x": 0, "y": 0, "width": 1000, "height": 700, "visual": True})
         time.sleep(0.5)
         b.cmd("tab.open", url=f"{BASE}/?n=front", foreground=True)
         b.wait_for(lambda: page_top() is not None, what="the page placed")

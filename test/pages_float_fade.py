@@ -65,8 +65,9 @@ def main():
 
         print("- Oriel's window")
         t.ok((b.cmd("view.float") or {}).get("floating") is True, "floats")
-        f = b.wait_for(lambda: (lambda x: x if x["fade"]["alpha"] < 0.5 else None)(fl()), within=4, what="see-through")
-        t.ok(abs(f["fade"]["alpha"] - 0.4) < 0.02 or f["fade"].get("on"), f"away from the pointer, 0.4 ({f['fade']['alpha']:.2f})")
+        # The fade eases in: waited until it has arrived (unless the pointer is on it).
+        f = b.wait_for(lambda: (lambda x: x if abs(x["fade"]["alpha"] - 0.4) < 0.02 or x["fade"].get("on") else None)(fl()), within=4, what="see-through")
+        t.ok(True, f"away from the pointer, 0.4 ({f['fade']['alpha']:.2f})")
         b.cmd("settings.set", id="float.fade", value=0)
         f = b.wait_for(lambda: (lambda x: x if x["fade"]["alpha"] == 1 and not x["fade"]["watching"] else None)(fl()), within=4, what="solid again")
         t.ok(True, "the slider at 0: solid, nothing watching")

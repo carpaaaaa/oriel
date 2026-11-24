@@ -53,8 +53,7 @@ def main():
     b.use(WORLD)
     try:
         b.launch()
-        w = b.window()["id"]
-        b.call({"do": "window.place", "window": w, "x": 40, "y": 40, "width": 800, "height": 560, "visual": True})
+        b.call({"do": "window.place", "x": 40, "y": 40, "width": 800, "height": 560, "visual": True})
         time.sleep(0.5)
 
         print("- maximized, full screen, back, Restore Down")
