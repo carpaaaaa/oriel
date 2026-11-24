@@ -103,6 +103,8 @@ asked = b.call({"do": "extensions.asked"})["asked"][-1]
 t.ok(asked["message"] == "Add “Dark Reader” to Oriel?", "the same question as everywhere else")
 b.wait_for(lambda: over("document.querySelector('.ext-store-state')?.textContent") == "Added to Oriel", within=5, what="added")
 t.ok(over("document.querySelector('.ext-store-button')?.textContent") == "Remove", "then Added to Oriel, with Remove")
+fit = over("(() => { const bar = document.querySelector('.ext-store').getBoundingClientRect(), r = document.querySelector('.ext-store-button').getBoundingClientRect(), name = document.querySelector('.ext-store-name').getBoundingClientRect(); return { inside: r.left >= bar.left && r.right <= bar.right - 8 && r.top >= bar.top && r.bottom <= bar.bottom, w: Math.round(r.width), name: Math.round(name.width), view: innerWidth, bar: Math.round(bar.width) } })()")
+t.ok(fit["inside"] and fit["w"] < 100 and fit["name"] > 20 and fit["bar"] <= fit["view"], f"Remove sits inside the capsule, the name still shows, the capsule inside its region ({fit})")
 t.ok((offer() or {}).get("icon", "").startswith("crx://extension-icon/"), "and the extension's own icon")
 
 b.call({"do": "extensions.answer", "answers": ["Remove"]})

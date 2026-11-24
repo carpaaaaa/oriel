@@ -35,7 +35,14 @@ t.ok(menu() == ["en"], f"English alone to begin with: {menu()}")
 t.ok(slice_menu() == ["en"], "the window's state says the same")
 
 sid = b.cmd("internal.open", url="oriel://settings/browsing")
-b.wait_for(lambda: b.ev(sid, "!!document.querySelector('[data-row=\"translate.target\"]')"), within=10, what="the row")
+def maybe(js):
+    try:
+        return b.ev(sid, js)
+    except RuntimeError:  # the settings page not loaded yet
+        return None
+
+
+b.wait_for(lambda: maybe("!!document.querySelector('[data-row=\"translate.target\"]')"), within=20, what="the row")
 ROW = '[data-row="translate.target"]'
 chosen = lambda: b.ev(sid, "[...document.querySelectorAll('.tr-chosen [data-lang]')].map(e => e.dataset.lang)")
 row = b.ev(sid, """(() => { const r = document.querySelector('[data-row="translate.target"]');
@@ -50,7 +57,10 @@ t.ok(row["remove"] == [{"text": "Remove", "disabled": True}], f"the last one can
 
 
 def open_add():
-    b.ev(sid, f"(() => {{ const e = document.querySelector('{ROW} .tr-add'); e.scrollIntoView({{block: 'center'}}); e.dispatchEvent(new PointerEvent('pointerdown', {{button: 0, bubbles: true}})) }})()")
+    # Scrolled into view first: a list closes when the page scrolls under it.
+    b.ev(sid, f"document.querySelector('{ROW} .tr-add').scrollIntoView({{block: 'center'}})")
+    time.sleep(0.4)
+    b.ev(sid, f"document.querySelector('{ROW} .tr-add').dispatchEvent(new PointerEvent('pointerdown', {{button: 0, bubbles: true}}))")
     b.wait_for(lambda: b.ev(sid, "!!document.querySelector('.dd-list.placed')"), within=5, what="the list")
     time.sleep(0.4)  # a press needs 300 ms after opening
 

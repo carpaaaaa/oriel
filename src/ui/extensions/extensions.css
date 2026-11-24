@@ -92,5 +92,6 @@
 .ext-store-button { flex: none; height: 26px; padding: 0 11px; border-radius: 13px; font: inherit; font-size: 12px; line-height: 26px;
   background: var(--ink); color: var(--ground); white-space: nowrap; transition: opacity var(--dur-quick) var(--ease-quick); }
 .ext-store-button:hover { opacity: .86; }
-.ext-store-button.quiet { background: var(--wash); color: var(--ink); }
+/* Not `.quiet`: sidebar.css's global .quiet (a row, 100% wide) stretched Remove out of the capsule. */
+.ext-store-button.ext-store-remove { background: var(--wash); color: var(--ink); }
 .ext-store-ring { width: 10px; height: 10px; margin-right: 8px; }

@@ -33,7 +33,7 @@ export function StoreBar() {
             </Show>
             <Show when={!busy() && o().installed}>
               <span class="ext-store-state">Added to {brand.name}</span>
-              <button class="ext-store-button quiet" onClick={() => void cmd({ do: 'ext.remove', id: o().id })}>Remove</button>
+              <button class="ext-store-button ext-store-remove" onClick={() => void cmd({ do: 'ext.remove', id: o().id })}>Remove</button>
             </Show>
             <Show when={!busy() && !o().installed}>
               <button class="ext-store-button" onClick={() => void cmd({ do: 'ext.install', text: o().id })}>Add to {brand.name}</button>
