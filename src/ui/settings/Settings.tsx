@@ -18,7 +18,10 @@ import { searchSiteList } from '../../shared/modules/field'
 import './settings.css'
 
 type Prefs = Record<string, unknown>
-interface Facts { downloadsFolder: string; downloadsFolderName: string; isDefault: boolean; mailDefault: boolean; arcHere: boolean; arcUndoable: boolean; version: string; name: string; platform: string }
+type Stage = { kind: 'none' } | { kind: 'fetching' | 'ready' | 'waiting'; version: string; notes?: string }
+interface Pending { version: string; notes?: string; ready: boolean; fetching: boolean }
+interface UpdateFacts { stage: Stage; checking: boolean; checked: number | null; active: boolean; pending: Pending | null }
+interface Facts { downloadsFolder: string; downloadsFolderName: string; isDefault: boolean; mailDefault: boolean; arcHere: boolean; arcUndoable: boolean; version: string; name: string; platform: string; update?: UpdateFacts }
 interface Values { prefs: Prefs; merged: Record<string, unknown>; facts: Facts }
 
 const [values, setValues] = createSignal<Values | null>(null)
@@ -122,7 +125,22 @@ function keywordProblem(d: Keyword): string | null {
 
 function title(i: Item): string {
   if (i.id === 'tabs.shortcuts' && p('spaces') && p('spaces.commandNumbers')) return 'Show tab numbers while Alt is held'
+  if (i.id === 'updates.version') {
+    // The version line follows the newer build from found to fetched (Settings.swift versionTitle).
+    const s = facts()?.update?.stage
+    if (!s || s.kind === 'none') return 'Updates'
+    return s.kind === 'fetching' ? `Oriel ${s.version} is downloading…` : s.kind === 'ready' ? `Oriel ${s.version} is ready` : `Oriel ${s.version} is out`
+  }
   return i.title
+}
+
+const relative = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
+function ago(ms: number): string {
+  const s = Math.round((ms - Date.now()) / 1000)
+  if (Math.abs(s) < 60) return relative.format(0, 'second')
+  if (Math.abs(s) < 3600) return relative.format(Math.round(s / 60), 'minute')
+  if (Math.abs(s) < 86400) return relative.format(Math.round(s / 3600), 'hour')
+  return relative.format(Math.round(s / 86400), 'day')
 }
 
 function detail(i: Item): string {
@@ -156,6 +174,14 @@ function detail(i: Item): string {
     }
     case 'passwords.save': return 'Asked once per site, never again for a site you refuse'
     case 'arc.import': return f?.arcHere ? i.detail : "Arc isn't on this PC. Bring Things Over can read an export"
+    case 'updates.version': {
+      const u = f?.update
+      const s = u?.stage
+      if (!s || s.kind === 'none') return u?.checked ? `Checked ${ago(u.checked)}, every hour on its own` : 'Checked every hour on its own'
+      if (s.kind === 'fetching') return s.notes ?? 'Quietly, in the background. Nothing you have set is touched'
+      if (s.kind === 'ready') return s.notes ?? "It's there the next time you open Oriel"
+      return s.notes ?? 'Checked and put in place when you press Install'
+    }
     default: return i.detail
   }
 }
@@ -256,7 +282,15 @@ function control(i: Item): JSX.Element {
       options={[['off', 'Off'], ['shift', 'Shift-click'], ['optionShift', 'Alt-Shift-click'], ['optionCommand', 'Ctrl-Alt-click']]} />
     case 'launcher.key': return <LauncherKey />
     // About
-    case 'updates.version': return <Pill title="Check now" act={() => void act('updates.check')} />
+    case 'updates.version': {
+      const u = facts()?.update
+      const s = u?.stage
+      if (!s || s.kind === 'none') return <Pill title={u?.checking ? 'Checking…' : 'Check now'} disabled={u?.checking} act={() => void act('updates.check')} />
+      if (s.kind === 'fetching') return <span class="st-ring" aria-label="Downloading" />
+      if (s.kind === 'ready') return <Pill title="Relaunch now" filled act={() => void act('updates.relaunch')} />
+      return <Pill title="Install" filled act={() => void act('updates.install')} />
+    }
+    case 'about.notes': return <Pill title="What's New…" act={() => void call({ do: 'internal.open', url: 'oriel://release-notes' })} />
     case 'updates.auto': return sw('update.install')
     default:
       if (i.kind === 'note') return <Always />
@@ -388,8 +422,8 @@ function NeverAsked() {
 // the page
 
 export function SettingsPage() {
-  const fromAddress = () => pageNamed(location.pathname.replace(/^\//, '').split('/')[0] ?? '')
-  const [page, setPage] = createSignal<PageID>('general')
+  const fromAddress = (): PageID | 'update' | null => { const n = location.pathname.replace(/^\//, '').split('/')[0] ?? ''; return n === 'update' ? 'update' : pageNamed(n) }
+  const [page, setPage] = createSignal<PageID | 'update'>('general')
   const [query, setQuery] = createSignal(new URLSearchParams(location.search).get('find') ?? '')
   const [lit, setLit] = createSignal<string | null>(null)
   let findInput: HTMLInputElement | undefined
@@ -402,9 +436,12 @@ export function SettingsPage() {
     await refresh()
     setPage(fromAddress() ?? pageNamed(p<string>('settings.page') ?? '') ?? 'general')
     const off1 = onUpdate('prefs', v => setValues(old => (old ? { ...old, prefs: v as Prefs, merged: mergedFrom(v as Prefs) } : old)))
+    const off3 = onUpdate('update', v => setValues(old => (old ? { ...old, facts: { ...old.facts, update: v as UpdateFacts } } : old)))
+    onCleanup(off3)
     const off2 = onUpdate('go', v => {
       const url = new URL(String(v))
-      const named = pageNamed(url.pathname.replace(/^\//, '').split('/')[0] ?? '')
+      const n = url.pathname.replace(/^\//, '').split('/')[0] ?? ''
+      const named = n === 'update' ? 'update' as const : pageNamed(n)
       if (named) { setQuery(''); setPage(named) }
       const f = url.searchParams.get('find'); if (f) setQuery(f)
     })
@@ -425,13 +462,15 @@ export function SettingsPage() {
     if (p('settings.page') !== pg) void call({ do: 'settings.set', id: 'settings.page', value: pg }).then(v => v && setValues(v as Values))
   }, { defer: true }))
 
+  createEffect(() => { if (page() === 'update' && values() && !facts()?.update?.pending) setPage('general') })
+
   const counts = createMemo(() => {
     const c: Record<string, number> = {}
     for (const i of hits()) c[pageOfItem(i)] = (c[pageOfItem(i)] ?? 0) + 1
     return c
   })
 
-  const go = (pg: PageID, row?: string) => {
+  const go = (pg: PageID | 'update', row?: string) => {
     setQuery('')
     setPage(pg)
     if (row) {
@@ -447,13 +486,13 @@ export function SettingsPage() {
       <div class="st-hairline" />
       <main class="st-content">
         <header class="st-head">
-          <Show when={!searching()}><Symbol name={pageOf(page())?.icon ?? 'gearshape'} size={15} weight="medium" /></Show>
-          <h1>{searching() ? `Settings matching “${query().trim()}”` : pageOf(page())?.title}</h1>
+          <Show when={!searching()}><Symbol name={page() === 'update' ? 'arrow.down.circle' : pageOf(page())?.icon ?? 'gearshape'} size={15} weight="medium" /></Show>
+          <h1>{searching() ? `Settings matching “${query().trim()}”` : page() === 'update' ? 'Update' : pageOf(page())?.title}</h1>
         </header>
         <div class="st-scroll" ref={scroller}>
           <div class="st-column">
             <Show when={values()}>
-              <Show when={searching()} fallback={<Section page={page()} lit={lit()} />}>
+              <Show when={searching()} fallback={<Show when={page() !== 'update'} fallback={<UpdateSection />}><Section page={page() as PageID} lit={lit()} /></Show>}>
                 <Results hits={hits()} go={go} />
               </Show>
             </Show>
@@ -478,7 +517,7 @@ function mergedFrom(prefs: Prefs): Record<string, unknown> {
   }
 }
 
-function Rail(q: { page: PageID; searching: boolean; counts: Record<string, number>; go: (p: PageID) => void; query: string; setQuery: (s: string) => void; findRef: (el: HTMLInputElement) => void }) {
+function Rail(q: { page: PageID | 'update'; searching: boolean; counts: Record<string, number>; go: (p: PageID | 'update') => void; query: string; setQuery: (s: string) => void; findRef: (el: HTMLInputElement) => void }) {
   let list!: HTMLDivElement
   const [white, setWhite] = createSignal<{ y: number; h: number } | null>(null)
   const [ready, setReady] = createSignal(false)
@@ -488,7 +527,7 @@ function Rail(q: { page: PageID; searching: boolean; counts: Record<string, numb
     setWhite({ y: el.offsetTop, h: el.offsetHeight })
   }
   onMount(() => { place(); requestAnimationFrame(() => requestAnimationFrame(() => setReady(true))) })
-  createEffect(() => { void q.page; void q.searching; place() })
+  createEffect(() => { void q.page; void q.searching; void facts()?.update?.pending; queueMicrotask(place) })
   return (
     <nav class="rail" aria-label="Settings sections">
       <div class="rail-title">Settings</div>
@@ -502,6 +541,16 @@ function Rail(q: { page: PageID; searching: boolean; counts: Record<string, numb
       </div>
       <div class="rail-list" ref={list}>
         <Show when={white()}>{w => <span class="rail-white" classList={{ ready: ready() }} style={{ transform: `translateY(${w().y}px)`, height: `${w().h}px` }} />}</Show>
+        <Show when={facts()?.update?.pending}>{u => (
+          <>
+            <button class="rail-row rail-update" data-page="update" classList={{ on: !q.searching && q.page === 'update' }}
+              aria-current={!q.searching && q.page === 'update' ? 'page' : undefined} onClick={() => q.go('update')}>
+              <Symbol name="arrow.down.circle" size={12} weight="medium" />
+              <span class="rail-name">Update to {u().version}</span>
+            </button>
+            <div class="rail-rule" />
+          </>
+        )}</Show>
         <For each={blocks}>{(block, b) => (
           <>
             <Show when={b() > 0}><div class="rail-rule" /></Show>
@@ -577,6 +626,24 @@ function Section(q: { page: PageID; lit: string | null }) {
         <Show when={pageFor('settings.extensions')} fallback={<Card><Nothing text="No extensions yet." /></Card>}>{c => <Dynamic component={c()} />}</Show>
       </Match>
     </Choose>
+  )
+}
+
+/** The update waiting, as the first section (the user's wish, 24 Nov 2026):
+ * its version, its notes in brief, Update and Restart. */
+function UpdateSection() {
+  const u = () => facts()?.update?.pending
+  return (
+    <Show when={u()}>{v => (
+      <GroupBlock title="Update" icon="arrow.down.circle" id="update">
+        <Card>
+          <SettingRow id="update.now" icon="arrow.down.app"
+            title={v().fetching ? `Oriel ${v().version} is downloading…` : v().ready ? `Oriel ${v().version} is ready` : `Oriel ${v().version} is out`}
+            detail={v().notes ?? 'A newer Oriel, with what has changed since yours.'}
+            control={<Pill title={v().fetching ? 'Downloading…' : 'Update and Restart'} filled disabled={v().fetching} act={() => void act('updates.now')} />} />
+        </Card>
+      </GroupBlock>
+    )}</Show>
   )
 }
 

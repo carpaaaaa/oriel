@@ -7,10 +7,12 @@ import { registerOutlet, registerPage, registerPanel } from '../lib/registry'
 import { SettingsPage } from './Settings'
 import { DownloadsDoor, DownloadsFloat, DownloadsPage } from './Downloads'
 import { PermissionQuestion } from './Permission'
+import { UpdatePopup } from './UpdatePopup'
 import './settings.css'
 
 registerPage('settings', SettingsPage)
 registerPage('downloads', DownloadsPage)
 registerPanel('settings.permission', PermissionQuestion)
 registerPanel('settings.downloads', DownloadsFloat)
+registerPanel('settings.update', UpdatePopup)
 registerOutlet('sidebar.foot', DownloadsDoor)
