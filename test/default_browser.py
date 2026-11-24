@@ -222,6 +222,22 @@ def press(where, name):
     return None
 
 
+def settings_window():
+    """The Settings app's window rectangle (physical pixels), or None."""
+    found = []
+    proc = ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
+    def each(hwnd, _):
+        buf = ctypes.create_unicode_buffer(256)
+        user32.GetWindowTextW(hwnd, buf, 256)
+        if buf.value == "Settings" and user32.IsWindowVisible(hwnd):
+            r = wt.RECT()
+            user32.GetWindowRect(hwnd, ctypes.byref(r))
+            found.append((r.left, r.top, r.right, r.bottom))
+        return True
+    user32.EnumWindows(proc(each), 0)
+    return found[0] if found else None
+
+
 def names(where):
     return [l for l in uia(where, "", "names").splitlines() if l.strip()]
 
@@ -346,6 +362,16 @@ if not from_oriel:
 setdefault = wait(lambda: find(SETTINGS, "Set default"), 60, 2)
 grab("2-settings")
 if not setdefault:
+    # The managed UI Automation of PowerShell can't read the Settings app on
+    # some images (it shows the page: picture 2-settings). Its Set default
+    # sits at the top right of the page's first card: pressed by its place,
+    # and what Windows chose is read from the registry right after.
+    rect = settings_window()
+    if rect:
+        l, tp, r, btm = rect
+        setdefault = [r - 106 - 65, tp + 147 - 16, 130, 32]
+        print(f"  Settings at {rect}: Set default pressed by its place {setdefault}")
+if not setdefault:
     print("  what Settings shows:")
     for line in names(SETTINGS)[:160]:
         print("   ", line)
@@ -354,7 +380,11 @@ t.ok(find(SETTINGS, "Oriel") or any("Oriel" in l for l in names(SETTINGS)), "…
 
 # 3. Set default, pressed: Windows chose Oriel.
 if setdefault:
-    how = press(SETTINGS, "Set default")
+    how = press(SETTINGS, "Set default") or "not found by name"
+    if how == "not found by name":
+        click(setdefault[0] + setdefault[2] / 2, setdefault[1] + setdefault[3] / 2)
+        how = "clicked by its place"
+
     print(f"  Set default {how}")
     got = wait(lambda: https_choice() == "OrielURL", 30, 1)
     time.sleep(1)

@@ -326,7 +326,9 @@ try:
     work = f0["workArea"]
     P = {"x": work["x"] + 120, "y": work["y"] + 90, "width": min(900, work["width"] - 300), "height": min(560, work["height"] - 220)}
     print(f"screen {f0['display']}, work area {work}, scale {S}, the window at {P}")
+    chord("esc", wait=0.4)  # a Start menu left open (the ARM images start with it)
     place()
+    click(px(P["x"] + P["width"] / 2), px(P["y"] + P["height"] / 2), 0.4)
     expect("placed", "free")
 
     # 1. Out of full screen every way, from a free window, twice each.
@@ -473,8 +475,11 @@ try:
 
     def page_full(on):
         if on:
-            b.ev(tab, "document.getElementById('v').requestFullscreen().then(() => 1, () => 0)")
-            settle(lambda: b.ev(tab, "!!document.fullscreenElement"), 6)
+            for _ in range(2):  # a request right after leaving can be refused: once more
+                b.ev(tab, "document.getElementById('v').requestFullscreen().then(() => 1, () => 0)")
+                if settle(lambda: b.ev(tab, "!!document.fullscreenElement"), 6):
+                    break
+                time.sleep(1)
         else:
             b.ev(tab, "document.exitFullscreen().then(() => 1, () => 0)")
             settle(lambda: not b.ev(tab, "!!document.fullscreenElement"), 6)
@@ -491,7 +496,8 @@ try:
             healthy(f"{base}, the page full screen ({way})")
             f = frame()
             f = settle(lambda: (lambda f: f if near_rect(f["bounds"], f["display"], 1) else None)(frame()), 4) or frame()
-            t.ok(near_rect(f["bounds"], f["display"], 1), f"{base}, the page full screen: the window covers the screen ({f['state']}, {f['bounds']})")
+            inside = b.ev(tab, "!!document.fullscreenElement")
+            t.ok(near_rect(f["bounds"], f["display"], 1), f"{base}, the page full screen: the window covers the screen ({f['state']}, {f['bounds']}, the page {'in' if inside else 'not in'} full screen)")
             if way == "Escape":
                 chord("esc")
                 if settle(lambda: b.ev(tab, "!!document.fullscreenElement"), 0.6):
