@@ -48,11 +48,13 @@
 /* presets: three columns of 166, 14 apart; 160 × 100 radius 10 and a
    hairline, 3 of margin, a ring of the accent 2.5 wide at radius 13 on the
    choice; the name 6 under it, 11.5, medium and ink when chosen */
-.th-grid { display: grid; grid-template-columns: repeat(3, 166px); gap: 14px; justify-content: start; align-items: start; }
-.th-card { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.th-ring { display: block; padding: 3px; border-radius: 13px; box-shadow: inset 0 0 0 2.5px transparent; }
+/* (the Mac's three columns are 526 wide, more than the row leaves in a
+   600 column: here they give way, never cut, keeping 160 × 100's shape) */
+.th-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 166px)); gap: 14px; justify-content: start; align-items: start; align-self: stretch; }
+.th-card { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.th-ring { display: block; width: 100%; padding: 3px; border-radius: 13px; box-shadow: inset 0 0 0 2.5px transparent; }
 .th-card.on .th-ring { box-shadow: inset 0 0 0 2.5px var(--th-accent, #007AFF); }
-.th-thumb { position: relative; display: block; width: 160px; height: 100px; border-radius: 10px; overflow: hidden; background: var(--ground); }
+.th-thumb { position: relative; display: block; width: 100%; aspect-ratio: 160 / 100; border-radius: 10px; overflow: hidden; background: var(--ground); }
 .th-thumb::after { content: ""; position: absolute; inset: 0; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--hairline); pointer-events: none; }
 .th-name { font-size: 11.5px; line-height: 13.7px; color: var(--muted); }
 .th-card.on .th-name { color: var(--ink); font-weight: 500; }
