@@ -19,13 +19,14 @@ import { hooks, onPageSession, runtimes } from '../views/tabs'
 import { allControllers, controllerFor, type WindowController } from '../views/window'
 import { need } from '../context'
 import { allPrefs } from './prefs'
+import { isInternal } from './openers'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const uiDir = path.join(here, '../ui')
 const assetsDir = path.join(uiDir, 'assets')
 
 export const scheme = brand.scheme
-export const isInternal = (url: string | undefined | null) => !!url && url.startsWith(`${scheme}:`)
+export { isInternal, refusesInternal } from './openers'
 
 const types: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -77,8 +78,14 @@ export function serveInternal(s: Session): void {
 
 onPageSession(s => serveInternal(s))
 
-// A site navigating itself or a frame to an Oriel page is stopped there.
+// A site navigating itself or a frame to an Oriel page is stopped there, and
+// so is a redirect to one (Oriel's pages never redirect; studio/09 §1.4).
 app.on('web-contents-created', (_e, wc) => {
+  wc.on('will-redirect', details => {
+    if (!isInternal(details.url)) return
+    refused.push({ url: details.url, site: 'redirect', origin: details.initiator?.url ?? null })
+    details.preventDefault()
+  })
   wc.on('will-frame-navigate', details => {
     if (!isInternal(details.url)) return
     const from = details.initiator?.url ?? ''
@@ -94,12 +101,6 @@ app.on('web-contents-created', (_e, wc) => {
     }
   })
 })
-
-/** For the tabs module's window-open hook: a website asking for a window at
- * an Oriel page gets nothing (Chrome refuses chrome:// the same way). */
-export function refusesInternal(fromURL: string, toURL: string): boolean {
-  return isInternal(toURL) && !isInternal(fromURL)
-}
 
 // the bridge's other end
 

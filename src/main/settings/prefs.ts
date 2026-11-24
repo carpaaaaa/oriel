@@ -17,6 +17,7 @@ import { openInternal, scheme } from './internal'
 import { forgetPermissions } from './permissions'
 import { forgetDownloadAddresses } from './downloads'
 import { check, install, relaunch, updateFacts, updateNow } from './updater'
+import { testEnv } from '../testhooks'
 
 /** What Oriel said last (the Mac's announcement line), for the bench. */
 export const said: string[] = []
@@ -63,7 +64,7 @@ function mirror(key: string): void {
 }
 
 function applyLook(): void {
-  if (process.env.SEARCH_LOOK) return
+  if (testEnv('SEARCH_LOOK')) return
   const look = pref<string>('look')
   nativeTheme.themeSource = look === 'light' || look === 'dark' ? look : 'system'
 }

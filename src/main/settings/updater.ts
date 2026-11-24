@@ -9,8 +9,13 @@
 // On Windows the feed is the repository's GitHub Releases, through
 // electron-updater (latest.yml, sha512 of the installer, NSIS per user):
 // the installer is run silently when Oriel quits, or at once with Relaunch
-// now. ORIEL_UPDATE_FEED=<url> points it at a generic feed instead (tests,
-// a mirror). A test world with no feed uses the bench's fake one.
+// now. Outside a package, ORIEL_UPDATE_FEED=<url> points it at a generic
+// feed instead (tests); a test world with no feed uses the bench's fake one.
+// An installed copy never reads that variable (testhooks.ts).
+//
+// The portable build can't put a new version in place (it runs from its own
+// .exe, and electron-updater would run the NSIS installer): it never checks,
+// and Settings says it updates by downloading the new version.
 
 import { app, net } from 'electron'
 import { model } from '../model/model'
@@ -21,6 +26,7 @@ import { allControllers } from '../views/window'
 import { openInternal, scheme, tellPages } from './internal'
 import { hidePanel, markAllSettings, settingsPart, showPanel } from './slice'
 import { said, setKey } from './prefs'
+import { testEnv } from '../testhooks'
 
 export type Stage =
   | { kind: 'none' }
@@ -86,7 +92,7 @@ function electronUpdater(feed?: string): Source {
 
 /** A test world with a real feed: what it finds is real, fetching and
  * installing are only counted (ORIEL_UPDATE_FAKE_INSTALL=1). */
-const fakeActions = probe && process.env.ORIEL_UPDATE_FAKE_INSTALL === '1'
+const fakeActions = probe && testEnv('ORIEL_UPDATE_FAKE_INSTALL') === '1'
 
 const fakeSource: Source = {
   async check() { fake.checks++; return fake.version ? { version: fake.version, notes: fake.notes } : null },
@@ -94,9 +100,12 @@ const fakeSource: Source = {
   install() { fake.installs++ },
 }
 
-const feed = process.env.ORIEL_UPDATE_FEED
-/** Installed builds use GitHub; a test world uses a feed it names, or the fake. */
-const source: Source | null = feed ? electronUpdater(feed) : probe ? fakeSource : app.isPackaged ? electronUpdater() : null
+const feed = testEnv('ORIEL_UPDATE_FEED')
+/** electron-builder's portable launcher sets these for the app it unpacks. */
+export const portable = !!(process.env.PORTABLE_EXECUTABLE_DIR || process.env.PORTABLE_EXECUTABLE_FILE)
+/** Installed builds use GitHub; a test world uses a feed it names, or the
+ * fake; the portable build none. */
+const source: Source | null = portable ? null : feed ? electronUpdater(feed) : probe ? fakeSource : app.isPackaged ? electronUpdater() : null
 
 function changed(): void {
   tellPages('update', updateFacts(), 'settings')
@@ -106,7 +115,7 @@ function changed(): void {
 export function updateFacts() {
   const s = update.stage
   return {
-    stage: s, checking: update.checking, checked: update.checked, active: !!source,
+    stage: s, checking: update.checking, checked: update.checked, active: !!source, portable,
     // A pending update, once its popup is out of the way: Settings shows it
     // as its first section (the user's own wish, 24 Nov 2026).
     pending: s.kind !== 'none' && !popup ? { version: s.version, notes: s.notes, ready: s.kind === 'ready', fetching: s.kind === 'fetching' } : null,
@@ -253,7 +262,7 @@ app.whenReady().then(() => {
   setInterval(() => {
     const last = update.checked
     if (!last || Date.now() - last > (50 / 60) * HOUR) void check()
-  }, probe && process.env.ORIEL_UPDATE_EVERY ? Number(process.env.ORIEL_UPDATE_EVERY) : HOUR).unref?.()
+  }, probe && testEnv('ORIEL_UPDATE_EVERY') ? Number(testEnv('ORIEL_UPDATE_EVERY')) : HOUR).unref?.()
 })
 
 handle('update.check', () => check(true))
@@ -270,9 +279,9 @@ let notesCache: { at: number; list: ReleaseNotes[] } | null = null
 const fakeNotes: ReleaseNotes[] = []
 
 handle('update.notes', async () => {
-  if (probe && !process.env.ORIEL_NOTES_FEED) return { list: fakeNotes, error: null }
+  if (probe && !testEnv('ORIEL_NOTES_FEED')) return { list: fakeNotes, error: null }
   if (notesCache && Date.now() - notesCache.at < 10 * 60 * 1000) return { list: notesCache.list, error: null }
-  const url = process.env.ORIEL_NOTES_FEED ?? 'https://api.github.com/repos/carpaaaaa/oriel/releases?per_page=30'
+  const url = testEnv('ORIEL_NOTES_FEED') ?? 'https://api.github.com/repos/carpaaaaa/oriel/releases?per_page=30'
   try {
     const r = await net.fetch(url, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Oriel' } })
     if (!r.ok) throw new Error(String(r.status))
@@ -290,7 +299,7 @@ handle('update.notes', async () => {
 // in a test world only when asked (ORIEL_WHATSNEW=1). A tab of its own, as
 // Oriel's pages are, in the first window.
 function whatsNewDue(): boolean {
-  if (probe && !process.env.ORIEL_WHATSNEW) return false
+  if (probe && !testEnv('ORIEL_WHATSNEW')) return false
   const now = app.getVersion()
   const seen = model.pref<string>('whatsnew.seen')
   if (seen === now) return false
@@ -315,5 +324,5 @@ benchRequest('settings.updater', req => {
   if ('failDownload' in req) fake.failDownload = !!req.failDownload
   if ('releases' in req) fakeNotes.splice(0, fakeNotes.length, ...(req.releases as ReleaseNotes[]))
   if (req.check) void check(true)
-  return { stage: update.stage, checking: update.checking, checked: update.checked, fake: { ...fake }, active: !!source, feed: !!feed, popup, shown: [...shown] }
+  return { stage: update.stage, checking: update.checking, checked: update.checked, fake: { ...fake }, active: !!source, feed: !!feed, portable, popup, shown: [...shown] }
 })

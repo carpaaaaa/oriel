@@ -65,6 +65,55 @@ jobs:
             shots/
             out/*.log
 
+  # Isolation and safety on real Windows (studio/09 §5): Oriel's own pages
+  # apart from websites, site permissions, the guards of the interface and of
+  # oriel://, test knobs, atomic writes, extensions' network rules, updates
+  # (the portable copy too) and the licenses.
+  security:
+    name: security (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run build
+      - name: Oriel's own pages, apart from websites
+        run: python test/settings_pages.py
+      - name: Guards (interface, oriel:// from sites, test knobs)
+        if: always()
+        run: python test/security_guards.py
+      - name: Site permissions
+        if: always()
+        run: python test/settings_permissions.py
+      - name: Writes that can't be cut in half
+        if: always()
+        run: python test/robust_writes.py
+      - name: Extensions, declarativeNetRequest (regexes that can't freeze the browser)
+        if: always()
+        run: python test/extensions_dnr.py
+      - name: Updates (and the portable copy)
+        if: always()
+        run: python test/settings_d_updates.py
+      - name: Licenses
+        if: always()
+        run: python test/licenses_check.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-${{ matrix.os }}
+          path: out/*.log
+
   # The window drawn by Oriel on real Windows: the frame with the bench, then
   # real input from the operating system and pictures of the whole screen
   # (corners and shadow as Windows composes them), for each variant of the
@@ -174,6 +223,8 @@ jobs:
       # koffi's prebuilt binary for the other architecture too (npm only
       # installs the one of the machine it runs on).
       - run: npm install --no-save --force @koromix/koffi-win32-x64@3.3.8 @koromix/koffi-win32-arm64@3.3.8
+      # The list that ships, made here, after both koffi binaries are in.
+      - run: node scripts/licenses.mjs --expect @koromix/koffi-win32-x64,@koromix/koffi-win32-arm64
       - run: npm run build
       - run: npx electron-builder --win nsis portable --x64 --arm64 --publish never
       - uses: actions/upload-artifact@v4

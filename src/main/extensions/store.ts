@@ -20,6 +20,7 @@ import { model } from '../model/model'
 import { WindowController, allControllers } from '../views/window'
 import { runtimes } from '../views/tabs'
 import { probe } from '../paths'
+import { testEnv } from '../testhooks'
 
 const DETAIL = /^\/detail\/(?:[^/]+\/)?([a-p]{32})(?:\/.*)?$/
 const OLD_DETAIL = /^\/webstore\/detail\/(?:[^/]+\/)?([a-p]{32})(?:\/.*)?$/
@@ -33,7 +34,7 @@ export function storeIdOf(url: string | undefined): string | null {
   try { u = new URL(url ?? '') } catch { return null }
   if (u.username || u.password) return null
   const host = u.host.toLowerCase()
-  const stand = probe ? process.env.ORIEL_STORE_HOST?.toLowerCase() : undefined
+  const stand = probe ? testEnv('ORIEL_STORE_HOST')?.toLowerCase() : undefined
   if ((u.protocol === 'https:' && host === 'chromewebstore.google.com') || (stand && host === stand && /^https?:$/.test(u.protocol))) return DETAIL.exec(u.pathname)?.[1] ?? null
   if (u.protocol === 'https:' && host === 'chrome.google.com') return OLD_DETAIL.exec(u.pathname)?.[1] ?? null
   return null
@@ -42,7 +43,7 @@ export function storeIdOf(url: string | undefined): string | null {
 export const isStoreHost = (url: string) => {
   try {
     const h = new URL(url).host.toLowerCase()
-    return h === 'chromewebstore.google.com' || h === 'chrome.google.com' || (!!probe && h === process.env.ORIEL_STORE_HOST?.toLowerCase())
+    return h === 'chromewebstore.google.com' || h === 'chrome.google.com' || (!!probe && h === testEnv('ORIEL_STORE_HOST')?.toLowerCase())
   } catch { return false }
 }
 

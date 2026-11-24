@@ -14,6 +14,7 @@ import { createWriteStream, mkdirSync, readFileSync, renameSync, rmSync, statSyn
 import path from 'node:path'
 import { dataFile, probe } from '../paths'
 import type { ModelFiles } from './engine'
+import { testEnv } from '../testhooks'
 
 const RECORDS = 'https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/translations-models/records'
 const FILES = 'https://firefox-settings-attachments.cdn.mozilla.net/'
@@ -22,9 +23,9 @@ const WEEK = 7 * 24 * 3600_000
 /** Test worlds only: a local list and files, and a models folder shared by
  * runs so the real model isn't fetched for every test. */
 const testing = !!probe
-const recordsURL = (testing && process.env.SEARCH_TRANSLATE_CATALOG) || RECORDS
-const filesBase = testing && process.env.SEARCH_TRANSLATE_CATALOG ? new URL('/', recordsURL).href : FILES
-export const modelsFolder = () => (testing && process.env.SEARCH_TRANSLATE_MODELS) || dataFile('Translations')
+const recordsURL = (testing && testEnv('SEARCH_TRANSLATE_CATALOG')) || RECORDS
+const filesBase = testing && testEnv('SEARCH_TRANSLATE_CATALOG') ? new URL('/', recordsURL).href : FILES
+export const modelsFolder = () => (testing && testEnv('SEARCH_TRANSLATE_MODELS')) || dataFile('Translations')
 
 interface ModelRecord {
   name: string

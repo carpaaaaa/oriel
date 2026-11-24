@@ -61,6 +61,30 @@ export function readJSON<T>(name: string, fallback: T, check?: (raw: unknown) =>
   return value
 }
 
+const nap = new Int32Array(new SharedArrayBuffer(4))
+/** Waits `ms` with the processor free (studio/09 §3): the thread still
+ * waits, as its callers are synchronous (quitting among them). */
+export function pause(ms: number): void {
+  Atomics.wait(nap, 0, 0, ms)
+}
+
+/** `text` into `file` atomically: a file beside it, flushed, then renamed
+ * over it, so a reader never finds it half written. Any file, inside
+ * Oriel's folder or not (an extension's manifest). */
+export function writeFileAtomic(file: string, text: string): void {
+  mkdirSync(path.dirname(file), { recursive: true })
+  const temp = `${file}.${process.pid}.tmp`
+  writeFileSync(temp, text)
+  try { const fd = openSync(temp, 'r+'); fsyncSync(fd); closeSync(fd) } catch {}
+  // Windows: an indexer or antivirus can hold the file a moment.
+  for (let attempt = 0; ; attempt++) {
+    try { renameSync(temp, file); return } catch (error) {
+      if (attempt >= 9) { try { unlinkSync(temp) } catch {} ; throw error }
+      pause(50)
+    }
+  }
+}
+
 export function writeJSONNow(name: string, value: unknown): void {
   const prior = pending.get(name)
   if (prior) { clearTimeout(prior.timer); pending.delete(name) }
@@ -68,19 +92,7 @@ export function writeJSONNow(name: string, value: unknown): void {
     if (!quarantine(name)) return
     stuck.delete(name)
   }
-  const file = dataFile(name)
-  mkdirSync(path.dirname(file), { recursive: true })
-  const temp = `${file}.${process.pid}.tmp`
-  writeFileSync(temp, JSON.stringify(value))
-  try { const fd = openSync(temp, 'r+'); fsyncSync(fd); closeSync(fd) } catch {}
-  // Windows: an indexer or antivirus can hold the file a moment.
-  for (let attempt = 0; ; attempt++) {
-    try { renameSync(temp, file); return } catch (error) {
-      if (attempt >= 9) { try { unlinkSync(temp) } catch {} ; throw error }
-      const until = Date.now() + 50
-      while (Date.now() < until) { /* wait */ }
-    }
-  }
+  writeFileAtomic(dataFile(name), JSON.stringify(value))
 }
 
 /** Write after `delay` ms of quiet; later calls replace the value. */

@@ -5,6 +5,7 @@
 // Loaded lazily and only on Windows; every caller copes with null.
 
 import { createRequire } from 'node:module'
+import { testEnv } from '../testhooks'
 
 const nodeRequire = createRequire(import.meta.url)
 
@@ -65,7 +66,7 @@ let cached: Win32 | null | undefined
 export function win32(): Win32 | null {
   if (cached !== undefined) return cached
   cached = null
-  if (process.platform !== 'win32' || process.env.SEARCH_NO_USER32) return null
+  if (process.platform !== 'win32' || testEnv('SEARCH_NO_USER32')) return null
   try {
     cached = load()
   } catch (error) {

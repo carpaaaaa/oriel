@@ -5,6 +5,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PAGES = {}
+# path -> address: answered with a 302 to it.
+REDIRECTS = {}
 GATES = {}
 FAILED = set()
 BROKEN = set()
@@ -16,6 +18,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
+        if path in REDIRECTS:
+            self.send_response(302)
+            self.send_header("Location", REDIRECTS[path])
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         if path in PAGES:
             body = PAGES[path].encode()
             self.send_response(200)
