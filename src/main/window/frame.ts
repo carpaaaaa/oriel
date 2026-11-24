@@ -133,6 +133,10 @@ export class Frame {
   trace: string[] = []
   /** Full screen as we asked it (Electron doesn't know it for transparent windows on Windows). */
   private full = false
+  /** The bounds it comes back to out of full screen: Electron keeps them to
+   * itself for transparent windows on Windows, where getNormalBounds says the
+   * full screen, and windows.json would bring it back screen-sized. */
+  private beforeFull: Rectangle | null = null
 
   constructor(private readonly c: WindowController, kind: FrameKind) {
     this.kind = kind
@@ -195,7 +199,7 @@ export class Frame {
   normalVisual(): Rectangle {
     const b = this.c.base
     if (this.state === 'free') return this.visual()
-    const n = this.restoreTo ?? b.getNormalBounds()
+    const n = this.beforeFull ?? this.restoreTo ?? b.getNormalBounds()
     const m = this.kind === 'drawn' ? ROOM : NONE
     return { x: n.x + m.left, y: n.y + m.top, width: n.width - m.left - m.right, height: n.height - m.top - m.bottom }
   }
@@ -379,6 +383,7 @@ export class Frame {
 
   setFullScreen(on = !this.isFullScreen()): void {
     if (on === this.isFullScreen()) return
+    this.beforeFull = on ? (this.state === 'free' ? this.c.base.getBounds() : this.restoreTo ?? this.c.base.getNormalBounds()) : null
     this.full = on && !!this.hwnd
     this.c.base.setFullScreen(on)
     this.refresh()

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Page zoom kept for each site (studio/01 §2.22), with the Mac's values:
-times 1.1, between 40% and 300%, Ctrl+0 back to the default, remembered for
-the host (pref zoom.<host>) and forgotten when equal to the default; another
-host keeps its own."""
+"""Page zoom kept for each site (studio/01 §2.22): a step at a time along
+Chrome's levels (the user's choice over the Mac's times 1.1), between 25% and
+500%, Ctrl+0 back to the default, remembered for the host (pref zoom.<host>)
+and forgotten when equal to the default; another host keeps its own."""
 import sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -52,7 +52,7 @@ time.sleep(0.3)
 t.ok(near(zoom(), 1), "a site starts at the default zoom")
 
 b.cmd("view.zoom", by=1.1)
-t.ok(near(zoom(), 1.1), "Ctrl+= multiplies by 1.1")
+t.ok(near(zoom(), 1.1), "Ctrl+= the next level, 110%")
 t.ok(near(prefs().get(key, 0), 1.1), "the zoom is kept for the site")
 
 b.cmd("tab.go", input=other)
@@ -66,10 +66,10 @@ t.ok(near(zoom(), 1.1), "back on the site, its zoom comes back")
 
 for _ in range(20):
     b.cmd("view.zoom", by=1.1)
-t.ok(near(zoom(), 3), "never over 300%")
+t.ok(near(zoom(), 5), "never over 500%, Chrome's last level")
 for _ in range(30):
     b.cmd("view.zoom", by=1 / 1.1)
-t.ok(near(zoom(), 0.4), "never under 40%")
+t.ok(near(zoom(), 0.25), "never under 25%, its first")
 
 b.cmd("view.zoom", reset=True)
 t.ok(near(zoom(), 1), "Ctrl+0: back to the default")

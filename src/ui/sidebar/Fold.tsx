@@ -38,7 +38,9 @@ export function FoldLayer(p: { layer: OverlayLayer }) {
     back = null
     const t = timing(true)
     document.documentElement.dataset.foldOut = `${t.duration} ${t.easing.slice(0, 40)}`
-    el.animate([{ transform: from === 'none' ? away() : from }, { transform: 'none' }], { ...t, fill: 'none' })
+    const out = el.animate([{ transform: from === 'none' ? away() : from }, { transform: 'none' }], { ...t, fill: 'none' })
+    // Held at its start by a view drawing no frames, the column would stay away: past its time it is out.
+    setTimeout(() => { if (out.playState !== 'finished') out.cancel() }, t.duration + 100)
   }
   onMount(comeOut)
   createEffect(on(() => !!(p.layer as { going?: boolean }).going, going => {

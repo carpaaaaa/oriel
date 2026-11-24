@@ -527,7 +527,13 @@ if IS_WIN:
     t.ok(b.wait_for(lambda: placement()["windows"][0]["state"] == "fullScreen", what="full screen again"), "full screen comes back full screen")
     b.cmd("window.fullScreen", window=k.wid(0), on=False)
     b.wait_for(lambda: placement()["windows"][0]["state"] == "free", what="out of full screen")
-    t.ok(placement()["windows"][0]["visual"] == spot, "and leaves it to where it was before")
+    # Windows says the state before it has put the bounds back: wait for them.
+    try:
+        b.wait_for(lambda: placement()["windows"][0]["visual"] == spot, within=3, what="back where it was")
+    except AssertionError:
+        pass
+    back = placement()["windows"][0]
+    t.ok(back["visual"] == spot, f"and leaves it to where it was before ({back['visual']} vs {spot}, {back['state']}, saved {k.read('windows.json')[0].get('frame')})")
     b.quit()
     wins = k.read("windows.json")
     snap_rect = {"x": work["x"], "y": work["y"], "width": max(640, work["width"] // 2), "height": work["height"]}  # never under 640 (§1.4)

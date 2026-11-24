@@ -64,7 +64,7 @@ function peekRegion(c: WindowController, v: Rect): Rect {
   const content = c.base.getContentBounds()
   if (top(c)) {
     // The strip, its shadow under it; the window's buttons stay in reach.
-    const controls = c.chrome === 'windows' && !c.frame.isFullScreen() ? 138 : 0
+    const controls = c.chrome === 'windows' && !c.frame.isFullScreen() ? (model.pref<string>('window.buttons') === 'classic' ? 138 : 96) : 0
     return { x: v.x - content.x, y: v.y - content.y, width: Math.max(0, v.width - controls), height: stripHeight() + SHADOW }
   }
   const w = columnWidth(c) + SHADOW
