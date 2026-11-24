@@ -194,3 +194,17 @@
 .bm-buttons { display: flex; align-items: center; gap: 8px; margin-top: auto; }
 .bm-remove { font-size: 12.5px; color: rgb(255 59 48 / .75); padding: 5px 2px; }
 .bm-done { margin-left: auto; font-size: 12.5px; font-weight: 500; background: var(--ink); color: var(--ground); padding: 5px 14px; border-radius: 999px; }
+
+/* A row's right-click menu (BookmarkDoor.tsx, the tabs' Menu): the row it is
+   for keeps the wash while it is up. */
+.bm-row.menued { background: var(--wash); }
+/* Its questions in the list's place (Ask): 14 in, 10 between, the heading
+   on one line, the line under it 11.5 in 15; Cancel quiet, the answer filled
+   (Remove in red, as a destructive answer is). */
+.bm-ask { gap: 10px; outline: none; }
+.bm-ask-heading { line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bm-detail { margin: 0; font-size: 11.5px; line-height: 15px; color: var(--muted); }
+.bm-cancel { margin-left: auto; font-size: 12.5px; color: var(--ink); padding: 5px 12px; border-radius: 999px; transition: background-color var(--dur-quick) var(--ease-quick); }
+.bm-cancel:hover { background: var(--wash); }
+.bm-ask .bm-done { margin-left: 0; }
+.bm-done.bm-destructive { background: var(--caption-close); color: #fff; }

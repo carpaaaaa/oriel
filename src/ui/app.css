@@ -122,6 +122,10 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .blurred .caption-buttons.classic button:not(:hover) { color: var(--caption-rest); }
 /* With Inline the band above the page is the column's (52), so the doors sit in its middle. */
 .window.windows.btn-inline { --top: var(--strip); }
+/* Beside the window's buttons (Chrome.tsx, data/where.ts): doors of 26, 2
+   apart, on the band's middle as Inline's buttons and Classic's are. */
+.chrome-end { position: absolute; top: calc((var(--top, var(--caption-height)) - var(--door)) / 2); display: flex; align-items: center; gap: 2px; z-index: 10; }
+.chrome-end:empty { display: none; }
 /* The overlay's veils over the whole window (the switcher's, an extension's
    card's, Bring Things Over's) cover the window drawn by Oriel, with its
    corners, never the clear margin round it. */

@@ -104,12 +104,13 @@
 
 /* The far end's order, whoever draws each (TabBar.swift:264-279): downloads,
    the extensions and their puzzle, back, forward and reload (8 after them),
-   the bookmark button, a button per space; the translate sign first. */
+   a button per space; the translate sign first. The bookmark button last,
+   beside the window's buttons (data/where.ts), where it is in every layout. */
 .strip-far > .fetch-door { order: 1; }
 .strip-far > .ext-slot { order: 2; }
 .strip-far > .strip-helm { order: 3; }
-.strip-far > .bookmark-door { order: 4; }
-.strip-far > .space-buttons { order: 5; }
+.strip-far > .space-buttons { order: 4; }
+.strip-far > .bookmark-door { order: 5; }
 .strip-far:has(> .bookmark-door) > .strip-helm { margin-right: 8px; }
 
 /* Coming and going (TabBar.tsx StripMotion): nothing to press while it goes. */

@@ -135,9 +135,24 @@ export interface BookmarkCardView {
   folders: { id: string; title: string; depth: number }[]
 }
 
+/** A question the list asks in its place, from a row's right-click menu
+ * (Bookmarks.askRename, askNewFolder, askRemove; Spaces.swift Ask). */
+export interface BookmarkAskView {
+  kind: 'rename' | 'folder' | 'remove'
+  id: string
+  folder: boolean
+  /** The name it has (Rename…, Remove's question). */
+  title: string
+  /** What the field reads empty: its name or address, "Folder name". */
+  placeholder: string
+  /** Remove on a folder: the sites in it, counted through. */
+  count: number
+}
+
 /** What hangs off the bookmark button (BookmarkDoor's popover): the list, or
- * the card. `rect` and `arrow` in window coordinates; the overlay is the
- * card's rect grown by `room` on every side. */
+ * the card, or a question. `rect` and `arrow` in window coordinates; the
+ * overlay is the card's rect grown by `room` on every side, and with a row's
+ * right-click menu up, on to the window's right and bottom edges. */
 export interface BookmarksPopover {
   rect: Rect
   arrow: { side: 'top' | 'bottom' | 'left' | 'right'; at: number }
@@ -149,6 +164,9 @@ export interface BookmarksPopover {
   /** The page in front can be kept (a web page). */
   keepable: boolean
   card: BookmarkCardView | null
+  ask: BookmarkAskView | null
+  /** A row's right-click menu is up: the overlay reaches the window's edges. */
+  menu: boolean
 }
 
 export interface DataState {
@@ -186,6 +204,17 @@ declare module '../commands' {
     /** ⇧⌘B, Add This Page, Edit This Bookmark… (Browser.bookmarkCurrent):
      * the page kept and the card off the button, or its card if kept. */
     'bookmarks.add': None
+    /** A row's right-click menu in the list, up or put away (BookmarkOutline.Row
+     * contextMenu): the overlay grows for it; the folders it can move to back. */
+    'bookmark.menu': { open: boolean }
+    /** Rename…, New Folder Inside…, Remove from that menu: the question in the
+     * list's place; Remove on a bookmark or an empty folder goes at once. */
+    'bookmark.ask': { id: ID; kind: 'rename' | 'folder' | 'remove' }
+    /** The question answered (the name typed) or put away. */
+    'bookmark.answer': { title?: string }
+    'bookmark.askClose': None
+    /** Move to in that menu (Bookmarks.move): the next page kept doesn't follow. */
+    'bookmark.moveTo': { id: ID; folder: ID | null }
     // history (studio/05 §3.5)
     'history.list': { query?: string }
     'history.forget': { url: string }
