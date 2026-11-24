@@ -39,7 +39,7 @@ def both_looks(name):
 k.blank_tab()
 w = k.wall()
 t.ok(prefs().get("home.theme", "off") == "off", "home.theme is off by default")
-t.ok(w["shown"] == "none" and w["breath"] != "none", f"the blank tab is plain and breathes ({w})")
+t.ok(w["shown"] == "none" and w["breath"] not in ("none", "gone"), f"the blank tab is plain and breathes ({w})")
 k.shot("off-light")
 
 # 1. The page: families with the Mac's words, Off's note.
@@ -200,7 +200,7 @@ k.family(tab, "Off")
 b.wait_for(lambda: prefs().get("home.theme", "off") == "off", what="off")
 k.blank_tab()
 w = b.wait_for(lambda: (lambda w: w if w["shown"] == "none" else None)(k.wall()), what="plain tab")
-t.ok(w["breath"] != "none", f"Off: no wall, the breath is back ({w})")
+t.ok(w["breath"] not in ("none", "gone"), f"Off: no wall, the breath is back ({w})")
 k.look("dark")
 k.shot("off-dark")
 k.look("light")
