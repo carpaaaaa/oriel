@@ -25,6 +25,8 @@ export interface FrameView {
   grip: { outside: number; inside: number; corner: number }
 }
 
+export interface SideRoom { side: 'left' | 'right'; width: number }
+
 declare module '../commands' {
   interface Commands {
     'window.fullScreen': { on?: boolean }
@@ -44,6 +46,8 @@ declare module '../commands' {
     /** Swap Pages, Separate (§8.27). */
     'split.swap': { id?: string }
     'split.separate': { id?: string }
+    /** Where the room beside the page ended up (measured by the interface). */
+    'window.room': { rect: { x: number; y: number; width: number; height: number } | null }
     /** Page zoom, kept for each site (studio/01 §2.22): times `by`, or back
      * to the default. */
     'view.zoom': { by?: number; reset?: boolean; id?: string }
@@ -56,6 +60,9 @@ declare module '../state' {
   interface WindowState {
     /** Missing until the main process sends it (the store starts without it). */
     frame?: FrameView
+    /** Room asked beside the page (the extensions' side panel): the card
+     * gets narrower by it on that side (studio/02 §4.1). */
+    room?: SideRoom | null
   }
 }
 

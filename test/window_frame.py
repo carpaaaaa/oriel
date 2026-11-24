@@ -64,6 +64,7 @@ place = {"x": work["x"] + 60, "y": work["y"] + 40, "width": min(900, work["width
 b.call({"do": "window.place", "visual": True, **place})
 b.cmd("tab.go", input="data:text/html,<title>frame</title><body style='background:%23fff'>page")
 b.wait_for(lambda: b.active()["title"] == "frame", what="page")
+page_tab = b.active()["id"]
 time.sleep(0.6)
 # The interface catches up with the size (slow machines).
 settle(lambda: abs(dom()["window"]["width"] - place["width"]) < 1.5, "interface at the new size", within=8)
@@ -79,7 +80,7 @@ t.ok(f["kind"] == "drawn" and d["frame"] == "drawn", "the window is drawn by Ori
 t.ok(f["state"] == "free" and f["margin"] == ROOM, "free, with the clear margin for the shadow")
 t.ok(f["visual"]["width"] == place["width"] and f["visual"]["height"] == place["height"], "visible size as asked (%sx%s)" % (f["visual"]["width"], f["visual"]["height"]))
 w = d["window"]
-t.ok(near(w["x"], ROOM["left"]) and near(w["y"], ROOM["top"]) and near(w["width"], place["width"]) and near(w["height"], place["height"]), "the window is drawn inside the margin")
+t.ok(near(w["x"], ROOM["left"]) and near(w["y"], ROOM["top"]) and near(w["width"], place["width"]) and near(w["height"], place["height"]), "the window is drawn inside the margin (%s)" % w)
 t.ok(d["windowRadius"] == "17.5px", "window corners 17.5 (%s)" % d["windowRadius"])
 t.ok("44px" in d["shadow"] or "26px" in d["shadow"], "the window has its own shadow (key or resting)")
 c = d["card"]
@@ -99,12 +100,12 @@ if SHOTS:
 
 # 2. Resizing (setBounds): the drawn window and the page follow.
 b.call({"do": "window.place", "visual": True, **{**place, "width": place["width"] - 100, "height": place["height"] - 60}})
-time.sleep(0.5)
+settle(lambda: near(dom()["window"]["width"], place["width"] - 100) and page_on_card(), "the interface at the new size", within=8)
 d = dom()
 f = frame()
 t.ok(near(d["window"]["width"], place["width"] - 100) and near(d["window"]["height"], place["height"] - 60), "resized: the window is drawn at the new size")
 c = d["card"]
-t.ok(all(near(f["pages"][0]["rect"][k], round(c[k])) for k in ("x", "y", "width", "height")), "resized: the page follows the card")
+t.ok(all(near(f["pages"][0]["rect"][k], round(c[k])) for k in ("x", "y", "width", "height")), "resized: the page follows the card (%s, %s)" % (f["pages"], c))
 b.call({"do": "window.place", "visual": True, **place})
 time.sleep(0.3)
 
@@ -119,12 +120,12 @@ time.sleep(0.3)
 # 4. Maximize: no margin, square corners, no shadow; the card keeps its gap.
 b.cmd("window.maximize")
 f = settle(lambda: frame()["state"] == "maximized" and frame(), "maximized") or frame()
-time.sleep(0.5)
+settle(lambda: near(dom()["window"]["width"], f["workArea"]["width"]) and page_on_card(), "the interface maximized", within=8)
 d = dom()
 t.ok(f["state"] == "maximized" and f["margin"] == {"top": 0, "right": 0, "bottom": 0, "left": 0}, "maximized: no margin")
 t.ok(f["visual"] == f["workArea"], "maximized: fills the work area (%s)" % f["visual"])
 t.ok(d["windowRadius"] == "0px" and d["shadow"] == "none", "maximized: square corners, no shadow")
-t.ok(near(d["window"]["x"], 0) and near(d["window"]["width"], f["workArea"]["width"]), "maximized: drawn edge to edge")
+t.ok(near(d["window"]["x"], 0) and near(d["window"]["width"], f["workArea"]["width"]), "maximized: drawn edge to edge (%s)" % d["window"])
 t.ok(near(d["window"]["x"] + d["window"]["width"] - (d["card"]["x"] + d["card"]["width"]), 8), "maximized: the card keeps its 8 (as on the Mac)")
 t.ok(d["maxTitle"] == "Restore Down", "maximized: the button restores")
 t.ok(all(near(f["pages"][0]["rect"][k], round(d["card"][k])) for k in ("x", "y", "width", "height")), "maximized: the page lies on the card")
@@ -155,6 +156,11 @@ b.mouse(rowx, rowy, clicks=1)
 b.mouse(rowx, rowy, clicks=2)
 time.sleep(0.5)
 t.ok(frame()["state"] == "free", "double click in the column is not the strip's")
+# (a double click on the column's empty place opens a tab: back to the page)
+# The double click arrives after the bench's call returns: wait for its tab.
+settle(lambda: b.active()["id"] != page_tab, "the tab it opens", within=2)
+b.cmd("tab.select", id=page_tab)
+settle(lambda: b.active()["id"] == page_tab and page_on_card(), "back on the page", within=5)
 
 # 6. Moving by hand from the strip (the Mac's way; Windows uses its own loop,
 #    window_os.py), and only past the threshold.
@@ -177,6 +183,10 @@ if frame()["manual"]:
     bx, by = d["window"]["x"] + 60, d["window"]["y"] + 140
     b.call({"do": "window.drag", "path": [[bx, by], [bx + 30, by + 30]]})
     t.ok(frame()["bounds"] == before, "dragging a tab row doesn't move the window")
+
+# (a press on a tab row selects that tab: back to the page)
+b.cmd("tab.select", id=page_tab)
+settle(lambda: b.active()["id"] == page_tab and page_on_card(), "back on the page", within=5)
 
 # 7. Resizing by hand from an edge and a corner.
 before = frame()["bounds"]
@@ -232,7 +242,28 @@ if sys.platform != "darwin":
     b.cmd("window.fullScreen", on=False)
     t.ok(settle(lambda: frame()["state"] == "free", "leave full screen"), "out of full screen, free again")
 
-# 11. A new window: the front one's size, 22 down and right (studio/01 §1.3).
+# 11. Room beside the page for the extensions' side panel (studio/02 §4.1):
+#     the card gets narrower, the room takes its place with the same gap.
+b.call({"do": "window.place", "visual": True, **place})
+time.sleep(0.4)
+full = dom()["card"]
+b.call({"do": "window.room", "side": "right", "width": 380})
+settle(lambda: b.call({"do": "window.room"})["rect"] and page_on_card(), "room placed", within=8)
+d = dom()
+c = d["card"]
+room = b.call({"do": "window.room"})["rect"]
+want = min(380, full["width"] - 8 - 320)  # the page keeps 320 beside it
+t.ok(room and near(room["width"], want, 1.5) and near(room["x"] + room["width"], full["x"] + full["width"], 1.5), "the room is on the right, %s wide (%s)" % (want, room))
+t.ok(near(c["x"] + c["width"] + 8, room["x"], 1.5) and near(c["y"], room["y"], 1.5) and near(c["height"], room["height"], 1.5), "the card ends 8 before it, same top and bottom")
+t.ok(all(near(frame()["pages"][0]["rect"][k], round(c[k])) for k in ("x", "y", "width", "height")), "the page lies on the narrower card")
+b.call({"do": "window.room", "side": "right", "width": 2000})
+time.sleep(0.5)
+t.ok(dom()["card"]["width"] >= 319.5, "the page keeps at least 320 beside the room")
+b.call({"do": "window.room", "width": None})
+settle(lambda: near(dom()["card"]["width"], full["width"]), "room given back", within=5)
+t.ok(near(dom()["card"]["width"], full["width"]) and b.call({"do": "window.room"})["rect"] is None, "the room given back: the card as before")
+
+# 12. A new window: the front one's size, 22 down and right (studio/01 §1.3).
 b.call({"do": "window.place", "visual": True, **place})
 time.sleep(0.3)
 first = frame()["visual"]

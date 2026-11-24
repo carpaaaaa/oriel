@@ -4,13 +4,11 @@
 // setPanelBehavior({openPanelOnActionClick}) so the button opens it, open and
 // close; a panel turned off while open closes.
 //
-// The window module has no room for a second page beside the first yet, so
-// this shrinks the page in front after the window places it (see fit) and
-// puts the panel in the room left. TODO(window): a way to ask for room
-// beside the page.
+// The window gives the panel its room beside the page
+// (WindowController.setSideRoom): the card gets narrower and the panel is
+// laid where the room is.
 
 import { WebContentsView, type Session } from 'electron'
-import type { ID } from '../../shared/state'
 import { WindowController, allControllers, controllerFor } from '../views/window'
 import { runtimes } from '../views/tabs'
 import { model } from '../model/model'
@@ -57,26 +55,13 @@ function effective(id: string, tabId: number): { path?: string; enabled: boolean
 
 export const behaviour = (id: string) => state(id).openOnAction
 
-// Shrink the page in front and put the panel beside it, each time the
-// window places that page.
-const proto = WindowController.prototype as unknown as { placeOne(id: ID): void }
-const placeOne = proto.placeOne
-proto.placeOne = function (this: WindowController, id: ID) {
-  placeOne.call(this, id)
-  fit(this, id)
-}
-
-function fit(c: WindowController, id: ID): void {
-  const panel = open.get(c)
-  if (!panel || id !== c.record.active[c.record.space]) return
-  const view = runtimes.get(id)?.view
-  if (!view) return
-  const b = view.getBounds()
-  const w = Math.max(Math.min(panel.width, PANEL.max, b.width - 200), Math.min(PANEL.min, b.width / 2))
-  const right = c.record.sidebar.side !== 'right'
-  const page = { x: right ? b.x : b.x + w + PANEL.gap, y: b.y, width: Math.max(0, b.width - w - PANEL.gap), height: b.height }
-  view.setBounds(page)
-  panel.view.setBounds({ x: right ? b.x + b.width - w : b.x, y: b.y, width: Math.round(w), height: b.height })
+/** Room beside the page, on the side away from the tabs, for the panel. */
+function room(c: WindowController, panel: Open): void {
+  c.setSideRoom({
+    side: c.record.sidebar.side !== 'right' ? 'right' : 'left',
+    width: panel.width,
+    place: r => { if (r && !panel.view.webContents.isDestroyed()) panel.view.setBounds(r) },
+  })
 }
 
 export function openPanel(c: WindowController, id: string): void {
@@ -92,13 +77,14 @@ export function openPanel(c: WindowController, id: string): void {
   view.setBorderRadius(PANEL.radius)
   // Above the pages, under the overlay.
   c.base.contentView.addChildView(view, c.base.contentView.children.indexOf(c.overlay))
-  open.set(c, { id, view, width: PANEL.start, path: url })
+  const panel: Open = { id, view, width: PANEL.start, path: url }
+  open.set(c, panel)
   view.webContents.setWindowOpenHandler(({ url: target }) => {
     if (/^https?:/i.test(target)) model.addTab(c.record, { url: target, empty: false })
     return { action: 'deny' }
   })
   void view.webContents.loadURL(url).catch(() => {})
-  c.placePages()
+  room(c, panel)
   changed(c)
 }
 
@@ -108,8 +94,8 @@ export function closePanel(c: WindowController): void {
   open.delete(c)
   if (!panel.view.webContents.isDestroyed()) panel.view.webContents.close()
   if (c.base.isDestroyed()) return
+  c.setSideRoom(null)
   try { c.base.contentView.removeChildView(panel.view) } catch { /* already out */ }
-  c.placePages()
   changed(c)
 }
 
@@ -122,7 +108,7 @@ export function setPanelWidth(c: WindowController, width: number): void {
   const panel = open.get(c)
   if (!panel) return
   panel.width = Math.max(PANEL.min, Math.min(PANEL.max, width))
-  c.placePages()
+  room(c, panel)
 }
 
 /** The tab in front changed: a panel turned off for it closes. */

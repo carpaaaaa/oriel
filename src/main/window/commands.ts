@@ -36,6 +36,7 @@ handle('window.startResize', ({ edge }, ctx) => need(ctx).frame.startResize(edge
 handle('window.moveDrag', ({ phase, x, y }, ctx) => need(ctx).frame.moveDrag(phase, x, y))
 handle('window.resizeDrag', ({ edge, phase, x, y }, ctx) => need(ctx).frame.resizeDrag(edge, phase, x, y))
 handle('window.hollow', ({ hollow }, ctx) => need(ctx).frame.setHollow(hollow))
+handle('window.room', ({ rect }, ctx) => need(ctx).placeRoom(rect))
 handle('window.menu', () => {})
 
 // layout

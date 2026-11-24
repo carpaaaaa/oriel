@@ -19,6 +19,7 @@ if (process.platform === 'win32' && process.env.SEARCH_PROBE) app.commandLine.ap
 addDefaults({ 'window.nativeFrame': false })
 
 registerSlice('frame', c => c.frame.view())
+registerSlice('room', c => c.sideRoom())
 
 
 const pick = (id?: unknown) => {
@@ -43,6 +44,16 @@ benchRequest('window.trace', req => {
   c.frame.tracing = !!req.on
   c.frame.trace = []
   return { trace }
+})
+// Room beside the page, as the extensions' side panel asks for it.
+const placed = new Map<string, unknown>()
+benchRequest('window.room', req => {
+  const c = pick(req.window)
+  const key = c.record.id
+  if (req.width === undefined) return { rect: placed.get(key) ?? null }
+  if (req.width === null) { c.setSideRoom(null); return { rect: null } }
+  c.setSideRoom({ side: req.side === 'left' ? 'left' : 'right', width: Number(req.width), place: r => placed.set(key, r) })
+  return { rect: null }
 })
 benchRequest('window.focus', req => { const c = pick(req.window); c.base.focus(); return {} })
 benchRequest('window.restore', req => { const c = pick(req.window); c.base.restore(); return {} })

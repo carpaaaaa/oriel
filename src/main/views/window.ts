@@ -55,6 +55,7 @@ export class WindowController {
   private flushTimer: NodeJS.Timeout | null = null
   private overlayRect: Rect | null = null
   overlayLayer: OverlayLayer = { kind: 'none' }
+  private room: { side: 'left' | 'right'; width: number; place: (rect: Rect | null) => void; insets?: Slot['insets'] } | null = null
 
   constructor(readonly record: WindowRecord, readonly pageSession: Session) {
     const dark = nativeTheme.shouldUseDarkColors
@@ -191,6 +192,8 @@ export class WindowController {
     this.ui.setBounds({ x: 0, y: 0, width, height })
     for (const id of this.shown) this.placeOne(id)
     if (this.overlayRect) this.overlay.setBounds(this.overlayRect)
+    const room = this.roomRect()
+    if (room) this.room!.place(room)
   }
 
   /** The interface measured where pages go. */
@@ -210,8 +213,8 @@ export class WindowController {
    * before the interface measures it again. */
   shiftSlots(by: Insets): void {
     if (!by.top && !by.right && !by.bottom && !by.left) return
-    for (const slot of this.slots.values()) {
-      slot.insets = { top: slot.insets.top + by.top, right: slot.insets.right + by.right, bottom: slot.insets.bottom + by.bottom, left: slot.insets.left + by.left }
+    for (const slot of [...this.slots.values(), ...(this.room?.insets ? [{ insets: this.room.insets }] : [])]) {
+      Object.assign(slot.insets, { top: slot.insets.top + by.top, right: slot.insets.right + by.right, bottom: slot.insets.bottom + by.bottom, left: slot.insets.left + by.left })
     }
   }
 
@@ -264,6 +267,37 @@ export class WindowController {
     if (!rt?.view || !rect) return
     rt.view.setBounds(rect)
     rt.view.setBorderRadius(Math.round(this.slots.get(id)?.radius ?? 0))
+  }
+
+  /** Room beside the page for another view (the extensions' side panel,
+   * studio/02 §4.1): the card gets narrower on that side and `place` is
+   * told where the room is, now and whenever it moves; null gives it back
+   * (and `place` hears null). */
+  setSideRoom(room: { side: 'left' | 'right'; width: number; place: (rect: Rect | null) => void } | null): void {
+    const before = this.room
+    if (before && (!room || room.place !== before.place)) before.place(null)
+    this.room = room ? { ...room, insets: before?.place === room.place ? before.insets : undefined } : null
+    this.push('room')
+  }
+
+  sideRoom(): { side: 'left' | 'right'; width: number } | null {
+    return this.room ? { side: this.room.side, width: this.room.width } : null
+  }
+
+  /** The interface measured the room. */
+  placeRoom(rect: Rect | null): void {
+    if (!this.room) return
+    if (!rect) { this.room.insets = undefined; return }
+    const { width, height } = this.base.getContentBounds()
+    this.room.insets = { left: rect.x, top: rect.y, right: width - rect.x - rect.width, bottom: height - rect.y - rect.height }
+    this.room.place(this.roomRect())
+  }
+
+  private roomRect(): Rect | null {
+    const i = this.room?.insets
+    if (!i) return null
+    const { width, height } = this.base.getContentBounds()
+    return { x: Math.round(i.left), y: Math.round(i.top), width: Math.max(0, Math.round(width - i.left - i.right)), height: Math.max(0, Math.round(height - i.top - i.bottom)) }
   }
 
   /** Where the pages on screen are (for the tests). */

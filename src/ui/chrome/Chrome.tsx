@@ -14,6 +14,7 @@ import { Panes } from './Split'
 export function ChromeRoot() {
   let slot!: HTMLDivElement
   let frameEl!: HTMLDivElement
+  let roomEl: HTMLDivElement | undefined
   const [stageWidth, setStageWidth] = createSignal(0)
   // studio/01 §8: the split the page with the keys belongs to.
   const split = () => state.splits.find(s => s.tabs.includes(state.activeID ?? ''))
@@ -21,6 +22,10 @@ export function ChromeRoot() {
   const measure = () => {
     const tab = activeTab()
     if (!slot) return
+    if (state.room && roomEl) {
+      const b = roomEl.getBoundingClientRect()
+      void cmd({ do: 'window.room', rect: { x: b.left, y: b.top, width: b.width, height: b.height } })
+    }
     const r = slot.getBoundingClientRect()
     if (Math.round(r.width) !== stageWidth()) setStageWidth(Math.round(r.width))
     const rectOf = (el: Element) => { const b = el.getBoundingClientRect(); return { x: b.left, y: b.top, width: b.width, height: b.height } }
@@ -52,6 +57,7 @@ export function ChromeRoot() {
     void state.frame?.state; void state.frame?.margin.top; void state.frame?.margin.left
     const s = split()
     if (s) { void s.sizes.join(); void s.tabs.join(); void state.tabs.length }
+    void state.room?.width; void state.room?.side
     queueMicrotask(measure)
   })
 
@@ -81,8 +87,8 @@ export function ChromeRoot() {
         '--grip-out': `${state.frame?.grip.outside ?? 8}px`, '--grip-in': `${state.frame?.grip.inside ?? 4}px`,
         '--grip-corner': `${state.frame?.grip.corner ?? 20}px`,
       }}>
-      <div class="window on-frame" classList={{ windows: state.chrome === 'windows', blurred: !state.focused }}
-        style={{ '--side': `${side()}px` }}>
+      <div class="window on-frame" classList={{ windows: state.chrome === 'windows', blurred: !state.focused, [`room-${state.room?.side}`]: !!state.room }}
+        style={{ '--side': `${side()}px`, '--room': `${state.room?.width ?? 0}px` }}>
         <Show when={!state.sidebar.folded}>
           <Sidebar />
         </Show>
@@ -101,6 +107,9 @@ export function ChromeRoot() {
             {s => <Panes split={s()} width={stageWidth()} onLaid={() => queueMicrotask(measure)} />}
           </Show>
         </div>
+        <Show when={state.room}>
+          <div class="side-room" ref={roomEl} />
+        </Show>
         <Show when={ownButtons()}>
           <div class="caption-buttons">
             <button class="minimize" title="Minimize" onClick={() => cmd({ do: 'window.minimize' })}><WinMinimize /></button>

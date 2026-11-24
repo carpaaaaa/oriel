@@ -77,6 +77,17 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .grip-bottom-left { clip-path: polygon(0 0, calc(var(--grip-out) + var(--grip-in)) 0, 100% calc(100% - var(--grip-out) - var(--grip-in)), 100% 100%, 0 100%); }
 .grip-bottom-right { clip-path: polygon(calc(100% - var(--grip-out) - var(--grip-in)) 0, 100% 0, 100% 100%, 0 100%, 0 calc(100% - var(--grip-out) - var(--grip-in))); }
 
+/* Room beside the page (the extensions' side panel, studio/02 §4.1: 300 to
+   640, at least 320 of page beside it, never under 240): the card gets
+   narrower on that side, the room takes the place with the same gap. */
+.window { --room-w: max(240px, min(var(--room), calc(100% - var(--side) - var(--card-gap) * 2 - 320px))); }
+.window.room-right .card { right: calc(var(--card-gap) * 2 + var(--room-w)); }
+.window.room-left .card { left: calc(var(--side) + var(--room-w) + var(--card-gap)); }
+.side-room { position: absolute; top: var(--top, var(--card-gap)); bottom: var(--card-gap); width: var(--room-w); border-radius: var(--card-radius); pointer-events: none; }
+.window.room-right .side-room { right: var(--card-gap); }
+.window.room-left .side-room { left: var(--side); }
+:root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .side-room { top: 0; bottom: 0; }
+
 /* Split View (studio/01 §8.13, §8.14): each page a card, a 7 pt gutter, a
    divider with a pill that lights after a short stay. */
 .card.stage { background: transparent; box-shadow: none; border-radius: 0; }
