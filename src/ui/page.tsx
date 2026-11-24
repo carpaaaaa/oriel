@@ -6,7 +6,7 @@
 import { render } from 'solid-js/web'
 import { Show } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
-import '@fontsource-variable/inter'
+import '@fontsource-variable/plus-jakarta-sans'
 import '../shared/tokens.css'
 import './app.css'
 import { pageFor } from './lib/registry'
