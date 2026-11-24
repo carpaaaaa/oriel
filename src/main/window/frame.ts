@@ -425,6 +425,14 @@ export class Frame {
 
   setFullScreen(on = !this.isFullScreen()): void {
     if (on === this.isFullScreen()) return
+    // Out of a full screen put on for a page's (Escape, F11, the strip's
+    // button): the page leaves its own too, or its video stayed "full screen"
+    // inside the window.
+    if (!on && this.byPage) {
+      this.byPage = false
+      const page = this.c.activeRuntime()?.contents
+      if (page && !page.isDestroyed()) page.executeJavaScript('document.fullscreenElement ? document.exitFullscreen().then(() => 1, () => 0) : 0', true).catch(() => {})
+    }
     if (on) {
       this.refresh()
       this.beforeFull = this.comeBackTo()

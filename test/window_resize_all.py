@@ -36,7 +36,8 @@ user32.ShowWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]
 user32.SetForegroundWindow.argtypes = [ctypes.c_void_p]
 user32.IsIconic.argtypes = [ctypes.c_void_p]
 
-subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force"], capture_output=True)
+# What the test machines put over everything: the first-run screen, a WSL install prompt (ARM).
+subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker, wsl, wslhost -ErrorAction SilentlyContinue | Stop-Process -Force"], capture_output=True)
 t = b.T()
 WORLD = "window-resize-all"
 
@@ -513,6 +514,7 @@ try:
             else:
                 page_full(False)
             ok = expect(f"{base}, the page out of full screen by {way}", base)
+            t.ok(not b.ev(tab, "!!document.fullscreenElement"), f"{base}, out by {way}: the page is out of its own full screen too")
             trace = [x for x in answer({"do": "window.trace", "window": WID, "on": False})["trace"] if not x.startswith("0x") and not x.startswith("syscommand")]
             if not ok or not near_rect(frame()["bounds"], frame()["bounds"]):
                 print("       trace: " + "\n              ".join(trace[-24:]))
