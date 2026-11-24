@@ -180,9 +180,26 @@ if frame()["manual"]:
     moved = frame()["bounds"]
     t.ok(moved["x"] == before["x"] + 50 and moved["y"] == before["y"] + 25, "dragging the strip moves the window (%s)" % moved)
     before = moved
-    bx, by = d["window"]["x"] + 60, d["window"]["y"] + 140
+    # A tab row where the column puts it (a fixed point can be its empty place).
+    rr = json.loads(b.ui("JSON.stringify(document.querySelector('.sidebar .row[data-tab=\"%s\"]').getBoundingClientRect())" % page_tab))
+    bx, by = rr["x"] + rr["width"] / 2, rr["y"] + rr["height"] / 2
     b.call({"do": "window.drag", "path": [[bx, by], [bx + 30, by + 30]]})
     t.ok(frame()["bounds"] == before, "dragging a tab row doesn't move the window")
+    # The column's empty place moves it, once (the window's frame does it, the column doesn't too).
+    vr = json.loads(b.ui("JSON.stringify(document.querySelector('.sidebar .void').getBoundingClientRect())"))
+    vx, vy = vr["x"] + 40, vr["y"] + vr["height"] - 40
+    b.call({"do": "window.drag", "path": [[vx, vy], [vx + 10, vy + 5], [vx + 30, vy + 15], [vx + 40, vy + 20]]})
+    moved = frame()["bounds"]
+    t.ok(moved["x"] == before["x"] + 40 and moved["y"] == before["y"] + 20, "dragging the column's empty place moves the window (%s)" % moved)
+    # Pinned squares are carried, not handles for the window.
+    b.cmd("tab.pin", id=page_tab)
+    settle(lambda: b.ui("!!document.querySelector('.sidebar .square')"), "the square", within=3)
+    before = frame()["bounds"]
+    sr = json.loads(b.ui("JSON.stringify(document.querySelector('.sidebar .square').getBoundingClientRect())"))
+    sx, sy = sr["x"] + sr["width"] / 2, sr["y"] + sr["height"] / 2
+    b.call({"do": "window.drag", "path": [[sx, sy], [sx + 10, sy + 5], [sx + 30, sy + 15]]})
+    t.ok(frame()["bounds"] == before, "dragging a pinned square doesn't move the window")
+    b.cmd("tab.unpin", id=page_tab)
 
 # (a press on a tab row selects that tab: back to the page)
 b.cmd("tab.select", id=page_tab)

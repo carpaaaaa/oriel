@@ -30,6 +30,9 @@ export interface SideRoom { side: 'left' | 'right'; width: number }
 declare module '../commands' {
   interface Commands {
     'window.fullScreen': { on?: boolean }
+    /** The keys back to the page in front (or the interface, with no page):
+     * what floated over it is gone (a drawn menu, a popover). */
+    'window.focusPage': {}
     /** The pointer went over the clear margin (true) or back over the window. */
     'window.hollow': { hollow: boolean }
     /** Start resizing from an edge with the button held (screen DIP). */

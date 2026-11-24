@@ -126,7 +126,13 @@ def ui(js, root="chrome"):
 
 
 def shot(path):
-    return call({"do": "shot", "path": str(path)})
+    """A picture for looking at: one the compositor can't give (Windows on ARM
+    said UnknownVizError, a covered window, the display asleep) fails no test."""
+    try:
+        return call({"do": "shot", "path": str(path)})
+    except RuntimeError as e:
+        print(f"  (no picture {Path(path).name}: {e})")
+        return None
 
 
 def key(k, *mods):

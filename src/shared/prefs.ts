@@ -38,7 +38,7 @@ export const defaults = {
   'fold.loadingLine': false,
   'layout.cards': true,
   'layout.cardsFullScreen': false,
-  'toolbar.left': false,
+  'toolbar.left': true,
   'tabs.compact': false,
   'window.glass': false,
   'window.glass.clear': 0.5,

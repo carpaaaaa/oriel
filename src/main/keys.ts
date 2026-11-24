@@ -218,7 +218,9 @@ export const bindings: Binding[] = [
   ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => b(`tab.${n}`, `Tab ${n}`, 'Fixed', `⌘${n}`, [`Ctrl+${n}`], first({ fixed: true, action: c => nth(c, n - 1) }))),
   b('tab.last', 'Last Tab', 'Fixed', '⌘9', ['Ctrl+9'], first({ fixed: true, action: c => nth(c, -1) })),
   b('escape', 'Escape', 'Fixed', 'Esc', ['Escape'], first({ fixed: true, action: c => escapeKey(c) })),
-  b('stop', 'Stop Loading', 'Fixed', '', ['Escape'], { fixed: true, action: () => ({ do: 'tab.stop' }) }),
+  // Escape the page left alone: stop loading, else out of full screen (the
+  // way out a window with no buttons in sight needs, studio/01 §1.19).
+  b('stop', 'Stop Loading', 'Fixed', '', ['Escape'], { fixed: true, action: c => (c.frame.isFullScreen() && !model.activeTab(c.record)?.loading ? { do: 'window.fullScreen', on: false } : { do: 'tab.stop' }) }),
   // Windows closes a window on Alt+F4 whatever the page says.
   b('window.close', 'Close Window', 'Fixed', '', ['Alt+F4'], first({ fixed: true, action: () => ({ do: 'window.close' }) })),
   // Alt+Home is Chrome's home page; Search has none but a pin's own page.
