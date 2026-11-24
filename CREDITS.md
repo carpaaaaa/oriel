@@ -31,6 +31,8 @@ Oriel is not made, endorsed or supported by Office Commun. Search's copyright no
 | [esbuild](https://github.com/evanw/esbuild) | Evan Wallace | MIT |
 | [electron-builder](https://github.com/electron-userland/electron-builder) | Vladimir Krivosheev and contributors | MIT |
 | [TypeScript](https://github.com/microsoft/TypeScript) | Microsoft | Apache-2.0 |
+| [Bergamot Translator](https://github.com/browsermt/bergamot-translator) (`@browsermt/bergamot-translator`, the engine of Firefox Translations, in WebAssembly; with [Marian](https://github.com/browsermt/marian-dev), [SentencePiece](https://github.com/google/sentencepiece), [intgemm](https://github.com/kpu/intgemm) and [ssplit](https://github.com/browsermt/ssplit-cpp) inside) | the Bergamot project and Mozilla | MPL-2.0; the libraries inside keep their own (Marian and intgemm MIT, SentencePiece Apache-2.0). Its source is at the link. |
+| [eld](https://github.com/nitotm/efficient-language-detector-js), Efficient Language Detector | Nito T.M. | Apache-2.0 |
 
 The full list of what ships inside the app, with each license, is in `THIRD_PARTY_LICENSES.md` (made by `npm run licenses`).
 
@@ -45,3 +47,5 @@ The Public Suffix List, by Mozilla and contributors, through tldts (MPL-2.0).
 ## Pictures
 
 The Image theme's starting picture (`src/ui/themes/assets/default-image.jpg`, the blue silhouette) is the project's own: generated with AI, with a glass filter by the author of this port. It ships with Oriel under the project's license.
+
+The translation models: Mozilla's, from [firefox-translations-models](https://github.com/mozilla/firefox-translations-models) and the [translations](https://github.com/mozilla/translations) training pipeline (MPL-2.0), the ones Firefox uses. They don't ship with Oriel: each language pair is downloaded from Mozilla's own servers (Firefox's Remote Settings and its CDN) the first time a page is translated into or out of that language, checked against its SHA-256 and kept on the PC. Only the list of models and the model files are fetched; the words of a page never leave the PC.
