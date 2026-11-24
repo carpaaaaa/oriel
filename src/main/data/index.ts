@@ -11,11 +11,13 @@ import './iconwatch'
 import { bookmarks, history } from './store'
 import { flushMeta } from './meta'
 import { flushIcons } from './icons'
+import { onFlush } from '../model/persist'
 
 // Read at start, as the Mac does: a file that can't be read is set aside at once.
 app.whenReady().then(() => { history(); bookmarks() })
 
-app.on('before-quit', () => {
+// Quitting, or ended from outside (index.ts, persistence/).
+onFlush(() => {
   // A title that changed after its visit was written waits for this.
   if (history().owesWrite) history().flush()
   flushMeta()

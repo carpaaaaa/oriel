@@ -1,10 +1,9 @@
 // The tabs module joined to the window: its parts of the window's state, its
-// keys, the window's frame and focus for windows.json, last time's windows
-// brought back, and the sleep timer.
+// keys, the window's focus, last time's windows brought back, and the sleep
+// timer. (The window's place for windows.json: persistence/windows.ts.)
 
-import { app, ipcMain, screen } from 'electron'
+import { app, ipcMain } from 'electron'
 import { model } from '../model/model'
-import { frameString, parseFrame } from '../model/formats'
 import { registerSlice, controllerFor, allControllers, type WindowController } from '../views/window'
 import { runtimes, onPageSession, viewHost } from '../views/tabs'
 import { shortcut } from '../keys'
@@ -56,33 +55,16 @@ for (let n = 1; n <= 9; n++) {
   shortcut(`Alt+${n}`, 'later', () => (swapped() ? { do: 'tab.nth', n } : spaceKey(n)))
 }
 
-// windows: frame, focus, ⌃ let go, the pages' histories before they close
+// windows: focus, ⌃ let go, the pages' histories before they close
 
 viewHost.parentOf = view => allControllers().map(c => c.base.contentView).find(v => v.children.includes(view)) ?? null
-
-model.hooks.frame = id => {
-  const c = controllerFor(id)
-  if (!c || c.base.isDestroyed()) return {}
-  return { frame: frameString(c.base.getNormalBounds()), maximized: c.base.isMaximized() || undefined }
-}
-
-function onScreen(r: { x: number; y: number; width: number; height: number }): boolean {
-  return screen.getAllDisplays().some(d => {
-    const a = d.workArea
-    return r.x < a.x + a.width && r.x + r.width > a.x && r.y < a.y + a.height && r.y + r.height > a.y
-  })
-}
 
 model.on('window-opened', (id: string) => setImmediate(() => {
   const c = controllerFor(id)
   if (!c) return
   const win = c.record
-  const rect = parseFrame(win.frame)
-  if (rect && onScreen(rect)) c.base.setBounds(rect)
-  if (win.maximized) c.base.once('show', () => c.base.maximize())
   model.front = id
   c.base.on('focus', () => { model.front = id })
-  for (const event of ['move', 'resize', 'maximize', 'unmaximize'] as const) c.base.on(event as 'move', () => model.windowMoved(id))
   c.base.on('blur', () => { if (win.switcher) model.switchEnd(win, true) })
   // Before the window takes its pages with it: their histories, for ⇧⌘T.
   c.base.on('close', () => {

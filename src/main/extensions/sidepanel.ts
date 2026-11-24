@@ -14,6 +14,7 @@ import { runtimes } from '../views/tabs'
 import { model } from '../model/model'
 
 export const PANEL = { min: 300, max: 640, start: 380, gap: 8, radius: 10 }
+const clampWidth = (width: number) => Math.max(PANEL.min, Math.min(PANEL.max, Math.round(width)))
 
 interface Options { path?: string; enabled?: boolean }
 interface ExtPanel { global: Options; tabs: Map<number, Options>; openOnAction: boolean }
@@ -77,7 +78,8 @@ export function openPanel(c: WindowController, id: string): void {
   view.setBorderRadius(PANEL.radius)
   // Above the pages, under the overlay.
   c.base.contentView.addChildView(view, c.base.contentView.children.indexOf(c.overlay))
-  const panel: Open = { id, view, width: PANEL.start, path: url }
+  // The width last given, kept for the next launch (sidepanel.width, studio/06 §1.15).
+  const panel: Open = { id, view, width: clampWidth(model.pref<number>('sidepanel.width') || PANEL.start), path: url }
   open.set(c, panel)
   view.webContents.setWindowOpenHandler(({ url: target }) => {
     if (/^https?:/i.test(target)) model.addTab(c.record, { url: target, empty: false })
@@ -107,7 +109,8 @@ export function togglePanel(c: WindowController, id: string): void {
 export function setPanelWidth(c: WindowController, width: number): void {
   const panel = open.get(c)
   if (!panel) return
-  panel.width = Math.max(PANEL.min, Math.min(PANEL.max, width))
+  panel.width = clampWidth(width)
+  model.setPref('sidepanel.width', panel.width)
   room(c, panel)
 }
 
