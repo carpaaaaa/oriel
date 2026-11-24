@@ -13,6 +13,9 @@
 .strip-far { flex: none; display: flex; align-items: center; gap: 2px; margin-right: 12px; -webkit-app-region: no-drag; }
 .strip-helm { display: flex; gap: var(--door-gap); margin-right: 8px; }
 .strip-far .strip-helm:last-child { margin-right: 0; }
+/* on the left: tabGap after it, like everything in the band (§4.3) */
+.strip-near { flex: none; display: flex; -webkit-app-region: no-drag; }
+.strip-near .strip-helm { margin-right: 0; }
 
 .strip-pill { position: absolute; left: 0; top: 0; opacity: 0; border-radius: var(--row-radius); background: var(--g-wash); pointer-events: none; }
 .strip-pill.on { opacity: 1; }

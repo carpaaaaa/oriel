@@ -74,12 +74,19 @@ function Helm(p: { vertical?: boolean }) {
           <G.sidebarLeft pt={11} weight="medium" />
         </button>
       </Show>
-      <button class="door" disabled={!back()} title="Back   Alt+Left" onClick={() => void cmd({ do: 'tab.back' })}><G.chevronLeft pt={11} weight="medium" /></button>
-      <button class="door" disabled={!forward()} title="Forward   Alt+Right" onClick={() => void cmd({ do: 'tab.forward' })}><G.chevronRight pt={11} weight="medium" /></button>
-      <button class="door" disabled={!web()} title={tab()?.loading ? 'Stop   Esc' : 'Reload   Ctrl+R'}
-        onClick={() => void cmd({ do: tab()?.loading ? 'tab.stop' : 'tab.reload' })}>
-        {tab()?.loading ? <G.xmark pt={11} weight="medium" /> : <G.reload pt={11} weight="medium" />}
-      </button>
+      {/* Only what Settings › Appearance › Tabs › Back, forward and reload leaves ticked (studio/01 §5.6). */}
+      <Show when={!pref('helm.back.hidden', false)}>
+        <button class="door" disabled={!back()} title="Back   Alt+Left" onClick={() => void cmd({ do: 'tab.back' })}><G.chevronLeft pt={11} weight="medium" /></button>
+      </Show>
+      <Show when={!pref('helm.forward.hidden', false)}>
+        <button class="door" disabled={!forward()} title="Forward   Alt+Right" onClick={() => void cmd({ do: 'tab.forward' })}><G.chevronRight pt={11} weight="medium" /></button>
+      </Show>
+      <Show when={!pref('helm.reload.hidden', false)}>
+        <button class="door" disabled={!web()} title={tab()?.loading ? 'Stop   Esc' : 'Reload   Ctrl+R'}
+          onClick={() => void cmd({ do: tab()?.loading ? 'tab.stop' : 'tab.reload' })}>
+          {tab()?.loading ? <G.xmark pt={11} weight="medium" /> : <G.reload pt={11} weight="medium" />}
+        </button>
+      </Show>
       <Show when={!p.vertical}>
         <For each={outlet('sidebar.helm')}>{c => <Dynamic component={c} />}</For>
       </Show>

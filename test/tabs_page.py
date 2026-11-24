@@ -84,7 +84,7 @@ s1 = k.cmd("tab.open", url="oriel://settings/privacy", foreground=True); k.settl
 s2 = k.cmd("tab.open", url="oriel://settings", foreground=True); k.settle(0.3)
 x = k.tab(s1)
 t.ok(s1 == s2 and x["internal"] == "settings" and x["label"] == "Settings", "one Settings tab, however often asked")
-t.ok(k.cmd("tab.open", url="search://history", foreground=True) and k.active()["url"] == "oriel://history", "a Mac's search:// page is Oriel's own")
+t.ok(k.cmd("tab.open", url="search://history", foreground=True) and k.active()["url"].rstrip("/") == "oriel://history", "a Mac's search:// page is Oriel's own")  # loaded, Chromium writes oriel://history/
 
 # History (§2.8: every main-frame visit goes to the data module)
 v = [x["url"] for x in b.call({"do": "tabs.visits"})["visits"]]
