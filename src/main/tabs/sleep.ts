@@ -25,6 +25,7 @@ export function awakeBecause(t: TabRecord): string | null {
   if (t.asleep) return 'already asleep'
   if (!runtimes.get(t.id)?.awake) return 'no page'
   if (t.loading) return 'still loading'
+  if (keptAwake(t)) return 'kept awake for this site'
   if (t.audible) return 'playing sound'
   if (t.capturing) return 'on a call'
   if ((t.downloads ?? 0) > 0) return 'downloading'
@@ -33,6 +34,19 @@ export function awakeBecause(t: TabRecord): string | null {
     if (front && model.tabs.get(front)?.opener === t.id) return 'the page on screen came from it'
   }
   return null
+}
+
+/** Keep This Site Awake (§9.24): the host exactly, any port, http(s) only;
+ * a private tab's choice is its own, for as long as it lasts. */
+export function siteOf(url: string): string | null {
+  try { const u = new URL(url); return /^https?:$/.test(u.protocol) && u.hostname ? u.hostname.toLowerCase() : null } catch { return null }
+}
+export const shyAwake = new Map<string, Set<string>>()
+export function keptAwake(t: TabRecord): boolean {
+  const site = siteOf(t.url)
+  if (!site) return false
+  if (t.shy) return !!shyAwake.get(t.id)?.has(site)
+  return (model.pref<string[]>('tabs.awakeSites') ?? []).includes(site)
 }
 
 const typedScript = `(() => {
@@ -49,7 +63,7 @@ const typedScript = `(() => {
 
 /** Something typed and not sent, asked of the page apart from its own
  * scripts; a page that doesn't answer in 3 s is passed over (PageDrafts). */
-async function holdsTyping(id: string): Promise<boolean> {
+export async function holdsTyping(id: string): Promise<boolean> {
   const wc = runtimes.get(id)?.contents
   if (!wc) return false
   const answer = wc.executeJavaScriptInIsolatedWorld(1001, [{ code: typedScript }]).catch(() => false)

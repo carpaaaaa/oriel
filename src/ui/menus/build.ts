@@ -57,6 +57,17 @@ function closeItems(t: TabView): Entry[] {
   ]
 }
 
+/** The host Keep This Site Awake keeps: http(s) only, any port. */
+function siteOf(t: TabView): string | null {
+  try { const u = new URL(t.url); return /^https?:$/.test(u.protocol) && u.hostname ? u.hostname.toLowerCase() : null } catch { return null }
+}
+function keptAwake(t: TabView): boolean {
+  const site = siteOf(t)
+  if (!site) return false
+  if (t.shy) return !!t.awake
+  return ((state.prefs['tabs.awakeSites'] as string[] | undefined) ?? []).includes(site)
+}
+
 /** A tab's or a pin's menu (§4.35). */
 export function tabMenu(t: TabView): Entry[] {
   const picked = state.picked ?? []
@@ -102,7 +113,9 @@ export function tabMenu(t: TabView): Entry[] {
     off('Copy Clean Link'),
     off('Open in Side Panel'),
     { label: t.muted ? 'Unmute Tab' : 'Mute Tab', act: { cmd: { do: 'tab.mute', id: t.id, muted: !t.muted } } },
-    { label: 'Put to Sleep', enabled: !t.asleep && !t.empty && t.id !== state.activeID, act: { cmd: { do: 'tab.putToSleep', id: t.id } } },
+    // Keep This Site Awake (§9.24): on the Mac it is on the site's card; Oriel has none yet.
+    ...(siteOf(t) ? [{ label: 'Keep This Site Awake', checked: keptAwake(t), act: { cmd: { do: 'tab.keepAwake', id: t.id, on: !keptAwake(t) } as Command } }] : []),
+    { label: 'Put to Sleep', enabled: !t.asleep && !t.empty && t.id !== state.activeID && !keptAwake(t), act: { cmd: { do: 'tab.putToSleep', id: t.id } } },
     sep,
     ...closeItems(t),
   )

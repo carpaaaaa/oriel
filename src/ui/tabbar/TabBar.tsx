@@ -165,6 +165,7 @@ function press(t: TabView) {
   return (e: PointerEvent) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest('.strip-x, .speaker')) return
     const ctrl = e.ctrlKey || (window.search.platform === 'darwin' && e.metaKey)
+    if (ctrl && !e.shiftKey && t.pinID) { void cmd({ do: 'pin.commandClick', id: t.id }); return }
     if (ctrl || e.shiftKey) { void cmd({ do: 'tab.pick', id: t.id, mode: ctrl && e.shiftKey ? 'addRange' : ctrl ? 'toggle' : 'range' }); return }
     // A press on the tab you're on edits its address, in the tab (§5.18).
     if (t.id === state.activeID) { if (state.tabEdit?.id !== t.id) void cmd({ do: 'field.editTab', id: t.id }); return }

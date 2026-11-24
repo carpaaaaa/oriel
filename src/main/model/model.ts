@@ -715,7 +715,7 @@ class Model extends EventEmitter {
         id: t.id, url: t.url, title: t.title, label: this.label(t), loading: t.loading, audible: t.audible, muted: t.muted,
         asleep: t.asleep, empty: t.empty, canGoBack: t.canGoBack, canGoForward: t.canGoForward,
       }
-      for (const k of ['name', 'favicon', 'crashed', 'error', 'pinID', 'listed', 'groupID', 'shy', 'internal', 'capturing', 'resting', 'opener'] as const) {
+      for (const k of ['name', 'favicon', 'crashed', 'error', 'pinID', 'listed', 'groupID', 'shy', 'internal', 'capturing', 'resting', 'opener', 'awake'] as const) {
         if (t[k] !== undefined && t[k] !== false) (view as any)[k] = t[k]
       }
       return [view]
@@ -1003,6 +1003,68 @@ class Model extends EventEmitter {
     return tab
   }
 
+  /** A tab of a space not on screen closed by Oriel (Closing.closeParked):
+   * out of its row and the row written; not offered to ⇧⌘T, which would
+   * reopen it in the space on screen with that space's sign-ins. */
+  closeParked(win: WindowRecord, id: ID): void {
+    const t = this.tabs.get(id)
+    if (!t) return
+    const space = t.space
+    const row = this.spaceTabs(win, space)
+    this.removeFromRow(win, id)
+    this.dropTab(id)
+    this.removeEmptyGroup(win, space, t.groupID)
+    if (win.active[space] === id) win.active[space] = row.find(x => !this.tabs.get(x)?.pinID) ?? row[0] ?? null
+    this.sessionNow(win, space)
+  }
+
+  /** ⌘-click on a pin with pins.commandNewTab (Browser.commandClickPin,
+   * §6.13): at home, its page in a new tab behind; wandered, the wandered
+   * page kept as a loose tab and the pin a fresh tab at home. */
+  commandClickPin(win: WindowRecord, id: ID): TabRecord | null {
+    const t = this.tabs.get(id)
+    if (!t?.pinID || t.win !== win.id) return null
+    win.picked = []
+    const home = t.home ?? t.url
+    const wandered = !!t.home && !!t.url && !samePage(t.home, t.url)
+    if (!wandered) return this.open(win, home, { foreground: false, from: t.id })
+    const space = t.space
+    const row = this.spaceTabs(win, space)
+    const fresh = this.makeTab(win, space, {
+      url: home, title: t.pinTitle ?? '', empty: false, pinID: t.pinID, letter: t.letter, home, listed: t.listed,
+      everywhere: t.everywhere, pinFolder: t.pinFolder, name: t.name, pinTitle: t.pinTitle,
+    })
+    row[row.indexOf(id)] = fresh.id
+    for (const k of ['pinID', 'letter', 'home', 'listed', 'pinFolder', 'pinTitle', 'everywhere', 'name', 'resting'] as const) delete t[k]
+    t.letGo = Date.now()
+    row.splice(this.pinnedCount(win, space), 0, id)
+    this.emit('tab-go', fresh.id, home)
+    if (win.active[space] === id) this.selectTab(win, fresh.id)
+    this.reconcile(win, space)
+    this.touch(win, ['tabs', 'pins', 'activeID', 'picked'])
+    this.sessionNow(win, space)
+    return fresh
+  }
+
+  /** A sized pop-up as a tab (tabs.popupWindows off, §3.35): in front at the
+   * end, in its opener's group, named by its site; its page is the one
+   * Chromium made for it, so the opener can still talk to it. */
+  popupTab(win: WindowRecord, opener: ID, url: string): TabRecord {
+    const source = this.tabs.get(opener)
+    const space = source?.space ?? win.space
+    const tab = this.makeTab(win, space, {
+      url, empty: false, popup: true, opener, shy: source?.shy || undefined, store: source?.shy ? source.store : undefined,
+    })
+    const g = source && this.groupOf(win, source, space)
+    if (g) tab.groupID = g
+    const row = this.spaceTabs(win, space)
+    row.splice(g ? this.endOfGroup(win, space, g) : this.placeForFront(win, space), 0, tab.id)
+    this.selectTab(win, tab.id)
+    this.touch(win, ['tabs', 'activeID'])
+    this.sessionSoon(win, space)
+    return tab
+  }
+
   duplicate(win: WindowRecord, id: ID): TabRecord | null {
     const t = this.tabs.get(id)
     if (!t || t.empty || t.internal || !/^(https?|file):/i.test(t.url)) return null
@@ -1167,6 +1229,35 @@ class Model extends EventEmitter {
     }
     for (const id of [...win.closedGroups.keys()]) if (!win.ghosts.some(g => g.groupID === id)) win.closedGroups.delete(id)
     this.touch(win, ['reopen'])
+    // ⌘Z's to undo while closing stays the last thing done (Browser.lastClose,
+    // §9.19): the row is read once the close is through.
+    const mark = { win: win.id, ghost: ghost.id, scene: null as string | null }
+    this.lastClose = mark
+    setImmediate(() => { if (this.lastClose === mark) mark.scene = this.scene(win) })
+  }
+
+  /** ⌘Z reopens a closed tab (tabs.undoReopens): the close still the last
+   * thing done, in any window. */
+  lastClose: { win: ID; ghost: ID; scene: string | null } | null = null
+
+  /** The tab in front and the row, to tell whether anything moved since. */
+  scene(win: WindowRecord): string {
+    return `${win.space}|${win.active[win.space] ?? ''}|${this.spaceTabs(win).join(',')}`
+  }
+
+  /** Something else done: ⌘Z undoes as before. */
+  forgetClose(): void { this.lastClose = null }
+
+  /** ⌘Z right after a close: the tab back, as ⇧⌘T would. False when it isn't
+   * the last thing done (the key then goes where it was going). */
+  undoClose(win: WindowRecord): boolean {
+    const last = this.lastClose
+    if (!this.pref<boolean>('tabs.undoReopens') || !last || last.win !== win.id) return false
+    const ghost = win.ghosts.find(g => g.id === last.ghost)
+    if (!ghost || (last.scene !== null && last.scene !== this.scene(win))) { this.lastClose = null; return false }
+    this.lastClose = null
+    this.reopenGhost(win, ghost.id)
+    return true
   }
 
   /** Tabs closed as one act: one ⇧⌘T brings them back. */
