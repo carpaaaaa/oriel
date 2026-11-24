@@ -106,6 +106,15 @@ def click(x, y):
     user32.mouse_event(0x4, 0, 0, 0, 0)
 
 
+def clear_screen():
+    """Escape a Start menu left open (the ARM images start with it) and the first-run screen."""
+    user32.keybd_event(0x1B, 0, 0, 0)
+    time.sleep(0.05)
+    user32.keybd_event(0x1B, 0, 2, 0)
+    subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force"], capture_output=True)
+    time.sleep(0.8)
+
+
 def wait(pred, within, every=1.0):
     end = time.time() + within
     last = None
@@ -249,13 +258,14 @@ try:
         t.ok(wait(lambda: oriels(), 30), f"Oriel {FROM} opens again")
         got = wait(lambda: (lambda p: p if any(TO in n for n in p) and "update-info.json" in p else None)(pending()), 300, 2)
         t.ok(got, f"…finds {TO} and downloads it")
+        clear_screen()
         title = wait(lambda: find(f"Oriel {TO} is ready"), 60, 2)
         go = wait(lambda: find("Update and Restart"), 30, 1)
         t.ok(title and go, f"the popup over the window: Oriel {TO} is ready, Update and Restart ({title}, {go})")
         grab(f"3-popup-{TO}")
         if go:
-            subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force"], capture_output=True)
-            time.sleep(1)
+            clear_screen()
+            go = find("Update and Restart") or go
             click(go[0] + go[2] / 2, go[1] + go[3] / 2)
             gone = wait(lambda: not oriels(), 60)
             t.ok(gone, "a click on Update and Restart: Oriel closes")
