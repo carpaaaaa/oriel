@@ -1,15 +1,17 @@
 // Quit Oriel (Ctrl+Shift+Q, the menu's Quit) and Settings › General ›
 // Confirm before quitting (`quit.confirm`, studio/01 §1.11, §9.7): with it
 // on, "Quit Oriel?" asks first, Cancel being what Return and Escape press.
-// Closing the last window quits without asking, as the Mac's red button
-// closes a window without asking.
+// Alt+F4 is how Windows quits a program: on the last window it asks too, as
+// ⌘Q does on the Mac; on another window it only closes that one. Closing
+// the last window with its button quits without asking, as the Mac's red
+// button closes a window without asking.
 
 import { app, dialog } from 'electron'
 import { brand } from '../../shared/brand'
 import { handle } from '../router'
 import { model } from '../model/model'
 import { probe } from '../paths'
-import { focusedController } from '../views/window'
+import { allControllers, focusedController, type WindowController } from '../views/window'
 import { benchRequest } from '../bench/server'
 
 /** A test world's answers, in place of the question on someone's screen. */
@@ -39,6 +41,28 @@ handle('app.quit', () => {
   if (!mayQuit()) return { quit: false }
   setImmediate(() => app.quit())
   return { quit: true }
+})
+
+/** When an Alt+F4 on the last window was answered Cancel. Windows may close
+ * the window on the same press by itself (WM_SYSCOMMAND after the key): that
+ * close is held back too. */
+let keptAt = -Infinity
+const watched = new WeakSet<WindowController>()
+
+function holdNativeClose(c: WindowController): void {
+  if (watched.has(c)) return
+  watched.add(c)
+  c.base.on('close', e => { if (Date.now() - keptAt < 600) e.preventDefault() })
+}
+
+handle('window.closeByKey', (_a, ctx) => {
+  const c = ctx.window ?? focusedController()
+  if (!c || c.base.isDestroyed()) return { closed: false }
+  holdNativeClose(c)
+  const last = allControllers().filter(x => !x.base.isDestroyed()).length <= 1
+  if (last && !mayQuit()) { keptAt = Date.now(); return { closed: false } }
+  c.base.close()
+  return { closed: true }
 })
 
 benchRequest('settingsb.quitAnswer', req => { answers.push(String(req.answer)); return {} })

@@ -113,6 +113,8 @@ export function windowsText(s: string): string {
 /** Rows rewritten for Windows where a word swap isn't enough. */
 const overrides: Record<string, Partial<Item>> = {
   'general.default': { detail: 'Make Oriel the browser Outlook, Slack and the rest send links to' },
+  // Alt+F4 is how Windows quits a program (settings/quit.ts).
+  'quit.confirm': { detail: 'Ask before Alt+F4 or Quit Oriel closes the browser', words: ['quit', 'alt f4', 'ctrl shift q', 'close'] },
   'mail.default': { more: 'Windows asks you to choose it in Settings › Apps › Default apps. Pick another app there to undo it.' },
   'sync': {
     title: 'Sync with your other computers',

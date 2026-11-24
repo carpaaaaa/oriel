@@ -224,8 +224,9 @@ export const bindings: Binding[] = [
   // Escape the page left alone: stop loading, else out of full screen (the
   // way out a window with no buttons in sight needs, studio/01 §1.19).
   b('stop', 'Stop Loading', 'Fixed', '', ['Escape'], { fixed: true, action: c => (c.frame.isFullScreen() && !model.activeTab(c.record)?.loading ? { do: 'window.fullScreen', on: false } : { do: 'tab.stop' }) }),
-  // Windows closes a window on Alt+F4 whatever the page says.
-  b('window.close', 'Close Window', 'Fixed', '', ['Alt+F4'], first({ fixed: true, action: () => ({ do: 'window.close' }) })),
+  // Windows closes a window on Alt+F4 whatever the page says; on the last
+  // window that is quitting, so Confirm before quitting asks (settings/quit.ts).
+  b('window.close', 'Close Window', 'Fixed', '', ['Alt+F4'], first({ fixed: true, action: () => ({ do: 'window.closeByKey' }) })),
   // Alt+Home is Chrome's home page; Search has none but a pin's own page.
   b('pin.home', 'Back to the Pinned Page', 'Fixed', '', ['Alt+Home'], { fixed: true, action: c => { const id = activeID(c); const t = id && model.tabs.get(id); return t && t.pinID ? { do: 'pin.home', id: t.pinID } : false } }),
 ]

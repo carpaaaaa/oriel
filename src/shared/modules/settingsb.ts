@@ -10,6 +10,8 @@ declare module '../commands' {
   interface Commands {
     /** Quit Oriel, asking first with Confirm before quitting. */
     'app.quit': None
+    /** Alt+F4: closes the window; on the last one that is quitting, asked first with Confirm before quitting. */
+    'window.closeByKey': None
     /** Websites in the side panel: Show Side Panel, a site into it, and its line's buttons. */
     'view.sidePanel': None
     'panel.site': { url: string }

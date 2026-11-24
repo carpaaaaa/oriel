@@ -157,7 +157,7 @@ def start(wipe=True):
     errors_seen = gone_seen = 0
     b.use(WORLD, wipe=wipe)
     b.launch()
-    WID = b.state()["windows"][0]["id"]
+    WID = b.call({"do": "tabs.state"})["windows"][0]["id"]
     f0 = frame()
     S = f0["scale"]
 
