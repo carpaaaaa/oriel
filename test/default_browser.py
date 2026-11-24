@@ -407,6 +407,11 @@ done = find(ORIEL, "Done")
 if done:
     click(done[0] + done[2] / 2, done[1] + done[3] / 2)
     time.sleep(1)
+clear_screen()
+win = find(ORIEL, "Enter a web address") or find(ORIEL, "New Tab")
+if win:
+    click(win[0] + win[2] / 2, win[1] + win[3] / 2)  # Oriel in front, its page focused
+    time.sleep(0.5)
 keys(0x11, 0xBC)  # Ctrl+, opens Settings
 t.ok(wait(lambda: find(ORIEL, "Oriel is the default browser on this PC"), 30, 2), "Settings › General: Oriel is the default browser on this PC")
 grab("5-settings-row")

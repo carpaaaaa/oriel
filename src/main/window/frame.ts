@@ -503,10 +503,29 @@ export class Frame {
   /** A page entered or left its own full screen: the window covers the
    * screen meanwhile (Electron leaves a maximized window as it is). */
   pageFull(on: boolean): void {
-    if (this.c.base.isDestroyed()) return
+    const b = this.c.base
+    if (b.isDestroyed()) return
     this.note(`page full ${on}`)
-    if (on && !this.isFullScreen()) { this.byPage = true; this.setFullScreen(true) }
-    else if (!on && this.byPage) { this.byPage = false; if (this.isFullScreen()) this.setFullScreen(false) }
+    if (!on) {
+      if (this.byPage) { this.byPage = false; if (this.isFullScreen()) this.setFullScreen(false) }
+      return
+    }
+    if (!this.isFullScreen()) { this.byPage = true; this.setFullScreen(true); return }
+    // Electron may say full screen and yet leave a maximized window where it
+    // was (a second video in a row): judged by what is on the screen, it
+    // covers the screen as ours does.
+    setTimeout(() => {
+      if (b.isDestroyed() || b.isMinimized() || this.full) return
+      const d = screen.getDisplayMatching(b.getBounds()).bounds, now = b.getBounds()
+      if (now.x === d.x && now.y === d.y && now.width === d.width && now.height === d.height) return
+      this.note('page full: not covering, taken over')
+      this.byPage = true
+      if (!this.beforeFull) this.beforeFull = this.comeBackTo()
+      this.leaveMaximized()
+      this.full = !!this.hwnd
+      this.cover()
+      this.refresh()
+    }, 150)
   }
 
   /** Was maximized under full screen (windows.json keeps it maximized). */
