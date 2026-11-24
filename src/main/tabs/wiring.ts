@@ -12,6 +12,7 @@ import { startSleeping } from './sleep'
 import { closeField } from '../field/commands'
 import { win32 } from '../win/user32'
 import { pictureFront } from './previews'
+import { focusPageSoon } from './focus'
 import type { Command } from '../../shared/commands'
 
 // the window's state (WindowState keeps its shape: these say how it is made)
@@ -58,6 +59,9 @@ function switchKey(c: WindowController, by: 1 | -1): Command {
  * after Ctrl+Tab, or Ctrl+W, Ctrl+R, Ctrl+M in the switcher, the page or the
  * overlay may never hear Ctrl come up, and a quick Ctrl+Tab left the
  * switcher open instead of going back a tab. Every 16 ms while it is open. */
+/** Windows being left: the switcher let go without taking the keys back. */
+const leaving = new WeakSet<WindowController>()
+
 const VK_CONTROL = 0x11
 const watching = new WeakSet<WindowController>()
 function watchControl(c: WindowController): void {
@@ -99,7 +103,11 @@ model.on('window-opened', (id: string) => setImmediate(() => {
   const win = c.record
   model.front = id
   c.base.on('focus', () => { model.front = id })
-  c.base.on('blur', () => { if (win.switcher) model.switchEnd(win, true) })
+  c.base.on('blur', () => {
+    if (!win.switcher) return
+    leaving.add(c)
+    try { model.switchEnd(win, true) } finally { leaving.delete(c) }
+  })
   // Before the window takes its pages with it: their histories, for ⇧⌘T.
   c.base.on('close', () => {
     for (const ids of Object.values(win.tabs)) for (const tab of ids) {
@@ -115,22 +123,14 @@ model.on('window-opened', (id: string) => setImmediate(() => {
 }))
 
 // The switcher gone, by Ctrl let go (a keyUp, or the keyboard asked), Esc,
-// a click or Enter: the page in front has the keys. Without this a quick
-// Ctrl+Tab left them with the page it came from, now out of sight, and the
-// next key (a second Ctrl+Tab too) went nowhere.
-// The new page's place comes from the interface a moment later (setSlots),
-// so its view may not be on screen yet: Oriel's interface keeps the keys
-// until it is (a second Ctrl+Tab at once still counts), then the page.
-function keysToPage(c: WindowController, tries = 0): void {
-  if (c.base.isDestroyed()) return
-  const tab = model.activeTab(c.record)
-  const view = c.activeRuntime()?.view
-  const shown = !!view && c.base.contentView.children.includes(view)
-  if (!tab || tab.empty || shown || tries > 40) { c.focusPage(); return }
-  if (tries === 0) c.ui.webContents.focus()
-  setTimeout(() => keysToPage(c, tries + 1), 16)
-}
-model.on('switch-ended', (w: { id: string }) => { const c = controllerFor(w.id); if (c) keysToPage(c) })
+// a click or Enter: the page in front gets the keys once it is on screen
+// (tabs/focus.ts). Without this a quick Ctrl+Tab left them with the page it
+// came from, now out of sight, and the next key went nowhere. Not when the
+// window was left (focusing a page would bring Oriel back in front).
+model.on('switch-ended', (w: { id: string }) => {
+  const c = controllerFor(w.id)
+  if (c && !leaving.has(c)) focusPageSoon(c)
+})
 
 // Another tab in front: the field it was raised for goes (Browser.select
 // sets editing off, §3.9); an empty tab's field is the tab itself.

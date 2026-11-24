@@ -296,6 +296,32 @@ tap("enter")
 got = settle(lambda: not switcher() and b.active()["id"] == want)
 up("ctrl")
 t.ok(got, f"Enter: the chosen card's tab ({title()})")
+# The keys went with it: a quick Ctrl+Tab at once, no click in between.
+before = b.active()["id"]
+time.sleep(0.3)
+down("ctrl"); tap("tab"); up("ctrl")
+got = settle(lambda: not switcher() and b.active()["id"] != before)
+t.ok(got, f"after Enter the new page has the keys: a quick Ctrl+Tab at once works ({title()})")
+
+# 4b. Leaving Oriel with the switcher up: it goes, and Oriel stays behind.
+say('4b. leaving with the switcher up')
+focus_page()
+down("ctrl"); tap("tab")
+time.sleep(0.4)
+pad = subprocess.Popen(["notepad.exe"])
+hw = frame()["hwnd"]
+left = settle(lambda: user32.GetAncestor(user32.GetForegroundWindow(), 2) not in (None, 0, hw), within=8)
+up("ctrl")
+time.sleep(1.2)
+fg = user32.GetAncestor(user32.GetForegroundWindow(), 2)
+if left:
+    t.ok(not switcher() and fg != hw, f"another app in front: the switcher goes and Oriel doesn't come back in front ({fg} vs Oriel {hw})")
+else:
+    print("  (Notepad didn't come to the front here: step 4b skipped)", flush=True)
+    up("ctrl")
+pad.kill()
+subprocess.run(["taskkill", "/F", "/IM", "notepad.exe"], capture_output=True)
+time.sleep(0.5)
 
 # 5. The tab numbers while Ctrl is held.
 say('5. numbers')

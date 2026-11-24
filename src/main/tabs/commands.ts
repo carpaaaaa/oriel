@@ -10,6 +10,7 @@ import { need, tabRuntime } from '../context'
 import { closeField, fieldShowing, launch, openField, putAway, stayUp } from '../field/commands'
 import type { WindowController } from '../views/window'
 import { putToSleep } from './sleep'
+import { focusPageSoon } from './focus'
 
 const win = (c: WindowController) => c.record
 const resolve = (input: string) => (internalKind(input.trim()) ? input.trim() : resolveInput(input, model.pref<string>('search.engine')).url)
@@ -23,7 +24,7 @@ handle('tab.select', ({ id }, ctx) => {
   // The tab already in front: ⌘T's floating field stays (Browser.select, §3.5).
   if (same && stayUp(c)) return
   closeField(c)
-  c.focusPage()
+  focusPageSoon(c)
 })
 
 handle('tab.close', ({ id }, ctx) => model.closeTab(win(need(ctx)), id))
@@ -126,10 +127,11 @@ handle('tab.closeOthers', ({ id }, ctx) => {
 handle('tab.closeBelow', ({ id }, ctx) => model.closeBelow(win(need(ctx)), id))
 handle('tab.closeMany', ({ ids }, ctx) => model.closePicked(win(need(ctx)), ids))
 handle('tab.pick', ({ id, mode }, ctx) => model.pick(win(need(ctx)), id, mode))
-handle('tab.nth', ({ n }, ctx) => { const c = need(ctx); model.nth(win(c), n); closeField(c); c.focusPage() })
-handle('tab.step', ({ by }, ctx) => { const c = need(ctx); model.step(win(c), by); closeField(c); c.focusPage() })
+handle('tab.nth', ({ n }, ctx) => { const c = need(ctx); model.nth(win(c), n); closeField(c); focusPageSoon(c) })
+handle('tab.step', ({ by }, ctx) => { const c = need(ctx); model.step(win(c), by); closeField(c); focusPageSoon(c) })
 handle('tab.switch', ({ by }, ctx) => model.switchStep(win(need(ctx)), by))
-handle('tab.switchEnd', ({ cancel }, ctx) => { const c = need(ctx); model.switchEnd(win(c), cancel); c.focusPage() })
+// The keys follow on 'switch-ended' (tabs/wiring.ts).
+handle('tab.switchEnd', ({ cancel }, ctx) => model.switchEnd(win(need(ctx)), cancel))
 handle('tab.group', ({ ids, group }, ctx) => model.moveToGroup(win(need(ctx)), ids, group))
 handle('tab.toSpace', ({ ids, space }, ctx) => model.moveToSpace(win(need(ctx)), ids, space))
 
@@ -141,7 +143,7 @@ const pinTab = (c: WindowController, pinID: string): TabRecord | undefined =>
 handle('pin.open', ({ id }, ctx) => {
   const c = need(ctx)
   const t = pinTab(c, id)
-  if (t) { model.selectTab(win(c), t.id); closeField(c); c.focusPage() }
+  if (t) { model.selectTab(win(c), t.id); closeField(c); focusPageSoon(c) }
 })
 handle('pin.home', ({ id }, ctx) => model.goHome(win(need(ctx)), id))
 /** Delete: unpinned and closed (§6.6). */
