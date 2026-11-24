@@ -90,12 +90,21 @@ export function engineID(): EngineID {
   return (id in engineTable || id === 'custom' ? id : 'google') as EngineID
 }
 
-export function engineTemplate(id: EngineID = engineID()): string {
+export function engineTemplate(id: EngineID = engineID(), custom = model.pref<string>('search.custom') ?? ''): string {
   if (id === 'custom') {
-    const t = written(model.pref<string>('search.custom') ?? '')
+    const t = written(custom)
     return templateHost(t) ? t : engineTable.google.template
   }
-  return engineTable[id].template
+  return engineTable[id]?.template ?? engineTable.google.template
+}
+
+/** The engine Shift-Return searches with (Settings › Browsing ›
+ * Shift-Return searches with, `search.shift`), or null when none is chosen:
+ * then Shift-Return is Return (Browser.submitToShiftEngine). */
+export function shiftTemplate(): string | null {
+  const id = model.pref<string>('search.shift')
+  if (!id || !(id in engineTable || id === 'custom')) return null
+  return engineTemplate(id as EngineID, model.pref<string>('search.shiftCustom') ?? '')
 }
 
 export function engineName(id: EngineID = engineID()): string {

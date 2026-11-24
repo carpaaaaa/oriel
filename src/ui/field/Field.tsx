@@ -93,6 +93,10 @@ export function Field(p: { place: 'page' | 'overlay' }) {
       if (e.altKey || e.ctrlKey || e.metaKey) return
       e.preventDefault()
       void cmd({ do: 'field.move', by: e.key === 'ArrowDown' ? 1 : -1 })
+    } else if (e.key === 'Enter' && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      // Shift+Return: the Shift-Return engine, or Return when there is none.
+      e.preventDefault()
+      void cmd({ do: 'field.shiftSubmit', text: input.value })
     } else if (e.key === 'Enter') {
       e.preventDefault()
       void cmd({ do: 'field.submit', text: input.value, newTab: e.altKey, front: e.altKey && e.shiftKey })

@@ -111,6 +111,9 @@ declare module '../commands' {
      * last answer came. `newTab`: Alt+Return, a new tab behind; with `front`
      * (Alt+Shift+Return) in front (§1.4, §13.2). */
     'field.submit': { text?: string; newTab?: boolean; front?: boolean }
+    /** Shift+Return: what was typed, as it is, to the Shift-Return engine;
+     * Return when none is chosen (§1.4). */
+    'field.shiftSubmit': { text?: string }
   }
 }
 
