@@ -189,6 +189,8 @@ handle('space.create', ({ name, icon, signedOut, moving }, ctx) => model.createS
 handle('space.rename', ({ id, name }) => model.renameSpace(id, name))
 handle('space.icon', ({ id, icon }) => model.setSpaceIcon(id, icon))
 handle('space.colour', ({ id, colour }) => model.setSpaceColour(id, colour))
+handle('space.gradient', ({ id, preset }) => model.setSpaceGradient(id, preset))
+handle('space.strength', ({ id, strength }) => model.setSpaceStrength(id, strength))
 handle('space.order', ({ id, by }) => model.orderSpace(id, by))
 handle('space.delete', ({ id }, ctx) => model.deleteSpace(win(need(ctx)), id))
 

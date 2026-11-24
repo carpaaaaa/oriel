@@ -54,6 +54,8 @@ export interface TabRecord extends TabView {
   /** What was typed in an empty tab and not sent (§2.41). */
   draft?: string
   downloads?: number
+  /** Its identity in every window, with Same tabs in every window (Twins.swift). */
+  twinID?: ID
 }
 
 export interface Ghost {
@@ -613,6 +615,7 @@ class Model extends EventEmitter {
         groupID: !pin && e.groupID && groups.some(g => g.id === e.groupID) ? e.groupID : undefined,
         touched: e.touched !== undefined ? Math.min(fromAppleDate(e.touched), now) : undefined,
         letGo: !pin && e.letGo !== undefined ? Math.min(fromAppleDate(e.letGo), now) : undefined,
+        twinID: !pin ? e.twinID : undefined,
       })
       const keep = keeps?.[i]
       if (keep) this.keeps.set(tab.id, keep)
@@ -1014,6 +1017,70 @@ class Model extends EventEmitter {
     this.touch(win, ['tabs', 'activeID'])
     this.sessionSoon(win, space)
     return tab
+  }
+
+  /** Same tabs in every window (Twins.plan, §10.35): a row made to hold the
+   * twins another window said, in its order, each once; a twin said before
+   * and missing now was closed there and goes here, in silence; the tabs
+   * only this window has (pins first, private, empty, never said) stay,
+   * after the tab they followed. Asleep, a twin goes to the page the other
+   * window took it to; awake behind and silent, it is put to rest there. */
+  applyTwins(win: WindowRecord, space: ID, defs: { id: ID; url: string; title: string; name?: string; group?: ID }[], groups: GroupView[], known: Set<ID>): void {
+    if (!win.loaded.has(space) || win.shy) return
+    const row = this.spaceTabs(win, space).map(id => this.tabs.get(id)!).filter(Boolean)
+    const said = new Set(defs.map(d => d.id))
+    const byTwin = new Map<ID, TabRecord>()
+    const gone: TabRecord[] = []
+    for (const t of row) {
+      if (!t.twinID) continue
+      if (byTwin.has(t.twinID) || (known.has(t.twinID) && !said.has(t.twinID))) gone.push(t)
+      else byTwin.set(t.twinID, t)
+    }
+    // Which twin each tab of this window's own followed.
+    const after = new Map<ID, ID | null>()
+    let last: ID | null = null
+    for (const t of row) {
+      if (t.pinID) continue
+      if (t.twinID && byTwin.get(t.twinID) === t) { last = t.twinID; continue }
+      if (!gone.includes(t)) after.set(t.id, last)
+    }
+    const twins: TabRecord[] = defs.map(d => {
+      let t = byTwin.get(d.id)
+      if (!t) t = this.makeTab(win, space, { url: d.url, title: d.title, asleep: true, empty: false, twinID: d.id })
+      if (d.name) t.name = d.name; else delete t.name
+      if (d.group) t.groupID = d.group; else delete t.groupID
+      if (t.url !== d.url) {
+        if (t.asleep) { t.url = d.url; t.title = d.title; this.keeps.delete(t.id) }
+        else if (!this.onScreen(t.id) && !t.audible) this.rest(t, d.url)
+      }
+      return t
+    })
+    const own = row.filter(t => !t.pinID && after.has(t.id))
+    const order: ID[] = []
+    for (const t of own.filter(x => after.get(x.id) === null)) order.push(t.id)
+    for (const t of twins) {
+      order.push(t.id)
+      for (const o of own.filter(x => after.get(x.id) === t.twinID)) order.push(o.id)
+    }
+    for (const o of own) if (!order.includes(o.id)) order.push(o.id)
+    const activeID = win.active[space]
+    const activeAt = row.findIndex(t => t.id === activeID)
+    win.tabs[space] = [...row.filter(t => t.pinID).map(t => t.id), ...order]
+    for (const t of gone) { this.leaveSplit(win, space, t.id); this.dropTab(t.id) }
+    // The twins' groups, folded as this window had them, then this window's own still holding tabs.
+    const mine = win.groupsBy[space] ?? []
+    const merged = groups.map(g => ({ ...g, folded: mine.find(m => m.id === g.id)?.folded ?? false }))
+    for (const g of mine) if (!merged.some(m => m.id === g.id) && this.spaceTabs(win, space).some(id => this.tabs.get(id)?.groupID === g.id)) merged.push(g)
+    win.groupsBy[space] = merged
+    this.arrangeGroups(win, space)
+    if (activeID && !this.tabs.has(activeID)) {
+      const now = this.spaceTabs(win, space)
+      const next = now[Math.min(Math.max(0, activeAt), now.length - 1)]
+      win.active[space] = next ?? null
+      if (!next && win.space === space) this.frontBlank(win, space)
+    }
+    this.touch(win, ['tabs', 'groups', 'activeID'])
+    this.sessionSoon(win, space)
   }
 
   /** A tab of a space not on screen closed by Oriel (Closing.closeParked):
@@ -2163,6 +2230,26 @@ class Model extends EventEmitter {
     this.saveSpaces()
   }
 
+  /** A ready-made gradient (SpaceGradient.presets, §7.7), keeping the
+   * direction and grain the space's gradient had; its colour stays beside
+   * it and comes back when the gradient goes. */
+  setSpaceGradient(id: ID, preset: string): void {
+    const s = this.spaceOf(id)
+    const colours = spaceGradients[preset]
+    if (!s || !colours) return
+    s.gradient = { colours, angle: s.gradient?.angle ?? 135, ...(s.gradient && 'grain' in s.gradient ? { grain: (s.gradient as { grain?: boolean }).grain } : {}) } as SpaceRecord['gradient']
+    this.saveSpaces()
+  }
+
+  /** Subtle (written as none), Rich or Vivid (SpaceStrength). */
+  setSpaceStrength(id: ID, strength: string): void {
+    const s = this.spaceOf(id)
+    if (!s || !['subtle', 'rich', 'vivid'].includes(strength)) return
+    if (strength === 'subtle') delete s.strength
+    else s.strength = strength as 'rich' | 'vivid'
+    this.saveSpaces()
+  }
+
   /** Move Left / Move Right (§7.10). */
   orderSpace(id: ID, by: 1 | -1): void {
     const at = this.spaces.findIndex(s => s.id === id)
@@ -2351,6 +2438,7 @@ class Model extends EventEmitter {
       if (touched !== undefined) e.touched = toAppleDate(touched)
       if (!pin && t.letGo !== undefined) e.letGo = toAppleDate(t.letGo)
       if (pin && t.listed) e.listed = true
+      if (!pin && t.twinID && this.pref<boolean>('tabs.mirror')) e.twinID = t.twinID
       entries.push(e)
       if (keeps) keeps.push((this.hooks.keepsake(t.id) ?? this.keeps.get(t.id))!)
     }
@@ -2479,6 +2567,17 @@ function stripUndefined<T extends object>(o: T): Partial<T> {
   const out: Partial<T> = {}
   for (const [k, v] of Object.entries(o)) if (v !== undefined) (out as any)[k] = v
   return out
+}
+
+/** SpaceGradient.presets: the editor's swatches (OKLCH 0.70, 0.14, gamut
+ * mapped as the Mac maps them), two or three to a gradient. */
+export const spaceGradients: Record<string, string[]> = {
+  Sunrise: ['#C69612', '#E177A3'],
+  Lagoon: ['#00B7A8', '#53A3F2'],
+  Orchard: ['#8BAD42', '#00B7A8'],
+  Dusk: ['#8696F5', '#CE7CC8', '#E0843E'],
+  Glacier: ['#00B1CE', '#8696F5'],
+  Ember: ['#E97871', '#C69612'],
 }
 
 /** The icons a space can wear, in Spaces.icons' order (§7.2). */

@@ -25,6 +25,9 @@ declare module '../commands' {
     'link.cancel': None
     /** Always Open <site> in <space>, Stop Opening (space null). */
     'spaces.route': { url: string; space: ID | null }
+    /** A space's ready-made gradient (Sunrise, Lagoon...) and how strong it washes (§7.7). */
+    'space.gradient': { id: ID; preset: string }
+    'space.strength': { id: ID; strength: 'subtle' | 'rich' | 'vivid' }
     /** Keep This Site Awake, from a tab's menu. */
     'tab.keepAwake': { id: ID; on: boolean }
   }
