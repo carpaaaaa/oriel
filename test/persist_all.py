@@ -77,7 +77,9 @@ def snapshot():
     """Everything compared, the window shown as it was left."""
     s = b.state()
     ts = k.st()
-    snap = {"prefs": {key: s["prefs"].get(key) for key in WATCHED}}
+    # What each key is worth (a key set back to its default is no key at all).
+    values = b.cmd("settings.values")["prefs"]
+    snap = {"prefs": {key: values.get(key) for key in WATCHED}}
     snap["spaces"] = [(x["id"], x["name"], x["colour"], x.get("icon"), json.dumps(x.get("gradient"), sort_keys=True), x.get("strength")) for x in s["spaces"]]
     snap["pins"] = sorted((p["id"], p.get("letter"), k.name_of(p.get("home")), p["space"], bool(p.get("listed")), p.get("name")) for p in s["pins"])
     snap["folders"] = {sp: sorted((f["name"], bool(f.get("collapsed"))) for f in fs) for sp, fs in ts["folders"].items()}
@@ -193,7 +195,7 @@ def relaunch_after(p):
 
 
 def wake(id):
-    k.cmd("tab.select", id=id)
+    k.cmd("tab.select", 0, id=id)
     b.wait_for(lambda: (x := k.tab(id)) and x["live"] and not x["loading"], what="tab awake")
     time.sleep(0.3)
 
@@ -210,7 +212,7 @@ def site(name, i=None):
 
 
 WATCHED = [
-    "search.engine", "search.keywords", "look", "home.theme", "home.theme.image", "sidebar", "sidebar.position",
+    "search.engine", "search.keywords", "search.sites", "look", "home.theme", "home.theme.image", "sidebar", "sidebar.position",
     "sidebar.width", "spaces", "pins.folders", "tabs.sleep", "tabs.sleep.pace", "shortcuts", "quit.confirm",
     "sidepanel.width", "spaces.orderKept", "downloads",
 ]
@@ -279,6 +281,7 @@ for key, value in [("search.engine", "kagi"), ("look", "dark"), ("tabs.layout", 
 b.call({"do": "themes.answer", "file": str(picture)})
 b.cmd("themes.choose")
 b.cmd("prefs.set", key="search.keywords", value=[{"keyword": "yt", "template": "https://www.youtube.com/results?search_query=%s"}])
+b.cmd("prefs.set", key="search.sites", value=["Reddit", "Wikipedia"])  # sites searched from the field, turned on
 b.cmd("prefs.set", key="shortcuts", value={"tab.new": {"keys": ["Ctrl+Shift+K"]}})
 
 # extensions: one pinned and turned off; one whose side panel was made wider
@@ -288,24 +291,29 @@ b.cmd("ext.enable", id=dnr, on=False)
 api = b.call({"do": "extensions.loadUnpacked", "path": str(API), "copy": True})["id"]
 
 
+def panel_now():
+    return b.call({"do": "extensions.panel", "window": k.wid(0)})
+
+
 def open_panel():
-    b.cmd("tab.new", url=f"chrome-extension://{api}/test.html")
+    """In the first window, named (another may have the keys)."""
+    b.cmd("tab.new", window=k.wid(0), url=f"chrome-extension://{api}/test.html")
     b.wait_for(lambda: b.active()["title"] == "API test page", what="extension page")
     page = b.active()["id"]
     b.ev(page, "chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).then(() => 1)")
-    b.cmd("ext.press", id=api)
-    panel = b.wait_for(lambda: (x := b.call({"do": "extensions.panel"}))["open"] and x["title"] == "API test panel" and x, within=8, what="panel")
+    b.cmd("ext.press", window=k.wid(0), id=api)
+    b.wait_for(lambda: (x := panel_now())["open"] and x["title"] == "API test panel" and x, within=8, what="panel")
     time.sleep(0.5)  # laid out in its room
-    return page, b.call({"do": "extensions.panel"})
+    return page, panel_now()
 
 
 page, panel = open_panel()
 t.ok(panel["bounds"]["width"] == 380, f"the side panel starts 380 wide ({panel['bounds']})")
 b.cmd("ext.panelWidth", width=452)
 b.wait_for(lambda: b.call({"do": "extensions.panel"})["bounds"]["width"] == 452, what="panel wider")
-b.call({"do": "extensions.panelEval", "js": "setTimeout(() => window.close(), 50); 1"})
-b.wait_for(lambda: not b.call({"do": "extensions.panel"})["open"], within=5, what="panel closed")
-k.cmd("tab.close", id=page)
+b.call({"do": "extensions.panelEval", "window": k.wid(0), "js": "setTimeout(() => window.close(), 50); 1"})
+b.wait_for(lambda: not panel_now()["open"], within=5, what="panel closed")
+k.cmd("tab.close", 0, id=page)
 
 # the window: its place, the column's width, folded
 work = b.call({"do": "window.frame"})["frame"]["workArea"]
@@ -368,12 +376,13 @@ b.wait_for(lambda: placement()["windows"][1]["state"] == "maximized", what="seco
 b.call({"do": "window.focus", "window": win(0)})
 
 # what the Mac doesn't keep: a private tab, a closed tab for ⇧⌘T, a page's back history
-gone = site("closed-one"); k.cmd("tab.close", id=gone)
-shy = k.cmd("tab.newPrivate"); b.cmd("tab.go", id=shy, input=k.url("secret")); time.sleep(0.8)
-k.cmd("tab.close", id=shy)
-k.cmd("tab.go", id=site("hist-a"), input=k.url("hist-b"))
+# (all in the first window, named: the new one may have the keys now)
+gone = site("closed-one", i=0); k.cmd("tab.close", 0, id=gone)
+shy = k.cmd("tab.newPrivate", 0); b.cmd("tab.go", window=win(0), id=shy, input=k.url("secret")); time.sleep(0.8)
+k.cmd("tab.close", 0, id=shy)
+k.cmd("tab.go", 0, id=site("hist-a", i=0), input=k.url("hist-b"))
 b.wait_for(lambda: (x := k.by_name("hist-b")) and not x["loading"] and x["canGoBack"], what="history page")
-k.cmd("sidebar.toggle")
+k.cmd("sidebar.toggle", 0)
 k.settle(0.3)
 
 before = snapshot()
@@ -401,25 +410,26 @@ t.ok(wins[1].get("maximized") is True and wins[1]["frame"].startswith("{{"), "a 
 sp = next(x for x in after["spaces"] if x[0] == STUDIO)
 t.ok('"angle": 30' in sp[4] and sp[5] == "rich", "a space's gradient and strength come through other changes to spaces.json")
 t.ok(after["windows"][0]["space"] == work_id, "the window shows the space it was left on")
+t.ok(b.call({"do": "field.address", "text": "red"})["site"] == "Reddit", "a site turned on is searched from the field again (red offers Reddit)")
 kept_picture = Path(after["prefs"]["home.theme.image"] or "")
 t.ok(after["prefs"]["home.theme"] == "custom" and kept_picture.is_file() and kept_picture.parent.name == "Theme",
      f"the theme: its own picture, kept in the data folder ({kept_picture})")
 
 store_id = k.by_name("store")["id"] if k.by_name("store") else None
 if not store_id:
-    k.cmd("space.select", id=FIRST); k.settle(0.4)
+    k.cmd("space.select", 0, id=FIRST); k.settle(0.4)
     store_id = k.by_name("store")["id"]
 wake(store_id)
 t.ok(b.ev(store_id, "document.cookie") == "kept=yes" and b.ev(store_id, "localStorage.getItem('kept')") == "yes", "cookies and site storage")
 wake(k.by_name("named")["id"])
-zoom = b.call({"do": "window.frame"})["frame"]["zoom"]
+zoom = b.call({"do": "window.frame", "window": k.wid(0)})["frame"]["zoom"]
 t.ok(abs((zoom or 0) - before["prefs"][ZOOM]) < 0.01, f"the site's zoom is on its page ({zoom})")
 b.call({"do": "window.place", "window": k.wid(0), "visual": True, "x": work["x"], "y": work["y"], "width": min(1300, work["width"]), "height": 700})
 page, panel = open_panel()
 t.ok(panel["bounds"]["width"] == 452, f"the side panel opens as wide as it was left ({panel['bounds']['width']})")
-b.call({"do": "extensions.panelEval", "js": "setTimeout(() => window.close(), 50); 1"})
-b.wait_for(lambda: not b.call({"do": "extensions.panel"})["open"], within=5, what="panel closed")
-k.cmd("tab.close", id=page)
+b.call({"do": "extensions.panelEval", "window": k.wid(0), "js": "setTimeout(() => window.close(), 50); 1"})
+b.wait_for(lambda: not panel_now()["open"], within=5, what="panel closed")
+k.cmd("tab.close", 0, id=page)
 
 b.call({"do": "tabs.write"})
 
