@@ -19,7 +19,10 @@ b.launch(*k.FRAMES, env={"SEARCH_LOOK": "light"})
 t = b.T()
 time.sleep(0.8)
 
+t.ok(b.state()["prefs"].get("toolbar.left") is True, "Back, forward and reload on the left: on by default (Windows, the user's choice)")
+# The Mac's measures first: back, forward and reload at the far end.
 s = k.fixture("top")
+s["prefs"] = {**s.get("prefs", {}), "toolbar.left": False}
 k.fake(s, look="light")
 time.sleep(0.6)
 if SHOTS:
@@ -110,5 +113,43 @@ try:
     b.wait_for(lambda: frame_state() == "free", within=3, what="restored")
 except AssertionError:
     pass
+
+# Back, forward and reload on the left (toolbar.left, studio/01 §4.3, §4.4):
+# on, at the start of the strip, after the 12 of the window's buttons' room,
+# before the pins; off, at the far end, before the window's buttons.
+DOORS = "return [...document.querySelectorAll('.tabbar .strip-helm > .door')].map(e => { const r = rel(e.getBoundingClientRect()); return [r.x, r.width, !!e.closest('.strip-near'), !!e.closest('.strip-far')] })"
+on = {**few, "prefs": {k_: v for k_, v in few["prefs"].items() if k_ != "toolbar.left"}}
+k.fake(on, look="light")
+time.sleep(0.4)
+d = k.js(DOORS)
+pin = k.wrect(".strip-pin")
+t.ok(len(d) == 3 and all(x[2] for x in d) and k.near(d[0][0], 12 + 2) and all(k.near(x[1], 26) for x in d) and k.near(d[1][0] - d[0][0], 30) and k.near(d[2][0] - d[1][0], 30),
+     f"on (the default): the three doors first, 12 in (and the band's 2), 26 wide, 4 apart: {d}")
+t.ok(pin and k.near(pin["x"], d[2][0] + 26 + 2), f"…then the pins, 2 after: {pin and pin['x']}")
+w = k.js("return [...document.querySelectorAll('.strip-tab')].map(e => e.getBoundingClientRect().width)")
+t.ok(w and all(k.near(x, 186) for x in w), f"…the tabs still 186 with room: {w}")
+k.fake({**few, "prefs": {**few["prefs"], "toolbar.left": False}}, look="light")
+time.sleep(0.4)
+d = k.js(DOORS)
+W = k.rect(".window")
+t.ok(len(d) == 3 and all(x[3] for x in d) and d[2][0] + 26 <= W["w"] - 138 + 0.5 and k.near(k.wrect(".strip-pin")["x"], 14),
+     f"off: at the far end before the window's buttons, the pins 12 in again: {d}")
+k.fake({**k.fixture("many"), "prefs": {"toolbar.left": False}}, look="light")
+time.sleep(0.4)
+col = k.js("return [...document.querySelectorAll('.sidebar .helm > .door')].map(e => Math.round(rel(e.getBoundingClientRect()).x))")
+k.fake({**k.fixture("many"), "prefs": {"toolbar.left": True}}, look="light")
+time.sleep(0.4)
+col2 = k.js("return [...document.querySelectorAll('.sidebar .helm > .door')].map(e => Math.round(rel(e.getBoundingClientRect()).x))")
+t.ok(col == col2 == [10, 40, 70], f"with the column it changes nothing, as on the Mac: {col} {col2}")
 k.thaw()
+
+# Kept: off, the strip across the top, after a restart.
+b.cmd("prefs.set", key="toolbar.left", value=False)
+b.cmd("prefs.set", key="tabs.layout", value="top")
+b.quit()
+b.use("ui-strip", wipe=False)
+b.launch(*k.FRAMES, env={"SEARCH_LOOK": "light"})
+time.sleep(1.0)
+d = k.js(DOORS)
+t.ok(b.state()["prefs"].get("toolbar.left") is False and len(d) == 3 and all(x[3] for x in d), f"after a restart it stays off, the doors at the far end: {d}")
 t.done()
