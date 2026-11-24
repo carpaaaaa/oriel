@@ -265,7 +265,7 @@ function control(i: Item): JSX.Element {
     case 'layout.cards': return <Pictures value={p<boolean>('layout.cards') !== false} set={v => void set('layout.cards', v)}
       options={[[true, 'As a card', () => <CardPicture card />], [false, 'Edge to edge', () => <CardPicture card={false} />]]} />
     case 'address.width': return <Segmented value={p<string>('address.width') ?? 'small'} set={v => void set('address.width', v)} options={[['small', 'Small'], ['medium', 'Medium']]} />
-    case 'window.glass.clear': case 'window.glass.grain':
+    case 'window.glass.clear': case 'window.glass.grain': case 'float.fade':
       return <input class="st-slider" type="range" min="0" max="1" step="0.01" value={p<number>(i.id)} onChange={e => void set(i.id, Number(e.currentTarget.value))} aria-label={i.title} />
     case 'helm.shown': return <Ticks items={[
       ['Back', !p('helm.back.hidden'), v => void set('helm.back.hidden', !v)],

@@ -187,6 +187,18 @@ const overrides: Record<string, Partial<Item>> = {
 
 const keep = (title: string) => title // titles keep their words when an override leaves them
 
+/** Rows Oriel has and Search doesn't, each right after the row it names. */
+const added: (Item & { after: string })[] = [
+  {
+    id: 'float.fade', group: 'video', icon: 'circle.lefthalf.filled', after: 'float.minimize',
+    title: 'See through the floating video',
+    detail: "While the pointer isn't on it. Further right, more see-through",
+    more: "Oriel's window and picture in picture both. With the pointer on it, it's solid again. All the way left, it never fades.",
+    keys: ['float.fade'],
+    words: ['pip', 'picture in picture', 'transparent', 'transparency', 'opacity', 'fade', 'see through'],
+  },
+]
+
 export const groups: Group[] = (raw.groups as Group[])
   .filter(g => (raw.items as Item[]).some(i => i.group === g.id && !removed[i.id]))
 
@@ -204,6 +216,7 @@ export const items: Item[] = (raw.items as Item[])
     }
     return adapted
   })
+  .flatMap(i => [i, ...added.filter(a => a.after === i.id).map(({ after: _, ...a }) => a)])
 
 export const groupOf = (id: string) => groups.find(g => g.id === id)
 export const itemOf = (id: string) => items.find(i => i.id === id)

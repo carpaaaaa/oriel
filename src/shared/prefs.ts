@@ -102,6 +102,9 @@ export const defaults = {
   'float.away': false,
   'float.minimize': false,
   'float.flicks': true,
+  // Away from the pointer the floating video lets what is behind show
+  // through: 0 not at all, 1 the most (Oriel's own, pages/float.ts).
+  'float.fade': 0,
   'media.click': false,
   'fullscreen.escapeTwice': false,
   'pageZoom': 1,

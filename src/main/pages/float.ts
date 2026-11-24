@@ -14,8 +14,10 @@
 // site whose video is the point of the site (Players.knows); coming back to
 // the tab, or to Oriel for one lifted that way, lands it. Ctrl+Shift+P
 // floats any playing video by hand, or lands it.
+// See through (float.fade, Oriel's own): away from the pointer either one
+// lets what is behind show through, as much as Settings' slider says.
 
-import { BaseWindow, WebContentsView, screen, type WebContents } from 'electron'
+import { BaseWindow, WebContentsView, ipcMain, screen, type WebContents } from 'electron'
 import { iconOption } from '../win/icon'
 import type { ID, Rect } from '../../shared/state'
 import { model, type WindowRecord } from '../model/model'
@@ -27,6 +29,7 @@ import { runtimes } from '../views/tabs'
 import { allControllers, controllerFor, registerSlice } from '../views/window'
 import { pref } from './facts'
 import { keepOnPage } from '../views/guard'
+import { win32 } from '../win/user32'
 
 const PRELOAD_WORLD = 999
 
@@ -183,6 +186,8 @@ function openWindow(tab: ID, win: ID, view: WebContentsView, away: boolean): Flo
   for (const e of ['moved', 'resized'] as const) base.on(e as 'moved', () => keepFrame(f))
   base.on('closed', () => { if (floating === f) land() })
   base.showInactive()
+  alpha = 1
+  setImmediate(fadeWatch)
   return f
 }
 
@@ -317,6 +322,95 @@ function goBack(): void {
   if (win && model.tabs.has(f.tab)) { model.selectTab(win, f.tab); c?.base.show(); c?.base.focus(); c?.focusPage() }
 }
 
+// see through, away from the pointer (float.fade)
+
+/** At the slider's end a fifth of the window stays. */
+const FADE_MOST = 0.8
+/** A tick of the fade: about 30 a second, only while something floats. */
+const FADE_TICK = 33
+
+const fadeLevel = () => { const v = Number(pref('float.fade')); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0 }
+let alpha = 1
+let fader: NodeJS.Timeout | null = null
+/** Chromium's picture in picture window, once found. */
+let pipWindow = 0
+
+/** The little window's handle, and the picture in picture's (found the
+ * first time: this process's always-on-top Chromium window that is none of
+ * Electron's). */
+function fadingWindows(): { base: BaseWindow | null; hwnds: number[] } {
+  const w = win32()
+  const base = floating && !floating.base.isDestroyed() ? floating.base : null
+  const hwnds: number[] = []
+  if (base && w) hwnds.push(w.hwnd(base.getNativeWindowHandle()))
+  if (pictured && w) {
+    if (pipWindow && !w.isWindow(pipWindow)) pipWindow = 0
+    if (!pipWindow) {
+      const ours = BaseWindow.getAllWindows().filter(b => !b.isDestroyed()).map(b => w.hwnd(b.getNativeWindowHandle()))
+      pipWindow = w.topmostOf(process.pid, ours)[0] ?? 0
+    }
+    if (pipWindow) hwnds.push(pipWindow)
+  }
+  return { base, hwnds }
+}
+
+/** The pointer inside one of them. Both stay on top of everything, so
+ * inside is on it; Windows' own window-under-a-point answers past Electron's
+ * little window, to whatever is behind it. */
+function pointerOn(base: BaseWindow | null, hwnds: number[]): boolean {
+  const w = win32()
+  if (w) {
+    const p = w.cursor()
+    return hwnds.some(h => { const r = w.windowRect(h); return p.x >= r.left && p.x < r.right && p.y >= r.top && p.y < r.bottom })
+  }
+  if (!base) return false
+  const p = screen.getCursorScreenPoint(), b = base.getBounds()
+  return p.x >= b.x && p.y >= b.y && p.x < b.x + b.width && p.y < b.y + b.height
+}
+
+function setAlpha(base: BaseWindow | null, hwnds: number[], a: number): void {
+  if (base) base.setOpacity(a)
+  const w = win32()
+  if (w) for (const h of hwnds) if (h === pipWindow) w.setAlpha(h, a)
+}
+
+/** One step towards solid (the pointer on it) or see-through (away). */
+function fadeStep(): void {
+  if (quietTests) return
+  const { base, hwnds } = fadingWindows()
+  if (!base && !hwnds.length) { if (!floating && !pictured) stopFade(); return }
+  const target = pointerOn(base, hwnds) ? 1 : 1 - FADE_MOST * fadeLevel()
+  if (Math.abs(target - alpha) < 0.005 && target === 1 && fadeLevel() === 0) { setAlpha(base, hwnds, 1); stopFade(); return }
+  const next = Math.abs(target - alpha) < 0.01 ? target : alpha + (target - alpha) * 0.3
+  if (next === alpha) return
+  alpha = next
+  setAlpha(base, hwnds, alpha)
+}
+
+function stopFade(): void {
+  if (fader) clearInterval(fader)
+  fader = null
+}
+
+/** Watching starts while something floats and the slider isn't at 0, and
+ * goes on until the window is solid again. */
+function fadeWatch(): void {
+  if (fader || quietTests || (!floating && !pictured)) return
+  if (fadeLevel() === 0 && alpha === 1) return
+  fader = setInterval(fadeStep, FADE_TICK)
+}
+
+// The page's video in and out of picture in picture, by Oriel or by the
+// page's own button (preload/page/float.ts).
+ipcMain.on('float:pip', (event, on: unknown) => {
+  if (event.senderFrame !== event.sender.mainFrame) return
+  const rt = [...runtimes.values()].find(r => r.contents === event.sender)
+  if (!rt) return
+  if (on === true) { pictured = rt.id; pipWindow = 0; alpha = 1; setImmediate(fadeWatch) }
+  else if (pictured === rt.id) { pictured = null; pipWindow = 0 }
+  markAll()
+})
+
 /** Chromium's picture in picture (Browser.picture). */
 async function picture(tab: ID, quietly: boolean, toggle: boolean): Promise<string> {
   const wc = runtimes.get(tab)?.contents
@@ -396,8 +490,10 @@ model.on('window-opened', (id: string) => setImmediate(() => {
   c.base.on('focus', () => appBack(id))
 }))
 
-// Settings moving under it: Minimize appears or goes at once.
+// Settings moving under it: Minimize appears or goes at once, and the
+// slider's see-through shows on the floating video as it moves.
 model.on('window-changed', (_id: string, slices: string[]) => {
+  if (slices.includes('prefs')) fadeWatch()
   if (!slices.includes('prefs') || !floating) return
   const on = !!pref<boolean>('float.minimize')
   tell(floating, { tuck: on })
@@ -432,12 +528,22 @@ handle('pages.float.toggle', () => { if (floating) heard(floating, 'toggle') })
 handle('pages.float.skip', ({ seconds }) => { if (floating) heard(floating, `skip,${seconds}`) })
 handle('pages.float.tuck', () => { if (floating) tuck(floating) })
 
+/** For the bench: what the fade sees under the pointer. */
+function fadeProbe(): Record<string, unknown> {
+  const w = win32()
+  if (!w || (!floating && !pictured)) return {}
+  const { base, hwnds } = fadingWindows()
+  const at = w.cursor()
+  return { pointer: at, hwnds, on: pointerOn(base, hwnds) }
+}
+
 /** For the bench. */
 export function floatInfo() {
   const f = floating
   return {
     floating: f ? { tab: f.tab, win: f.win, bounds: f.base.getBounds(), tucked: !!f.tuckedFrom, away: f.away, holdsPage: f.base.contentView.children.includes(f.view), controls: f.controls.webContents.id } : null,
     pictured,
+    fade: { level: fadeLevel(), alpha, watching: !!fader, pipWindow: pipWindow ? win32()?.title(pipWindow) ?? '' : null, ...fadeProbe() },
     lifts: lifts.slice(-5),
   }
 }

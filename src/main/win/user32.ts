@@ -19,6 +19,9 @@ const SWP_FLAGS = 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020 // NOSIZE NOMOVE NO
 const VK_LBUTTON = 0x01
 const VK_RBUTTON = 0x02
 const SM_SWAPBUTTON = 23
+const WS_EX_TOPMOST = 0x00000008
+const WS_EX_LAYERED = 0x00080000
+const LWA_ALPHA = 0x2
 
 export const HT = { caption: 2, left: 10, right: 11, top: 12, 'top-left': 13, 'top-right': 14, bottom: 15, 'bottom-left': 16, 'bottom-right': 17 } as const
 const WMSZ = { left: 1, right: 2, top: 3, 'top-left': 4, 'top-right': 5, bottom: 6, 'bottom-left': 7, 'bottom-right': 8 } as const
@@ -61,6 +64,13 @@ export interface Win32 {
   windowRect(hwnd: number): { left: number; top: number; right: number; bottom: number }
   /** The top-level window under a point (physical pixels), 0 for none. */
   rootAt(at: { x: number; y: number }): number
+  /** A window's opacity, 0 to 1, as Electron's setOpacity does it (layered). */
+  setAlpha(hwnd: number, alpha: number): void
+  isWindow(hwnd: number): boolean
+  /** This process's visible, always-on-top Chromium windows but those named
+   * (Chromium's picture in picture is one, and no BaseWindow of Electron's). */
+  topmostOf(pid: number, except: number[]): number[]
+  title(hwnd: number): string
 }
 
 let cached: Win32 | null | undefined
@@ -102,6 +112,12 @@ function load(): Win32 {
   const GetAncestor = user32.func('intptr_t __stdcall GetAncestor(intptr_t hwnd, uint32_t flags)')
   let IsWindowArranged: ((hwnd: number) => number) | null = null
   try { IsWindowArranged = user32.func('int __stdcall IsWindowArranged(intptr_t hwnd)') } catch { /* before Windows 10 2004 */ }
+  const SetLayeredWindowAttributes = user32.func('int __stdcall SetLayeredWindowAttributes(intptr_t hwnd, uint32_t key, uint8_t alpha, uint32_t flags)')
+  const IsWindow = user32.func('int __stdcall IsWindow(intptr_t hwnd)')
+  const IsWindowVisible = user32.func('int __stdcall IsWindowVisible(intptr_t hwnd)')
+  const FindWindowExW = user32.func('intptr_t __stdcall FindWindowExW(intptr_t parent, intptr_t after, str16 cls, str16 title)')
+  const GetWindowThreadProcessId = user32.func('uint32_t __stdcall GetWindowThreadProcessId(intptr_t hwnd, _Out_ uint32_t *pid)')
+  const GetWindowTextW = user32.func('int __stdcall GetWindowTextW(intptr_t hwnd, _Out_ void *text, int max)')
   const DwmSetWindowAttribute = dwmapi.func('int32_t __stdcall DwmSetWindowAttribute(intptr_t hwnd, uint32_t attribute, const void *value, uint32_t size)')
   const DwmGetWindowAttribute = dwmapi.func('int32_t __stdcall DwmGetWindowAttribute(intptr_t hwnd, uint32_t attribute, _Out_ SEARCH_RECT *value, uint32_t size)')
 
@@ -159,6 +175,29 @@ function load(): Win32 {
     rootAt(at) {
       const h = Number(WindowFromPoint(at))
       return h ? Number(GetAncestor(h, 2 /* GA_ROOT */)) : 0
+    },
+    setAlpha(hwnd, alpha) {
+      const ex = Number(GetWindowLongPtrW(hwnd, GWL_EXSTYLE))
+      if (!(ex & WS_EX_LAYERED)) SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex | WS_EX_LAYERED)
+      SetLayeredWindowAttributes(hwnd, 0, Math.round(Math.min(1, Math.max(0, alpha)) * 255), LWA_ALPHA)
+    },
+    isWindow: hwnd => IsWindow(hwnd) !== 0,
+    topmostOf(pid, except) {
+      const found: number[] = []
+      for (let h = 0, n = 0; n < 4096; n++) {
+        h = Number(FindWindowExW(0, h, 'Chrome_WidgetWin_1', null))
+        if (!h) break
+        const owner = [0]
+        GetWindowThreadProcessId(h, owner)
+        if (owner[0] !== pid || except.includes(h) || !IsWindowVisible(h)) continue
+        if (Number(GetWindowLongPtrW(h, GWL_EXSTYLE)) & WS_EX_TOPMOST) found.push(h)
+      }
+      return found
+    },
+    title(hwnd) {
+      const buf = Buffer.alloc(512)
+      const n = GetWindowTextW(hwnd, buf, 256)
+      return buf.toString('utf16le', 0, Math.max(0, n) * 2)
     },
   }
 }

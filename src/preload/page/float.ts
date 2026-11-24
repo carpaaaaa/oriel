@@ -9,7 +9,7 @@
 //  - toggle, skip, where, gone: the little window's buttons and line.
 // Owned by the pages module.
 
-import { webFrame } from 'electron'
+import { ipcRenderer, webFrame } from 'electron'
 
 const MARK = 'data-oriel-float'
 
@@ -38,6 +38,10 @@ export function setupFloat(): void {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') unseen = new WeakSet() }, true)
   const listen = (e: Event) => { const v = e.target; if (v instanceof HTMLVideoElement && !v.paused && !v.muted && v.volume > 0) heard.add(v) }
   for (const n of ['play', 'playing', 'volumechange']) document.addEventListener(n, listen, true)
+  // In and out of Chromium's picture in picture, by Oriel or by the page's
+  // own button: the main process fades that window too (float.fade).
+  document.addEventListener('enterpictureinpicture', () => ipcRenderer.send('float:pip', true), true)
+  document.addEventListener('leavepictureinpicture', () => ipcRenderer.send('float:pip', false), true)
 
   /** Isolate.real: heard, long enough, big enough, not a preview in a link. */
   const real = (v: HTMLVideoElement) => {
