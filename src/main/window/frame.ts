@@ -49,9 +49,10 @@ const variant = {
    * Windows treats it as resizable (Snap) with DWM's own border turned off;
    * caption: plus WS_CAPTION and WS_SYSMENU too (Win+Up, animations). */
   style: ((['plain', 'caption'] as const).find(v => v === process.env.SEARCH_FRAME_STYLE) ?? 'thick') as 'plain' | 'thick' | 'caption',
-  /** emulated: Electron's maximize for transparent windows (bounds = work
-   * area); native: ShowWindow, a real maximized window. */
-  maximize: process.env.SEARCH_FRAME_MAX === 'native' ? 'native' : 'emulated',
+  /** native: ShowWindow, a really maximized window, so Windows knows it
+   * (Win+Down restores instead of minimizing, dragging it down restores it);
+   * emulated: Electron's maximize for transparent windows (bounds = work area). */
+  maximize: process.env.SEARCH_FRAME_MAX === 'emulated' ? 'emulated' : 'native',
   /** syscommand: SC_SIZE; nc: WM_NCLBUTTONDOWN on an edge; manual: by hand. */
   resize: (['nc', 'syscommand', 'manual'] as const).find(v => v === process.env.SEARCH_FRAME_RESIZE) ?? 'syscommand',
   /** syscommand: SC_MOVE; nc: WM_NCLBUTTONDOWN on the caption. */

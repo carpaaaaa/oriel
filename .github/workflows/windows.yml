@@ -116,13 +116,13 @@ jobs:
           FRAME_VARIANT: plain
           SEARCH_FRAME_STYLE: plain
         run: python test/window_os.py
-      - name: Real input, native maximize
+      - name: Real input, maximize emulated by Electron
         if: always()
         continue-on-error: true
         env:
           SHOTS_DIR: shots
-          FRAME_VARIANT: thick-native-max
-          SEARCH_FRAME_MAX: native
+          FRAME_VARIANT: thick-emulated-max
+          SEARCH_FRAME_MAX: emulated
         run: python test/window_os.py
       - uses: actions/upload-artifact@v4
         if: always()
