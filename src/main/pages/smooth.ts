@@ -29,6 +29,11 @@ function atStart(): boolean {
 export let gliding = atStart()
 set(gliding)
 
+// Chromium's own middle-button scrolling (Windows has it on): left to the
+// page script, so the switch, off unless turned on, says what happens as
+// on the Mac (Scroll with the middle button, AutoScroll.swift).
+app.commandLine.appendSwitch('disable-blink-features', 'MiddleClickAutoscroll')
+
 model.on('window-changed', (_id: string, slices: string[]) => {
   if (!slices.includes('prefs')) return
   const now = model.pref<boolean>('wheel.smooth') === true

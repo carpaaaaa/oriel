@@ -121,6 +121,16 @@ function start(first: PagePrefs): void {
     let how: 'peek' | 'split' | null = null
     if (peekKeys(e)) how = 'peek'
     else if (now.optionSplit && e.altKey && !e.shiftKey && !ctrl) how = 'split'
+    else if (e.altKey && !e.shiftKey && !ctrl) {
+      // Off, Alt-click follows the link as a click does (Chromium would
+      // download it): the same click again, without Alt.
+      const a = e.composedPath().find(n => n instanceof HTMLAnchorElement || n instanceof HTMLAreaElement) as HTMLAnchorElement | undefined
+      if (!a) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, view: window, clientX: e.clientX, clientY: e.clientY }))
+      return
+    }
     if (!how) return
     e.preventDefault()
     e.stopImmediatePropagation()

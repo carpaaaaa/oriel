@@ -64,18 +64,19 @@ class Dual(ThreadingHTTPServer):
     context = None
     tls = True
 
-    def get_request(self):
-        sock, addr = self.socket.accept()
+    def finish_request(self, request, client_address):
+        # In the request's own thread: a connection opened ahead and left
+        # quiet (Chromium preconnects) never holds up the others.
         if self.tls:
             try:
-                sock.settimeout(5)
-                first = sock.recv(1, socket.MSG_PEEK)
-                sock.settimeout(None)
+                request.settimeout(10)
+                first = request.recv(1, socket.MSG_PEEK)
+                request.settimeout(None)
                 if first == b"\x16":
-                    sock = self.context.wrap_socket(sock, server_side=True)
+                    request = self.context.wrap_socket(request, server_side=True)
             except Exception:
-                pass
-        return sock, addr
+                return
+        self.RequestHandlerClass(request, client_address, self)
 
 
 def certificate():

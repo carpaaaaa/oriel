@@ -47,7 +47,7 @@ t = b.T()
 
 def setting(key, value):
     b.cmd("settings.set", id=key, value=value)
-    time.sleep(0.2)
+    time.sleep(1.0)
 
 
 def go(url, title=None, tab=None):
