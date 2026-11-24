@@ -67,6 +67,15 @@ export function nextStep(now: number, up: boolean): number {
   return up ? (STEPS.find(s => s > now + 0.001) ?? STEPS[STEPS.length - 1]) : ([...STEPS].reverse().find(s => s < now - 0.001) ?? STEPS[0])
 }
 
+/** `by` times the zoom, on the level nearest to it the way it goes (Ctrl+= is
+ * by 1.1: always the next level; by 1.25 from 100% is 125%). */
+export function stepBy(now: number, by: number): number {
+  const ways = STEPS.filter(s => (by > 1 ? s > now + 0.001 : s < now - 0.001))
+  if (!ways.length) return by > 1 ? STEPS[STEPS.length - 1] : STEPS[0]
+  const target = now * by
+  return ways.reduce((a, s) => (Math.abs(s - target) < Math.abs(a - target) ? s : a))
+}
+
 const runs = new WeakMap<WebContents, { at: number; up: boolean }>()
 
 /** A page the window shows: its site's zoom now and at each navigation. */
@@ -78,13 +87,13 @@ export function watchZoom(id: string, wc: WebContents): void {
     const last = runs.get(wc)
     if (last && last.up === up && now - last.at < RUN) { last.at = now; return }
     runs.set(wc, { at: now, up })
-    zoomTab(id, wc, up ? 'in' : 'out')
+    zoomTab(id, wc, nextStep(wc.getZoomFactor(), up))
   })
 }
 
-function zoomTab(id: string, wc: WebContents, way?: 'in' | 'out', reset = false): number {
+function zoomTab(id: string, wc: WebContents, to?: number, reset = false): number {
   const before = wc.getZoomFactor()
-  const next = reset ? defaultZoom() : way ? nextStep(before, way === 'in') : before
+  const next = reset ? defaultZoom() : to ?? before
   if (Math.abs(next - before) < NOTHING) return before
   wc.setZoomFactor(next)
   const host = hostOf(wc.getURL())
@@ -126,7 +135,7 @@ handle('view.zoom', ({ by, reset, id }, ctx) => {
   const tabID = id ?? c.record.active[c.record.space]
   const wc = tabID ? tabRuntime(c, tabID)?.contents : null
   if (!tabID || !wc || wc.isDestroyed()) return null
-  return zoomTab(tabID, wc, by === undefined ? undefined : by > 1 ? 'in' : 'out', !!reset)
+  return zoomTab(tabID, wc, by === undefined || by === 1 ? undefined : stepBy(wc.getZoomFactor(), by), !!reset)
 })
 
 // For the tests: Ctrl+wheel on the page in front, `count` events `gap` ms apart.

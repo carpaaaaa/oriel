@@ -105,7 +105,7 @@ t.ok(not edges()["peek"], "at the top it waits a moment (the way to the window's
 out = settle(lambda: edges()["peek"], "the strip out", within=2)
 strip = k.js("const e = document.querySelector('.fold-out.top .tabbar'); return e && e.getBoundingClientRect().height", root="overlay") if out else None
 region = edges()["region"]
-t.ok(out and strip and k.near(strip, 52) and region["height"] == 52 + 40 and region["width"] == v["width"] - 138,
+t.ok(out and strip and k.near(strip, 52) and region["height"] == 52 + 40 and region["width"] == v["width"] - b.window()["controlsWidth"],
      f"…then the strip comes down over the page, the window's buttons left in reach ({strip}, {region})")
 pointer(v["x"] + 300, v["y"] + 30)
 time.sleep(0.3)
@@ -225,11 +225,13 @@ setting("fold.loadingLine", False)
 b.cmd("tab.new", url="data:text/html,<title>other</title>other")
 time.sleep(0.5)
 b.cmd("tab.switch", by=1)
+# The overlay's page takes its new size when it next draws (a busy machine, a covered window: later).
+settle(lambda: b.ui("innerWidth", root="overlay") == edges()["region"]["width"], "the overlay at the window's size", within=4)
 veil = settle(lambda: k.js("const e = document.querySelector('.switcher'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, radius: getComputedStyle(e).borderTopLeftRadius }", root="overlay"), "the switcher", within=3)
 f = frame()
 m, vis = f["margin"], f["visual"]
 t.ok(veil and k.near(veil["x"], m["left"]) and k.near(veil["y"], m["top"]) and k.near(veil["w"], vis["width"]) and k.near(veil["h"], vis["height"]) and veil["radius"] == "17.5px",
-     f"the switcher's veil over the window drawn by Oriel, its corners, not the margin ({veil}, margin {m})")
+     f"the switcher's veil over the window drawn by Oriel, its corners, not the margin ({veil}, margin {m}, region {edges()['region']}, room {b.ui('JSON.stringify([innerWidth, innerHeight])', root='overlay')})")
 b.cmd("tab.switchEnd", cancel=True)
 
 pointer(None)

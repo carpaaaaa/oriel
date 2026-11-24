@@ -30,7 +30,12 @@ function ZoomPill(p: { layer: OverlayLayer }) {
   const data = () => (p.layer as { data?: { percent: number; tab: string; going?: boolean } }).data
   const still = () => !!state.prefs?.['motion.instant']
   onMount(() => {
-    if (!still()) el.animate([{ opacity: 0, transform: 'translate(-50%, 10px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], { ...curve(Springs.settle), fill: 'none' })
+    if (still()) return
+    const t = curve(Springs.settle)
+    const up = el.animate([{ opacity: 0, transform: 'translate(-50%, 10px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], { ...t, fill: 'none' })
+    // A view drawing no frames (covered, asleep) holds an animation at its
+    // start: the capsule would stay invisible. Past its time it is simply there.
+    setTimeout(() => { if (up.playState !== 'finished') up.cancel() }, t.duration + 100)
   })
   let fade: Animation | null = null
   createEffect(on(() => !!data()?.going, going => {
