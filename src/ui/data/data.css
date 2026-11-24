@@ -103,7 +103,7 @@
 .bt-line-detail { font-size: var(--fs-detail); color: var(--muted); margin-top: 2px; }
 .bt-line-control { display: flex; align-items: center; gap: 10px; flex: none; }
 .bt-steps { margin: 0 14px 12px; padding: 10px 12px; border-radius: 10px; background: var(--wash); font-size: var(--fs-detail); line-height: 1.4; }
-.bt-profile { font: inherit; font-size: 11.5px; color: var(--ink); background: var(--ground); border: var(--hairline-w) solid var(--hairline); border-radius: 999px; padding: 4px 10px; }
+/* .bt-profile: the app's Dropdown (lib/Dropdown.tsx, size small) */
 .bt-switch { width: 30px; height: 18px; flex: none; position: relative; border: 0; border-radius: 999px; background: var(--faint); padding: 0; cursor: default; transition: background var(--dur-settle) var(--ease-settle); }
 .bt-switch.bt-on { background: var(--ink); }
 .bt-switch.bt-none { opacity: .4; }

@@ -3,6 +3,7 @@
 
 import { createEffect, createSignal, For, onMount, Show, type JSX } from 'solid-js'
 import { Symbol } from './symbols'
+import { Dropdown } from '../lib/Dropdown'
 
 /** On or off, in ink rather than in blue: 30 × 18 (Settings.swift:1598). */
 export function Switch(p: { on: boolean; set: (on: boolean) => void; disabled?: boolean; label?: string }) {
@@ -88,14 +89,10 @@ export function Always(p: { text?: string }) {
   return <span class="st-always">{p.text ?? 'Always on'}</span>
 }
 
-/** A menu-style picker, its label hidden, as wide as its words. */
+/** A menu-style picker, its label hidden, as wide as its words: the app's
+ * own pop-up button and list (lib/Dropdown.tsx), never Windows' <select>. */
 export function Menu<T extends string | number>(p: { options: ([T, string] | null)[]; value: T; set: (v: T) => void; label?: string; width?: number }) {
-  return (
-    <select class="st-menu" aria-label={p.label} style={p.width ? { width: `${p.width}px` } : undefined}
-      onChange={e => { const raw = e.currentTarget.value; const o = p.options.find(x => x && String(x[0]) === raw); if (o) p.set(o[0]) }}>
-      <For each={p.options}>{o => (o ? <option value={String(o[0])} selected={o[0] === p.value}>{o[1]}</option> : <option disabled>──────────</option>)}</For>
-    </select>
-  )
+  return <Dropdown options={p.options} value={p.value} set={p.set} label={p.label} width={p.width} />
 }
 
 /** A group of rows, hairline between them (Plate.swift Card). */

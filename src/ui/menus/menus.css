@@ -8,8 +8,9 @@
   --menu-secondary: rgba(0, 0, 0, .5);
   --menu-off: rgba(0, 0, 0, .25);
   --menu-rule: rgba(0, 0, 0, .1);
-  /* the accent as a menu shows it: blended 42% with white (blue: 111 162 249) */
-  --menu-hot: rgb(111, 162, 249);
+  /* the row under the pointer: the app's own grey, never the system's blue
+     (the same as lib/dropdown.css) */
+  --menu-hot: rgba(0, 0, 0, .063);
   --menu-shadow: 0 10px 30px rgba(0, 0, 0, .16), 0 2px 6px rgba(0, 0, 0, .08);
 }
 :root[data-look="dark"] {
@@ -19,8 +20,7 @@
   --menu-secondary: rgba(255, 255, 255, .55);
   --menu-off: rgba(255, 255, 255, .25);
   --menu-rule: rgba(255, 255, 255, .12);
-  /* blended 15% with black */
-  --menu-hot: rgb(9, 112, 217);
+  --menu-hot: rgba(255, 255, 255, .09);
   --menu-shadow: 0 10px 30px rgba(0, 0, 0, .4), 0 2px 6px rgba(0, 0, 0, .2);
 }
 
@@ -38,21 +38,18 @@
 .menu.leaving { transition: opacity 150ms ease-out; opacity: 0; }
 .menu-item {
   position: relative; height: 24px; display: flex; align-items: center; padding: 0 17px;
-  margin: 0 5px; padding-left: 12px; padding-right: 12px; border-radius: 6px;
+  margin: 0 5px; padding-left: 12px; padding-right: 12px; border-radius: 7px; /* 12 − 5: concentric with the menu */
 }
 .menu.with-icons .menu-item { padding-left: 40px; }
 .menu.with-checks .menu-item { padding-left: 22px; }
 .menu.with-checks .menu-check { left: 5px; }
-.menu-item.hot:not(.off) { background: var(--menu-hot); color: #fff; }
+.menu-item.hot:not(.off) { background: var(--menu-hot); }
 .menu-item.off { color: var(--menu-off); }
 .menu-label { flex: 1; }
 .menu-accel { margin-left: 24px; color: var(--menu-secondary); }
-.menu-item.hot:not(.off) .menu-accel { color: rgba(255, 255, 255, .8); }
 .menu-more { margin-left: 18px; margin-right: -5px; color: var(--menu-secondary); }
-.menu-item.hot:not(.off) .menu-more { color: #fff; }
 .menu-check { position: absolute; left: 3px; }
 .menu-glyph { position: absolute; left: 18px; display: grid; place-items: center; width: 16px; height: 16px; color: var(--menu-secondary); }
-.menu-item.hot:not(.off) .menu-glyph { color: #fff !important; }
 .menu-sep { height: 11px; display: flex; align-items: center; margin: 0 16px; }
 .menu-sep::after { content: ""; flex: 1; height: 1px; background: var(--menu-rule); }
 .menu-header { height: 20px; display: flex; align-items: center; padding: 0 17px; font-size: 11px; font-weight: 600; color: var(--menu-secondary); }
