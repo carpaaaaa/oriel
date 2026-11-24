@@ -140,8 +140,10 @@ export class TabRuntime {
     const keep = model.keeps.get(this.id)
     model.keeps.delete(this.id)
     if (tab && !tab.internal && keep?.entries.length && !/^file:/i.test(tab.url)) {
+      // The page can be gone by the time this settles (closed or put back to
+      // sleep): touching a destroyed WebContents throws.
       wc.navigationHistory.restore({ entries: keep.entries, index: keep.index })
-        .catch(() => { if (tab.url) wc.loadURL(tab.url).catch(() => {}) })
+        .catch(() => { if (tab.url && !wc.isDestroyed()) wc.loadURL(tab.url).catch(() => {}) })
     } else if (tab?.url && !tab.empty && !tab.internal) {
       wc.loadURL(tab.url).catch(() => {})
     }
