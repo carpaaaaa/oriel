@@ -14,6 +14,7 @@ import type { Rect } from '../../shared/state'
 import { handle } from '../router'
 import { need } from '../context'
 import { runtimes } from '../views/tabs'
+import type { WindowController } from '../views/window'
 import { downloadsFolder } from '../settings/prefs'
 import { pref } from './facts'
 
@@ -92,6 +93,9 @@ export async function snap(wc: WebContents, c: Choice, shy: boolean): Promise<{ 
   return { said, path: file }
 }
 
+/** Other pointing modes stop before the layer comes up (Hide Elements, main/hide). */
+export const beforeCapture: ((c: WindowController) => void)[] = []
+
 /** Pages with the layer up now, and whether each is a private tab's. */
 const layered = new WeakSet<WebContents>()
 const layerShy = new WeakMap<WebContents, boolean>()
@@ -121,6 +125,7 @@ handle('view.capture', async ({ mode, rect }, ctx) => {
   }
   // The command again: the layer comes down.
   if (layered.has(wc)) { layered.delete(wc); await run('globalThis.__orielCapture && globalThis.__orielCapture.off()'); return { layer: false } }
+  for (const f of beforeCapture) f(c)
   layered.add(wc)
   layerShy.set(wc, shy)
   c.focusPage()

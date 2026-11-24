@@ -57,8 +57,13 @@ export const styleChanged: ((host: string) => void)[] = []
 import { handle } from '../router'
 import { need } from '../context'
 import { runtimes } from '../views/tabs'
+import type { WindowController } from '../views/window'
 import { hidePanel, showPanel } from '../settings/slice'
 import { hostOf } from './facts'
+
+/** Hide Elements puts its pointing and its list away first (main/hide;
+ * Browser.editSiteStyle). */
+export const beforeStyle: ((c: WindowController) => void)[] = []
 
 handle('view.style', ({ id }, ctx) => {
   const c = need(ctx)
@@ -67,6 +72,7 @@ handle('view.style', ({ id }, ctx) => {
   const rt = tab ? runtimes.get(tab) : undefined
   const host = hostOf(rt?.contents?.getURL() ?? (tab ? model.tabs.get(tab)?.url : ''))
   if (!rt?.view || !host || !/^https?:/i.test(rt.contents?.getURL() ?? '')) return { said: 'Only a website can have a style' }
+  for (const f of beforeStyle) f(c)
   const b = rt.view.getBounds()
   const width = Math.min(448, b.width), height = Math.min(340, b.height)
   showPanel(c, 'pages.style', { x: b.x + b.width - width, y: b.y, width, height }, { host: styleHost(host), css: writtenStyle(host) })

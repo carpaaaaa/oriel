@@ -12,3 +12,5 @@ import './persistence'
 import './pages'
 import './contextmenu'
 import './translate'
+// After the page menu: its Escape comes after Hide Elements' (hide/index.ts).
+import './hide'

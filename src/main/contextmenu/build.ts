@@ -23,6 +23,8 @@ export interface Facts {
   engines: { id: string; name: string }[]
   /** Languages from Settings, and the one the page is shown in (or null). */
   translate: { languages: { code: string; name: string }[]; translated: string | null } | null
+  /** Something under the click Hide Element can take off (main/hide). */
+  hideable?: boolean
   /** The key a command has now, when it is live ("Alt+Left"). */
   accel: (binding: string) => string | undefined
   /** Extensions' items, ready (chrome.contextMenus). */
@@ -182,6 +184,12 @@ export function buildMenu(p: Electron.ContextMenuParams, f: Facts): PageMenuEntr
     if (onPage && !f.internal && f.translate && web(p.pageURL)) groups.push(translateGroup(id, f.translate))
   }
 
+  // Hide Element (studio/01 §10.38): what the click is on, off this site at
+  // once and for good, as a click while pointing takes it. Its own group,
+  // above the page's tools; never in a text box, whose menu is for editing.
+  if (!f.internal && f.hideable && !p.isEditable) {
+    groups.push([{ label: 'Hide Element', act: { cmd: { do: 'hide.element', id, x: p.x, y: p.y } } }])
+  }
   // Inspect closes every menu but Oriel's own pages', as Chrome's does, with
   // View Page Source above it on the page itself.
   if (!f.internal) {

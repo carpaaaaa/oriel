@@ -20,7 +20,7 @@ k.world("ctxmenu-page", downloads=str(OUT))
 t = b.T()
 
 page = k.page("/ctx")
-WANT = ["Back (off)", "Forward (off)", "Reload", "—", "Save Page As…", "Print…", "—", "Translate to English", "—", "View Page Source", "Inspect"]
+WANT = ["Back (off)", "Forward (off)", "Reload", "—", "Save Page As…", "Print…", "—", "Translate to English", "—", "Hide Element", "—", "View Page Source", "Inspect"]
 
 at = k.right_click(page, "#empty", dy=30)
 t.ok(k.labels() == WANT, f"nothing under the click: the page's rows, in Chrome's order ({k.labels()})")

@@ -13,6 +13,7 @@ if (window.top === window) {
   require('./page/tabs')
   require('./page/pages')
   require('./page/translate')
+  require('./page/hide')
 } else {
   require('./page/frame')
 }

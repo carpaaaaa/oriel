@@ -20,7 +20,7 @@ WORDS = "Gentle words to pick from this page"
 page = k.page("/ctx")
 k.select(page, "#text")
 at = k.right_click(page, "#text", dx=40)
-WANT = ["Copy", "Copy Link to Highlight", "—", "Search “Gentle words to pick from this…”", "Search With ▸", "—", "Translate to English", "—", "Inspect"]
+WANT = ["Copy", "Copy Link to Highlight", "—", "Search “Gentle words to pick from this…”", "Search With ▸", "—", "Translate to English", "—", "Hide Element", "—", "Inspect"]
 t.ok(k.labels() == WANT, f"words selected: Copy, Search, Search With, in that order ({k.labels()})")
 t.ok(k.last()["menu"]["context"] == ["selection"], "its context is the selection")
 t.ok(k.entry("Copy")["accel"] == "Ctrl+C", "Copy says Ctrl+C")
