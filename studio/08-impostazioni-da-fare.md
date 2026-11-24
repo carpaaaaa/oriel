@@ -81,39 +81,39 @@ Elenco generato il 24 novembre 2026: chiavi delle Impostazioni (`src/ui/settings
 
 | Gruppo | Chiave | Voce | Stato |
 |---|---|---|---|
-| reading | `reader.twins` | Read the site's own Markdown | da fare |
-| reading | `reader.follows` | Reading mode follows light and dark | da fare |
-| video | `float.style` | The floating video | da fare |
-| video | `float.leave` | Float the video on its own | da fare |
-| video | `float.away` | Float the video on its own | da fare |
-| video | `float.minimize` | Minimize the floating video | da fare |
-| video | `media.click` | Videos wait for a click | da fare |
-| video | `fullscreen.escapeTwice` | Press Esc twice to leave full screen | da fare |
-| video | `fullscreen.keepsWindow` | Keep the window in use during full screen | da fare |
-| pages | `translate.target` | Translation language | da fare |
-| pages | `pages.capture` | Capture pages | da fare |
-| pages | `sites.styles` | Your own style for a site | da fare |
-| pages | `pages.120.mode` | Pages at 120 Hz | da fare |
-| pages | `pages.120` | Pages at 120 Hz | da fare |
-| blocking | `shield` | Block ads and trackers | da fare |
-| blocking | `sites.keep` | Prevent cross-site tracking | da fare |
-| blocking | `privacy.clickIDs` | Remove click trackers from links | da fare |
-| blocking | `privacy.gpc` | Tell sites not to sell or share your data | da fare |
-| blocking | `privacy.httpsFirst` | Try HTTPS first | da fare |
-| mouse | `links.peek` | Peek at a link | da fare |
-| mouse | `links.peekClick` | Peek at a link | da fare |
-| mouse | `links.peek.stays` | Peek stays with its tab | da fare |
-| mouse | `links.optionSplit` | ⌥-click a link opens it in Split View | da fare |
-| mouse | `autoscroll` | Scroll with the middle button | da fare |
-| mouse | `wheel.smooth` | Smooth scrolling with a mouse wheel | da fare |
-| mouse | `pages.bounce` | Bounce at the top and bottom | da fare |
-| mouse | `swipe.history` | Hold a swipe to pick from history | da fare |
-| developer | `agents` | Let coding agents use Search | da fare |
-| pages | `autocorrect` | Correct spelling as you type | da fare |
-| pages | `inlinePredictions` | Show inline predictions | da fare |
-| pages | `translate.pages` | Translate pages on this Mac | da fare |
-| mouse | `switcher.keys` | Keys in the tab switcher | da fare |
-| video | `float.flicks` | Flick the floating video to a corner | da fare |
+| reading | `reader.twins` | Read the site's own Markdown | fatto: copia Markdown dello stesso sito, renderer che fa escape (test/settings_c_reading.py) |
+| reading | `reader.follows` | Reading mode follows light and dark | fatto: chiaro/scuro con la finestra, selettore nell'angolo, `reader.look` (settings_c_reading) |
+| video | `float.style` | The floating video | fatto: finestra di Oriel (la vista si sposta) o PiP di Chromium (settings_c_video; PiP solo con ORIEL_PIP=1) |
+| video | `float.leave` | Float the video on its own | fatto: esce cambiando scheda, solo video sentito su siti di video (settings_c_video) |
+| video | `float.away` | Float the video on its own | vicino: esce quando nessuna finestra di Oriel ha il fuoco; manca il controllo "ancora visibile su un altro schermo" (settings_c_video) |
+| video | `float.minimize` | Minimize the floating video | fatto: pulsante che lo rimpicciolisce a 220 e lo riporta (settings_c_video) |
+| video | `media.click` | Videos wait for a click | fatto: play() della pagina rifiutato senza clic, autoplay fermo (settings_c_video); solo frame principale |
+| video | `fullscreen.escapeTwice` | Press Esc twice to leave full screen | vicino: Electron esce dallo schermo intero della pagina prima di ogni aggancio, quindi il primo Esc viene annullato rimettendo la pagina a schermo intero, col promemoria; finestra (F11) come sul Mac (settings_c_video) |
+| video | `fullscreen.keepsWindow` | Keep the window in use during full screen | tolta: Windows non ha un desktop proprio per l'app a schermo intero (già in catalog.ts) |
+| pages | `translate.target` | Translation language | tolta: nessun motore di traduzione sul dispositivo (già in catalog.ts) |
+| pages | `pages.capture` | Capture pages | fatto: area, elemento o pagina intera, copiata e salvata come PNG nei download (settings_c_peek) |
+| pages | `sites.styles` | Your own style for a site | fatto: Edit Site Style… (view.style), CSS per sito in styles.json, spento non si indossa (settings_c_peek) |
+| pages | `pages.120.mode` | Pages at 120 Hz | tolta: Chromium disegna già alla frequenza dello schermo (già in catalog.ts) |
+| pages | `pages.120` | Pages at 120 Hz | tolta: come sopra, chiave vecchia |
+| blocking | `shield` | Block ads and trackers | fatto: lista corta di Search come terze parti (rete, ordine 100), CSS cosmetico, YouTube; pausa per sito `shield.paused` (settings_c_blocking); CSS e script YouTube solo nel frame principale |
+| blocking | `sites.keep` | Prevent cross-site tracking | vicino: niente ITP in Chromium; acceso toglie Cookie e Set-Cookie alle richieste di terze parti (settings_c_blocking); `document.cookie` nei frame e la card Storage Access mancano |
+| blocking | `privacy.clickIDs` | Remove click trackers from links | fatto: gclid, fbclid… tolti prima del caricamento, utm_ restano, mai su indirizzi firmati (settings_c_blocking) |
+| blocking | `privacy.gpc` | Tell sites not to sell or share your data | fatto: Sec-GPC: 1 e navigator.globalPrivacyControl (settings_c_blocking) |
+| blocking | `privacy.httpsFirst` | Try HTTPS first | fatto: http provato in https, ritorno silenzioso a http, locali esclusi (settings_c_blocking) |
+| mouse | `links.peek` | Peek at a link | fatto: pannello sopra la pagina, Esc o clic fuori lo chiude, Ctrl+O lo tiene come scheda senza ricaricare (settings_c_peek) |
+| mouse | `links.peekClick` | Peek at a link | fatto: Shift, Alt+Shift, Ctrl+Alt (settings_c_peek) |
+| mouse | `links.peek.stays` | Peek stays with its tab | fatto: nascosto con suono in pausa su un'altra scheda, torna al ritorno (settings_c_peek) |
+| mouse | `links.optionSplit` | ⌥-click a link opens it in Split View | fatto: Alt-clic apre in Split View; spento segue il link come un clic (settings_c_mouse) |
+| mouse | `autoscroll` | Scroll with the middle button | fatto: script del Mac col segno; quello nativo di Chromium spento (settings_c_mouse) |
+| mouse | `wheel.smooth` | Smooth scrolling with a mouse wheel | vicino: animazione di scorrimento di Chromium, vale per le pagine create dopo il cambio (settings_c_mouse) |
+| mouse | `pages.bounce` | Bounce at the top and bottom | vicino: spento ferma l'elasticità (overscroll-behavior), acceso la lascia a Chromium; non verificabile a occhio sul Mac (settings_c_mouse) |
+| mouse | `swipe.history` | Hold a swipe to pick from history | tolta: Windows non dice a un'app inizio e fine di uno swipe del touchpad |
+| developer | `agents` | Let coding agents use Search | tolta per ora: il ponte per gli agenti (MCP su pipe locale, consenso, Stop) è da costruire; la riga torna con lui |
+| pages | `autocorrect` | Correct spelling as you type | vicino: correttore ortografico di Chromium per tutte le pagine (sottolinea e suggerisce, non corregge da solo) (settings_c_mouse) |
+| pages | `inlinePredictions` | Show inline predictions | tolta: Chromium non ha predizioni in linea (già in catalog.ts) |
+| pages | `translate.pages` | Translate pages on this Mac | tolta: nessuna traduzione sul dispositivo (già in catalog.ts, note.translate) |
+| mouse | `switcher.keys` | Keys in the tab switcher | fatto: Ctrl+W, Ctrl+R, Ctrl+M sulla carta del selettore (settings_c_mouse); Ctrl+O no, Oriel non ha finestrelle |
+| video | `float.flicks` | Flick the floating video to a corner | fatto: due dita sul touchpad lo lanciano nell'angolo (settings_c_video) |
 
 ## D. Altro (password, moduli, estensioni, ricerca, aggiornamenti, novità)
 

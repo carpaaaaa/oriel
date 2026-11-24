@@ -1,0 +1,86 @@
+/* The pages module's layers: the peek, the site style editor.
+   Measures from Peek.swift and SiteStyles.swift (studio/02). */
+
+.peek {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / .22);
+  animation: peek-in .18s ease-out;
+}
+@keyframes peek-in { from { opacity: 0 } }
+.peek-shadow {
+  position: absolute;
+  border-radius: 12px;
+  background: var(--ground);
+  box-shadow: 0 10px 30px rgb(0 0 0 / .25), 0 0 0 1px var(--hairline);
+  pointer-events: none;
+}
+.peek-knobs {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.peek-knob {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--ink);
+  background: var(--ground);
+  border: 1px solid var(--hairline);
+  cursor: default;
+}
+.peek-knob:hover { background: var(--hover); }
+
+/* Edit Site Style… (SiteStyles.swift StylePanel): a card under the strip. */
+.sitestyle {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 8px 14px;
+  pointer-events: none;
+}
+.sitestyle-card {
+  pointer-events: auto;
+  width: 420px;
+  max-width: calc(100vw - 28px);
+  background: var(--ground);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / .14);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font: 13px/1.3 var(--font, system-ui);
+}
+.sitestyle-title { font-weight: 600; font-size: 13px; }
+.sitestyle-caption { font-size: 11.5px; color: var(--muted); }
+.sitestyle-text {
+  height: 220px;
+  resize: vertical;
+  min-height: 120px;
+  font: 12px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color: var(--ink);
+  background: var(--wash);
+  border: 0;
+  border-radius: 10px;
+  padding: 8px;
+  outline: none;
+}
+.sitestyle-foot { display: flex; gap: 8px; }
+.sitestyle-foot button {
+  font: 11.5px/1 var(--font, system-ui);
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: var(--ground);
+  color: var(--ink);
+}
+.sitestyle-foot button.filled { background: var(--ink); color: var(--ground); border-color: var(--ink); }

@@ -74,6 +74,9 @@ export const removed: Record<string, string> = {
   'extensions.safariApps': 'Safari apps are the Mac\'s',
   'extensions.sites': 'Chromium in Electron runs content scripts as the manifest says, with no site access to change at runtime yet',
   'inlinePredictions': 'Chromium has no inline predictions',
+  // The pages module (studio/08 area C):
+  'swipe.history': 'Windows tells an app no start or end of a touchpad swipe',
+  'agents': 'no bridge for coding agents yet (studio/03 §8.2): back with it',
 }
 
 /** The Mac's keys as Windows has them (src/main/keys.ts's table). */
