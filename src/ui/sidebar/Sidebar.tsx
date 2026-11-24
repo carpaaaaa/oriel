@@ -80,6 +80,9 @@ function Helm(p: { vertical?: boolean }) {
         onClick={() => void cmd({ do: tab()?.loading ? 'tab.stop' : 'tab.reload' })}>
         {tab()?.loading ? <G.xmark pt={11} weight="medium" /> : <G.reload pt={11} weight="medium" />}
       </button>
+      <Show when={!p.vertical}>
+        <For each={outlet('sidebar.helm')}>{c => <Dynamic component={c} />}</For>
+      </Show>
     </div>
   )
 }
