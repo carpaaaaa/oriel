@@ -275,6 +275,14 @@ try:
         got = wait(lambda: (lambda p: p if any(TO in n for n in p) and "update-info.json" in p else None)(pending()), 300, 2)
         t.ok(got, f"…finds {TO} and downloads it")
         clear_screen()
+        # A fresh install's first launch offers to be the default browser (from
+        # 0.1.4); the update's popup waits for it to be put away, as it should.
+        offer = wait(lambda: find("Links from other apps."), 15, 1)
+        if offer:
+            x = find("Close")
+            if x:
+                click(x[0] + x[2] / 2, x[1] + x[3] / 2)
+                print("  the first launch's default-browser offer put away first")
         title = wait(lambda: find(f"Oriel {TO} is ready"), 60, 2)
         go = wait(lambda: find("Update and Restart"), 30, 1)
         t.ok(title and go, f"the popup over the window: Oriel {TO} is ready, Update and Restart ({title}, {go})")
