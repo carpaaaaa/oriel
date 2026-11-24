@@ -55,20 +55,26 @@ export function focusedController(): WindowController | undefined {
   return allControllers().find(c => c.base.isFocused()) ?? allControllers()[0]
 }
 
-/** A floating region kept where it belongs when the window changes size:
- * what spanned the window still spans it, what sat toward the right or the
- * bottom keeps its distance from that edge, a centred one stays centred,
- * and none is left outside the window. */
-export function follow(r: Rect, from: { width: number; height: number }, to: { width: number; height: number }): Rect {
-  const axis = (pos: number, size: number, was: number, now: number): [number, number] => {
+/** What the floating region is placed against: the window's content, and
+ * the part of it that is seen (a free window's shadow is around it; a
+ * maximized one reaches past the screen). */
+export interface Laid { width: number; height: number; seen: Rect }
+
+/** A floating region kept where it belongs when the window changes size or
+ * its shadow comes and goes: what spanned the window still spans it, what
+ * sat toward the right or the bottom of what is seen keeps its distance
+ * from that edge, a centred one stays centred, and none is left outside. */
+export function follow(r: Rect, from: Laid, to: Laid): Rect {
+  const axis = (pos: number, size: number, was: number, now: number, wasAt: number, wasSeen: number, nowAt: number, nowSeen: number): [number, number] => {
     if (pos <= 1 && size >= was - 1) return [0, now]
-    const mid = pos + size / 2
-    const p = Math.abs(mid - was / 2) <= 2 ? (now - size) / 2 : mid > was / 2 ? pos + now - was : pos
+    const rel = pos - wasAt, mid = rel + size / 2
+    const p = nowAt + (Math.abs(mid - wasSeen / 2) <= 2 ? (nowSeen - size) / 2 : mid > wasSeen / 2 ? rel + nowSeen - wasSeen : rel)
     const s = Math.min(size, now)
-    return [Math.round(Math.max(0, Math.min(p, now - s))), s]
+    const lo = s <= nowSeen ? nowAt : 0, hi = s <= nowSeen ? nowAt + nowSeen - s : now - s
+    return [Math.round(Math.max(lo, Math.min(p, hi))), s]
   }
-  const [x, width] = axis(r.x, r.width, from.width, to.width)
-  const [y, height] = axis(r.y, r.height, from.height, to.height)
+  const [x, width] = axis(r.x, r.width, from.width, to.width, from.seen.x, from.seen.width, to.seen.x, to.seen.width)
+  const [y, height] = axis(r.y, r.height, from.height, to.height, from.seen.y, from.seen.height, to.seen.y, to.seen.height)
   return { x, y, width, height }
 }
 
@@ -236,16 +242,28 @@ export class WindowController {
     // What floats over the page was placed for the window's size before:
     // into full screen, a maximize or a restore, it stayed where it was, and
     // the password question went off the screen's left or out of the window.
-    const was = this.laid
-    this.laid = { width, height }
-    if (this.overlayRect && was && (was.width !== width || was.height !== height)) this.overlayRect = follow(this.overlayRect, was, this.laid)
+    this.refollow()
     if (this.overlayRect) this.overlay.setBounds(this.overlayRect)
     const room = this.roomRect()
     if (room) this.room!.place(room)
   }
 
-  /** The content's size the floating region was last placed for. */
-  private laid: { width: number; height: number } | null = null
+  /** What the floating region was last placed for. */
+  private laid: Laid | null = null
+
+  private laidNow(): Laid {
+    const cb = this.base.getContentBounds(), v = this.frame.visual()
+    return { width: cb.width, height: cb.height, seen: { x: v.x - cb.x, y: v.y - cb.y, width: v.width, height: v.height } }
+  }
+
+  /** The floating region moved with the window, if the window changed since it was placed. */
+  refollow(): void {
+    const was = this.laid, now = this.laidNow()
+    this.laid = now
+    if (!this.overlayRect || !was) return
+    const same = was.width === now.width && was.height === now.height && was.seen.x === now.seen.x && was.seen.y === now.seen.y && was.seen.width === now.seen.width && was.seen.height === now.seen.height
+    if (!same) { this.overlayRect = follow(this.overlayRect, was, now); this.overlay.setBounds(this.overlayRect) }
+  }
 
   /** The interface measured where pages go. */
   setSlots(slots: { id: ID; rect: Rect; radius: number }[]): void {
@@ -264,6 +282,8 @@ export class WindowController {
    * before the interface measures it again. */
   shiftSlots(by: Insets): void {
     if (!by.top && !by.right && !by.bottom && !by.left) return
+    // The shadow came or went: what floats moves with what is seen.
+    setImmediate(() => { if (!this.base.isDestroyed()) this.refollow() })
     for (const slot of [...this.slots.values(), ...(this.room?.insets ? [{ insets: this.room.insets }] : [])]) {
       Object.assign(slot.insets, { top: slot.insets.top + by.top, right: slot.insets.right + by.right, bottom: slot.insets.bottom + by.bottom, left: slot.insets.left + by.left })
     }
@@ -389,8 +409,7 @@ export class WindowController {
   setOverlayRegion(rect: Rect | null, focus = false): void {
     this.overlayRect = rect && rect.width > 0 && rect.height > 0 ? rect : null
     // Placed for the window as it is now.
-    const now = this.base.getContentBounds()
-    this.laid = { width: now.width, height: now.height }
+    this.laid = this.laidNow()
     this.overlay.setBounds(this.overlayRect ?? { x: 0, y: 0, width: 0, height: 0 })
     if (this.overlayRect && focus) this.overlay.webContents.focus()
   }
