@@ -14,6 +14,8 @@ import { IPC } from '../../shared/ipc'
 import { model, type Slice, type WindowRecord } from '../model/model'
 import { chromeKind } from '../paths'
 import { runtimeFor, runtimes, type TabRuntime } from './tabs'
+import { Frame, cascadeFrom, frameColour, frameKind, overlayColours, windowOptions } from '../window/frame'
+import type { Insets } from '../../shared/modules/window'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const uiPreload = path.join(here, '../preload/ui.cjs')
@@ -24,6 +26,10 @@ const uiPage = path.join(here, '../ui/index.html')
 interface Slot { insets: { left: number; top: number; right: number; bottom: number }; radius: number }
 
 const controllers = new Map<ID, WindowController>()
+/** Modules hear of each page the first time it comes on screen (zoom). */
+export const pageAttached: ((id: ID, contents: Electron.WebContents) => void)[] = []
+/** Pages whose focus is already watched (a click in a page of a split gives it the keys). */
+const watched = new WeakSet<Electron.WebContents>()
 
 /** Modules add parts of the window's state without touching this file:
  * registerSlice('downloads', c => ...). Send a part again with c.mark(key). */
@@ -41,6 +47,7 @@ export class WindowController {
   readonly ui: WebContentsView
   readonly overlay: WebContentsView
   readonly chrome = chromeKind()
+  readonly frame: Frame
   private slots = new Map<ID, Slot>()
   private shown = new Set<ID>()
   private rev = 0
@@ -48,24 +55,17 @@ export class WindowController {
   private flushTimer: NodeJS.Timeout | null = null
   private overlayRect: Rect | null = null
   overlayLayer: OverlayLayer = { kind: 'none' }
+  private room: { side: 'left' | 'right'; width: number; place: (rect: Rect | null) => void; insets?: Slot['insets'] } | null = null
 
   constructor(readonly record: WindowRecord, readonly pageSession: Session) {
     const dark = nativeTheme.shouldUseDarkColors
-    const frame = dark ? '#131313' : '#F4F4F4'
-    const windows = this.chrome === 'windows'
-    this.base = new BaseWindow({
-      width: 1180,
-      height: 780,
-      minWidth: 400,
-      minHeight: 300,
-      show: false,
-      backgroundColor: frame,
-      titleBarStyle: 'hidden',
-      ...(process.platform === 'darwin'
-        ? { trafficLightPosition: { x: 19, y: 19 } }
-        : { titleBarOverlay: { color: frame, symbolColor: dark ? '#EDEDED' : '#171717', height: 52 } }),
-    })
-    if (process.platform === 'darwin' && windows) this.base.setWindowButtonVisibility(false)
+    const kind = frameKind(this.chrome)
+    const front = focusedController()
+    this.base = new BaseWindow({ ...windowOptions(kind, dark), ...cascadeFrom(front && !front.base.isFullScreen() ? { kind: front.frame.kind, visual: front.frame.normalVisual() } : null, kind) })
+    // Developing the Windows look on a Mac with Windows' frame: our buttons.
+    if (process.platform === 'darwin' && kind === 'native') this.base.setWindowButtonVisibility(false)
+    this.frame = new Frame(this, kind)
+    const ground = kind === 'drawn' ? '#00000000' : frameColour(dark)
 
     const uiPrefs = (root: string) => ({
       preload: uiPreload,
@@ -76,7 +76,7 @@ export class WindowController {
       backgroundThrottling: false,
     })
     this.ui = new WebContentsView({ webPreferences: uiPrefs('chrome') })
-    this.ui.setBackgroundColor(frame)
+    this.ui.setBackgroundColor(ground)
     this.overlay = new WebContentsView({ webPreferences: uiPrefs('overlay') })
     this.overlay.setBackgroundColor('#00000000')
     this.base.contentView.addChildView(this.ui)
@@ -87,11 +87,12 @@ export class WindowController {
     this.ui.webContents.once('did-finish-load', () => { if (!this.base.isVisible()) this.base.show() })
 
     this.layout()
-    this.base.on('resize', () => this.layout())
-    this.base.on('maximize', () => this.mark('window'))
-    this.base.on('unmaximize', () => this.mark('window'))
-    this.base.on('enter-full-screen', () => this.mark('window'))
-    this.base.on('leave-full-screen', () => this.mark('window'))
+    // The frame is read again first, so the margin is right before the pages move.
+    this.base.on('resize', () => { this.frame.refresh(); this.layout() })
+    this.base.on('moved', () => this.frame.refresh())
+    for (const e of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'restore'] as const) {
+      this.base.on(e as 'maximize', () => { this.frame.refresh(); this.mark('window') })
+    }
     this.base.on('focus', () => this.mark('window'))
     this.base.on('blur', () => this.mark('window'))
     this.base.on('closed', () => {
@@ -107,9 +108,8 @@ export class WindowController {
 
   private onTheme = () => {
     const dark = nativeTheme.shouldUseDarkColors
-    const frame = dark ? '#131313' : '#F4F4F4'
-    this.ui.setBackgroundColor(frame)
-    if (process.platform !== 'darwin') this.base.setTitleBarOverlay({ color: frame, symbolColor: dark ? '#EDEDED' : '#171717' })
+    if (this.frame.kind !== 'drawn') this.ui.setBackgroundColor(frameColour(dark))
+    if (this.frame.kind === 'native' && process.platform !== 'darwin') this.base.setTitleBarOverlay(overlayColours(dark))
     this.mark('window')
   }
 
@@ -119,7 +119,13 @@ export class WindowController {
   mark(slice: Slice | 'window' | (string & {})): void {
     this.dirty.add(slice)
     if (!this.flushTimer) this.flushTimer = setTimeout(() => this.flush(), 0)
-    if (slice === 'activeID' || slice === 'space' || slice === 'tabs') this.placePages()
+    if (slice === 'activeID' || slice === 'space' || slice === 'tabs' || slice === 'splits') this.placePages()
+  }
+
+  /** Send a part at once, not on the next tick (the frame, before pages move). */
+  push(slice: string): void {
+    this.dirty.add(slice)
+    this.flush()
   }
 
   private flush(): void {
@@ -147,8 +153,8 @@ export class WindowController {
       look: nativeTheme.shouldUseDarkColors ? 'dark' : 'light',
       focused: this.base.isFocused(),
       maximized: this.base.isMaximized(),
-      fullScreen: this.base.isFullScreen(),
-      controlsWidth: this.chrome === 'windows' ? 138 : 0,
+      fullScreen: this.frame.isFullScreen(),
+      controlsWidth: this.chrome === 'windows' && !this.frame.isFullScreen() ? 138 : 0,
       space: r.space,
       spaces: model.spaces,
       tabs: model.spaceTabs(r).map(id => model.tabs.get(id)!).filter(Boolean).map(({ home, touched, letGo, ...view }) => view),
@@ -186,6 +192,8 @@ export class WindowController {
     this.ui.setBounds({ x: 0, y: 0, width, height })
     for (const id of this.shown) this.placeOne(id)
     if (this.overlayRect) this.overlay.setBounds(this.overlayRect)
+    const room = this.roomRect()
+    if (room) this.room!.place(room)
   }
 
   /** The interface measured where pages go. */
@@ -201,6 +209,15 @@ export class WindowController {
     this.placePages()
   }
 
+  /** The margin around the window changed: the card moves with it at once,
+   * before the interface measures it again. */
+  shiftSlots(by: Insets): void {
+    if (!by.top && !by.right && !by.bottom && !by.left) return
+    for (const slot of [...this.slots.values(), ...(this.room?.insets ? [{ insets: this.room.insets }] : [])]) {
+      Object.assign(slot.insets, { top: slot.insets.top + by.top, right: slot.insets.right + by.right, bottom: slot.insets.bottom + by.bottom, left: slot.insets.left + by.left })
+    }
+  }
+
   private rectFor(id: ID): Rect | null {
     const slot = this.slots.get(id)
     if (!slot) return null
@@ -214,7 +231,8 @@ export class WindowController {
     const want = new Set<ID>()
     for (const id of this.slots.keys()) {
       const tab = model.tabs.get(id)
-      if (tab && !tab.empty && model.spaceTabs(this.record).includes(id)) want.add(id)
+      // Only what the model has on screen: the tab in front and its split.
+      if (tab && !tab.empty && model.onScreen(id)) want.add(id)
     }
     for (const id of [...this.shown]) {
       if (want.has(id)) continue
@@ -225,6 +243,15 @@ export class WindowController {
     for (const id of want) {
       const rt = runtimeFor(id, this.pageSession)
       const view = rt.ensure()
+      if (!watched.has(view.webContents)) {
+        watched.add(view.webContents)
+        // studio/01 §8.16: a click (or Tab) in a page of a split gives it the keys.
+        view.webContents.on('focus', () => {
+          const r = this.record
+          if (r.active[r.space] !== id && r.splits.some(s => s.tabs.includes(id))) model.selectTab(r, id)
+        })
+        for (const f of pageAttached) f(id, view.webContents)
+      }
       if (!this.shown.has(id)) {
         // Under the overlay, above the interface.
         this.base.contentView.addChildView(view, this.base.contentView.children.indexOf(this.overlay))
@@ -240,6 +267,42 @@ export class WindowController {
     if (!rt?.view || !rect) return
     rt.view.setBounds(rect)
     rt.view.setBorderRadius(Math.round(this.slots.get(id)?.radius ?? 0))
+  }
+
+  /** Room beside the page for another view (the extensions' side panel,
+   * studio/02 §4.1): the card gets narrower on that side and `place` is
+   * told where the room is, now and whenever it moves; null gives it back
+   * (and `place` hears null). */
+  setSideRoom(room: { side: 'left' | 'right'; width: number; place: (rect: Rect | null) => void } | null): void {
+    const before = this.room
+    if (before && (!room || room.place !== before.place)) before.place(null)
+    this.room = room ? { ...room, insets: before?.place === room.place ? before.insets : undefined } : null
+    this.push('room')
+  }
+
+  sideRoom(): { side: 'left' | 'right'; width: number } | null {
+    return this.room ? { side: this.room.side, width: this.room.width } : null
+  }
+
+  /** The interface measured the room. */
+  placeRoom(rect: Rect | null): void {
+    if (!this.room) return
+    if (!rect) { this.room.insets = undefined; return }
+    const { width, height } = this.base.getContentBounds()
+    this.room.insets = { left: rect.x, top: rect.y, right: width - rect.x - rect.width, bottom: height - rect.y - rect.height }
+    this.room.place(this.roomRect())
+  }
+
+  private roomRect(): Rect | null {
+    const i = this.room?.insets
+    if (!i) return null
+    const { width, height } = this.base.getContentBounds()
+    return { x: Math.round(i.left), y: Math.round(i.top), width: Math.max(0, Math.round(width - i.left - i.right)), height: Math.max(0, Math.round(height - i.top - i.bottom)) }
+  }
+
+  /** Where the pages on screen are (for the tests). */
+  pageBounds(): { id: ID; rect: Rect }[] {
+    return [...this.shown].map(id => ({ id, rect: runtimes.get(id)?.view?.getBounds() })).filter((p): p is { id: ID; rect: Rect } => !!p.rect)
   }
 
   setOverlayRegion(rect: Rect | null, focus = false): void {

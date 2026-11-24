@@ -3,20 +3,34 @@
 * { box-sizing: border-box; margin: 0; }
 html, body, #root { height: 100%; overflow: hidden; }
 html { font-family: var(--font-ui); letter-spacing: var(--tracking-ui); font-size: var(--fs-body); color: var(--ink); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; user-select: none; cursor: default; }
-html[data-root="chrome"] body { background: var(--frame); }
+/* The window paints itself (.window); around it the view is clear. */
+html[data-root="chrome"] body { background: transparent; }
 html[data-root="overlay"] body { background: transparent; }
 button:focus, input:focus { outline: none; }
 button:focus-visible { outline: 2px solid rgb(var(--ink-rgb) / .35); outline-offset: 1px; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
 button:disabled { opacity: .35; }
 input { font: inherit; color: inherit; background: none; border: 0; outline: none; }
-.drag { -webkit-app-region: drag; }
+/* With Windows' frame or the Mac's, the system moves the window from these;
+   with the frame Search draws, chrome/frame.ts does (the page keeps hearing
+   double clicks, right clicks and dropped links). */
+:root:not([data-frame="drawn"]) .drag { -webkit-app-region: drag; }
 .drag button, .drag input { -webkit-app-region: no-drag; }
 
-/* window */
-.window { position: relative; height: 100%; background: var(--frame); }
-.top-strip { position: absolute; left: var(--side); right: 0; top: 0; height: var(--top, var(--card-gap)); -webkit-app-region: drag; }
-.window.windows { --top: 40px; }
+/* the window (studio/02 §4.1, §4.7, §4.8; the frame in window/frame.ts) */
+.frame { position: absolute; inset: 0; }
+.window { position: absolute; inset: 0; background: var(--frame); border-radius: var(--window-radius); overflow: hidden; }
+:root:not([data-frame="drawn"]) .window { border-radius: 0; }
+:root[data-frame="drawn"] .window { inset: var(--m-top) var(--m-right) var(--m-bottom) var(--m-left); box-shadow: var(--window-shadow); }
+:root[data-frame="drawn"] .window.blurred { box-shadow: var(--window-shadow-rest); }
+:root[data-frame="drawn"]:not([data-state="free"]) .window { box-shadow: none; }
+/* a light inner edge in dark, as macOS draws it */
+:root[data-frame="drawn"] .window::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 .5px var(--window-inner-edge); pointer-events: none; z-index: 20; }
+:root[data-frame="drawn"]:not([data-state="free"]) .window::after { display: none; }
+
+.top-strip { position: absolute; left: var(--side); right: 0; top: 0; height: var(--top, var(--card-gap)); }
+:root:not([data-frame="drawn"]) .top-strip { -webkit-app-region: drag; }
+.window.windows { --top: var(--caption-height); }
 
 /* the page's card: the page view is laid exactly over it, with the same radius */
 .card {
@@ -25,13 +39,66 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
   box-shadow: 0 0 0 1px var(--card-edge), var(--card-shadow);
 }
 .window:not(:has(.sidebar)) .card { left: var(--card-gap); }
+/* studio/01 §1.22: in full screen the page goes edge to edge, unless "Keep
+   the card in full screen" is on; the room for the buttons goes too. */
+:root[data-state="fullScreen"] .window.windows { --top: var(--card-gap); }
+:root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .card { top: 0; right: 0; bottom: 0; border-radius: 0; box-shadow: none; }
+:root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .window:not(:has(.sidebar)) .card { left: 0; }
 
-/* Windows caption buttons, drawn only when developing on a Mac (Windows draws its own) */
-.caption-buttons { position: absolute; top: 0; right: 0; height: 40px; display: flex; -webkit-app-region: no-drag; }
-.caption-buttons button { width: 46px; height: 40px; display: grid; place-items: center; color: var(--ink); }
-.caption-buttons button:hover { background: var(--g-hover); }
-.caption-buttons button.close:hover { background: #C42B1C; color: #fff; }
-.blurred .caption-buttons button { color: var(--muted); }
+/* Windows 11 caption buttons, drawn by Search: 46 wide, the close one red;
+   with the native frame they are Windows' own (drawn here only on a Mac). */
+.caption-buttons { position: absolute; top: 0; right: 0; height: var(--caption-height); display: flex; z-index: 10; }
+.caption-buttons button { width: var(--caption-width); height: var(--caption-height); display: grid; place-items: center; color: var(--ink); transition: background-color 83ms linear, color 83ms linear; }
+.caption-buttons button:hover { background: var(--caption-hover); }
+.caption-buttons button:active { background: var(--caption-press); }
+.caption-buttons button.close:hover { background: var(--caption-close); color: #fff; }
+.caption-buttons button.close:active { background: var(--caption-close-press); color: rgba(255,255,255,.7); }
+.blurred .caption-buttons button:not(:hover) { color: var(--caption-rest); }
+/* the minimize line on a whole pixel */
+.caption-buttons .minimize svg { transform: translateY(.5px); }
+
+/* Grips: resizing starts just outside and just inside the visible edge. */
+.grips { position: absolute; inset: var(--m-top) var(--m-right) var(--m-bottom) var(--m-left); pointer-events: none; z-index: 30; }
+.grips > div { position: absolute; pointer-events: auto; }
+.grip-top, .grip-bottom { left: var(--grip-corner); right: var(--grip-corner); height: calc(var(--grip-out) + var(--grip-in)); cursor: ns-resize; }
+.grip-top { top: calc(-1 * var(--grip-out)); }
+.grip-bottom { bottom: calc(-1 * var(--grip-out)); }
+.grip-left, .grip-right { top: var(--grip-corner); bottom: var(--grip-corner); width: calc(var(--grip-out) + var(--grip-in)); cursor: ew-resize; }
+.grip-left { left: calc(-1 * var(--grip-out)); }
+.grip-right { right: calc(-1 * var(--grip-out)); }
+.grip-top-left, .grip-top-right, .grip-bottom-left, .grip-bottom-right { width: calc(var(--grip-out) + var(--grip-corner)); height: calc(var(--grip-out) + var(--grip-corner)); }
+.grip-top-left { left: calc(-1 * var(--grip-out)); top: calc(-1 * var(--grip-out)); cursor: nwse-resize; }
+.grip-bottom-right { right: calc(-1 * var(--grip-out)); bottom: calc(-1 * var(--grip-out)); cursor: nwse-resize; }
+.grip-top-right { right: calc(-1 * var(--grip-out)); top: calc(-1 * var(--grip-out)); cursor: nesw-resize; }
+.grip-bottom-left { left: calc(-1 * var(--grip-out)); bottom: calc(-1 * var(--grip-out)); cursor: nesw-resize; }
+/* Corners are diagonal bands: only the part along the rounded corner takes the press. */
+.grip-top-left { clip-path: polygon(0 0, 100% 0, 100% calc(var(--grip-out) + var(--grip-in)), calc(var(--grip-out) + var(--grip-in)) 100%, 0 100%); }
+.grip-top-right { clip-path: polygon(0 0, 100% 0, 100% 100%, calc(100% - var(--grip-out) - var(--grip-in)) 100%, 0 calc(var(--grip-out) + var(--grip-in))); }
+.grip-bottom-left { clip-path: polygon(0 0, calc(var(--grip-out) + var(--grip-in)) 0, 100% calc(100% - var(--grip-out) - var(--grip-in)), 100% 100%, 0 100%); }
+.grip-bottom-right { clip-path: polygon(calc(100% - var(--grip-out) - var(--grip-in)) 0, 100% 0, 100% 100%, 0 100%, 0 calc(100% - var(--grip-out) - var(--grip-in))); }
+
+/* Room beside the page (the extensions' side panel, studio/02 §4.1: 300 to
+   640, at least 320 of page beside it, never under 240): the card gets
+   narrower on that side, the room takes the place with the same gap. */
+.window { --room-w: max(240px, min(var(--room), calc(100% - var(--side) - var(--card-gap) * 2 - 320px))); }
+.window.room-right .card { right: calc(var(--card-gap) * 2 + var(--room-w)); }
+.window.room-left .card { left: calc(var(--side) + var(--room-w) + var(--card-gap)); }
+.side-room { position: absolute; top: var(--top, var(--card-gap)); bottom: var(--card-gap); width: var(--room-w); border-radius: var(--card-radius); pointer-events: none; }
+.window.room-right .side-room { right: var(--card-gap); }
+.window.room-left .side-room { left: var(--side); }
+:root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .side-room { top: 0; bottom: 0; }
+
+/* Split View (studio/01 §8.13, §8.14): each page a card, a 7 pt gutter, a
+   divider with a pill that lights after a short stay. */
+.card.stage { background: transparent; box-shadow: none; border-radius: 0; }
+.pane { position: absolute; top: 0; bottom: 0; border-radius: var(--card-radius); background: var(--ground); box-shadow: 0 0 0 1px var(--card-edge), var(--card-shadow); }
+.divider { position: absolute; top: 0; bottom: 0; width: 7px; cursor: col-resize; display: grid; place-items: center; -webkit-app-region: no-drag; }
+.divider .pill { width: var(--grip-w); height: var(--grip-rest); border-radius: calc(var(--grip-w) / 2); background: var(--faint); transition: height var(--dur-quick) var(--ease-quick), background-color var(--dur-quick) var(--ease-quick); }
+.divider:hover .pill { transition-delay: 100ms; }
+.divider:hover .pill, .divider.held .pill { height: var(--grip-lit); background: var(--muted); }
+:root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .card.stage { background: var(--ground); }
+:root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .pane { border-radius: 0; box-shadow: none; }
+:root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .divider::before { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 1px; background: var(--hairline); }
 
 .error-page { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 10px; }
 .error-page h1 { font-size: var(--fs-panel-title); font-weight: 600; }
