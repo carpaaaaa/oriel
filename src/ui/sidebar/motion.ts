@@ -27,15 +27,25 @@ export class Chase {
     private frame: (b: Box) => void, private done: () => void) {
     this.pos = [start.x, start.y, start.w, start.h]
   }
+  private timer = 0
   start(): void {
     if (reducedMotion()) { const g = this.goal(); if (g) this.frame(g); this.done(); return }
     this.last = performance.now()
-    this.raf = requestAnimationFrame(this.step)
+    this.next()
   }
-  stop(): void { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0 }
+  /** The next frame; with none for 0.05 s (a window not drawn), a timer at
+   * 1/30 s, as the Mac's own glide falls back (SpaceSwipe.swift). */
+  private next(): void {
+    this.raf = requestAnimationFrame(this.step)
+    clearTimeout(this.timer)
+    this.timer = window.setTimeout(() => { if (this.raf) { cancelAnimationFrame(this.raf); this.step(performance.now()) } }, 50)
+  }
+  stop(): void { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; clearTimeout(this.timer) }
   private step = (now: number) => {
+    clearTimeout(this.timer)
     const g = this.goal()
     if (!g) { this.stop(); this.done(); return }
+    this.raf = this.raf || 1
     const goal = [g.x, g.y, g.w, g.h]
     const k = (2 * Math.PI / this.spec.response) ** 2
     const c = (4 * Math.PI * this.spec.damping) / this.spec.response
@@ -57,7 +67,7 @@ export class Chase {
     }
     if (!moving) this.pos = goal
     this.frame({ x: this.pos[0], y: this.pos[1], w: this.pos[2], h: this.pos[3] })
-    if (moving) this.raf = requestAnimationFrame(this.step)
+    if (moving) this.next()
     else { this.raf = 0; this.done() }
   }
 }
