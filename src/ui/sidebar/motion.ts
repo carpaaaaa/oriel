@@ -2,7 +2,7 @@
 // with SwiftUI's maths, in CSS (linear()) for what CSS carries and per
 // frame for what follows a moving target (the grey that glides, §5.12).
 
-import { Springs, springCSS, reducedMotion, type SpringSpec } from '../../shared/spring'
+import { Springs, springCSS, reducedMotion, lightMotion, type SpringSpec } from '../../shared/spring'
 
 export { Springs, reducedMotion }
 
@@ -11,7 +11,10 @@ const curves = new Map<SpringSpec, { duration: number; easing: string }>()
 export function curve(spec: SpringSpec): { duration: number; easing: string } {
   let c = curves.get(spec)
   if (!c) { c = springCSS(spec, 48); curves.set(spec, c) }
-  return reducedMotion() ? { duration: 0, easing: 'linear' } : c
+  if (reducedMotion()) return { duration: 0, easing: 'linear' }
+  // Saving power: Motion.glide and .settle are easeOut 0.16 (Design.swift).
+  if (lightMotion() && (spec === Springs.glide || spec === Springs.settle)) return { duration: 160, easing: 'cubic-bezier(0, 0, .58, 1)' }
+  return c
 }
 
 export interface Box { x: number; y: number; w: number; h: number }

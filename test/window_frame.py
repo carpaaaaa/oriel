@@ -86,11 +86,17 @@ t.ok("44px" in d["shadow"] or "26px" in d["shadow"], "the window has its own sha
 c = d["card"]
 t.ok(near(w["x"] + w["width"] - (c["x"] + c["width"]), 8) and near(w["y"] + w["height"] - (c["y"] + c["height"]), 8), "card 8 from the right and the bottom")
 t.ok(d["cardRadius"] == "10px", "card radius 10 (%s)" % d["cardRadius"])
-t.ok(near(c["y"] - w["y"], 40), "card under the caption buttons (40)")
+# Window buttons (window.buttons): Inline by default, the page under the band
+# of 52 with the doors in its middle; Classic, under the 40 of Windows' places.
+style = b.ui("document.querySelector('.window > .caption-buttons')?.dataset.style")
+t.ok(near(c["y"] - w["y"], 52 if style == "inline" else 40), "card under the window's buttons (%s: %s)" % (style, c["y"] - w["y"]))
 pages = f["pages"]
 t.ok(len(pages) == 1 and all(near(pages[0]["rect"][k], round(c[k])) for k in ("x", "y", "width", "height")), "the page lies on the card (%s)" % (pages and pages[0]["rect"]))
 bt = d["buttons"]
-t.ok(bt and near(bt["width"], 138) and near(bt["x"] + bt["width"], w["x"] + w["width"]) and near(bt["y"], w["y"]), "three caption buttons of 46 in the top right corner")
+if style == "inline":
+    t.ok(bt and near(bt["width"], 3 * 26 + 2 * 4) and near(bt["x"] + bt["width"], w["x"] + w["width"] - 10) and near(bt["y"], w["y"] + 13), "three doors in the top right, 10 in, on the band's middle")
+else:
+    t.ok(bt and near(bt["width"], 138) and near(bt["x"] + bt["width"], w["x"] + w["width"]) and near(bt["y"], w["y"]), "three caption buttons of 46 in the top right corner")
 g = d["gripRight"]
 t.ok(near(g["x"], w["x"] + w["width"] - 4) and near(g["width"], 12), "the right grip is 8 outside and 4 inside the edge")
 gt = d["gripTop"]

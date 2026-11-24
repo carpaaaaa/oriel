@@ -22,6 +22,14 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# Windows consoles default to a code page that can't print every character a
+# test names (accents, ellipses): write UTF-8 everywhere.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 WORLD = "bench"
 PROC = None
 IS_WIN = sys.platform == "win32"
@@ -135,12 +143,20 @@ def shot(path):
         return None
 
 
-def key(k, *mods):
-    return call({"do": "key", "key": k, "modifiers": list(mods)})
+def key(k, *mods, phase=None):
+    """phase 'down' or 'up': the key held, or let go of, alone."""
+    req = {"do": "key", "key": k, "modifiers": list(mods)}
+    if phase:
+        req["phase"] = phase
+    return call(req)
 
 
-def mouse(x, y, button="left", clicks=1):
-    return call({"do": "mouse", "x": x, "y": y, "button": button, "clicks": clicks})
+def mouse(x, y, button="left", clicks=1, phase=None):
+    """phase 'down' or 'up': the button held, or let go of, alone."""
+    req = {"do": "mouse", "x": x, "y": y, "button": button, "clicks": clicks}
+    if phase:
+        req["phase"] = phase
+    return call(req)
 
 
 def window():

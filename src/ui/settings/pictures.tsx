@@ -75,3 +75,46 @@ export function LookPicture(p: { look: 'light' | 'dark' | 'system' }) {
     </span>
   )
 }
+
+/** Window buttons (chrome/Buttons.tsx): the window's top in small, the
+ * column's rows on the left, the pointer on close. Inline: three doors on
+ * the band's middle, close a soft red; Classic: Windows' places in the
+ * corner, close in full red. */
+export function ButtonsPicture(p: { style: 'inline' | 'classic' }) {
+  const stroke = { fill: 'none', stroke: 'currentColor', 'stroke-width': '1.7', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' } as const
+  const glyph = (name: 'min' | 'max' | 'close', size: number) => (
+    <svg width={size} height={size} viewBox="0 0 10 10" style={{ display: 'block' }}>
+      {name === 'min' ? <path d="M1 5h8" {...stroke} /> : name === 'max' ? <rect x="1.2" y="1.2" width="7.6" height="7.6" rx="2" {...stroke} /> : <path d="m1.5 1.5 7 7m0-7-7 7" {...stroke} />}
+    </svg>
+  )
+  const inline = p.style === 'inline'
+  const top = inline ? 19 : 14
+  return (
+    <span class="mini" style={{ position: 'relative', padding: '0', display: 'block', background: 'var(--wash)' }}>
+      <span style={{ position: 'absolute', left: '5px', top: `${top + 2}px`, display: 'flex', 'flex-direction': 'column', gap: '3px' }}>
+        {cap(14, 3.5, ink(0.55))}{cap(14, 3.5, ink(0.22))}{cap(10, 3.5, ink(0.22))}
+      </span>
+      <span style={{ position: 'absolute', left: '5px', top: inline ? '8px' : '6px', display: 'flex', gap: '2px' }}>
+        {[0, 1, 2].map(() => <i style={{ width: '2.5px', height: '2.5px', 'border-radius': '50%', background: ink(0.3), display: 'block' }} />)}
+      </span>
+      {inline ? (
+        <span style={{ position: 'absolute', right: '4px', top: '5px', display: 'flex', gap: '2px' }}>
+          {(['min', 'max', 'close'] as const).map(n => (
+            <span style={{ width: '9px', height: '9px', 'border-radius': '3px', display: 'grid', 'place-items': 'center',
+              background: n === 'close' ? 'rgba(196, 43, 28, .16)' : 'transparent', color: n === 'close' ? '#C42B1C' : 'var(--muted)' }}>{glyph(n, 5)}</span>
+          ))}
+        </span>
+      ) : (
+        <span style={{ position: 'absolute', right: '0', top: '0', display: 'flex' }}>
+          {(['min', 'max', 'close'] as const).map(n => (
+            <span style={{ width: '10px', height: '12px', display: 'grid', 'place-items': 'center', color: n === 'close' ? '#fff' : 'var(--muted)', position: 'relative' }}>
+              {n === 'close' ? <i style={{ position: 'absolute', inset: '1.5px', 'border-radius': '2px 4px 2px 2px', background: '#C42B1C', display: 'block' }} /> : null}
+              <span style={{ position: 'relative' }}>{glyph(n, 4)}</span>
+            </span>
+          ))}
+        </span>
+      )}
+      <span style={{ position: 'absolute', left: '23px', right: '3px', top: `${top}px`, bottom: '-4px', 'border-radius': '4px', background: 'var(--ground)', 'box-shadow': '0 .5px 3px rgba(0,0,0,.12)' }} />
+    </span>
+  )
+}

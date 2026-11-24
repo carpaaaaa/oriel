@@ -12,7 +12,7 @@ import { announce, call, onUpdate, said } from './bridge'
 import { blocks, find, groupOf, groups, groupsOf, itemOf, items, itemsIn, pageNamed, pageOf, pageOfItem, pages, type Item, type PageID } from './catalog'
 import { Always, Card, GroupBlock, Hunt, Line, Menu, Nothing, Pictures, Pill, Segmented, SettingRow, Steps, Switch, Ticks } from './controls'
 import { Symbol } from './symbols'
-import { CardPicture, LayoutPicture, LookPicture } from './pictures'
+import { ButtonsPicture, CardPicture, LayoutPicture, LookPicture } from './pictures'
 import { PermissionSites, PopupSites } from './PermissionSites'
 import { searchSiteList } from '../../shared/modules/field'
 import { MENU_DEFAULT, MENU_KEY } from '../../shared/modules/translate'
@@ -222,6 +222,8 @@ function control(i: Item): JSX.Element {
         <Show when={(p<string>('home.theme') ?? 'off') === 'off'}><div class="st-under-note">The blank tab stays plain.</div></Show>
       </div>}>{c => <Dynamic component={c()} />}</Show>
     )
+    case 'window.buttons': return <Pictures value={p<string>('window.buttons') === 'classic' ? 'classic' : 'inline'} set={v => void set('window.buttons', v)}
+      options={[['inline', 'Inline', () => <ButtonsPicture style="inline" />], ['classic', 'Classic', () => <ButtonsPicture style="classic" />]]} />
     // Appearance
     case 'look': return <Pictures value={p<string>('look') ?? 'system'} set={v => void set('look', v)}
       options={[['light', 'Light', () => <LookPicture look="light" />], ['dark', 'Dark', () => <LookPicture look="dark" />], ['system', 'Auto', () => <LookPicture look="system" />]]} />

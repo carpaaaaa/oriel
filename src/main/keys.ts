@@ -330,8 +330,12 @@ function perform(c: WindowController, name: string, phases: ('first' | 'later')[
   return false
 }
 
+/** Modules that watch every key of a window, taken or not (tabs/hints.ts). */
+export const inputWatchers: ((c: WindowController, input: Electron.Input) => void)[] = []
+
 /** before-input-event of a page or of the interface. True when Search took the key. */
 export function onInput(c: WindowController, input: Electron.Input, fromPage: boolean, from?: WebContents): boolean {
+  for (const w of inputWatchers) w(c, input)
   if (input.type === 'keyUp') {
     // Ctrl let go of after ⌘K walked the list: go there.
     if (input.key === 'Control' || (process.platform === 'darwin' && input.key === 'Meta')) controlUp(c)

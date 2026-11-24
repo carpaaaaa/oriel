@@ -61,6 +61,12 @@ export const removed: Record<string, string> = {
   'icloud': 'no iCloud sync on Windows',
   'icloud.erase': 'no iCloud sync on Windows',
   'window.glass.style': 'Liquid Glass is macOS 26\'s',
+  'tabs.liquid': 'Liquid Glass is macOS 26\'s',
+  // Windows' Mica and Acrylic fill the whole window, the clear margin round the
+  // window drawn by Oriel too: no glass until the frame can be Windows' own.
+  'window.glass': 'Mica and Acrylic would fill the margin round the drawn window',
+  'window.glass.clear': 'Mica and Acrylic would fill the margin round the drawn window',
+  'window.glass.grain': 'Mica and Acrylic would fill the margin round the drawn window',
   'inspector.chrome': 'the inspector already is Chrome\'s DevTools',
   'fullscreen.keepsWindow': 'Windows has no desktop of its own for a full-screen app',
   'pages.120': 'Chromium already draws at the screen\'s rate',

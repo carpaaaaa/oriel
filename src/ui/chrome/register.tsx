@@ -4,20 +4,37 @@
 // the layer): a strip of 40 over the page with Minimize, Exit Full Screen and
 // Close, so a window is never left without a way out.
 
+import { createEffect, createRoot } from 'solid-js'
 import { registerPanel } from '../lib/registry'
-import { cmd } from '../lib/store'
-import { WinClose, WinMinimize, WinRestore } from '../lib/icons'
+import { cmd, state } from '../lib/store'
+import { CaptionButtons, buttonStyle } from './Buttons'
 
 function Reveal() {
   return (
-    <div class="reveal-strip" data-window-ui="reveal">
-      <div class="caption-buttons">
-        <button class="minimize" title="Minimize" onClick={() => cmd({ do: 'window.minimize' })}><WinMinimize /></button>
-        <button class="maximize" title="Exit Full Screen" onClick={() => cmd({ do: 'window.fullScreen', on: false })}><WinRestore /></button>
-        <button class="close" title="Close" onClick={() => cmd({ do: 'window.close' })}><WinClose /></button>
-      </div>
+    <div class="reveal-strip" classList={{ inline: buttonStyle() === 'inline' }} data-window-ui="reveal">
+      <CaptionButtons full />
     </div>
   )
 }
 
 registerPanel('window.reveal', Reveal)
+
+// Motion for both roots (Design.swift Motion): Reduce animations makes every
+// transition immediate (motion.instant); Save power in Low Power Mode makes
+// glide and settle a short ease-out while Windows saves power (motion.light).
+createRoot(() => createEffect(() => {
+  const p = state.prefs ?? {}
+  const root = document.documentElement.dataset
+  root.motion = p['motion.instant'] ? 'instant' : p['motion.light'] && state.power?.saving ? 'light' : ''
+  // Tabs give when pressed (tabs.give, Design.swift Motion.give)
+  if (p['tabs.give']) root.give = '1'; else delete root.give
+  // The overlay knows the window's clear margin too: its veils cover the
+  // window drawn by Oriel, never the margin round it (app.css).
+  if (window.search?.root === 'overlay') {
+    const m = state.frame?.margin ?? { top: 0, right: 0, bottom: 0, left: 0 }
+    const s = document.documentElement.style
+    for (const side of ['top', 'right', 'bottom', 'left'] as const) s.setProperty(`--m-${side}`, `${m[side]}px`)
+    root.frame = state.frame?.kind ?? 'drawn'
+    root.state = state.frame?.state ?? 'free'
+  }
+}))

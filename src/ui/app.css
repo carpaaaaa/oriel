@@ -1,6 +1,16 @@
 /* The interface. Values from studio/02-aspetto.md; tokens in shared/tokens.css. */
 
 * { box-sizing: border-box; margin: 0; }
+/* Settings › Reduce animations: every transition at once; Save power in Low
+   Power Mode: glide and settle a short ease-out (Design.swift Motion). */
+:root[data-motion="instant"] { --dur-quick: 0ms; --dur-glide: 0ms; --dur-settle: 0ms; --dur-fold-out: 0ms; --dur-fold-in: 0ms; --dur-light: 0ms; }
+:root[data-motion="instant"] *, :root[data-motion="instant"] *::before, :root[data-motion="instant"] *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
+:root[data-motion="instant"] .ring { animation-duration: var(--dur-ring) !important; }
+/* Tabs give when pressed (tabs.give; Motion.give 0.97, TabBar.swift:2208):
+   down on quick, back on settle; scale, so a square's place stays its own. */
+:root[data-give] :is(.row, .square, .tile, .strip-tab, .strip-pin) { transition: scale var(--dur-settle) var(--ease-settle); }
+:root[data-give] :is(.row, .square, .tile, .strip-tab, .strip-pin):active { scale: .97; transition: scale var(--dur-quick) var(--ease-quick); }
+:root[data-motion="light"] { --dur-glide: 160ms; --ease-glide: var(--ease-quick); --dur-settle: 160ms; --ease-settle: var(--ease-quick); }
 html, body, #root { height: 100%; overflow: hidden; }
 html { font-family: var(--font-ui); letter-spacing: var(--tracking-ui); font-size: var(--fs-body); color: var(--ink); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; user-select: none; cursor: default; }
 /* The window paints itself (.window); around it the view is clear. */
@@ -49,26 +59,74 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 /* Tabs across the top (studio/01 §4.3, studio/02 §4.3): the strip is the
    window's top (--top from Chrome.tsx), the page under it edge to edge with a
    hairline, in full screen too. */
+/* The column on the right (sidebar.position): the card from the left gap
+   to the column; the room beside the page then on the left (studio/01 §5.1,
+   side_panel.py "column on the right, the panel on the left"). */
+.window.col-right .card { left: var(--card-gap); right: var(--side); }
+.window.col-right .top-strip { left: 0; right: var(--side); }
+.window.col-right.room-left .card { left: calc(var(--card-gap) * 2 + var(--room-w)); }
+.window.col-right.room-left .side-room { left: var(--card-gap); }
+.window.col-right.room-right .card { right: calc(var(--side) + var(--room-w) + var(--card-gap)); }
+.window.col-right.room-right .side-room { right: var(--side); }
+/* fold.loadingLine: 2 along the page's top, in the accent, clear of the corners */
+.loading-line { position: absolute; left: calc(var(--card-gap) + var(--card-radius)); right: calc(var(--card-gap) + var(--card-radius)); top: calc(var(--top, var(--card-gap)) - 2px); height: 2px; pointer-events: none; z-index: 5; }
+.loading-line span { display: block; height: 100%; width: 8%; background: var(--accent, rgb(0, 122, 255)); opacity: .9; animation: loading-line 3s cubic-bezier(0, 0, .2, 1) forwards; }
+@keyframes loading-line { to { width: 90%; } }
 .window.top .top-strip { display: none; }
 .window.top .card { left: 0; right: 0; bottom: 0; border-radius: 0; box-shadow: 0 -1px 0 var(--hairline); }
 :root[data-state="fullScreen"] .window.top :is(.card, .side-room) { top: var(--top); }
 
-/* Windows 11 caption buttons, drawn by Search: 46 wide, the close one red;
-   with the native frame they are Windows' own (drawn here only on a Mac). */
-.caption-buttons { position: absolute; top: 0; right: 0; height: var(--caption-height); display: flex; z-index: 10; }
-.caption-buttons button { width: var(--caption-width); height: var(--caption-height); display: grid; place-items: center; color: var(--ink); transition: background-color 83ms linear, color 83ms linear; }
-.caption-buttons button:hover { background: var(--caption-hover); }
-.caption-buttons button:active { background: var(--caption-press); }
-.caption-buttons button.close:hover { background: var(--caption-close); color: #fff; }
-.caption-buttons button.close:active { background: var(--caption-close-press); color: rgba(255,255,255,.7); }
-.blurred .caption-buttons button:not(:hover) { color: var(--caption-rest); }
-/* the minimize line on a whole pixel */
-.caption-buttons .minimize svg { transform: translateY(.5px); }
+/* The window's buttons drawn by Oriel (chrome/Buttons.tsx, Settings › Themes ›
+   Window buttons); with the native frame they are Windows' own (drawn here
+   only on a Mac). Each symbol on whole pixels in the middle of its box. */
+.caption-buttons { position: absolute; top: 0; right: 0; display: flex; z-index: 10;
+  --close-soft: rgba(196, 43, 28, .12); --close-ink: #C42B1C; }
+:root[data-look="dark"] .caption-buttons { --close-soft: rgba(232, 72, 56, .20); --close-ink: #FF6B5A; }
+.caption-buttons button { position: relative; display: grid; place-items: center; color: var(--muted);
+  transition: color var(--dur-quick) var(--ease-quick), opacity var(--dur-quick) var(--ease-quick); }
+.caption-buttons .hl { position: absolute; border-radius: 8px; background: transparent; transition: background-color var(--dur-quick) var(--ease-quick); }
+.caption-buttons svg { position: relative; display: block; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+/* Inline: three doors like the column's, 10 from the right edge, on the band's middle (26 of 52) */
+.caption-buttons.inline { top: 13px; right: 10px; gap: var(--door-gap); }
+.caption-buttons.inline button { width: var(--door); height: var(--door); border-radius: var(--door-radius); }
+.caption-buttons.inline .hl { inset: 0; }
+.caption-buttons.inline svg { stroke-width: 1.45; }
+.caption-buttons.inline button:hover { color: var(--ink-hover-text); }
+.caption-buttons.inline button:hover .hl { background: var(--g-hover); }
+.caption-buttons.inline button:active .hl { background: var(--g-wash); }
+.caption-buttons.inline .close:hover { color: var(--close-ink); }
+.caption-buttons.inline .close:hover .hl, .caption-buttons.inline .close:active .hl { background: var(--close-soft); }
+.blurred .caption-buttons.inline button:not(:hover) { opacity: .55; }
+.window.top.compact .caption-buttons.inline { top: 5px; }
+/* Classic: Windows' places, 46 × 40 in the corner; a rounded ground 4 in (in
+   the window's corner 17.5 − 4 = 13.5); close in full red */
+.caption-buttons.classic button { width: var(--caption-width); height: var(--caption-height); }
+.caption-buttons.classic .hl { inset: 4px; }
+:root[data-frame="drawn"][data-state="free"] .caption-buttons.classic .close .hl { border-top-right-radius: 13.5px; }
+.caption-buttons.classic svg { stroke-width: 1.1; }
+.caption-buttons.classic button:hover { color: var(--ink-hover-text); }
+.caption-buttons.classic button:hover .hl { background: var(--g-hover); }
+.caption-buttons.classic button:active .hl { background: var(--g-wash); }
+.caption-buttons.classic .close:hover { color: #fff; }
+.caption-buttons.classic .close:hover .hl { background: var(--caption-close); }
+.caption-buttons.classic .close:active .hl { background: var(--caption-close-press); }
+.blurred .caption-buttons.classic button:not(:hover) { color: var(--caption-rest); }
+/* With Inline the band above the page is the column's (52), so the doors sit in its middle. */
+.window.windows.btn-inline { --top: var(--strip); }
+/* The overlay's veils over the whole window (the switcher's, an extension's
+   card's, Bring Things Over's) cover the window drawn by Oriel, with its
+   corners, never the clear margin round it. */
+:root[data-root="overlay"] :is(.switcher, .ext-veil, .bt-veil) {
+  inset: var(--m-top, 0px) var(--m-right, 0px) var(--m-bottom, 0px) var(--m-left, 0px); border-radius: var(--window-radius); }
+:root[data-root="overlay"]:not([data-frame="drawn"]) :is(.switcher, .ext-veil, .bt-veil),
+:root[data-root="overlay"]:not([data-state="free"]) :is(.switcher, .ext-veil, .bt-veil) { border-radius: 0; }
 /* Full screen: the strip with the buttons that comes down from the top
-   (chrome/register.tsx), in the overlay over the page. */
+   (chrome/register.tsx), in the overlay over the page: 52 with Inline (the
+   doors on its middle), 40 with Classic. */
 .reveal-strip { position: fixed; left: 0; right: 0; top: 0; height: var(--caption-height); background: var(--frame);
   box-shadow: 0 1px 0 var(--hairline), 0 4px 12px rgba(0, 0, 0, .10); animation: reveal-in var(--dur-quick) var(--ease-quick); }
 @keyframes reveal-in { from { transform: translateY(-100%); } }
+.reveal-strip.inline { height: var(--strip); }
 
 /* Grips: resizing starts just outside and just inside the visible edge. */
 .grips { position: absolute; inset: var(--m-top) var(--m-right) var(--m-bottom) var(--m-left); pointer-events: none; z-index: 30; }

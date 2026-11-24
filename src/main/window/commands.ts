@@ -3,6 +3,7 @@
 import { handle } from '../router'
 import { model } from '../model/model'
 import { need, openWindow } from '../context'
+import { allControllers } from '../views/window'
 
 // the column
 
@@ -15,7 +16,18 @@ handle('sidebar.resize', ({ width }, ctx) => {
 })
 handle('sidebar.toggle', (_a, ctx) => {
   const c = need(ctx)
-  c.record.sidebar = { ...c.record.sidebar, folded: !c.record.sidebar.folded }
+  const s = c.record.sidebar
+  // Settings › Ctrl+S makes the column icons only (sidebar.foldIcons): the
+  // column goes to icons only and back, never away (Fold.swift toggleFold,
+  // `shrinks`); narrowed to the strip by its edge, the titles come back.
+  if (model.pref<boolean>('sidebar.foldIcons') && s.layout === 'side' && !model.pref<boolean>('sidebar.hides') && !s.folded) {
+    if (model.pref<boolean>('sidebar.narrowIcons') && model.pref<boolean>('sidebar.narrowed')) { model.setPref('sidebar.narrowed', false); return }
+    const icons = !model.pref<boolean>('sidebar.icons')
+    model.setPref('sidebar.icons', icons)
+    for (const x of allControllers()) { x.record.sidebar = { ...x.record.sidebar, icons }; model.touch(x.record, ['sidebar']) }
+    return
+  }
+  c.record.sidebar = { ...s, folded: !s.folded }
   model.touch(c.record, ['sidebar'])
 })
 handle('sidebar.fold', ({ folded }, ctx) => {

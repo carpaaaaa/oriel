@@ -18,12 +18,15 @@ import { allControllers, type WindowController } from '../views/window'
 import { benchRequest } from '../bench/server'
 import { win32 } from '../win/user32'
 
-const EDGE = 6, BEYOND = 48, GRACE = 65, SHADOW = 40
+/** Fold.swift:348-375: the edge (10 for a column resting folded), the
+ * dwell before it comes (0.15 for the strip, 0.05 for a resting column),
+ * the grace before it goes. */
+const EDGE = 6, HIDDEN_EDGE = 10, BEYOND = 48, GRACE = 65, SHADOW = 40, DWELL = 150, COLUMN_DWELL = 50
 /** The strip with the window's buttons in full screen (CAPTION height). */
 const STRIP = 40, STRIP_EDGE = 2, STRIP_STAY = STRIP + 12
 export const REVEAL = 'window.reveal'
 
-interface Watch { left: number | null }
+interface Watch { left: number | null; arrived: number | null; going: NodeJS.Timeout | null }
 const watching = new WeakMap<WindowController, Watch>()
 /** The tests' pointer, in screen DIP, in place of the real one. */
 let fake: { x: number; y: number } | null = null
@@ -40,10 +43,12 @@ function ours(c: WindowController): boolean {
   return w.rootAt(w.cursor()) === c.frame.hwnd
 }
 
-const folded = (c: WindowController) => c.record.sidebar.folded && c.record.sidebar.layout !== 'top' && !c.base.isMinimized()
+const folded = (c: WindowController) => c.record.sidebar.folded && !c.base.isMinimized()
+const top = (c: WindowController) => c.record.sidebar.layout === 'top'
 const full = (c: WindowController) => c.frame.isFullScreen() && !c.base.isMinimized()
 const layer = (c: WindowController) => c.overlayLayer
-const peeking = (c: WindowController) => layer(c).kind === 'fold'
+const peeking = (c: WindowController) => { const l = layer(c) as { kind: string; going?: boolean }; return l.kind === 'fold' && !l.going }
+const leavingOut = (c: WindowController) => { const l = layer(c) as { kind: string; going?: boolean }; return l.kind === 'fold' && !!l.going }
 const revealed = (c: WindowController) => { const l = layer(c); return l.kind === 'panel' && l.name === REVEAL }
 
 /** The column's width out over the page (the column of icons is 52). */
@@ -52,16 +57,42 @@ function columnWidth(c: WindowController): number {
   return s.icons || (model.pref<boolean>('sidebar.narrowIcons') && model.pref<boolean>('sidebar.narrowed')) ? 52 : s.width
 }
 
+/** The strip's height out over the page: 52, 36 with Shorter tab bar. */
+const stripHeight = () => (model.pref<boolean>('tabs.compact') ? 36 : 52)
+
 function peekRegion(c: WindowController, v: Rect): Rect {
   const content = c.base.getContentBounds()
+  if (top(c)) {
+    // The strip, its shadow under it; the window's buttons stay in reach.
+    const controls = c.chrome === 'windows' && !c.frame.isFullScreen() ? 138 : 0
+    return { x: v.x - content.x, y: v.y - content.y, width: Math.max(0, v.width - controls), height: stripHeight() + SHADOW }
+  }
   const w = columnWidth(c) + SHADOW
   const right = c.record.sidebar.side === 'right'
   const x = right ? v.x + v.width - w : v.x
   return { x: x - content.x, y: v.y - content.y, width: w, height: v.height }
 }
 
+/** Going back takes the fold-in spring (0.13 / 1.0), Slide the column in and
+ * out's ease-in 0.22, nothing with Reduce animations (Design.swift
+ * Motion.folding); the overlay is let go once it has. */
+function goBack(c: WindowController, w: Watch): void {
+  const ms = model.pref<boolean>('motion.instant') ? 0 : model.pref<boolean>('sidebar.slides') ? 220 : 191
+  if (!ms) { c.sendOverlay({ kind: 'none' }); return }
+  c.sendOverlay({ kind: 'fold', going: true } as never)
+  w.going = setTimeout(() => { w.going = null; if (leavingOut(c)) c.sendOverlay({ kind: 'none' }) }, ms)
+}
+
+function comeOut(c: WindowController, w: Watch, v: Rect): void {
+  if (w.going) { clearTimeout(w.going); w.going = null }
+  w.left = null
+  w.arrived = null
+  c.sendOverlay({ kind: 'fold' })
+  c.setOverlayRegion(peekRegion(c, v), false)
+}
+
 function tickOne(c: WindowController, now: number): void {
-  const w = watching.get(c) ?? { left: null }
+  const w = watching.get(c) ?? { left: null, arrived: null, going: null }
   watching.set(c, w)
   const p = pointer()
   const v = c.frame.visual()
@@ -84,25 +115,30 @@ function tickOne(c: WindowController, now: number): void {
       return
     }
   } else if (revealed(c)) c.sendOverlay({ kind: 'none' })
-  // the folded column
-  if (!folded(c)) { if (peeking(c)) c.sendOverlay({ kind: 'none' }); return }
+  // the folded column, or the strip across the top
+  if (!folded(c)) { if (peeking(c) || leavingOut(c)) c.sendOverlay({ kind: 'none' }); return }
+  const strip = top(c)
   const right = c.record.sidebar.side === 'right'
-  const fromEdge = right ? v.x + v.width - 1 - p.x : p.x - v.x
-  const within = p.y >= v.y && p.y < v.y + v.height
+  const fromEdge = strip ? p.y - v.y : right ? v.x + v.width - 1 - p.x : p.x - v.x
+  const within = strip ? p.x >= v.x && p.x < v.x + v.width : p.y >= v.y && p.y < v.y + v.height
+  const reach = strip ? stripHeight() : columnWidth(c)
   if (peeking(c)) {
-    const stays = within && fromEdge > -BEYOND && fromEdge < columnWidth(c)
+    const stays = within && fromEdge > -BEYOND && fromEdge < reach
     if (stays) w.left = null
     else if (w.left == null) w.left = now
-    else if (now - w.left > GRACE) { w.left = null; c.sendOverlay({ kind: 'none' }) }
+    else if (now - w.left > GRACE) { w.left = null; goBack(c, w) }
     return
   }
+  // A column resting folded (Hide the column until…) has a wider edge and a
+  // dwell; the strip always waits, its edge being on the way elsewhere.
+  const resting = !strip && !!model.pref<boolean>('sidebar.hides')
+  const edge = resting ? HIDDEN_EDGE : EDGE
   // Not in the strip's corner of a full screen, nor over anything else floating.
-  const touch = within && fromEdge >= 0 && fromEdge < EDGE && !(full(c) && p.y < v.y + STRIP_STAY)
-  if (touch && layer(c).kind === 'none' && ours(c)) {
-    w.left = null
-    c.sendOverlay({ kind: 'fold' })
-    c.setOverlayRegion(peekRegion(c, v), false)
-  }
+  const touch = within && fromEdge >= 0 && fromEdge < edge && !(!strip && full(c) && p.y < v.y + STRIP_STAY)
+  if (!touch || !ours(c) || !(layer(c).kind === 'none' || leavingOut(c))) { w.arrived = null; return }
+  const dwell = strip ? DWELL : resting ? COLUMN_DWELL : 0
+  if (w.arrived == null) w.arrived = now
+  if (now - w.arrived >= dwell) comeOut(c, w, v)
 }
 
 function tick(): void {
@@ -110,7 +146,7 @@ function tick(): void {
   let busy = false
   for (const c of allControllers()) {
     if (c.base.isDestroyed()) continue
-    if (folded(c) || full(c) || peeking(c) || revealed(c)) { busy = true; tickOne(c, now) }
+    if (folded(c) || full(c) || peeking(c) || leavingOut(c) || revealed(c)) { busy = true; tickOne(c, now) }
   }
   if (!busy) stop()
 }
@@ -136,5 +172,5 @@ benchRequest('window.pointer', req => {
 })
 benchRequest('window.edges', req => {
   const c = allControllers().find(x => !req.window || x.record.id === req.window) ?? allControllers()[0]
-  return { peek: !!c && peeking(c), reveal: !!c && revealed(c), region: c?.overlay.getBounds() ?? null, watching: !!timer }
+  return { peek: !!c && peeking(c), going: !!c && leavingOut(c), reveal: !!c && revealed(c), region: c?.overlay.getBounds() ?? null, watching: !!timer }
 })

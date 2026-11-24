@@ -231,6 +231,9 @@ b.cmd("settings.set", id="tabs.sleep", value="sooner")
 b.cmd("settings.set", id="tabs.sleep", value="normal")
 relaunch()
 written = k.read("prefs.json")
+# The updater keeps when it last looked (update.checked), as the Mac keeps its
+# own in defaults: bookkeeping, not a default written out.
+written = {k_: v for k_, v in written.items() if k_ != "update.checked"}
 t.ok(written == {"search.engine": "duckduckgo"}, f"prefs.json: only the key changed, never a default ({written})")
 t.ok(b.state()["prefs"].get("quit.confirm") is False and b.state()["prefs"].get("tabs.sleep") is True, "the defaults are still what Oriel reads")
 b.quit()

@@ -66,6 +66,8 @@ declare module '../state' {
     /** Room asked beside the page (the extensions' side panel): the card
      * gets narrower by it on that side (studio/02 §4.1). */
     room?: SideRoom | null
+    /** Windows' battery saver is on (Motion.light's Low Power Mode). */
+    power?: { saving: boolean }
   }
 }
 

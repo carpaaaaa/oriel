@@ -8,7 +8,7 @@ import { createMemo, For, onMount, Show } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import type { TabView } from '../../shared/state'
 import { Ring } from './glyphs'
-import { P, label, picked, pickedAmongOthers, pinOf, monogram } from './derive'
+import { P, label, picked, pickedAmongOthers, pinOf, monogram, pref } from './derive'
 import { pinCells } from './layout'
 import { Mark, RenameField } from './Row'
 import { editing, setEditing, carry, squareGhost } from './ui'
@@ -16,6 +16,17 @@ import { openMenu } from '../menus/open'
 import { tabMenu } from '../menus/build'
 import { press } from './drag'
 import { arrive } from './motion'
+
+/** A page's unread count as a pin shows it, read off the front of its title
+ * ("(3) WhatsApp", "(12+) …"); nothing while it sleeps (UnreadBadge.swift). */
+export function unread(t: { title?: string; asleep?: boolean }): string | null {
+  if (t.asleep) return null
+  const m = /^\(\s*(\d{1,5})(\+?)\s*\)/.exec((t.title ?? '').trim())
+  if (!m) return null
+  const n = Number(m[1])
+  if (!n) return null
+  return n > 99 ? '99+' : m[2] ? `${n}+` : `${n}`
+}
 
 export function PinGrid(p: { squares: TabView[]; width: number; still: boolean; glidingTo: string | null }) {
   // With a tab carried over the grid, one cell more, the one it takes left open.
@@ -104,6 +115,7 @@ function Square(p: { tab: TabView; cell: { x: number; y: number; w: number; h: n
           <RenameField letter initial={letter()} class="letter-field"
             done={v => { if (v && pin()) void cmd({ do: 'pin.letter', id: pin()!.id, letter: v }); setEditing(null) }} />
         }>
+          <Show when={!state.tabHints?.[t().id]} fallback={<span class="hint-number">{state.tabHints![t().id]}</span>}>
           <Show when={!t().loading} fallback={<Ring size={scale() * 11 / 34} />}>
             <Show when={P.icons() && t().favicon} fallback={
               <span class="pin-letter" style={{ 'font-size': `${+(scale() * 12 / 34).toFixed(2)}px` }}>{letter()}</span>
@@ -111,7 +123,12 @@ function Square(p: { tab: TabView; cell: { x: number; y: number; w: number; h: n
               <Mark tab={{ ...t(), label: label(t()) }} size={scale() * 16 / 34} dim={t().asleep} icon />
             </Show>
           </Show>
+          </Show>
         </Show>
+        {/* What its page counts as waiting, from its title (UnreadBadge.swift) */}
+        <Show when={pref('tabs.pinCounts', false) && !lettering() && !state.tabHints?.[t().id] && unread(t())}>{c => (
+          <span class="unread" style={{ 'font-size': `${Math.max(7, scale() * 16 / 34 * 0.45).toFixed(2)}px` }}>{c()}</span>
+        )}</Show>
       </div>
     </div>
   )

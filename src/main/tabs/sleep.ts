@@ -4,13 +4,16 @@
 
 import { model, type TabRecord } from '../model/model'
 import { runtimes, onPageSession } from '../views/tabs'
+import { savingPower } from '../window/power'
 
 /** Later 2 h, Normal 30 min, Sooner 10 min; `sleep.after` (seconds) wins, for tests. */
 export function sleepAfter(): number {
   const forced = model.pref<number>('sleep.after')
   if (typeof forced === 'number' && forced >= 0) return forced
   const pace = model.pref<string>('tabs.sleep.pace')
-  return pace === 'later' ? 7200 : pace === 'sooner' ? 600 : 1800
+  const wait = pace === 'later' ? 7200 : pace === 'sooner' ? 600 : 1800
+  // Saving power: no later than Sooner (Sleep.swift:88, motion.light).
+  return savingPower() ? Math.min(wait, 600) : wait
 }
 
 /** Why a tab stays awake, in Sleep.swift's order, or null (awake(because:)). */

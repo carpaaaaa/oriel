@@ -4,6 +4,9 @@
 .tabbar { position: absolute; left: 0; right: 0; top: 0; height: var(--strip); background: var(--ground); isolation: isolate;
   padding-right: var(--controls, 0px); font-size: var(--fs-tab); --accent: rgb(0, 122, 255); }
 .tabbar .wash { position: absolute; }
+/* Shorter tab bar (tabs.compact, Design.swift Metrics.strip): 36, the band 3 from the top */
+.tabbar.compact { height: var(--strip-compact); }
+.tabbar.compact .strip-band { top: 3px; }
 .strip-band { position: absolute; left: 0; right: var(--controls, 0px); top: 11px; height: var(--band); display: flex; align-items: center; gap: var(--tab-gap); }
 .strip-lights { flex: none; height: 100%; }
 .strip-row { position: relative; flex: 0 1 auto; min-width: 0; height: 100%; display: flex; align-items: center; gap: var(--tab-gap);

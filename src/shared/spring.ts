@@ -22,7 +22,14 @@ export const Springs = {
 } as const satisfies Record<string, SpringSpec>
 
 export function reducedMotion(): boolean {
+  // Settings › Reduce animations (motion.instant) as well as the system's.
+  if (typeof document !== 'undefined' && document.documentElement?.dataset.motion === 'instant') return true
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** Saving power (motion.light): glide and settle become a short ease-out. */
+export function lightMotion(): boolean {
+  return typeof document !== 'undefined' && document.documentElement?.dataset.motion === 'light'
 }
 
 /** Position of a spring released at 0 toward 1 after `t` seconds. */

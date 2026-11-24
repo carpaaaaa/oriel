@@ -87,14 +87,17 @@ t.ok(ev(tab, "getComputedStyle(document.querySelector('.st-head h1')).fontSize")
 
 # 3. Every row of SettingsIndex, in the Mac's order, minus the Mac's own.
 removed = ev(tab, "Object.keys(window.__settings ? {} : {})")
-catalog = ev(tab, "window.__settings.items.map(i => i.id)")
-mac = [i["id"] for i in INDEX["items"]]
+# Oriel's own rows, not the Mac's: Window buttons (Themes).
+OWN = {"window.buttons"}
+catalog = [i for i in ev(tab, "window.__settings.items.map(i => i.id)") if i not in OWN]
+mac = [i["id"] for i in INDEX["items"] if i["id"] not in OWN]
 t.ok(len(mac) == 158, "SettingsIndex has 158 rows")
 gone = [i for i in mac if i not in catalog]
 t.ok(catalog == [i for i in mac if i in catalog], "the rows keep the Mac's order")
-# translate.target and note.translate are back with Translate Page on Windows (translate module);
-# swipe.history and agents are hidden (settings area C).
-t.ok(len(catalog) == 141 and len(gone) == 17, f"141 rows on Windows, 17 of the Mac's left out ({gone})")
+# translate.target and note.translate are back with Translate Page (translate
+# module); swipe.history and agents hidden (area C); Liquid Glass's tab and the
+# window's glass left out (area A: Mica and Acrylic would fill the margin).
+t.ok(len(catalog) == 137 and len(gone) == 21, f"137 rows on Windows, 21 of the Mac's left out ({gone})")
 texts = ev(tab, "JSON.stringify(window.__settings.items.map(i => [i.title, i.detail, i.more || ''].join(' ')))")
 t.ok(not any(c in texts for c in "—–⌘⌥⌃⇧"), "no long dash, no Mac key symbol in any row")
 t.ok(not any(w in texts for w in ("macOS", "Touch ID", "keychain", "Finder", "System Settings")), "no macOS, Touch ID, keychain, Finder or System Settings")
@@ -107,7 +110,7 @@ for page in pages:
     time.sleep(0.15)
     ids = ev(tab, "[...document.querySelectorAll('.st-column .sr[data-row]')].map(e => e.dataset.row)")
     groups = [g["id"] for g in INDEX["groups"] if g["page"] == page]
-    expect = [i for g in groups for i in [x["id"] for x in INDEX["items"] if x["group"] == g and not x.get("findOnly")] if i in catalog]
+    expect = [i for g in groups for i in [x["id"] for x in INDEX["items"] if x["group"] == g and not x.get("findOnly")] if i in catalog or i in OWN]
     t.ok(all(i in expect for i in ids) and ids == [i for i in expect if i in ids], f"{page}: rows in the Mac's order ({len(ids)} shown)")
     shown += len(ids)
 t.ok(shown >= 100, f"{shown} rows shown with the defaults")

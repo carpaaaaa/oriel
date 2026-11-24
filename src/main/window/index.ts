@@ -6,6 +6,9 @@ import './commands'
 import './split'
 import './zoom'
 import './edges'
+import './power'
+import './column'
+import './dusk'
 import '../../shared/modules/window'
 import { registerSlice } from '../views/window'
 import { addDefaults } from '../../shared/prefs'
@@ -17,7 +20,7 @@ import { allControllers, controllerFor, focusedController } from '../views/windo
 if (process.platform === 'win32' && process.env.SEARCH_PROBE) app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
 
 // Windows' own frame instead of ours, a hidden setting (read when a window opens).
-addDefaults({ 'window.nativeFrame': false })
+addDefaults({ 'window.nativeFrame': false, 'window.buttons': 'inline' })
 
 registerSlice('frame', c => c.frame.view())
 registerSlice('room', c => c.sideRoom())
