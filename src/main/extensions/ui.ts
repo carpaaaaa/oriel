@@ -20,6 +20,8 @@ import { model } from '../model/model'
 import { allControllers, registerSlice, focusedController, type WindowController } from '../views/window'
 import { runtimes } from '../views/tabs'
 import { probe } from '../paths'
+import { benchRequest } from '../bench/server'
+import { importHooks } from '../import/bring'
 import { writeFileAtomic } from '../model/persist'
 import { actionOf, popupUrl, sendEvent, tabDetails, onActionsChanged, handleApi } from './lib'
 import { openPopup, closePopup, popupOf, onPopupChange, placeBeside, POP_ROOM, closedRecently } from './popup'
@@ -362,6 +364,17 @@ export async function install(text: string): Promise<void> {
   }
 }
 
+/** Extensions brought over from another browser (import/panel.ts, 05 §1.3):
+ * each fresh from the store, one question at a time. The hook was never
+ * filled: Bring things over said "2 extensions to confirm" and nothing came. */
+const broughtOver: string[] = []
+importHooks.installExtensions = ids => {
+  broughtOver.push(...ids)
+  if (probe) return // the tests see what would be asked for, not the store
+  void (async () => { for (const id of ids) await install(id) })()
+}
+benchRequest('ext.broughtOver', () => ({ ids: [...broughtOver] }))
+
 /** The Web Store page's own button: the same question first. */
 export async function beforeStoreInstall(details: { id: string; localizedName: string; manifest: chrome.runtime.Manifest; icon: Electron.NativeImage }): Promise<{ action: 'allow' | 'deny' }> {
   const ok = await askToAdd(details.localizedName, details.manifest as never, brand.name, details.icon.isEmpty() ? undefined : details.icon.resize({ width: 64, height: 64 }))
@@ -477,8 +490,28 @@ function openOptions(c: WindowController, id: string): void {
 
 /** Right click on a button or a row (studio/04 §2.3 "Tasto destro"). */
 function context(c: WindowController, id: string, x: number, y: number): void {
+  const items = contextItems(c, id)
+  if (items) Menu.buildFromTemplate(items).popup({ window: c.base as never, x: Math.round(x), y: Math.round(y) })
+}
+
+/** What the extension's ··· and right-click offer (ExtensionActions). */
+function contextItems(c: WindowController, id: string): Electron.MenuItemConstructorOptions[] | null {
   const ext = profile?.extensions.getExtension(id)
-  if (!ext) return
+  if (!ext) {
+    // Turned off, it isn't loaded: its menu still opens, with what can be
+    // done to it off (ExtensionActions has no context for it either): pin,
+    // and remove without turning it on first.
+    const folder = saved.disabled[id]
+    if (!folder) return null
+    const m = readManifest(folder) ?? {}
+    const name = localize(folder, m, m.name) ?? id
+    const pinned = saved.pinned.includes(id)
+    return [
+      { label: pinned ? 'Unpin' : 'Pin to Toolbar', click: () => setPinned(id, !pinned) },
+      { type: 'separator' },
+      { label: `Remove “${name}”…`, click: () => void remove(id) },
+    ]
+  }
   const m = ext.manifest as Record<string, any>
   const pinned = saved.pinned.includes(id)
   const items: Electron.MenuItemConstructorOptions[] = [
@@ -502,8 +535,15 @@ function context(c: WindowController, id: string, x: number, y: number): void {
     })
   }
   items.push({ type: 'separator' }, { label: `Remove “${ext.name}”…`, click: () => void remove(id) })
-  Menu.buildFromTemplate(items).popup({ window: c.base as never, x: Math.round(x), y: Math.round(y) })
+  return items
 }
+
+// For the tests: the menu's words, on or off.
+benchRequest('ext.menu', (req: Record<string, unknown>) => {
+  const c = allControllers()[0]
+  const items = c ? contextItems(c, String(req.id)) : null
+  return { labels: items ? items.map(i => (i.type === 'separator' ? '-' : String(i.label))) : null }
+})
 
 function setPinned(id: string, on: boolean): void {
   saved.pinned = saved.pinned.filter(p => p !== id)

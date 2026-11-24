@@ -80,6 +80,7 @@ function Line(props: { title: string; detail?: string; children?: any }) {
 function Options(props: { s: ImportPanelState; v: ImportSourceView }) {
   const p = () => previewOf(props.s, props.v)
   const name = () => props.v.name
+  const elsewhere = () => p()?.extensionsElsewhere ?? []
   const wants = () => props.s.wants
   const set = (key: keyof ImportPanelState['wants']) => (on: boolean) => void cmd({ do: 'import.option', key, on })
   const passwordsNone = () => props.v.passwords === 'none' || props.v.passwords === 'csv' || p()?.passwords === 0
@@ -152,8 +153,16 @@ function Options(props: { s: ImportPanelState; v: ImportSourceView }) {
       </Line>
       <Show when={(p()?.extensions.length ?? 0) > 0}>
         <div class="bt-rule" />
-        <Line title="Extensions" detail={`${p()!.extensions.length} found: installed fresh from the Chrome Web Store, you say yes to each one`}>
+        <Line title="Extensions" detail={`${p()!.extensions.length} found: installed fresh from the Chrome Web Store, you say yes to each one`
+          + (elsewhere().length ? `. ${elsewhere().join(', ')} ${elsewhere().length === 1 ? 'is' : 'are'} from another store: look for ${elsewhere().length === 1 ? 'it' : 'them'} there by name` : '')}>
           <Switch label="Extensions" on={wants().extensions} set={set('extensions')} />
+        </Line>
+      </Show>
+      {/* Only another store's own (Opera's add-ons): said, nothing to bring. */}
+      <Show when={(p()?.extensions.length ?? 0) === 0 && elsewhere().length > 0}>
+        <div class="bt-rule" />
+        <Line title="Extensions" detail={`${elsewhere().join(', ')}: from another store, not the Chrome Web Store. Look for ${elsewhere().length === 1 ? 'it' : 'them'} there by name`}>
+          <span />
         </Line>
       </Show>
     </div>

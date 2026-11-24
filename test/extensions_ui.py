@@ -101,9 +101,15 @@ b.cmd("ext.enable", id=EXT, on=False)
 b.wait_for(lambda: not any(e["id"] == EXT for e in b.call({"do": "extensions.list"})["extensions"]), what="off")
 row = next(e for e in ext_state()["list"] if e["id"] == EXT)
 t.ok(not row["enabled"] and rect(f".ext-button[data-ext='{EXT}']") is None, "off: not loaded, still listed, its button gone")
+# Off, its ··· still opens, and Remove is there without turning it on (the user's 24 Nov 2026 report).
+menu = b.call({"do": "ext.menu", "id": EXT})["labels"]
+t.ok(menu == ["Pin to Toolbar", "-", "Remove “DNR test”…"] or menu == ["Unpin", "-", "Remove “DNR test”…"], f"off: its menu opens, with Remove ({menu})")
+on_menu = None
 b.cmd("ext.enable", id=EXT, on=True)
 b.wait_for(lambda: any(e["id"] == EXT for e in b.call({"do": "extensions.list"})["extensions"]), what="on")
 t.ok(True, "on again")
+on_menu = b.call({"do": "ext.menu", "id": EXT})["labels"]
+t.ok(on_menu and on_menu[-1] == "Remove “DNR test”…", f"on: its whole menu ({on_menu})")
 
 # The managing page.
 b.cmd("ext.manage", open=True)

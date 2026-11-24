@@ -64,6 +64,9 @@ export interface ImportPreview {
   passwordsReadable?: number
   passwordsLocked?: number
   extensions: string[]
+  /** Extensions from another browser's own store (Opera's add-ons), by name:
+   * not in the Chrome Web Store under the same id. */
+  extensionsElsewhere?: string[]
 }
 
 export interface ImportSourceView {
