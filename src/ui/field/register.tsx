@@ -6,7 +6,7 @@ import { Field } from './Field'
 import { FindBar } from './Find'
 
 registerLayer('field', () => (
-  <div class="veil" onPointerDown={e => { if (e.target === e.currentTarget) void cmd({ do: 'field.close' }) }}>
+  <div class="field-veil" onPointerDown={e => { if (e.target === e.currentTarget) void cmd({ do: 'field.close' }) }}>
     <Field place="overlay" />
   </div>
 ))
