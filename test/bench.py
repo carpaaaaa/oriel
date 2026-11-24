@@ -135,12 +135,20 @@ def shot(path):
         return None
 
 
-def key(k, *mods):
-    return call({"do": "key", "key": k, "modifiers": list(mods)})
+def key(k, *mods, phase=None):
+    """phase 'down' or 'up': the key held, or let go of, alone."""
+    req = {"do": "key", "key": k, "modifiers": list(mods)}
+    if phase:
+        req["phase"] = phase
+    return call(req)
 
 
-def mouse(x, y, button="left", clicks=1):
-    return call({"do": "mouse", "x": x, "y": y, "button": button, "clicks": clicks})
+def mouse(x, y, button="left", clicks=1, phase=None):
+    """phase 'down' or 'up': the button held, or let go of, alone."""
+    req = {"do": "mouse", "x": x, "y": y, "button": button, "clicks": clicks}
+    if phase:
+        req["phase"] = phase
+    return call(req)
 
 
 def window():
