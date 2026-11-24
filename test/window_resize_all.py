@@ -81,7 +81,7 @@ def drag(start, end, steps=20, pause=0.02):
     time.sleep(0.8)
 
 
-VK = {"win": 0x5B, "left": 0x25, "up": 0x26, "right": 0x27, "down": 0x28, "esc": 0x1B, "f11": 0x7A}
+VK = {"win": 0x5B, "left": 0x25, "up": 0x26, "right": 0x27, "down": 0x28, "esc": 0x1B, "f11": 0x7A, "alt": 0x12, "f4": 0x73}
 EXTENDED = ("left", "up", "right", "down")
 
 
@@ -532,6 +532,30 @@ try:
         if before == "maximized":
             click(*button("maximize"), 0.8)
             expect("launched again, maximized, restored", "free")
+
+    # 12. Alt+F4, Windows' way to quit, with Confirm before quitting on: the
+    #     last window asks (and Windows' own close on the same press is held
+    #     back on Cancel), another window only closes.
+    place()
+    expect("before Alt+F4", "free")
+    b.cmd("prefs.set", window=WID, key="quit.confirm", value=True)
+    windows = lambda: len(b.call({"do": "tabs.state"})["windows"])
+    asked = lambda: b.call({"do": "settingsb.quitAsked"})["asked"]
+    b.call({"do": "settingsb.quitAnswer", "answer": "cancel"})
+    click(px(P["x"] + P["width"] / 2), px(P["y"] + P["height"] / 2), 0.4)
+    chord("alt", "f4", wait=1.5)
+    t.ok(b.PROC.poll() is None and windows() == 1 and asked() == 1, f"Alt+F4 on the last window: Quit Oriel? asked ({asked()}), Cancel keeps it open ({windows()} window)")
+    expect("Alt+F4, Cancel", "free")
+    b.cmd("window.new", window=WID)
+    b.wait_for(lambda: windows() == 2, what="a second window")
+    time.sleep(1.5)
+    chord("alt", "f4", wait=1.5)
+    t.ok(settle(lambda: windows() == 1, 4) and asked() == 1, "Alt+F4 on another window closes it without asking")
+    b.call({"do": "settingsb.quitAnswer", "answer": "quit"})
+    focus()
+    click(px(P["x"] + P["width"] / 2), px(P["y"] + P["height"] / 2), 0.4)
+    chord("alt", "f4", wait=0.5)
+    t.ok(settle(lambda: b.PROC.poll() is not None, 15), "Alt+F4 on the last window, Quit: Oriel quits")
 
 except Exception:
     traceback.print_exc()

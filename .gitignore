@@ -13,3 +13,6 @@ riferimenti-privati/
 
 # worktrees of parallel agents
 .claude/
+
+# Python caches of the tests
+__pycache__/
