@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Search a site from the address field (Settings' note note.sitesearch,
 "Always there: type red, then Tab, and search Reddit"; 08 area D,
-search.sites; SiteSearch.swift, studio/06 §5.5): always on, the field
-module's. The words the note gives work: red offers Reddit, yt YouTube,
-and the find field of Settings finds the note."""
+search.sites; SiteSearch.swift, studio/06 §5.5). Unlike the Mac, sites are
+off until the user turns them on one by one (the user's decision): turned
+off, nothing is offered; turned on, the words the note gives work: red offers
+Reddit, yt YouTube, and the find field of Settings finds the note."""
 import sys
 import time
 from pathlib import Path
@@ -26,6 +27,9 @@ def site(text):
     return b.call({"do": "field.address", "text": text})["site"]
 
 
+t.ok(site("red") is None, f"off by default: red offers nothing ({site('red')})")
+b.cmd("prefs.set", key="search.sites", value=["Reddit", "YouTube", "Wikipedia"])
+time.sleep(0.3)
 t.ok(site("red") == "Reddit", f"red offers Reddit ({site('red')})")
 t.ok(site("yt") == "YouTube", f"yt offers YouTube ({site('yt')})")
 t.ok(site("wiki") is not None and "Wikipedia" in site("wiki"), f"wiki offers Wikipedia ({site('wiki')})")
