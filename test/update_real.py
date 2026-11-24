@@ -10,10 +10,9 @@ that version afterwards.
    older Oriel installed with its installer, opened; the newer installer is
    downloaded on its own; the popup is on the screen (a picture); closing
    Oriel installs it; the next launch is the newer version and opens.
-2. The popup's Update and Restart (a test world, so the bench can see the
-   popup; the feed is GitHub's latest release): the plate with the newer
-   version, a real click on Update and Restart, Oriel closes, installs and
-   opens again as the newer version.
+2. The popup's Update and Restart: found on the screen through Windows' UI
+   Automation (an installed Oriel has no test hooks), a real click on it,
+   Oriel closes, installs and opens again as the newer version.
 
 Windows only. SHOTS_DIR=<folder> for the pictures."""
 import ctypes, os, platform, shutil, struct, subprocess, sys, time, urllib.request, zlib
@@ -219,31 +218,47 @@ except Exception:
     t.ok(False, "part 1 went through to the end")
     kill_oriel()
 
-# 2. The popup's Update and Restart, seen through the bench.
+# 2. The popup's Update and Restart, pressed as a person presses it. An
+#    installed Oriel has no test hooks (src/main/testhooks.ts), so the popup is
+#    found through Windows' UI Automation, as a screen reader finds it.
+UIA = r"""
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+$ids = @(Get-Process Oriel -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '%s*' } | ForEach-Object { $_.Id })
+$A = [System.Windows.Automation.AutomationElement]
+$cond = New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, '%s')
+foreach ($w in $A::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) {
+  if ($ids -contains $w.Current.ProcessId) {
+    $e = $w.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
+    if ($e) { $r = $e.Current.BoundingRectangle; '{0},{1},{2},{3}' -f $r.X, $r.Y, $r.Width, $r.Height; break }
+  }
+}
+"""
+
+
+def find(name):
+    """Where something named so is on the screen (physical pixels), or None."""
+    r = subprocess.run(["powershell", "-NoProfile", "-Command", UIA % (INSTALL, name.replace("'", "''"))], capture_output=True, text=True)
+    nums = [float(x) for x in r.stdout.strip().split(",")] if r.stdout.strip().count(",") == 3 else None
+    return nums if nums and nums[2] > 0 and nums[3] > 0 else None
+
+
 try:
     if install(FROM):
-        b.use("update-real")
-        env = dict(clean_env(), SEARCH_PROBE=b.WORLD, ORIEL_UPDATE_FEED=f"https://github.com/{REPO}/releases/latest/download")
-        subprocess.Popen([str(EXE)], env=env, cwd=str(INSTALL))
-        t.ok(wait(lambda: b.state().get("windows"), 40), f"Oriel {FROM} opens (a test world)")
-        up = lambda: b.call({"do": "settings.updater"})
-        ready = wait(lambda: (lambda u: u if u.get("popup") and u["popup"].get("ready") else None)(up()), 300, 2)
-        t.ok(ready and ready["popup"]["version"] == TO, f"the popup offers {TO}, downloaded and ready ({(ready or {}).get('popup')})")
-        plate = b.ui("(() => { const e = document.querySelector('.up-plate'); const g = document.querySelector('.up-go'); return e && g && { title: e.querySelector('.up-title').textContent, go: g.textContent.trim(), disabled: g.disabled, r: g.getBoundingClientRect().toJSON() } })()", root="overlay")
-        t.ok(plate and TO in plate["title"] and plate["go"] == "Update and Restart" and not plate["disabled"], f"the plate over the window: {plate and plate['title']!r}, {plate and plate['go']!r}")
-        grab(f"3-popup-bench-{TO}")
-        if plate:
-            wid = b.call({"do": "tabs.state"})["windows"][0]["id"]
-            f = b.call({"do": "window.frame", "window": wid})["frame"]
-            s = f["scale"]
-            reg = b.call({"do": "window.edges", "window": wid})["region"]
-            x = (f["bounds"]["x"] + reg["x"] + plate["r"]["x"] + plate["r"]["width"] / 2) * s
-            y = (f["bounds"]["y"] + reg["y"] + plate["r"]["y"] + plate["r"]["height"] / 2) * s
+        shutil.rmtree(Path(os.environ["APPDATA"]) / "Oriel", ignore_errors=True)
+        subprocess.Popen([str(EXE)], env=clean_env(), cwd=str(INSTALL))
+        t.ok(wait(lambda: oriels(), 30), f"Oriel {FROM} opens again")
+        got = wait(lambda: (lambda p: p if any(TO in n for n in p) and "update-info.json" in p else None)(pending()), 300, 2)
+        t.ok(got, f"…finds {TO} and downloads it")
+        title = wait(lambda: find(f"Oriel {TO} is ready"), 60, 2)
+        go = wait(lambda: find("Update and Restart"), 30, 1)
+        t.ok(title and go, f"the popup over the window: Oriel {TO} is ready, Update and Restart ({title}, {go})")
+        grab(f"3-popup-{TO}")
+        if go:
             subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force"], capture_output=True)
             time.sleep(1)
-            click(x, y)
+            click(go[0] + go[2] / 2, go[1] + go[3] / 2)
             gone = wait(lambda: not oriels(), 60)
-            t.ok(gone, "Update and Restart: Oriel closes")
+            t.ok(gone, "a click on Update and Restart: Oriel closes")
             now = wait(lambda: version_of(EXE) == TO and version_of(EXE), 240, 3)
             t.ok(now == TO, f"…installs {TO} (Oriel.exe says {version_of(EXE)})")
             back = wait(lambda: oriels(), 90, 2)
