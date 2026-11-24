@@ -4,6 +4,7 @@
 
 import { model, type TabRecord } from '../model/model'
 import { benchRequest } from '../bench/server'
+import { handle } from '../router'
 import { forgetShy, iconFor, iconIndex, learn } from './icons'
 
 model.on('tab-changed', (tab: TabRecord, patch: Partial<TabRecord>) => {
@@ -17,5 +18,7 @@ model.on('tab-closed', () => {
 })
 
 benchRequest('data.icon', req => ({ value: iconFor(String(req.url), !!req.shy) ?? null }))
+// For the interface: the column's mark before the page has loaded.
+handle('data.icon', ({ url, shy }) => iconFor(String(url), !!shy) ?? null)
 benchRequest('data.icons', () => ({ index: iconIndex() }))
 benchRequest('data.learnIcon', async req => ({ ok: await learn(String(req.page), String(req.icon), !!req.shy) }))
