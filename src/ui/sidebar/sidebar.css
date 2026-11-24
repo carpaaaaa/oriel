@@ -53,7 +53,7 @@
 .square .glyph { position: relative; display: grid; place-items: center; }
 .pin-letter { font-weight: 500; color: var(--muted); line-height: 1; }
 .square:hover .pin-letter { color: var(--ink-hover-text); }
-.square.live .pin-letter, .sidebar.contrast .pin-letter { color: var(--ink); }
+.square.live .pin-letter, .sidebar.contrast .square .pin-letter { color: var(--ink); }
 .square.asleep .pin-letter { opacity: .45; }
 .square .ring { color: var(--muted); }
 .square.carried { z-index: 5; filter: drop-shadow(0 3px 10px rgba(0, 0, 0, .16)); }
@@ -94,7 +94,7 @@
 .title, .rest { grid-area: 1 / 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--title); }
 .title { color: var(--g-muted); }
 .row:hover .title { color: var(--ink-hover-text); }
-.row.live .title, .sidebar.contrast .title { color: var(--ink); }
+.row.live .title { color: var(--ink); }
 .row.at-rest .title { opacity: 0; }
 .row.at-rest:hover .title { opacity: 1; }
 .row.at-rest:hover .rest { opacity: 0; }
@@ -105,15 +105,16 @@
 .rest-name.plain { font-weight: 400; }
 .row.put-away .titles, .row.put-away .mark { opacity: .45; }
 .row.dim:not(:hover) .titles, .row.dim:not(:hover) .mark { opacity: .45; }
-.row.empty .title { color: var(--g-muted); }
-.row.live.empty .title { color: var(--ink); }
 .sign { flex: none; color: var(--g-muted); opacity: .7; }
 .sign.rec { opacity: .8; }
+/* a sign wears the row's colour, at its own .7 (.8 recording) (Side.swift:2140-2150,
+   2318-2324): ink at 70% under the pointer, ink on the live row */
+.row:hover .sign { color: var(--ink-hover-text); }
+.row.live .sign { color: var(--ink); }
 
 .mark { flex: none; display: grid; place-items: center; overflow: hidden; }
 .mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .mark .letter { width: 100%; height: 100%; display: grid; place-items: center; background: var(--ink-mark-bg); color: var(--muted); font-weight: 500; line-height: 1; }
-.sidebar.contrast .mark .letter { color: var(--ink); }
 .mark.dim { opacity: .45; }
 
 .state { flex: none; width: var(--close); height: var(--close); display: grid; place-items: center; color: var(--muted); }
@@ -138,7 +139,6 @@
 .group-heading .fold-mark { flex: none; opacity: 0; transition: transform var(--dur-glide) var(--ease-glide); }
 .group-heading:hover .fold-mark { opacity: 1; }
 .group-heading.folded .fold-mark { transform: rotate(-90deg); }
-.sidebar.contrast .group-heading { color: var(--ink); }
 .heading-field { font-weight: 500; font-size: 12.5px; }
 .group-heading.compact { height: 18px; gap: 2px; padding: 0; justify-content: center; border-radius: 6px; background: var(--g-tile); }
 .group-heading.compact .initial { font-size: 9.5px; font-weight: 600; }
@@ -154,10 +154,21 @@
 .folder-heading.folded .chevron { transform: none; }
 .folder-heading .folder-mark { flex: none; display: grid; place-items: center; margin-right: 2px; }
 .folder-heading .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--title); font-weight: 500; }
-.sidebar.contrast .folder-heading { color: var(--ink); }
 
 .drop-mark { position: absolute; left: 6px; right: 6px; top: -3px; height: 2px; border-radius: 1px; background: var(--accent); pointer-events: none; }
 .drop-mark.after { top: auto; bottom: -3px; }
+
+/* High contrast text (tabs.highContrast, studio/01 §5.15): ink in place of
+   the soft grey for what the Mac covers (Side.swift:1927-1932, 2318-2324,
+   Icons.swift:757-782, TabGroups.swift:108-112, PinFolderViews.swift:127-131):
+   a tab's title, put away or not (its .45 stays), with its signs; the site's
+   letter on a row and a pinned square (not the column of icons', the ghost's
+   or the player's); a pinned square's letter; group and pin folder headings,
+   under the pointer too. Specific enough to win over hover and empty rows. */
+.sidebar.contrast .row .title, .sidebar.contrast .row .sign { color: var(--ink); }
+.sidebar.contrast .row .mark .letter, .sidebar.contrast .square .mark .letter { color: var(--ink); }
+.sidebar.contrast .group-heading, .sidebar.contrast .group-heading:hover,
+.sidebar.contrast .folder-heading { color: var(--ink); }
 
 /* the keep line, Clear at its end (KeepLine) */
 .keep-line { height: 18px; display: flex; align-items: center; gap: 6px; padding: 0 10px; }

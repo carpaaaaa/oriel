@@ -297,7 +297,7 @@ export function Column() {
   }
 
   return (
-    <aside class="sidebar on-frame" data-tabs-ui="column" classList={{ icons: icons(), right: state.sidebar.side === 'right' }}
+    <aside class="sidebar on-frame" data-tabs-ui="column" classList={{ icons: icons(), right: state.sidebar.side === 'right', contrast: P.contrast() }}
       style={{ width: `${width()}px` }}
       onContextMenu={e => { if (!(e.target as HTMLElement).closest('.row, .square, .tile, .group-heading, .folder-heading, .door, .foot > *')) { e.preventDefault(); void openColumnMenu(e) } }}>
       <Wash />

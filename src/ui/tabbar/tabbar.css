@@ -3,6 +3,17 @@
 
 .tabbar { position: absolute; left: 0; right: 0; top: 0; height: var(--strip); background: var(--ground); isolation: isolate;
   padding-right: var(--controls, 0px); font-size: var(--fs-tab); --accent: rgb(0, 122, 255); }
+/* Greys.white again (Design.swift:93-95; TabBar reads the default greys, only
+   the column sets Greys.frame): the window around is .on-frame, whose greys
+   left a title that isn't live at 147 over the white, not the Mac's 140. */
+.tabbar {
+  --g-wash: rgba(0,0,0,.063); --g-hover: rgba(0,0,0,.035); --g-tile: rgba(0,0,0,.03465); --g-pin-live: rgba(0,0,0,.10);
+  --g-wash-on-tile: rgba(0,0,0,.0294); --g-hover-on-tile: rgba(0,0,0,.004); --g-muted: rgba(0,0,0,.45); --g-faint: rgba(0,0,0,.17);
+}
+:root[data-look="dark"] .tabbar {
+  --g-wash: rgba(255,255,255,.073); --g-hover: rgba(255,255,255,.045); --g-tile: rgba(255,255,255,.04015); --g-pin-live: rgba(255,255,255,.112);
+  --g-wash-on-tile: rgba(255,255,255,.0342); --g-hover-on-tile: rgba(255,255,255,.005); --g-muted: rgba(255,255,255,.5281); --g-faint: rgba(255,255,255,.236);
+}
 .tabbar .wash { position: absolute; }
 /* Shorter tab bar (tabs.compact, Design.swift Metrics.strip): 36, the band 3 from the top */
 .tabbar.compact { height: var(--strip-compact); }
@@ -61,7 +72,10 @@
 .strip-pin.live .ground { background: var(--g-pin-live); }
 .strip-pin.gliding .ground { background: var(--g-tile); }
 .strip-pin > :not(.ground) { position: relative; }
-.strip-pin .pin-letter { font-size: 12px; font-weight: 500; color: var(--muted); }
+/* its letter in the tab's own colour (TabBar.swift:1014, 1265-1268): the grey of
+   the ground it lies on, ink at 70% under the pointer, ink live */
+.strip-pin .pin-letter { font-size: 12px; font-weight: 500; color: var(--g-muted); }
+.strip-pin:hover .pin-letter { color: var(--ink-hover-text); }
 .strip-pin.live .pin-letter { color: var(--ink); }
 .strip-pin.asleep .pin-letter { opacity: .45; }
 .pin-line { flex: none; width: 1px; height: 20px; background: var(--hairline); margin: 0 1px; }
@@ -77,5 +91,13 @@
 .strip-group { flex: none; height: 28px; display: flex; align-items: center; gap: var(--tab-gap); border-radius: var(--row-radius); }
 .strip-group.open { background: var(--band); margin-right: 8px; }
 .strip-group-name { flex: none; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+
+/* High contrast text (tabs.highContrast, studio/01 §5.15; TabBar.swift:1009,
+   1102, 1129, 1265-1268, TabGroups.swift:108-112): titles, pin letters, the
+   sites' letters and the groups' names in ink, live or not, under the pointer
+   or not. */
+.tabbar.contrast .strip-title .title, .tabbar.contrast .strip-pin .pin-letter,
+.tabbar.contrast .strip-tab .mark .letter, .tabbar.contrast .strip-pin .mark .letter,
+.tabbar.contrast .strip-group-name { color: var(--ink); }
 
 /* The page under the strip is the window's layout (app.css, .window.top). */
