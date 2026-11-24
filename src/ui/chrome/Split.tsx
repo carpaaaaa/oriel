@@ -6,6 +6,7 @@ import { createEffect, createMemo, createSignal, For, Show } from 'solid-js'
 import type { SplitView } from '../../shared/state'
 import { state, cmd } from '../lib/store'
 import { Field } from '../field/Field'
+import { outlet } from '../lib/registry'
 
 /** PaneStage.gutter, .narrowest */
 export const GUTTER = 7
@@ -103,8 +104,17 @@ export function Panes(p: { split: SplitView; width: number; onLaid: () => void }
         <Show when={laid()[i()]}>{r => (
           <div class="pane" data-tab={id} classList={{ focused: id === state.activeID }}
             style={{ left: `${r().left}px`, width: `${r().width}px` }}>
-            <Show when={tab(id)?.empty && id === state.activeID}>
-              <div class="empty-page"><Field place="page" /></div>
+            {/* An empty page in a split wears the blank tab's theme, as a lone
+                empty tab does; the field (and Settings' door) only in the
+                pane with the keys. */}
+            <Show when={tab(id)?.empty}>
+              <div class="empty-page">
+                <For each={outlet('blank.under')}>{C => <C />}</For>
+                <Show when={id === state.activeID}>
+                  <Field place="page" />
+                  <For each={outlet('blank.over')}>{C => <C />}</For>
+                </Show>
+              </div>
             </Show>
           </div>
         )}</Show>
