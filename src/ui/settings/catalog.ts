@@ -165,6 +165,8 @@ const overrides: Record<string, Partial<Item>> = {
   // The tabs module (studio/08 area B): Oriel has no View menu, and no site card yet.
   'note.panel': { detail: 'Always there: right-click a tab › Open in Side Panel' },
   'note.awake': { detail: 'Always there: right-click a tab › Keep This Site Awake' },
+  // Block ads and trackers: uBlock Origin's lists (pages module); off for one site from the tab's menu.
+  'shield': { more: "uBlock Origin's own lists, brought up to date once a day. On YouTube, the ads announced in the player's own data are taken out before the video starts. Turn it off for one site: right-click its tab › Stop Blocking Ads on This Site." },
   'mail.webmail': { more: "Email (mailto:) links clicked in a page open the webmail's new message in a tab beside it, with the address, subject and text filled in. From a private tab too, in an ordinary tab, where you're signed in. Links from other apps go there once Oriel opens email links." },
   'launcher.on': { detail: "A key of your own raises it over the app you're in, as the Start menu's search does" },
   'bench': { detail: 'A local pipe for testing; its tabs never take over' },

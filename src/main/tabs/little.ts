@@ -100,7 +100,7 @@ export function openLittle(url: string, space?: string): Little {
   void line.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(linePage(dark, windows)))
   const pseudo = { id: newID(), space: chosen, win: win?.id ?? '', shy: false } as unknown as TabRecord
   const page = new WebContentsView({
-    webPreferences: { session: sessionFor(pseudo), preload: pagePreload, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: true },
+    webPreferences: { session: sessionFor(pseudo), preload: pagePreload, sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: true, spellcheck: true },
   })
   page.setBackgroundColor('#FFFFFF')
   base.contentView.addChildView(page)

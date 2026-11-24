@@ -115,6 +115,8 @@ export function failure(code: number): string {
   if (code === -7 || code === -118) return 'The site took too long to answer.'
   if (code === -102) return 'The site refused the connection.'
   if (code === -107 || code === -113 || code === -117 || (code <= -200 && code > -300)) return "The connection isn't secure."
+  // ERR_BLOCKED_BY_CLIENT: a list's filter for pages (Block ads and trackers) or an extension's rule.
+  if (code === -20) return 'A block list stopped this page.'
   return "The page didn't load."
 }
 
@@ -158,6 +160,9 @@ export class TabRuntime {
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
+        // The preload's frame part (blocking, GPC, cross-site cookies) runs
+        // in frames too; nothing of Node's is there (sandboxed).
+        nodeIntegrationInSubFrames: true,
         spellcheck: true,
         scrollBounce: false,
       },

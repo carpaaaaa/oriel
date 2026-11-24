@@ -13,3 +13,6 @@ riferimenti-privati/
 
 # worktrees of parallel agents
 .claude/
+
+# uBlock Origin lists fetched for the bundled snapshot (scripts/build.mjs)
+build/blocker/

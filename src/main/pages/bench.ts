@@ -3,7 +3,10 @@
 import { app, type WebContents } from 'electron'
 import { benchRequest } from '../bench/server'
 import { runtimes } from '../views/tabs'
-import { blocked } from './shield'
+import { blocked, redirected } from './shield'
+import { describe, update, useTestList } from './blocker'
+import { framesDressed } from './page'
+import type { Source } from './blocker/core'
 import { fellBack } from './privacy'
 import { reminder } from './escape'
 import { gliding } from './smooth'
@@ -24,6 +27,7 @@ benchRequest('pages.state', req => {
   const wc = req.id ? runtimes.get(String(req.id))?.contents : null
   return {
     blocked: blocked.slice(-50),
+    redirected: redirected.slice(-50),
     fellBack: fellBack.slice(-20),
     reminder: { ...reminder },
     gliding,
@@ -84,4 +88,22 @@ benchRequest('pages.appFocus', req => {
   if (!c) throw new Error('no window')
   if (req.focused) { c.base.isFocused = () => true; c.base.emit('focus') } else { c.base.isFocused = () => false; c.base.emit('blur') }
   return {}
+})
+
+/** The ad blocker: where its engine came from, its lists, what it did. */
+benchRequest('pages.blocker', () => ({ ...describe(), blocked: blocked.slice(-100), redirected: redirected.slice(-50), frames: framesDressed.slice(-20) }))
+
+/** A test world's own filter list (and resources), in place of uBlock
+ * Origin's, so a test knows exactly what is blocked; null puts them back. */
+benchRequest('pages.blockerTest', req => {
+  useTestList(typeof req.filters === 'string' ? req.filters : null, typeof req.resources === 'string' ? req.resources : undefined, req.none === true)
+  return describe()
+})
+
+/** The daily update, now, from addresses on this computer: `lists` and
+ * `resources` are the sources' stand-ins ({id, urls}). */
+benchRequest('pages.blockerUpdate', async req => {
+  const lists = req.lists as Source[] | undefined
+  const resources = req.resources as Source | undefined
+  return update(lists && resources ? { lists, resources } : undefined)
 })

@@ -6,14 +6,21 @@
 
 import { ipcMain, type WebContents } from 'electron'
 import { model } from '../model/model'
-import { gpcFor } from './privacy'
+import { gpcFor, protects } from './privacy'
 import { hostOf, pref, shieldOn, testHosts } from './facts'
-import { hidingCSS, standInPattern, youtubeHosts } from './lists'
+import { hidingCSS, siteOf, standInPattern, youtubeHosts } from './lists'
+import { blocker, cosmeticsFor, cosmeticsForDOM, enclosed } from './blocker'
 import { siteStyle, styleChanged } from './styles'
 import { watchEscape } from './escape'
 
 export interface PagePrefs {
   css: string
+  /** The lists' scriptlets for this page, run before its own scripts. */
+  scripts: string[]
+  /** The lists' procedural filters for this page. */
+  extended: unknown[]
+  /** Ask for the generic rules that match the page's classes and ids. */
+  dom: boolean
   youtube: string[] | null
   standIn: string
   gpc: boolean
@@ -32,8 +39,16 @@ export function pagePrefs(wc: WebContents, address: string): PagePrefs | null {
   if (/^(oriel|devtools|chrome|chrome-extension):/i.test(address)) return null
   const host = hostOf(address)
   const shield = shieldOn(host)
+  const lists = shield && host ? cosmeticsFor(address) : null
+  const engine = shield && !!blocker()
+  // The lists turn everything off here (@@||site^$document): Search's own too.
+  const allowed = engine && host && /^https?:/i.test(address) && !lists
+  const own = shield && host && !allowed ? hidingCSS(host, testHosts('test.redditHosts'), engine) : ''
   return {
-    css: shield && host ? hidingCSS(host, testHosts('test.redditHosts')) : '',
+    css: [own, lists?.styles ?? ''].filter(Boolean).join('\n'),
+    scripts: (lists?.scripts ?? []).map(enclosed),
+    extended: lists?.extended ?? [],
+    dom: !!lists,
     youtube: shield ? [...youtubeHosts, ...testHosts('test.youtubeHosts')] : null,
     standIn: standInPattern,
     gpc: gpcFor(wc),
@@ -45,6 +60,64 @@ export function pagePrefs(wc: WebContents, address: string): PagePrefs | null {
     bounce: !!pref<boolean>('pages.bounce'),
     style: host ? siteStyle(host) : '',
   }
+}
+
+/** A frame's own address (an about:blank or srcdoc frame: its origin's)
+ * and its page's, as the main process knows them. */
+function frameAddresses(frame: Electron.WebFrameMain, wc: WebContents): { url: string; top: string; ancestors: string[] } {
+  const http = (u: string | undefined) => (u && /^https?:/i.test(u) ? u : '')
+  const url = http(frame.url) || (http(frame.origin) ? frame.origin + '/' : '')
+  const ancestors: string[] = []
+  for (let f = frame.parent; f; f = f.parent) ancestors.push(f.url)
+  return { url, top: frame.top?.url || wc.getURL(), ancestors }
+}
+
+// The generic hiding rules for the classes, ids and links a page (or one
+// of its frames) has: the preload sends them as they appear.
+ipcMain.handle('pages:cosmetics', (event, features: { classes?: unknown; ids?: unknown; hrefs?: unknown }) => {
+  const frame = event.senderFrame
+  if (!frame) return ''
+  const { url, top } = frameAddresses(frame, event.sender)
+  if (!url || !/^https?:/i.test(top) || !shieldOn(hostOf(top))) return ''
+  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(0, 5000) : [])
+  return cosmeticsForDOM(url, strings(features?.classes), strings(features?.ids), strings(features?.hrefs))
+})
+
+/** Frames given their share, for the bench. */
+export const framesDressed: { url: string; css: number; scripts: number; noCookies: boolean }[] = []
+
+// What a frame is given as it starts (src/preload/page/frame.ts).
+ipcMain.on('pages:frame', event => {
+  // The answer goes back the first time returnValue is set: once, at the end.
+  let answer: unknown = null
+  try { answer = framePrefs(event) } catch (error) { console.warn('[pages] frame', error) }
+  event.returnValue = answer
+})
+
+function framePrefs(event: Electron.IpcMainEvent): unknown {
+  const wc = event.sender
+  const frame = event.senderFrame
+  if (!frame || frame === wc.mainFrame) return null
+  const { url, top, ancestors } = frameAddresses(frame, wc)
+  // Oriel's own pages and an extension's: their frames are theirs.
+  if (!/^https?:/i.test(top)) return null
+  const topHost = hostOf(top)
+  const shield = shieldOn(topHost)
+  const lists = shield && url ? cosmeticsFor(url, ancestors) : null
+  const engine = shield && !!blocker()
+  const own = shield && topHost && !(engine && !lists && url) ? hidingCSS(topHost, testHosts('test.redditHosts'), engine) : ''
+  const third = !!url && siteOf(hostOf(url) ?? '') !== siteOf(topHost ?? '')
+  const p = {
+    css: [own, lists?.styles ?? ''].filter(Boolean).join('\n'),
+    scripts: (lists?.scripts ?? []).map(enclosed),
+    extended: lists?.extended ?? [],
+    dom: !!lists,
+    gpc: gpcFor(wc),
+    noCookies: third && protects(wc),
+  }
+  framesDressed.push({ url, css: p.css.length, scripts: p.scripts.length, noCookies: p.noCookies })
+  if (framesDressed.length > 50) framesDressed.shift()
+  return p
 }
 
 /** Pages whose preload asked, with the address it asked for. */
