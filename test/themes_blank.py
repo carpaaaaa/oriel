@@ -205,11 +205,13 @@ k.look("dark")
 k.shot("off-dark")
 k.look("light")
 
-# The Themes page itself, light and dark, for the eye.
+# The Themes page itself, each family, light and dark, for the eye.
 tab = k.open_themes()
-k.family(tab, "Wall painting")
-k.shot("page-wall-light")
-k.look("dark")
-k.shot("page-wall-dark")
-k.look("light")
+for title, name in [("Wall painting", "wall"), ("Stickers", "stickers"), ("Solid colour", "solid"), ("Gradient", "gradient"), ("Image", "image")]:
+    k.family(tab, title)
+    k.ev(tab, "document.querySelector('.st-scroll').scrollTo(0, document.querySelector('.th .st-seg').offsetTop - 40)")
+    k.shot(f"page-{name}-light")
+    k.look("dark")
+    k.shot(f"page-{name}-dark")
+    k.look("light")
 t.done()
