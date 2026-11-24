@@ -28,14 +28,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     steps:
-      - name: WinGet
+      # The runners' winget is old (1.11 on x64, none on ARM) and doesn't know
+      # the manifest schema winget-pkgs uses now: the latest one, as people have.
+      - name: WinGet, latest
         shell: pwsh
         run: |
-          if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-            Install-PackageProvider -Name NuGet -Force | Out-Null
-            Install-Module Microsoft.WinGet.Client -Force -Repository PSGallery
-            Repair-WinGetPackageManager -AllUsers -Latest
-          }
+          Install-PSResource -Name Microsoft.WinGet.Client -TrustRepository -Quiet
+          Import-Module Microsoft.WinGet.Client
+          Repair-WinGetPackageManager -AllUsers -Latest -Force
+      - name: WinGet, ready
+        shell: pwsh
+        run: |
           winget --version
           winget settings --enable LocalManifestFiles
       - name: Manifests
