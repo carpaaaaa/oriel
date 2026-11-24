@@ -230,6 +230,8 @@ async function windowsPassword(a: NonNullable<typeof api>, reason: string, hwnd:
   for (let attempt = 0; attempt < 3; attempt++) {
     const info = { cbSize: a.koffi.sizeof(a.CREDUI_INFOW), hwndParent: hwnd, pszMessageText: reason, pszCaptionText: caption, hbmBanner: null }
     const pkg = [0], buffer = [null], size = [0]
+    // The system's credential dialogs up before ours: never closed by us.
+    const before = closeDialogs([], [], false, null).credentials
     trace.steps.push('password dialog asked')
     const asked = promise<number>(a.CredUIPromptForWindowsCredentialsW, info, authError, pkg, null, 0, buffer, size, null, CREDUIWIN_ENUMERATE_CURRENT_USER)
     // Not left up for ever: past the time, closed wherever it is, as a Cancel.
@@ -237,7 +239,7 @@ async function windowsPassword(a: NonNullable<typeof api>, reason: string, hwnd:
     const late = new Promise<'late'>(done => { timer = setTimeout(() => done('late'), within) })
     let code = await Promise.race([asked, late])
     if (code === 'late') {
-      const shut = closeDialogs(hwnd ? [a.address(hwnd)] : [])
+      const shut = closeDialogs(hwnd ? [a.address(hwnd)] : [], hwnd ? [a.address(hwnd)] : [], false, before)
       trace.steps.push(`password dialog timed out, closed ${JSON.stringify(shut.closed)} of ${JSON.stringify(shut.seen)}`)
       trace.verdict = 'timeout'
       code = await Promise.race([asked, new Promise<'late'>(done => setTimeout(() => done('late'), 5000))])
@@ -296,13 +298,15 @@ export async function windowsProof(reason: string, win: BaseWindow | null, capti
 const credentialClass = /^Credential Dialog Xaml Host$/
 
 /** Closes the credential dialog: windows owned by one of Oriel's windows,
- * other windows of this process that aren't Oriel's own, and the system's
- * credential dialog wherever it runs. What was closed and what was seen
- * (class@pid), for the trace. */
-function closeDialogs(owners: bigint[], ours: bigint[] = owners, sameProcess = false): { closed: string[]; seen: string[] } {
+ * the system's credential dialog in this process, or the broker's one that
+ * came up since we asked (not in `before`); in a test world, any window of
+ * this process that isn't Oriel's. With `before` null, only looks. What was
+ * closed and seen (class@pid), and the credential dialogs up now. */
+function closeDialogs(owners: bigint[], ours: bigint[] = owners, sameProcess = false, before: Set<bigint> | null = new Set()): { closed: string[]; seen: string[]; credentials: Set<bigint> } {
   const a = (api ??= load())
   const mine = new Set(ours), owning = new Set(owners)
   const found: unknown[] = [], closed: string[] = [], seen: string[] = []
+  const credentials = new Set<bigint>()
   const each = a.koffi.register((hwnd: unknown) => {
     if (!a.IsWindowVisible(hwnd)) return true
     const pid = [0]
@@ -312,15 +316,16 @@ function closeDialogs(owners: bigint[], ours: bigint[] = owners, sameProcess = f
     const owned = owning.has(a.address(a.GetWindow(hwnd, 4 /* GW_OWNER */)))
     const here = pid[0] === process.pid
     if (here || owned || credentialClass.test(cls) || /Credential|Consent/i.test(cls)) seen.push(`${cls}@${pid[0]}${owned ? ' owned' : ''}`)
-    if (mine.has(a.address(hwnd))) return true
-    // Another app's credential dialog is never touched, outside a test world.
-    const credential = credentialClass.test(cls) && (here || owned || sameProcess)
+    if (credentialClass.test(cls)) credentials.add(a.address(hwnd))
+    if (before == null || mine.has(a.address(hwnd))) return true
+    // Another app's credential dialog, up before we asked, is never touched.
+    const credential = credentialClass.test(cls) && (here || owned || sameProcess || !before.has(a.address(hwnd)))
     if (owned || credential || (sameProcess && here)) { found.push(hwnd); closed.push(cls) }
     return true
   }, a.koffi.pointer(a.EnumWindowsProc))
   try { a.EnumWindows(each, 0) } finally { a.koffi.unregister(each) }
   for (const hwnd of found) a.PostMessageW(hwnd, 0x0010 /* WM_CLOSE */, 0, 0)
-  return { closed, seen }
+  return { closed, seen, credentials }
 }
 
 /** A test world's stand-in for a person pressing Cancel. */

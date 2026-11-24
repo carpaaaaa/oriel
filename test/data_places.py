@@ -43,7 +43,7 @@ def offers(text, limit=3):
 
 def saved(name):
     req("data.flush")
-    return json.loads((folder / name).read_text())
+    return json.loads((folder / name).read_text(encoding="utf-8"))
 
 
 # The Mac's files read as they are.

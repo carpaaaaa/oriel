@@ -78,4 +78,15 @@ if trace.get("availability") not in (None, 0):
     t.ok(trace.get("password") is not None or any(s.startswith("password dialog timed out") for s in steps),
          f"and it comes back: answered ({trace.get('password')}) or closed when its time is up")
 t.ok(trace.get("verdict") in ("refused", "unavailable", "timeout"), f"no yes without a person ({trace.get('verdict')})")
+
+# Left alone: Oriel closes its own dialog when its time is up (the broker's
+# dialog that came up since it asked, never one that was there before).
+if trace.get("availability") not in (None, 0):
+    t0 = time.time()
+    alone = b.call({"do": "data.helloTrace", "reason": "fill your password for example.com", "within": 6000}, timeout=60)["trace"]
+    print("       alone:", json.dumps(alone))
+    t.ok(time.time() - t0 < 30, f"left alone, it still ends ({time.time() - t0:.1f} s)")
+    t.ok(any(s.startswith("password dialog timed out, closed [\"Credential Dialog Xaml Host\"]") for s in alone["steps"]),
+         "past its time, Oriel closes the dialog it opened")
+    t.ok(alone.get("verdict") == "timeout", f"and that is a no ({alone.get('verdict')})")
 t.done()

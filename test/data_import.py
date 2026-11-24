@@ -61,7 +61,7 @@ def texts(said):
 
 def saved_marks():
     req("data.flush")
-    return json.loads((folder / "bookmarks.json").read_text())
+    return json.loads((folder / "bookmarks.json").read_text(encoding="utf-8"))
 
 
 # What is found, from the files alone.
@@ -152,7 +152,7 @@ t.ok(bool(req("data.icon", url="https://developer.mozilla.org/en-US/")["value"])
 tools = next(m for m in saved_marks() if m["title"] == "Tools")
 b.cmd("bookmark.add", url="https://mine.example/", title="Mine", folder=tools["id"])
 work = home / "AppData/Local/Google/Chrome/User Data/Profile 1/Bookmarks"
-data = json.loads(work.read_text())
+data = json.loads(work.read_text(encoding="utf-8"))
 data["roots"]["bookmark_bar"]["children"] = [c for c in data["roots"]["bookmark_bar"]["children"] if c.get("name") != "Work Wiki"]
 data["roots"]["bookmark_bar"]["children"].append({"id": "99", "type": "url", "name": "New Wiki", "url": "https://newwiki.work.example/"})
 work.write_text(json.dumps(data))

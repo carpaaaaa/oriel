@@ -118,7 +118,7 @@ t.ok(row is not None and str(row.get("favicon", "")).startswith("data:image/png"
 
 # Written for the next start: there at once.
 b.quit()
-saved = json.loads((folder / "icons" / "pages.json").read_text())
+saved = json.loads((folder / "icons" / "pages.json").read_text(encoding="utf-8"))
 t.ok(saved.get(HOST, {}).get("/a/page", {}).get("light") == ident, "pages.json in the Mac's shape: site, path, light, seen")
 b.launch()
 t.ok(bool(req("data.icon", url=SITE + "/a/page")["value"]), "after a restart, there before any page says it")
