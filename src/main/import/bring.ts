@@ -5,7 +5,8 @@
 import type { ImportPreview, ImportSaid, BookmarkNode } from '../../shared/modules/data'
 import { bookmarks, history } from '../data/store'
 import { records, top } from '../data/meta'
-import { count as countMarks } from '../data/bookmarks'
+import { count as countMarks, urls } from '../data/bookmarks'
+import { adopt } from '../data/icons'
 import type { Source } from './sources'
 import * as chromium from './chromium'
 import * as gecko from './gecko'
@@ -39,6 +40,10 @@ export function takeBookmarks(source: Source, profile: string | null, replacing:
   }
   const taken = bookmarks().takeNoting(read.nodes, source.name, top)
   records.note(source.name, { ids: taken.ids, bookmarks: taken.added })
+  // Then their icons, from the browser's own (05 §1.3): a site's, until one of its pages says otherwise.
+  const list = urls(read.nodes)
+  const found = source.family === 'chromium' ? chromium.icons(source, profile, list) : gecko.icons(source, profile, list)
+  for (const [url, png] of found) adopt(url, png)
   return { added: taken.added, already: taken.already, kept, found: countMarks(read.nodes) }
 }
 

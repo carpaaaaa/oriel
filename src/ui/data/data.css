@@ -120,3 +120,20 @@
 .bt-said-line { display: flex; gap: 8px; font-size: 12.5px; }
 .bt-said-line.bt-bad { color: var(--muted); }
 .bt-said-mark { width: 12px; flex: none; font-size: 10.5px; font-weight: 600; }
+
+/* oriel://history (Recall.swift, a Plate in a tab: title 22 semibold, 44
+   above and 20 below, 22 at the sides, a 600 px column) */
+.hp { max-width: 600px; margin: 0 auto; padding: 44px 22px 22px; font: 400 var(--fs-body)/1.25 var(--font-ui); color: var(--ink); display: flex; flex-direction: column; gap: 14px; }
+.hp-title { margin: 0 0 6px; font-size: var(--fs-page-title); font-weight: 600; }
+.hp-hunt { font: inherit; padding: 8px 12px; border: 0; border-radius: 10px; background: var(--wash); color: var(--ink); outline: none; }
+.hp-day { display: flex; flex-direction: column; gap: 14px; }
+.hp-row { display: flex; align-items: center; }
+.hp-go { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: inherit; text-decoration: none; }
+.hp-icon, .hp-letter { width: 16px; height: 16px; flex: none; border-radius: 4px; }
+.hp-letter { display: grid; place-items: center; background: var(--wash); font-size: 10px; font-weight: 600; color: var(--muted); }
+.hp-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hp-name, .hp-address { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hp-address, .hp-time { font-size: var(--fs-detail); color: var(--muted); }
+.hp-remove { visibility: hidden; margin-right: 10px; border: 0; background: transparent; font: inherit; font-size: var(--fs-detail); color: var(--unsafe); cursor: default; }
+.hp-row:hover .hp-remove { visibility: visible; }
+.hp-foot { display: flex; align-items: center; padding-top: 4px; }

@@ -3,6 +3,7 @@
 // Vault.swift, Address.swift on the Mac).
 
 import { randomUUID } from 'node:crypto'
+import { getDomain } from 'tldts'
 import { resolveInput } from '../address'
 
 export function parse(text: string): URL | null {
@@ -82,30 +83,13 @@ export function siteHost(text: string): string {
   return host.startsWith('www.') ? host.slice(4) : host
 }
 
-// Second-level suffixes under which a registrable domain takes three labels.
-// A short stand-in for the Public Suffix List (05 §2.11: tldts is the real one).
-const twoPart = new Set([
-  'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'me.uk', 'ltd.uk', 'plc.uk', 'net.uk', 'sch.uk', 'nhs.uk',
-  'com.au', 'net.au', 'org.au', 'edu.au', 'gov.au', 'asn.au', 'id.au',
-  'co.nz', 'org.nz', 'net.nz', 'govt.nz', 'ac.nz',
-  'co.jp', 'ne.jp', 'or.jp', 'ac.jp', 'go.jp', 'gr.jp',
-  'com.br', 'net.br', 'org.br', 'gov.br', 'com.mx', 'com.ar', 'com.co', 'com.pe', 'com.tr', 'com.cn', 'net.cn', 'org.cn',
-  'com.hk', 'com.sg', 'com.tw', 'com.my', 'co.in', 'net.in', 'org.in', 'co.za', 'co.kr', 'or.kr', 'co.il', 'co.id',
-  'gouv.fr', 'gov.it', 'edu.it', 'co.it', 'gv.at', 'co.at', 'or.at', 'com.es', 'org.es', 'com.pl', 'net.pl', 'com.ua',
-  'github.io', 'gitlab.io', 'vercel.app', 'netlify.app', 'pages.dev', 'workers.dev', 'herokuapp.com', 'blogspot.com',
-  'azurewebsites.net', 'cloudfront.net', 'appspot.com', 'web.app', 'firebaseapp.com',
-])
-
 /** example.com for www.example.com and accounts.example.com; bbc.co.uk stays
- * bbc.co.uk (Vault.registrable). An address or a single label is itself. */
+ * bbc.co.uk; a site on github.io is its own (Vault.registrable, with the
+ * Public Suffix List from tldts, private suffixes included). An address or a
+ * single label is itself. */
 export function registrable(host: string): string {
   const h = host.toLowerCase().replace(/\.$/, '')
-  if (/^[\d.]+$/.test(h) || h.includes(':') || !h.includes('.')) return h
-  const labels = h.split('.')
-  if (labels.length <= 2) return h
-  const lastTwo = labels.slice(-2).join('.')
-  return twoPart.has(lastTwo) ? labels.slice(-3).join('.') : lastTwo
+  return getDomain(h, { allowPrivateDomains: true }) ?? h
 }
 
-/** An id as Swift writes a UUID. */
 export const newID = () => randomUUID().toUpperCase()

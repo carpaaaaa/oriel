@@ -3,7 +3,8 @@
 // §2.4). Owned by the data module.
 //
 
-import { registerPanel } from '../lib/registry'
+import { registerPage, registerPanel } from '../lib/registry'
+import { HistoryPage } from './HistoryPage'
 import { FillList } from './FillList'
 import { SaveQuestion } from './SaveQuestion'
 import { ImportPanel } from './ImportPanel'
@@ -16,3 +17,6 @@ const mine: Record<string, () => any> = {
 }
 
 for (const [name, component] of Object.entries(mine)) registerPanel(name, component)
+
+// oriel://history
+registerPage('history', HistoryPage)

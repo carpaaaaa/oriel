@@ -75,13 +75,21 @@ def forms():
     return req("data.forms")
 
 
+loads = 0
+
+
 def open_page(path, title):
+    # A new document each time, told apart by its address: the old one has
+    # the same title, and its boxes may be the ones just picked into.
+    global loads
+    loads += 1
+    url = f"{SITE}{path}{'&' if '?' in path else '?'}load={loads}"
     tab = b.active()
     if tab and not tab["empty"]:
-        b.cmd("tab.go", input=SITE + path)
+        b.cmd("tab.go", input=url)
     else:
-        b.cmd("field.commit", text=SITE + path)
-    b.wait_for(lambda: (b.active() or {}).get("title") == title and not b.active()["loading"], what=title)
+        b.cmd("field.commit", text=url)
+    b.wait_for(lambda: (b.active() or {}).get("url") == url and b.active().get("title") == title and not b.active()["loading"], what=title)
     time.sleep(0.3)
     return b.active()["id"]
 

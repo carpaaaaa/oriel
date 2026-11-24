@@ -9,14 +9,18 @@
 //   node test/fixtures/data/make.mjs <home> > answers.json
 //
 // The key a Chromium browser keeps in Local State is sealed by DPAPI on
-// Windows; elsewhere it carries a test mark that only a test world opens.
+// Windows (CryptProtectData through koffi); elsewhere it carries a test mark
+// that only a test world opens.
 // Prints what the tests should find, as JSON.
 
 import { DatabaseSync } from 'node:sqlite'
 import { createCipheriv, createHash, pbkdf2Sync, randomBytes } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 import path from 'node:path'
+import { crc32, deflateSync } from 'node:zlib'
+
+const require = createRequire(import.meta.url)
 
 const home = process.argv[2]
 if (!home) { console.error('usage: make.mjs <home>'); process.exit(2) }
@@ -32,12 +36,27 @@ const days = n => now - n * 86_400_000
 
 // Chromium
 
+/** Sealed for this user by DPAPI (CryptProtectData through koffi, as the
+ * browser does) on Windows; elsewhere a test world's stand-in. */
+let protectAPI = null
 function dpapi(key) {
   if (process.platform === 'win32') {
-    const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-      "Add-Type -AssemblyName System.Security; [Convert]::ToBase64String([Security.Cryptography.ProtectedData]::Protect([Convert]::FromBase64String($env:K), $null, 'CurrentUser'))"],
-      { env: { ...process.env, K: key.toString('base64') } })
-    return Buffer.from(String(out).trim(), 'base64')
+    if (!protectAPI) {
+      // Declared once: koffi keeps type names for the whole process.
+      const koffi = require('koffi')
+      const crypt32 = koffi.load('crypt32.dll'), kernel32 = koffi.load('kernel32.dll')
+      const BLOB = koffi.struct('FIXTURE_DATA_BLOB', { cbData: 'uint32_t', pbData: 'void *' })
+      protectAPI = {
+        koffi,
+        protect: crypt32.func('__stdcall', 'CryptProtectData', 'bool',
+          [koffi.pointer(BLOB), 'str16', koffi.pointer(BLOB), 'void *', 'void *', 'uint32_t', koffi.out(koffi.pointer(BLOB))]),
+        free: kernel32.func('__stdcall', 'LocalFree', 'void *', ['void *']),
+      }
+    }
+    const { koffi, protect, free } = protectAPI
+    const out = { cbData: 0, pbData: null }
+    if (!protect({ cbData: key.length, pbData: key }, null, null, null, null, 1 /* UI forbidden */, out)) throw new Error('CryptProtectData failed')
+    try { return Buffer.from(koffi.decode(out.pbData, 'uint8_t', out.cbData)) } finally { free(out.pbData) }
   }
   return Buffer.concat([Buffer.from('SEARCHTESTDPAPI:'), key])
 }
@@ -130,6 +149,8 @@ logins(path.join(chromeWork, 'Login Data'), [
   { origin: 'https://ads.example/', never: true },
   { origin: 'android://hash@com.example.app/', user: 'droid', blob: v10(chromeKey, 'android-pass') },
   { origin: 'https://planted.work.example/', user: 'eve', blob: Buffer.from('plain-text-planted') },
+  // Before Chrome 80, on Windows: the password itself sealed by DPAPI.
+  ...(process.platform === 'win32' ? [{ origin: 'https://old.work.example/', user: 'olduser', blob: dpapi(Buffer.from('old-dpapi-pass')) }] : []),
 ])
 logins(path.join(chromeWork, 'Login Data For Account'), [
   { origin: 'https://account.work.example/', user: 'alice', blob: v10(chromeKey, 'account-pass') },
@@ -161,6 +182,36 @@ const arc = dir(local, 'Packages', 'TheBrowserCompany.Arc_ttt1ap7aakyb4', 'Local
 const arcDefault = dir(arc, 'Default')
 bookmarks(path.join(arcDefault, 'Bookmarks'), [{ name: 'Arc Thing', url: 'https://arc.example/' }])
 history(path.join(arcDefault, 'History'), [{ url: 'https://arc.example/', title: 'Arc Thing', count: 1 }])
+
+/** A small PNG of one colour with a diagonal, as a site's icon. */
+function png(size, [r, g, b]) {
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length)
+    const body = Buffer.concat([Buffer.from(type), data])
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body))
+    return Buffer.concat([len, body, crc])
+  }
+  const head = Buffer.alloc(13)
+  head.writeUInt32BE(size, 0); head.writeUInt32BE(size, 4); head[8] = 8; head[9] = 6
+  const raw = Buffer.alloc((size * 4 + 1) * size)
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const at = y * (size * 4 + 1) + 1 + x * 4
+    raw.set(x === y ? [255, 255, 255, 255] : [r, g, b, 255], at)
+  }
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', head), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
+}
+
+// Chrome's icons for its work profile: the wiki's front door.
+{
+  const db = new DatabaseSync(path.join(chromeWork, 'Favicons'))
+  db.exec('CREATE TABLE favicons(id INTEGER PRIMARY KEY, url LONGVARCHAR NOT NULL, icon_type INTEGER DEFAULT 1)')
+  db.exec('CREATE TABLE favicon_bitmaps(id INTEGER PRIMARY KEY, icon_id INTEGER NOT NULL, last_updated INTEGER DEFAULT 0, image_data BLOB, width INTEGER DEFAULT 0, height INTEGER DEFAULT 0)')
+  db.exec('CREATE TABLE icon_mapping(id INTEGER PRIMARY KEY, page_url LONGVARCHAR NOT NULL, icon_id INTEGER)')
+  db.prepare("INSERT INTO favicons VALUES (1, 'https://wiki.work.example/favicon.png', 1)").run()
+  db.prepare('INSERT INTO favicon_bitmaps (icon_id, image_data, width, height) VALUES (1, ?, 32, 32)').run(png(32, [30, 120, 200]))
+  db.prepare("INSERT INTO icon_mapping (page_url, icon_id) VALUES ('https://wiki.work.example/', 1)").run()
+  db.close()
+}
 
 // Brave and Vivaldi in the Mac's layout.
 const brave = dir(mac, 'BraveSoftware', 'Brave-Browser', 'Default')
@@ -263,6 +314,16 @@ places(path.join(ffMain, 'places.sqlite'),
   [{ url: 'https://developer.mozilla.org/en-US/', title: 'MDN Web Docs', count: 12, at: days(1) },
    { url: 'https://hidden.mozilla.example/', title: 'Hidden', count: 3, hidden: true, at: days(1) },
    { url: 'https://unvisited.example/', title: 'Never', count: 0, at: null }])
+{
+  const db = new DatabaseSync(path.join(ffMain, 'favicons.sqlite'))
+  db.exec('CREATE TABLE moz_icons (id INTEGER PRIMARY KEY, icon_url TEXT NOT NULL, width INTEGER NOT NULL DEFAULT 0, data BLOB)')
+  db.exec('CREATE TABLE moz_pages_w_icons (id INTEGER PRIMARY KEY, page_url TEXT NOT NULL)')
+  db.exec('CREATE TABLE moz_icons_to_pages (page_id INTEGER NOT NULL, icon_id INTEGER NOT NULL)')
+  db.prepare("INSERT INTO moz_icons VALUES (1, 'https://developer.mozilla.org/favicon.png', 32, ?)").run(png(32, [200, 60, 40]))
+  db.prepare("INSERT INTO moz_pages_w_icons VALUES (1, 'https://developer.mozilla.org/')").run()
+  db.prepare('INSERT INTO moz_icons_to_pages VALUES (1, 1)').run()
+  db.close()
+}
 const ffMaster = randomBytes(32)
 key4(path.join(ffMain, 'key4.db'), '', ffMaster)
 json(path.join(ffMain, 'logins.json'), {

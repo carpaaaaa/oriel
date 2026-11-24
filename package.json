@@ -12,7 +12,8 @@
     "start": "node scripts/build.mjs && electron .",
     "typecheck": "tsc -p .",
     "dist": "node scripts/build.mjs && electron-builder --win --x64 --arm64",
-    "licenses": "node scripts/licenses.mjs"
+    "licenses": "node scripts/licenses.mjs",
+    "icon": "node scripts/make-icon.mjs"
   },
   "engines": {
     "node": ">=24"
@@ -54,7 +55,8 @@
       "target": [
         "nsis",
         "portable"
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -88,6 +90,7 @@
         "from": "CREDITS.md",
         "to": "CREDITS.md"
       }
-    ]
+    ],
+    "icon": "build/icon.png"
   }
 }
