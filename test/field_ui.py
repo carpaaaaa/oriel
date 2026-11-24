@@ -12,6 +12,8 @@ b.use("field-ui")
 b.launch()
 t = b.T()
 CTRL = "meta" if sys.platform == "darwin" else "control"
+# Sites searched with Tab are off until turned on (Oriel, not the Mac): on, for these checks.
+b.cmd("prefs.set", key="search.sites", value=["Google", "Reddit", "YouTube", "X", "ChatGPT", "Claude", "Perplexity", "Wikipedia", "GitHub", "Stack Overflow", "MDN", "Amazon", "Google Maps", "IMDb", "Spotify", "Figma Community"])
 
 b.call({"do": "field.fake", "places": [
     {"kind": "history", "title": "GitHub", "url": "https://github.com/"},

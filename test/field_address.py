@@ -102,6 +102,12 @@ same(a("bad cats")["destination"], "https://www.google.com/search?q=bad%20cats",
 same(a("two cats")["destination"], "https://www.google.com/search?q=two%20cats", "%s twice is never followed")
 
 # §1.9 searching a site: which one the words name
+same(a("red")["site"], None, "no site is offered while every site is off (Oriel's default)")
+b.cmd("prefs.set", key="search.sites", value=["Reddit"])
+same(a("red")["site"], "Reddit", "a site turned on is")
+same(a("gh")["site"], None, "the others stay off")
+same(a("yt")["site"], "Youtube", "a site shortcut of your own counts as turned on")
+b.cmd("prefs.set", key="search.sites", value=["Google", "Reddit", "YouTube", "X", "ChatGPT", "Claude", "Perplexity", "Wikipedia", "GitHub", "Stack Overflow", "MDN", "Amazon", "Google Maps", "IMDb", "Spotify", "Figma Community"])
 for typed, site in [("red", "Reddit"), ("yt", "YouTube"), ("you", "YouTube"), ("goo", "Google"), ("google m", "Google Maps"),
                     ("maps", "Google Maps"), ("wiki", "Wikipedia"), ("so", "Stack Overflow"), ("gpt", "ChatGPT"),
                     ("twitter", "X"), ("gh", "GitHub"), ("red panda", None), ("r", None), ("red/x", None)]:

@@ -12,6 +12,8 @@ b.use("field-look")
 b.launch(env={"SEARCH_LOOK": "light"})
 t = b.T()
 SHOTS = os.environ.get("SHOTS_DIR")
+# Sites searched with Tab are off until turned on (Oriel, not the Mac): on, for these checks.
+b.cmd("prefs.set", key="search.sites", value=["Google", "Reddit", "YouTube", "X", "ChatGPT", "Claude", "Perplexity", "Wikipedia", "GitHub", "Stack Overflow", "MDN", "Amazon", "Google Maps", "IMDb", "Spotify", "Figma Community"])
 
 b.call({"do": "field.fake", "places": [
     {"kind": "history", "title": "GitHub", "url": "https://github.com/"},

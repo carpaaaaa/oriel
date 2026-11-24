@@ -29,10 +29,14 @@ def look(root):
       const list = document.querySelector('.field-list')?.getBoundingClientRect()
       const rows = [...document.querySelectorAll('.field-row')].map(e => e.getBoundingClientRect())
       const fixed = [...document.querySelectorAll('.field-wrap *')].filter(e => getComputedStyle(e).position === 'fixed').length
+      const offer = document.querySelector('.field-offer')?.getBoundingClientRect()
+      // the list hangs under the field, as wide as it; the offer row is in it
+      const under = !list || (list.top >= r.bottom && Math.abs(list.width - r.width) < 1)
+      const offerIn = !offer || (offer.top >= list.top && offer.bottom <= list.bottom && offer.width < r.width && offer.height < 60)
       return JSON.stringify({
         shown: r.width > 300 && r.height === 50 && !!hit && field.contains(hit),
         v: input.value, s: input.selectionStart, e: input.selectionEnd,
-        inList: !list || rows.every(x => x.top >= list.top - 1 && x.bottom <= list.bottom + 1 && x.height < 60 && x.width <= list.width),
+        inList: under && offerIn && (!list || rows.every(x => x.top >= list.top - 1 && x.bottom <= list.bottom + 1 && x.height < 60 && x.width <= list.width)),
         fixed, offer: document.querySelector('.field-offer')?.textContent ?? null,
         chip: document.querySelector('.field-chip-name')?.textContent ?? null })
     })()"""
@@ -40,7 +44,7 @@ def look(root):
     return json.loads(v) if v else None
 
 
-def typing(word, root, to, label, ending=None):
+def typing(word, root, to, label, ending=None, offered=True):
     ok = True
     for i in range(1, len(word) + 1):
         key(word[i - 1], to)
@@ -52,6 +56,9 @@ def typing(word, root, to, label, ending=None):
             ok = False
             break
     t.ok(ok, f"{label}: typing {word!r} letter by letter, the field stays, the list under it, no chip")
+    if ok and offered:
+        x = look(root)
+        t.ok(x["offer"] and x["offer"].startswith("Search "), f"{label}: {word!r} offers {x['offer']!r} inside the list, under the field")
     if ending is not None and ok:
         x = look(root)
         t.ok(x["v"] == word + ending and x["s"] == len(word) and x["e"] == len(word + ending), f"{label}: {word!r} shows {word + ending!r}, the ending selected: {x['v']!r}")
@@ -75,6 +82,8 @@ for mode in ("light", "dark"):
         if history:
             for _ in range(3):
                 b.call({"do": "data.visit", "url": "https://github.com/", "title": "GitHub"})
+        # the offer row is what broke the field: the sites typed here on
+        b.cmd("prefs.set", key="search.sites", value=["GitHub", "Reddit", "YouTube", "Amazon", "Wikipedia"])
         # a blank tab
         typing("github", "chrome", "ui", label + ", blank tab", ".com" if history else None)
         if history:

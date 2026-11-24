@@ -65,3 +65,16 @@ benchRequest('field.key', req => {
   wc.sendInputEvent({ type: 'keyUp', keyCode: key, modifiers })
   return {}
 })
+
+/** The pointer moved to a point of one view, without a click (for :hover). */
+benchRequest('field.hover', req => {
+  const c = focusedController()
+  if (!c) throw new Error('no window')
+  const wc = req.to === 'overlay' ? c.overlay.webContents : c.ui.webContents
+  wc.sendInputEvent({ type: 'mouseMove', x: Number(req.x), y: Number(req.y) })
+  if (req.click) {
+    wc.sendInputEvent({ type: 'mouseDown', x: Number(req.x), y: Number(req.y), button: 'left', clickCount: 1 })
+    wc.sendInputEvent({ type: 'mouseUp', x: Number(req.x), y: Number(req.y), button: 'left', clickCount: 1 })
+  }
+  return {}
+})
