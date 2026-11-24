@@ -8,6 +8,7 @@ import { fellBack } from './privacy'
 import { reminder } from './escape'
 import { gliding } from './smooth'
 import { model } from '../model/model'
+import { peekContents, peekInfo } from './peek'
 
 /** The last page menu each page asked for: its misspelt word, if any. */
 const menus = new Map<number, { misspelled: string; suggestions: string[] }>()
@@ -22,6 +23,7 @@ benchRequest('pages.state', req => {
     fellBack: fellBack.slice(-20),
     reminder: { ...reminder },
     gliding,
+    peeks: peekInfo(),
     spelling: wc ? wc.session.isSpellCheckerEnabled() : null,
     menu: wc ? menus.get(wc.id) ?? null : null,
     commandLine: { smooth: app.commandLine.hasSwitch('enable-smooth-scrolling'), jumpy: app.commandLine.hasSwitch('disable-smooth-scrolling') },
@@ -41,5 +43,20 @@ benchRequest('pages.input', req => {
  * with no row in Settings, written only here. */
 benchRequest('pages.testHosts', req => {
   for (const key of ['test.youtubeHosts', 'test.redditHosts']) if (key in req) model.setPref(key, req[key])
+  return {}
+})
+
+/** Script in the peek's page (its own view, not a tab's). */
+benchRequest('pages.peekEval', async req => {
+  const wc = peekContents(req.window as string | undefined)
+  if (!wc) throw new Error('no peek')
+  return { value: await wc.executeJavaScript(String(req.js), true) }
+})
+
+/** Input to the peek's page. */
+benchRequest('pages.peekInput', req => {
+  const wc = peekContents(req.window as string | undefined)
+  if (!wc) throw new Error('no peek')
+  for (const e of (req.events as Electron.InputEvent[]) ?? []) wc.sendInputEvent(e as never)
   return {}
 })
