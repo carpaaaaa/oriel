@@ -77,9 +77,12 @@ export const removed: Record<string, string> = {
   'news.updates': 'Office Commun\'s list, for the Mac',
   'news.iphone': 'Search for iPhone\'s beta',
   'about.feedback': 'it writes to Office Commun',
-  'about.notes': 'no notes of Oriel\'s own yet',
   'extensions.safariApps': 'Safari apps are the Mac\'s',
+  'extensions.sites': 'Chromium in Electron runs content scripts as the manifest says, with no site access to change at runtime yet',
   'inlinePredictions': 'Chromium has no inline predictions',
+  // The pages module (studio/08 area C):
+  'swipe.history': 'Windows tells an app no start or end of a touchpad swipe',
+  'agents': 'no bridge for coding agents yet (studio/03 §8.2): back with it',
 }
 
 /** The Mac's keys as Windows has them (src/main/keys.ts's table). */
@@ -131,6 +134,13 @@ const overrides: Record<string, Partial<Item>> = {
   'spaces': { more: 'Each space can be signed in where the others are or start afresh.' },
   'spaces.commandNumbers': { more: "The two sets of keys swap places. A space's key you changed in Keyboard & Mouse › Shortcuts stays as you set it." },
   'field.window': { more: 'As Arc and Zen place it: the column is dimmed with the page. Off, the field is centred on the page beside the column.' },
+  // Searching a site with Tab: each site off until turned on here (the
+  // user's choice for Oriel; on the Mac it is always on). Field module.
+  'search.keywords': {
+    detail: 'Turn a site on, then type its name and press Tab to search it. Or a word of your own: "yt cats"',
+    more: 'Until a site is on, typing its name offers nothing more than any other words. Hover the site in the field to take it out, or press Backspace there.',
+  },
+  'note.sitesearch': { detail: 'One site at a time, as you turn them on in Site shortcuts: type red, then Tab, and search Reddit' },
   'passwords.open': { detail: 'Kept by Windows, shown with Windows Hello' },
   'passwords.fill.prove': {
     title: 'Ask for Windows Hello before filling',

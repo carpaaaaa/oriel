@@ -2,6 +2,19 @@
 
 import type { ID } from '../state'
 
+/** The sites the field can search with Tab (SiteSearch.swift:34-55), in the
+ * Mac's order. Unlike the Mac, each is off until turned on in Settings ›
+ * Browsing › Site shortcuts (the user's decision): `search.sites` lists
+ * the names turned on. */
+export const searchSiteList: { name: string; host: string }[] = [
+  { name: 'Google', host: 'google.com' }, { name: 'Reddit', host: 'reddit.com' }, { name: 'YouTube', host: 'youtube.com' },
+  { name: 'X', host: 'x.com' }, { name: 'ChatGPT', host: 'chatgpt.com' }, { name: 'Claude', host: 'claude.ai' },
+  { name: 'Perplexity', host: 'perplexity.ai' }, { name: 'Wikipedia', host: 'wikipedia.org' }, { name: 'GitHub', host: 'github.com' },
+  { name: 'Stack Overflow', host: 'stackoverflow.com' }, { name: 'MDN', host: 'developer.mozilla.org' }, { name: 'Amazon', host: 'amazon' },
+  { name: 'Google Maps', host: 'google.com/maps' }, { name: 'IMDb', host: 'imdb.com' }, { name: 'Spotify', host: 'open.spotify.com' },
+  { name: 'Figma Community', host: 'figma.com/community' },
+]
+
 /** What Return in the field does, said by its placeholder (studio/03 §1.1). */
 export type FieldMode = 'blank' | 'newTab' | 'thisTab' | 'switcher'
 
@@ -21,6 +34,19 @@ export interface FindState {
   missed: boolean
   /** Bumped when the find field should take the keys and select all. */
   focus: number
+}
+
+/** The address being typed in the tab itself (Browser.editingTab, tabDraft,
+ * tabOffers, tabPicked). */
+export interface TabEditState {
+  id: ID
+  /** What the field in the tab is to show when `sync` moves. */
+  shown: string
+  offers: import('../state').Suggestion[]
+  selected: number
+  sync: number
+  /** Bumped when Return found nowhere to go: the tab shakes. */
+  refused: number
 }
 
 declare module '../state' {
@@ -55,6 +81,8 @@ declare module '../state' {
   interface WindowState {
     /** Sent by the field module (registerSlice), so optional here. */
     find?: FindState
+    /** The address typed in the tab itself, or null. */
+    tabEdit?: TabEditState | null
   }
 }
 
@@ -98,6 +126,18 @@ declare module '../commands' {
      * last answer came. `newTab`: Alt+Return, a new tab behind; with `front`
      * (Alt+Shift+Return) in front (§1.4, §13.2). */
     'field.submit': { text?: string; newTab?: boolean; front?: boolean }
+    /** Shift+Return: what was typed, as it is, to the Shift-Return engine;
+     * Return when none is chosen (§1.4). */
+    'field.shiftSubmit': { text?: string }
+    /** The address in the tab itself (studio/01 §5.18). */
+    'field.editTab': { id: ID }
+    'field.tabType': { text: string; deleting?: boolean }
+    'field.tabMove': { by: number }
+    'field.tabCommit': { text?: string }
+    'field.tabCancel': None
+    'field.tabTake': { index: number }
+    'field.tabAnchor': { rect: { x: number; y: number; width: number; height: number } }
+    'field.tabBlur': { text?: string }
   }
 }
 

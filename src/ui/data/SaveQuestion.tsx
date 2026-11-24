@@ -9,17 +9,17 @@ export function SaveQuestion() {
   return (
     <Show when={q()}>
       {s => (
-        <div class="offer">
-          <span class="offer-text">
+        <div class="data-offer">
+          <span class="data-offer-text">
             {s().changed
               ? `Update the password for ${s().user} on ${s().host}?`
               : s().user ? `Save the password for ${s().user} on ${s().host}?` : `Save this password for ${s().host}?`}
           </span>
-          <span class="offer-actions">
-            <button class="offer-keep" onClick={() => void cmd({ do: 'save.answer', answer: 'save' })}>{s().changed ? 'Update' : 'Save'}</button>
-            <button class="offer-quiet" onClick={() => void cmd({ do: 'save.answer', answer: 'notNow' })}>Not now</button>
+          <span class="data-offer-actions">
+            <button class="data-offer-keep" onClick={() => void cmd({ do: 'save.answer', answer: 'save' })}>{s().changed ? 'Update' : 'Save'}</button>
+            <button class="data-offer-quiet" onClick={() => void cmd({ do: 'save.answer', answer: 'notNow' })}>Not now</button>
             <Show when={!s().changed}>
-              <button class="offer-quiet" onClick={() => void cmd({ do: 'save.answer', answer: 'never' })}>Never here</button>
+              <button class="data-offer-quiet" onClick={() => void cmd({ do: 'save.answer', answer: 'never' })}>Never here</button>
             </Show>
           </span>
         </div>

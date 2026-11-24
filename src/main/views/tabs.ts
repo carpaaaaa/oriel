@@ -135,6 +135,19 @@ export class TabRuntime {
     return view
   }
 
+  /** A page made elsewhere (a peek kept as a tab, studio/01 §10.22) becomes
+   * this tab's as it is, nothing loaded again. Asked of the pages module. */
+  adopt(view: WebContentsView): void {
+    if (this.view && this.view !== view) this.destroy()
+    this.view = view
+    this.shell = false
+    const tab = this.record
+    this.partition = tab ? partitionFor(tab) : null
+    this.wire(view.webContents)
+    model.making++
+    try { hooks.created?.(this, view.webContents) } catch (error) { console.warn('[tabs] page adopted:', (error as Error).message) } finally { model.making-- }
+  }
+
   private fill(wc: WebContents): void {
     const tab = this.record
     const keep = model.keeps.get(this.id)

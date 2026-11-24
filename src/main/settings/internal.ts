@@ -142,6 +142,7 @@ allowPage('settings', {
 })
 allowPage('downloads', { commands: ['download.', 'downloads.show'], slices: ['downloads', 'settings'] })
 allowPage('passwords', { commands: [...passwordsCommands, 'import.open', 'import.file'] })
+allowPage('release-notes', { commands: ['update.notes'] })
 // The data module's page (src/ui/data/HistoryPage.tsx).
 allowPage('history', { commands: ['history.list', 'history.forget', 'history.clear', 'tab.go'] })
 

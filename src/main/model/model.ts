@@ -14,12 +14,13 @@ import { readJSON, writeJSON, writeJSONNow, removeFile, fileExists, toAppleDate,
 import {
   firstSpaceID, personalProfileID, sessionFile, decodeShape, encodeShape, emptyShape, freshShape,
   decodePins, encodePins, decodeFolders, encodeFolders, decodeSpaces, encodeSpaces, decodeWindows, encodeWindows,
-  decodeProfiles, type SessionShape, type SessionEntry, type SessionGroup, type PinDef, type PinFolder,
-  type SpaceFile, type WindowFile,
+  decodeProfiles, placementOf, type SessionShape, type SessionEntry, type SessionGroup, type PinDef, type PinFolder,
+  type SpaceFile, type WindowFile, type Placement,
 } from './formats'
 import * as tree from './pintree'
 
 export { firstSpaceID }
+export type { Placement }
 
 /** Ids that go into files: capitals, as Foundation's UUID writes them. */
 export const newID = () => randomUUID().toUpperCase()
@@ -167,8 +168,9 @@ export class WindowRecord {
   sidebar: SidebarState
   field: FieldState = { open: false, target: 'new', text: '', suggestions: [], selected: 0, refused: 0 }
   shy: boolean
-  frame?: string
-  maximized?: boolean
+  /** Where it is and in what state, as windows.json keeps it (§1.2, §1.4):
+   * from the file at first, then whatever the window last said. */
+  place: Placement = {}
   /** Tabs closed here, for ⇧⌘T: twelve steps (§9.15). */
   ghosts: Ghost[] = []
   closedGroups = new Map<ID, { group: GroupView; at: number }>()
@@ -232,8 +234,9 @@ class Model extends EventEmitter {
     keepsake: (_id: ID): Keepsake | undefined => undefined,
     /** Whether its page is in memory. */
     live: (_id: ID): boolean => false,
-    /** Where a window is: NSStringFromRect, and maximized. */
-    frame: (_win: ID): { frame?: string; maximized?: boolean } => ({}),
+    /** Where a window is now (its frame, state and monitor); null when it
+     * can't say (gone, minimized): the last it said is kept. */
+    frame: (_win: ID): Placement | null => null,
   }
 
   // MARK: load
@@ -245,23 +248,46 @@ class Model extends EventEmitter {
     this.folders = readJSON('pin-folders.json', new Map<string, PinFolder[]>(), decodeFolders)
     this.pendingWindows = readJSON<WindowFile[]>('windows.json', [], raw => decodeWindows(raw))
     if (this.pref<boolean>('start.fresh')) this.startFresh()
-    onFlush(() => this.flush())
+    onFlush(final => (final ? this.flush() : this.saveAll()))
   }
 
   pref<T = unknown>(key: PrefKey): T {
     return (this.prefs[key] ?? tabDefaults[key] ?? defaultOf(key)) as T
   }
 
+  /** A key's default: the tabs module's own, a module's, or Prefs.swift's. */
+  private defaultFor(key: string): unknown {
+    return key in tabDefaults ? tabDefaults[key] : defaultOf(key)
+  }
+
+  /** undefined takes the key away; a value equal to its default never
+   * reaches the file either (prefsFile, studio/06 §1.17). */
   setPref(key: string, value: unknown): void {
     const was = this.prefs[key]
     this.prefs[key] = value
-    writeJSON('prefs.json', () => this.prefs)
+    this.savePrefs()
     this.touchAll(['prefs'])
     if (key === 'spaces' && !!was !== !!value) this.spacesToggled()
     if ((key === 'pins.folders' || key === 'pins.list') && was !== value) for (const s of this.spaces) this.reconcileAll(s.id)
   }
 
   spacesOn(): boolean { return this.pref<boolean>('spaces') === true }
+
+  /** prefs.json holds only what differs from its default, as Prefs.swift
+   * writes it (studio/06 §1.17): a default changed later reaches whoever
+   * never touched the row. Keys it doesn't know (a Mac's) stay as read. */
+  prefsFile(): Record<string, unknown> {
+    const out: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(this.prefs)) {
+      if (value === undefined) continue
+      const fallback = this.defaultFor(key)
+      if (fallback !== undefined && JSON.stringify(value) === JSON.stringify(fallback)) continue
+      out[key] = value
+    }
+    return out
+  }
+
+  private savePrefs(): void { writeJSON('prefs.json', () => this.prefsFile()) }
 
   // MARK: spaces.json (§7.2, §7.3)
 
@@ -413,8 +439,7 @@ class Model extends EventEmitter {
     win.space = from?.space ?? (frontWin && !frontWin.shy ? frontWin.space : this.homeSpace)
     if (!this.spaceOf(win.space)) win.space = this.homeSpace
     if (from) {
-      win.frame = from.frame
-      win.maximized = from.maximized
+      win.place = placementOf(from)
       if (from.folded) win.sidebar.folded = true
     }
     this.windows.set(win.id, win)
@@ -424,7 +449,7 @@ class Model extends EventEmitter {
       this.restoredOnce = true
       // Its line in windows.json holds its frame and space.
       const mine = this.pendingWindows.shift()
-      if (mine) { win.frame = mine.frame; win.maximized = mine.maximized; win.space = this.spaceOf(mine.space) ? mine.space : win.space; if (mine.folded) win.sidebar.folded = true }
+      if (mine) { win.place = placementOf(mine); win.space = this.spaceOf(mine.space) ? mine.space : win.space; if (mine.folded) win.sidebar.folded = true }
       // Not asked to restore: last time's other windows don't come back.
       if (!options.restore && !this.pref<boolean>('start.fresh')) this.pendingWindows = []
     } else if (from) {
@@ -446,6 +471,13 @@ class Model extends EventEmitter {
 
   /** The window's frame changed: windows.json a moment from now. */
   windowMoved(_id: ID): void { this.saveWindowsSoon() }
+
+  /** Where a window is: what it says now, else the last it said. */
+  placeOf(win: WindowRecord): Placement {
+    const now = this.hooks.frame(win.id)
+    if (now) win.place = now
+    return win.place
+  }
 
   removeWindow(id: ID): void {
     const win = this.windows.get(id)
@@ -492,8 +524,7 @@ class Model extends EventEmitter {
         keeps.set(s.id, list)
       } else if (win.saved[s.id]) rows[s.id] = win.saved[s.id]
     }
-    const where = this.hooks.frame(win.id)
-    const file: WindowFile = { id: win.id, frame: where.frame ?? win.frame, space: win.space, rows, folded: win.sidebar.folded || undefined, maximized: where.maximized || undefined }
+    const file: WindowFile = { id: win.id, space: win.space, rows, folded: win.sidebar.folded || undefined, ...this.placeOf(win) }
     this.closedWindows.push({ at: Date.now(), file, keeps })
     if (this.closedWindows.length > 10) this.closedWindows.shift()
   }
@@ -2023,7 +2054,7 @@ class Model extends EventEmitter {
     const [s] = this.spaces.splice(at, 1)
     this.spaces.splice(to, 0, s)
     this.prefs['spaces.orderKept'] = true
-    writeJSON('prefs.json', () => this.prefs)
+    this.savePrefs()
     this.saveSpaces()
   }
 
@@ -2270,7 +2301,6 @@ class Model extends EventEmitter {
     const wins = (only ?? [...this.windows.values()]).filter(w => !w.shy)
     if (!wins.length) return
     const records: WindowFile[] = wins.map((w, i) => {
-      const where = this.hooks.frame(w.id)
       const rows: Record<string, SessionShape> = {}
       if (i > 0) {
         for (const s of this.spaces) {
@@ -2278,16 +2308,21 @@ class Model extends EventEmitter {
           else if (w.saved[s.id]) rows[s.id] = w.saved[s.id]
         }
       }
-      const r: WindowFile = { id: w.id, space: w.space, rows }
-      const frame = where.frame ?? w.frame
-      if (frame) r.frame = frame
+      const r: WindowFile = { id: w.id, space: w.space, rows, ...this.placeOf(w) }
       if (w.sidebar.folded) r.folded = true
-      if (where.maximized ?? w.maximized) r.maximized = true
       return r
     })
     const seen = new Set(records.map(r => r.id))
     const carried = only ? [] : this.pendingWindows.filter(r => !seen.has(r.id))
     writeJSONNow('windows.json', encodeWindows([...records, ...carried]))
+  }
+
+  /** Every row and windows.json now, the app going on: Windows asked
+   * whether it may end the session, and may still be told no (§9.7). */
+  saveAll(): void {
+    if (this.quitting) return
+    for (const w of this.windows.values()) if (!w.shy) this.writeAllRows(w, true)
+    this.writeWindows(true)
   }
 
   /** Quitting: every row and windows.json, now (§9.7). */

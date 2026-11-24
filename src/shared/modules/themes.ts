@@ -11,7 +11,7 @@ declare module '../commands' {
     /** Windows' Open dialog for a picture; the copy kept, and the wall set
      * to it. Null when cancelled or not copied (what was there stays). */
     'themes.choose': None
-    /** The kept copy goes, and the wall with it if it was showing. */
+    /** The kept copy goes; the Image theme shows its starting picture again. */
     'themes.forget': None
     /** The kept copy's bytes, for the interface to decode; null if unreadable. */
     'themes.picture': { path: string }

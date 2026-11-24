@@ -342,8 +342,27 @@ export interface WindowFile {
   merge?: string
   tucked?: boolean
   folded?: boolean
-  /** Windows only: maximized when it closed. A Mac reads past it. */
+  // Windows only, a Mac reads past them (studio/01 §1.2 point 6): the state
+  // it was in and its monitor. `frame` is the visible rectangle, top-left
+  // origin, where it comes back to from maximized, snapped or full screen.
   maximized?: boolean
+  fullScreen?: boolean
+  /** Where Snap had put it (visible rectangle, NSStringFromRect). */
+  snapped?: string
+  /** Its monitor: Electron's id and the monitor's rectangle then. */
+  display?: { id: number; frame: string }
+}
+
+/** Where a window is: the part of its line about its place and state. */
+export type Placement = Pick<WindowFile, 'frame' | 'maximized' | 'fullScreen' | 'snapped' | 'display'>
+
+function displayOf(v: unknown): WindowFile['display'] {
+  const o = obj(v)
+  return o && typeof o.id === 'number' && Number.isFinite(o.id) && typeof o.frame === 'string' ? { id: o.id, frame: o.frame } : undefined
+}
+
+export function placementOf(w: Placement): Placement {
+  return compact({ frame: w.frame, maximized: w.maximized, fullScreen: w.fullScreen, snapped: w.snapped, display: w.display })
 }
 
 export function decodeWindows(raw: unknown): WindowFile[] {
@@ -366,6 +385,7 @@ export function decodeWindows(raw: unknown): WindowFile[] {
       space: uuid(o.space) ?? firstSpaceID,
       rows: rowsOK ? rows : {},
       merge: uuid(o.merge), tucked: bool(o.tucked), folded: bool(o.folded), maximized: bool(o.maximized),
+      fullScreen: bool(o.fullScreen), snapped: typeof o.snapped === 'string' ? o.snapped : undefined, display: displayOf(o.display),
     }))
   }
   return out
@@ -375,7 +395,10 @@ export function encodeWindows(list: WindowFile[]): unknown {
   return list.map(w => {
     const rows: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(w.rows)) rows[k] = encodeShape(v)
-    return compact({ id: w.id, frame: w.frame, space: w.space, rows, merge: w.merge, tucked: w.tucked, folded: w.folded, maximized: w.maximized })
+    return compact({
+      id: w.id, frame: w.frame, space: w.space, rows, merge: w.merge, tucked: w.tucked, folded: w.folded,
+      maximized: w.maximized, fullScreen: w.fullScreen, snapped: w.snapped, display: w.display,
+    })
   })
 }
 

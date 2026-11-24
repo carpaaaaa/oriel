@@ -148,7 +148,8 @@ def blank_tab():
 def wall(window=None):
     """What the blank tab shows: theme on show, the canvas's key and size."""
     js = """(() => { const w = document.querySelector('.empty-page > .blank-wall'); const art = w && w.querySelector('canvas');
-      const br = document.querySelector('.empty-page .field .breath');
+      // "gone" when the field has no breath to show: a renamed class fails here.
+      const br = document.querySelector('.empty-page .field-breath');
       return { shown: w ? w.dataset.shown : 'none', theme: w ? w.dataset.theme : 'none', key: art ? art.dataset.key || '' : '',
         drawn: art ? art.dataset.drawn || '' : '', bitmap: art ? [art.width, art.height] : null,
         breath: br ? getComputedStyle(br).display : 'gone', fit: art ? getComputedStyle(art).objectFit : '' } })()"""

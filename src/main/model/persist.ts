@@ -8,10 +8,12 @@ import path from 'node:path'
 import { dataFile } from '../paths'
 
 const pending = new Map<string, { timer: NodeJS.Timeout; write: () => void }>()
-const flushers: (() => void)[] = []
+const flushers: ((final: boolean) => void)[] = []
 
-/** Whatever else must reach the disk before quitting (the model's rows). */
-export function onFlush(f: () => void): void { flushers.push(f) }
+/** Whatever else must reach the disk before quitting (the model's rows).
+ * `final` is false when the app may go on (Windows only asked whether it
+ * may end the session): nothing is closed for good then. */
+export function onFlush(f: (final: boolean) => void): void { flushers.push(f) }
 
 export function fileExists(name: string): boolean {
   return existsSync(dataFile(name))
@@ -95,9 +97,10 @@ export function removeFile(name: string): void {
   try { unlinkSync(dataFile(name)) } catch {}
 }
 
-/** Everything still waiting, now (quitting). */
-export function flushJSON(): void {
-  for (const f of flushers) { try { f() } catch (e) { console.warn('[persist] flush', e) } }
+/** Everything still waiting, now: quitting, ended from outside, or Windows
+ * logging off or shutting down (studio/01 §1.10, §9.7). */
+export function flushJSON(final = true): void {
+  for (const f of flushers) { try { f(final) } catch (e) { console.warn('[persist] flush', e) } }
   for (const { timer, write } of [...pending.values()]) { clearTimeout(timer); write() }
 }
 

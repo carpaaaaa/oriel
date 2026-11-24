@@ -94,9 +94,9 @@ mac = [i["id"] for i in INDEX["items"] if i["id"] not in OWN]
 t.ok(len(mac) == 158, "SettingsIndex has 158 rows")
 gone = [i for i in mac if i not in catalog]
 t.ok(catalog == [i for i in mac if i in catalog], "the rows keep the Mac's order")
-# 21 left out: the 17 with nothing behind them on Windows, Liquid Glass's tab
-# and the window's glass (studio/08: Mica and Acrylic would fill the margin).
-t.ok(len(catalog) == 137 and len(gone) == 21, f"137 rows on Windows, 21 of the Mac's left out ({gone})")
+# Left out: the 19 with nothing behind them on Windows, Liquid Glass's tab and
+# the window's glass (studio/08: Mica and Acrylic would fill the margin).
+t.ok(len(catalog) == 135 and len(gone) == 23, f"135 rows on Windows, 23 of the Mac's left out ({gone})")
 texts = ev(tab, "JSON.stringify(window.__settings.items.map(i => [i.title, i.detail, i.more || ''].join(' ')))")
 t.ok(not any(c in texts for c in "—–⌘⌥⌃⇧"), "no long dash, no Mac key symbol in any row")
 t.ok(not any(w in texts for w in ("macOS", "Touch ID", "keychain", "Finder", "System Settings")), "no macOS, Touch ID, keychain, Finder or System Settings")
