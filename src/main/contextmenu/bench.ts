@@ -9,7 +9,7 @@ import { probe } from '../paths'
 import { allControllers, controllerFor, focusedController } from '../views/window'
 import { runtimes } from '../views/tabs'
 import { lastMenu } from './menu'
-import { fakes, log } from './probe'
+import { log } from './probe'
 
 const flat = (entries: { label?: string; separator?: boolean; enabled?: boolean; checked?: boolean; accel?: string; submenu?: unknown[] }[]): unknown[] =>
   entries.map(e => (e.separator ? '—' : { label: e.label, enabled: e.enabled !== false, checked: e.checked, accel: e.accel, submenu: e.submenu ? flat(e.submenu as never) : undefined }))
@@ -26,15 +26,8 @@ benchRequest('ctxmenu.last', req => {
 
 benchRequest('ctxmenu.log', req => {
   if ('saveAs' in req) log.saveAs = (req.saveAs as string | null) ?? null
-  if (req.reset) { log.dialogs = []; log.printed = []; log.inspected = []; log.emoji = 0; log.translated = [] }
+  if (req.reset) { log.dialogs = []; log.printed = []; log.inspected = []; log.emoji = 0 }
   return { log: { ...log } }
-})
-
-/** The translation module's stand-in, as a test wants it. */
-benchRequest('ctxmenu.translate', req => {
-  if (Array.isArray(req.languages)) fakes.languages = req.languages as string[]
-  if (req.reset) fakes.translated.clear()
-  return { languages: fakes.languages, translated: Object.fromEntries(fakes.translated) }
 })
 
 /** Where a page is in its window (the active tab's, or the one named). */

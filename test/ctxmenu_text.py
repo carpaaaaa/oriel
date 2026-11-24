@@ -136,10 +136,13 @@ k.pick("Copy Link to Highlight")
 t.ok(k.clipboard()["text"].endswith("#:~:text=one%20two%20three%20four,fifteen%20sixteen%20seventeen%20eighteen"),
      f"…and a long highlight is its first and last words: {k.clipboard()['text']}")
 
-# Translate, with words selected: the page's
-k.select(page, "#text")
-k.right_click(page, "#text", dx=40)
+# Translate, with words selected: the page's (the translation module)
+it = k.page("/it")
+k.select(it, "#text")
+k.right_click(it, "#text", dx=40)
+t.ok("Translate to English" in k.labels(), f"words selected: Translate to English after the searches ({k.labels()})")
 k.pick("Translate to English")
-t.ok(k.log()["translated"][-1] == {"id": page, "to": "en"}, "Translate with words selected translates the page")
+b.wait_for(lambda: (m := k.mark(it)) and m["to"] == "en", within=10, what="the page translated")
+t.ok(True, "Translate with words selected translates the page")
 
 k.done(t)

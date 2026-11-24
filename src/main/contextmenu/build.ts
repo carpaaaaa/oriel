@@ -193,11 +193,11 @@ export function buildMenu(p: Electron.ContextMenuParams, f: Facts): PageMenuEntr
 }
 
 function translateGroup(id: ID, t: NonNullable<Facts['translate']>): PageMenuEntry[] {
-  if (t.translated) return [{ label: 'Show Original', act: { cmd: { do: 'ctx.translate', id, to: null } } }]
+  if (t.translated) return [{ label: 'Show Original', act: { cmd: { do: 'page.untranslate', id } } }]
   if (!t.languages.length) return []
   if (t.languages.length === 1) {
     const l = t.languages[0]
-    return [{ label: `Translate to ${l.name}`, act: { cmd: { do: 'ctx.translate', id, to: l.code } } }]
+    return [{ label: `Translate to ${l.name}`, act: { cmd: { do: 'page.translate', id, to: l.code } } }]
   }
-  return [{ label: 'Translate Page', submenu: t.languages.map(l => ({ label: l.name, act: { cmd: { do: 'ctx.translate', id, to: l.code } } })) }]
+  return [{ label: 'Translate Page', submenu: t.languages.map(l => ({ label: l.name, act: { cmd: { do: 'page.translate', id, to: l.code } } })) }]
 }
