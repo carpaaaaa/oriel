@@ -15,6 +15,8 @@
   background: var(--ink); color: var(--ground); font-size: 8px; font-weight: 600; line-height: 11px; text-align: center; box-sizing: border-box; pointer-events: none; }
 
 /* a card over the page: the overlay's region starts 22 before it all round */
+/* foot.extensions.hidden: width 0, clear, still where popups hang from (Extensions.swift:2553) */
+.ext-puzzle.hidden { width: 0 !important; min-width: 0; padding: 0; margin: 0; opacity: 0; pointer-events: none; overflow: hidden; }
 .ext-region { position: fixed; inset: 0; outline: none; }
 .ext-card { position: absolute; box-sizing: border-box; background: var(--ground); border-radius: var(--menu-radius);
   box-shadow: 0 0 0 .5px var(--card-edge), 0 6px 20px rgba(0,0,0,.14); overflow: hidden; animation: ext-in .12s ease-out; }

@@ -234,5 +234,14 @@
 .fold-out { position: fixed; top: 0; bottom: 0; left: 0; background: var(--frame); box-shadow: 4px 0 40px rgba(0, 0, 0, .14); transform: translateX(0); }
 .fold-out.right { left: auto; right: 0; box-shadow: -4px 0 40px rgba(0, 0, 0, .14); }
 /* the strip across the top, folded, coming down over the page (y 4) */
+/* the numbers Ctrl+1-9 gives (TabShortcutHint.swift): 11 medium, ink at 65%, a box of 15 */
+.hint-number { flex: none; width: 15px; height: 15px; display: grid; place-items: center; font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; color: rgb(var(--ink-rgb) / .65); pointer-events: none; }
+.row .hint-number { margin-right: 28px; }
+.row .hint-number.beside { margin-right: 0; }
+/* a pin's unread count: red, white bold, ringed in the square's grey, hung on the icon's corner */
+.square .glyph { position: relative; }
+.unread { position: absolute; right: 0; top: 0; transform: translate(65%, -38%); min-width: 1.6em; height: 1.6em; padding: 0 .3em; border-radius: .8em;
+  display: grid; place-items: center; background: rgb(237, 61, 54); color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1;
+  box-shadow: 0 0 0 1.5px var(--frame); pointer-events: none; white-space: nowrap; }
 .fold-out.top { left: 0; right: 0; bottom: auto; box-shadow: 0 4px 40px rgba(0, 0, 0, .14); }
 .fold-out .sidebar { position: absolute; inset: 0; width: auto !important; }

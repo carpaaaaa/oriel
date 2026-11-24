@@ -160,6 +160,8 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
         }>
           <RenameField initial={t().name || label(t())} done={name => { if (name !== null) void cmd({ do: 'tab.rename', id: t().id, name: name || null }); setEditing(null) }} />
         </Show>
+        {/* Ctrl held: the number Ctrl+1-9 gives it (Side.swift:2181), 28 from the end */}
+        <Show when={state.tabHints?.[t().id]}>{n => <span class="hint-number" classList={{ beside: status() }}>{n()}</span>}</Show>
         <Show when={status()}>
           <span class="state">
             <Show when={loading()} fallback={

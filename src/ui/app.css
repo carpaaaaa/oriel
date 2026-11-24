@@ -6,6 +6,10 @@
 :root[data-motion="instant"] { --dur-quick: 0ms; --dur-glide: 0ms; --dur-settle: 0ms; --dur-fold-out: 0ms; --dur-fold-in: 0ms; --dur-light: 0ms; }
 :root[data-motion="instant"] *, :root[data-motion="instant"] *::before, :root[data-motion="instant"] *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
 :root[data-motion="instant"] .ring { animation-duration: var(--dur-ring) !important; }
+/* Tabs give when pressed (tabs.give; Motion.give 0.97, TabBar.swift:2208):
+   down on quick, back on settle; scale, so a square's place stays its own. */
+:root[data-give] :is(.row, .square, .tile, .strip-tab, .strip-pin) { transition: scale var(--dur-settle) var(--ease-settle); }
+:root[data-give] :is(.row, .square, .tile, .strip-tab, .strip-pin):active { scale: .97; transition: scale var(--dur-quick) var(--ease-quick); }
 :root[data-motion="light"] { --dur-glide: 160ms; --ease-glide: var(--ease-quick); --dur-settle: 160ms; --ease-settle: var(--ease-quick); }
 html, body, #root { height: 100%; overflow: hidden; }
 html { font-family: var(--font-ui); letter-spacing: var(--tracking-ui); font-size: var(--fs-body); color: var(--ink); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; user-select: none; cursor: default; }

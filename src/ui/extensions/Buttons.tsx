@@ -26,7 +26,7 @@ export function Buttons(p: { where: 'foot' | 'strip' }) {
             <Badge ext={e} />
           </button>
         )}</For>
-        <button ref={puzzle} class="door ext-puzzle" classList={{ on: !!ext()?.menu }} title="Extensions"
+        <button ref={puzzle} class="door ext-puzzle" classList={{ on: !!ext()?.menu, hidden: !!state.prefs?.['foot.extensions.hidden'] }} title="Extensions"
           onClick={() => void cmd({ do: 'ext.menu', anchor: rectOf(puzzle) })}>
           <Puzzle size={14} />
         </button>

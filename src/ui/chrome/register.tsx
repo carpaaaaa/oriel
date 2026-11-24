@@ -30,4 +30,6 @@ createRoot(() => createEffect(() => {
   const p = state.prefs ?? {}
   const root = document.documentElement.dataset
   root.motion = p['motion.instant'] ? 'instant' : p['motion.light'] && state.power?.saving ? 'light' : ''
+  // Tabs give when pressed (tabs.give, Design.swift Motion.give)
+  if (p['tabs.give']) root.give = '1'; else delete root.give
 }))
