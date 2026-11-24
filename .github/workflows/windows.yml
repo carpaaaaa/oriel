@@ -112,6 +112,11 @@ jobs:
       - name: Page zoom (bench)
         if: always()
         run: python test/window_zoom.py
+      - name: Page zoom with Ctrl+wheel, the capsule that says it (real wheel events)
+        if: always()
+        env:
+          SHOTS_DIR: shots
+        run: python test/window_zoom_pill.py
       - name: States in a row, the buttons and doors always there (bench)
         if: always()
         run: python test/window_states.py
