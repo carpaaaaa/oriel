@@ -2,7 +2,8 @@
 """A native messaging host for the tests (studio/04 §5.3): Chrome's framing,
 a 4-byte little-endian length and JSON, on stdin and stdout. It answers each
 message with {"echo": message, "count": n, "origin": argv[1]}; {"big": n}
-gets n characters back, to cross many reads; {"bye": true} makes it exit."""
+gets n characters back, to cross many reads; {"bye": true} makes it exit;
+{"silent": true} gets no answer at all."""
 import json
 import struct
 import sys
@@ -18,6 +19,8 @@ while True:
     count += 1
     if isinstance(message, dict) and message.get("bye"):
         break
+    if isinstance(message, dict) and message.get("silent"):
+        continue
     answer = {"echo": message, "count": count, "origin": origin}
     if isinstance(message, dict) and "big" in message:
         answer["text"] = "x" * int(message["big"])

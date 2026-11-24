@@ -10,6 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { probe } from '../paths'
 import { readJSONIn, inside } from './read'
+import { testEnv } from '../testhooks'
 
 type Where = { base: 'local' | 'roaming'; folder: string }
 
@@ -65,7 +66,7 @@ export const known: Source[] = [
  * all three made-up ones, so both layouts are tried on any machine. */
 export function bases(): { local?: string; roaming?: string; mac?: string } {
   if (probe) {
-    const home = process.env.SEARCH_IMPORT_HOME || path.join(app.getPath('userData'), 'Import')
+    const home = testEnv('SEARCH_IMPORT_HOME') || path.join(app.getPath('userData'), 'Import')
     return {
       local: path.join(home, 'AppData', 'Local'),
       roaming: path.join(home, 'AppData', 'Roaming'),

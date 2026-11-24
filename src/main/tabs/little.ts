@@ -18,6 +18,8 @@ import { quietTests } from '../context'
 import { benchRequest } from '../bench/server'
 import { handle } from '../router'
 import { need } from '../context'
+import { pageMayNotOpen } from '../settings/openers'
+import { keepOnPage } from '../views/guard'
 
 const LINE = 34
 const MIN = { width: 420, height: 320 }
@@ -94,6 +96,7 @@ export function openLittle(url: string, space?: string): Little {
   })
   const line = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true } })
   line.setBackgroundColor(dark ? '#1c1c1c' : '#ffffff')
+  keepOnPage(line.webContents)
   void line.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(linePage(dark, windows)))
   const pseudo = { id: newID(), space: chosen, win: win?.id ?? '', shy: false } as unknown as TabRecord
   const page = new WebContentsView({
@@ -125,6 +128,7 @@ export function openLittle(url: string, space?: string): Little {
   line.webContents.on('page-title-updated', (_e, title) => { if (title.startsWith('keep:')) keep(l) })
   // A page in a small window that opens another opens another small window.
   wc.setWindowOpenHandler(details => {
+    if (pageMayNotOpen(wc.getURL(), details.url, 'little')) return { action: 'deny' }
     if (details.disposition === 'new-window' && details.features) return { action: 'allow' }
     openLittle(details.url, l.space)
     return { action: 'deny' }

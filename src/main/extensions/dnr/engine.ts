@@ -14,6 +14,7 @@ import { substitute, translateRegex } from './regex'
 import { HostAccess } from './hosts'
 import { OwnFiles } from './war'
 import { LIMITS, DYNAMIC_RULESET_ID, SESSION_RULESET_ID, type Rule, type ModifyHeaderInfo } from './types'
+import { testEnv } from '../../testhooks'
 
 const TYPE_OF: Record<string, string> = {
   mainFrame: 'main_frame', subFrame: 'sub_frame', stylesheet: 'stylesheet', script: 'script', image: 'image',
@@ -377,7 +378,7 @@ export class DnrEngine {
     this.timing.totalMs += ms
     if (ms > this.timing.maxMs) this.timing.maxMs = ms
     if (this.timing.samples.length < 20000) this.timing.samples.push(ms)
-    if (process.env.ORIEL_DNR_SLOW && ms > 2) console.log(`[dnr] slow ${ms.toFixed(1)} ms ${q.type} ${q.url.slice(0, 120)}`)
+    if (testEnv('ORIEL_DNR_SLOW') && ms > 2) console.log(`[dnr] slow ${ms.toFixed(1)} ms ${q.type} ${q.url.slice(0, 120)}`)
     if (block) return { cancel: true }
     if (redirect?.navigate) {
       // See war.ts: the tab loads the extension's page itself.

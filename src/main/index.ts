@@ -7,7 +7,7 @@ import { model } from './model/model'
 import { flushJSON } from './model/persist'
 import { run } from './router'
 import { IPC } from '../shared/ipc'
-import { allControllers, controllerFor } from './views/window'
+import { allControllers, controllerFor, isInterfacePage, type WindowController } from './views/window'
 import { hooks } from './views/tabs'
 import { openWindow, setSessions } from './context'
 import './modules'
@@ -15,10 +15,15 @@ import { onLeftover, wireKeys } from './keys'
 import { setupExtensions } from './extensions'
 import { attachNet } from './net'
 import { startBench } from './bench/server'
+import './bench/checks'
 import type { Command } from '../shared/commands'
+import { testEnv } from './testhooks'
 
 setupPaths()
 setupUserAgent()
+// Windows names the taskbar button, its jump list and notifications by this
+// id (the installer's appId), not by the executable's path.
+if (process.platform === 'win32') app.setAppUserModelId('app.oriel.browser')
 
 // An error nobody caught in the main process: Electron would show a dialog
 // (on top of everything, even for an invisible test window). Oriel logs it,
@@ -34,7 +39,7 @@ const keep = (kind: string, e: unknown) => {
 process.on('uncaughtException', e => keep('uncaughtException', e))
 process.on('unhandledRejection', e => keep('unhandledRejection', e))
 // Test worlds on a Mac: no Dock icon, never the active app (see context.ts).
-if (process.platform === 'darwin' && process.env.SEARCH_PROBE && process.env.SEARCH_SHOW !== '1') app.setActivationPolicy('accessory')
+if (process.platform === 'darwin' && testEnv('SEARCH_PROBE') && testEnv('SEARCH_SHOW') !== '1') app.setActivationPolicy('accessory')
 // Windows 11's thin scrollbars that fade in, as Chrome has them.
 if (process.platform === 'win32') app.commandLine.appendSwitch('enable-features', 'FluentScrollbar,FluentOverlayScrollbar')
 
@@ -62,23 +67,33 @@ function pageSession(shy: boolean, windowID: string): Session {
   return s
 }
 
-function controllerOf(sender: Electron.WebContents) {
-  return allControllers().find(c => c.ui.webContents === sender || c.overlay.webContents === sender) ?? null
+/** The window whose interface sent this: only the main frame of a window's
+ * interface or overlay, showing the interface's own file. Anything else (a
+ * page, a frame, a view Oriel didn't make for the interface) gets nothing
+ * (studio/09 §1.1). */
+function controllerOf(event: Electron.IpcMainInvokeEvent): WindowController | null {
+  const sender = event.sender
+  const c = allControllers().find(c => c.ui.webContents === sender || c.overlay.webContents === sender)
+  const frame = event.senderFrame
+  if (!c || !frame || frame !== sender.mainFrame || !isInterfacePage(frame.url)) return null
+  return c
 }
 
 ipcMain.handle(IPC.command, async (event, command: Command) => {
+  const window = controllerOf(event)
+  if (!window) throw new Error('not an Oriel interface')
   try {
-    return await run(command as never, { window: controllerOf(event.sender) })
+    return await run(command as never, { window })
   } catch (error) {
     console.warn('[command]', command?.do, error)
     throw error
   }
 })
 
-ipcMain.handle(IPC.overlayNow, event => controllerOf(event.sender)?.overlayLayer ?? null)
+ipcMain.handle(IPC.overlayNow, event => controllerOf(event)?.overlayLayer ?? null)
 
 ipcMain.handle(IPC.hello, event => {
-  const c = controllerOf(event.sender)
+  const c = controllerOf(event)
   return c ? { rev: 0, set: c.state() } : null
 })
 
@@ -108,7 +123,7 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
 }
 
 app.whenReady().then(async () => {
-  const look = process.env.SEARCH_LOOK
+  const look = testEnv('SEARCH_LOOK')
   nativeTheme.themeSource = look === 'light' || look === 'dark' ? look : 'system'
   profile = session.fromPartition('persist:personal')
   applyUserAgent(profile)

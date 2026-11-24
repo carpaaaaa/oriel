@@ -18,6 +18,7 @@ import { spawn, execFile, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { testEnv } from '../testhooks'
 
 const NAME = /^[a-z0-9_]+(\.[a-z0-9_]+)*$/
 const FROM_HOST_MAX = 1024 * 1024
@@ -29,6 +30,11 @@ export const EXITED = 'Native host has exited.'
 export const BAD_NAME = 'Invalid native messaging host name specified.'
 export const NO_PERMISSION = 'Access to native messaging requires nativeMessaging permission.'
 export const IO_ERROR = 'Error when communicating with the native messaging host.'
+export const NO_ANSWER = 'Native host did not answer in time.'
+
+/** sendNativeMessage gives up on a host that never answers, and stops it
+ * (studio/09 §1.8): long enough for one waiting on a person (an unlock). */
+const ANSWER_WITHIN = Number(testEnv('ORIEL_NATIVE_TIMEOUT')) || 60_000
 
 const browsers = ['Google\\Chrome', 'Chromium', 'Microsoft\\Edge', 'BraveSoftware\\Brave-Browser']
 
@@ -181,7 +187,8 @@ export async function sendNativeMessage(ext: Electron.Extension, application: st
   const host = await findHost(String(application), ext.id)
   return new Promise((resolve, reject) => {
     let done = false
-    const pipe: Pipe = new Pipe(host, ext.id, m => { if (!done) { done = true; resolve(m); pipe.close() } }, error => { if (!done) { done = true; reject(new Error(error ?? EXITED)) } })
+    const timer = setTimeout(() => { if (!done) { done = true; reject(new Error(NO_ANSWER)); pipe.close() } }, ANSWER_WITHIN)
+    const pipe: Pipe = new Pipe(host, ext.id, m => { if (!done) { done = true; clearTimeout(timer); resolve(m); pipe.close() } }, error => { if (!done) { done = true; clearTimeout(timer); reject(new Error(error ?? EXITED)) } })
     pipe.send(message)
   })
 }

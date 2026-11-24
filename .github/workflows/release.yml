@@ -2,20 +2,63 @@ name: release
 
 # A tag v<version> (the version in package.json) builds the Windows installers
 # for x64 and ARM and publishes them to a GitHub Release with latest.yml, the
-# file Oriel's updater reads (electron-updater).
+# file Oriel's updater reads (electron-updater). Nothing is published unless
+# the base tests pass on Windows first (studio/09 §5).
+# The release's text: release-notes/v<version>.md when it exists (What's New
+# shows it), "Building…" otherwise.
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npx tsc -p .
+      - run: npm run build
+      - name: Fase 0, core
+        run: python test/f0_core.py
+      - name: Oriel's own pages, apart from websites
+        if: always()
+        run: python test/settings_pages.py
+      - name: Guards (interface, oriel:// from sites, test knobs)
+        if: always()
+        run: python test/security_guards.py
+      - name: Writes that can't be cut in half
+        if: always()
+        run: python test/robust_writes.py
+      - name: Data, Windows Hello and the Windows password
+        if: always()
+        run: python test/data_windows.py
+      - name: Licenses
+        if: always()
+        run: python test/licenses_check.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: release-test-logs
+          path: out/*.log
+
   publish:
+    needs: test
     runs-on: windows-latest
     timeout-minutes: 45
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,7 +69,8 @@ jobs:
       # koffi's prebuilt binary for the other architecture too (npm only
       # installs the one of the machine it runs on).
       - run: npm install --no-save --force @koromix/koffi-win32-x64@3.3.8 @koromix/koffi-win32-arm64@3.3.8
-      - run: npm run licenses
+      # After that install, so both binaries that ship are listed.
+      - run: node scripts/licenses.mjs --expect @koromix/koffi-win32-x64,@koromix/koffi-win32-arm64
       - run: npm run build
       # One release for every file: electron-builder's targets upload at once and
       # would each create their own release if none existed yet.
@@ -35,8 +79,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="v$(node -p "require('./package.json').version")"
-          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "Oriel ${tag#v}" --notes "Building…"
+          version="$(node -p "require('./package.json').version")"
+          tag="v$version"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+            echo "The tag $GITHUB_REF_NAME isn't the version in package.json ($tag)"; exit 1
+          fi
+          notes="release-notes/$tag.md"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            if [ -f "$notes" ]; then gh release edit "$tag" --notes-file "$notes"; fi
+          elif [ -f "$notes" ]; then
+            gh release create "$tag" --title "Oriel $version" --notes-file "$notes"
+          else
+            gh release create "$tag" --title "Oriel $version" --notes "Building…"
+          fi
       - name: Build and publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

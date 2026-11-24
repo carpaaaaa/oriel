@@ -125,5 +125,28 @@ b.launch(env={"ORIEL_UPDATE_FEED": origin + "/feed"})
 b.wait_for(lambda: b.state()["prefs"].get("update.checked"), within=30, what="checked against the feed")
 t.ok(up()["stage"]["kind"] == "none", "an older version in the feed: nothing to do")
 t.ok(not b.state().get("errors"), "no error in the main process")
+b.quit()
+
+# 6. The portable build (studio/09 §1.3): electron-builder's launcher sets
+# PORTABLE_EXECUTABLE_DIR. It never checks or installs (the installer isn't
+# how it updates) and About says to download the new version.
+b.use("settings-d-updates-portable")
+b.launch(env={"PORTABLE_EXECUTABLE_DIR": str(b.folder())})
+time.sleep(2.5)
+u = up()
+t.ok(u.get("portable") is True and not u["active"], f"portable: no update source ({u.get('portable')}, active {u['active']})")
+t.ok(u["fake"]["checks"] == 0, "portable: nothing is checked at launch")
+tab = about()
+b.wait_for(lambda: "download" in (row(tab) or {}).get("detail", ""), what="portable line")
+r = row(tab)
+t.ok(r["detail"] == "Portable Oriel doesn't update on its own. To update, download the new version" and r["control"] == "Download…",
+     f"About says the portable copy updates by downloading the new version ({r})")
+ev(tab, "document.querySelector(\"[data-row='updates.version'] .pill-st\").click()")
+opened = False
+try:
+    opened = b.wait_for(lambda: any("/carpaaaaa/oriel/releases" in (x.get("url") or "") for x in b.window()["tabs"]), what="releases tab")
+except AssertionError:
+    pass
+t.ok(opened, "Download… opens the releases page in a tab")
 server.shutdown()
 t.done()

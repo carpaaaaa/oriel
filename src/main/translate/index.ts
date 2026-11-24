@@ -25,12 +25,13 @@ import { languageName, MENU_DEFAULT, MENU_KEY, translateCodes, translateLanguage
 import { detectTexts, ensureModel, translateTexts } from './engine'
 import { download, fetched, filesFor, keptRoute, missing, route, type Pair } from './catalog'
 import { hideMenu, menuOpenFor, setupMenu } from './menu'
+import { testEnv } from '../testhooks'
 
 addDefaults({ [MENU_KEY]: MENU_DEFAULT })
 
 /** Test worlds only: a stand-in that marks each piece instead of
  * translating it, to test the page side without a model (Translate.swift fake). */
-const fake = !!probe && !!process.env.SEARCH_TRANSLATE_FAKE
+const fake = !!probe && !!testEnv('SEARCH_TRANSLATE_FAKE')
 
 type Unit = [id: number, parts: string[], gaps: boolean[], fixed: boolean[]]
 

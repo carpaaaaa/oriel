@@ -4,8 +4,9 @@
 
 import { app } from 'electron'
 import path from 'node:path'
+import { testEnv } from './testhooks'
 
-export const probe = process.env.SEARCH_PROBE ?? ''
+export const probe = testEnv('SEARCH_PROBE') ?? ''
 export const productName = 'Oriel'
 
 /** Call before app is ready. */
@@ -23,7 +24,7 @@ export function dataFile(name: string): string {
  * Mac's lights. On a Mac, SEARCH_CHROME=windows draws the Windows one, for
  * developing and comparing. */
 export function chromeKind(): 'windows' | 'mac' {
-  if (process.env.SEARCH_CHROME === 'windows') return 'windows'
-  if (process.env.SEARCH_CHROME === 'mac') return 'mac'
+  if (testEnv('SEARCH_CHROME') === 'windows') return 'windows'
+  if (testEnv('SEARCH_CHROME') === 'mac') return 'mac'
   return process.platform === 'darwin' ? 'mac' : 'windows'
 }

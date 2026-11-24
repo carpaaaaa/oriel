@@ -181,6 +181,20 @@ t.ok(isinstance(e, str) and "only supported for session-scoped rules" in e, "tab
 t.ok(dnr("chrome.declarativeNetRequest.isRegexSupported({ regex: '^https?://[a-z]+\\\\.com/' })") == {"isSupported": True}, "isRegexSupported: yes")
 t.ok(dnr("chrome.declarativeNetRequest.isRegexSupported({ regex: '(?=x)' })") == {"isSupported": False, "reason": "syntaxError"}, "isRegexSupported: lookahead is not RE2")
 
+# A regex that would backtrack without end, in the main process, on every
+# request (studio/09 §1.9): RE2 is linear, JavaScript isn't, so it is refused
+# as too complex, and the browser keeps answering.
+e = dnr("chrome.declarativeNetRequest.updateDynamicRules({ addRules: [{ id: 10, action: { type: 'block' }, condition: { regexFilter: '(a+)+$' } }] })")
+t.ok(isinstance(e, str) and e.startswith("error: Rule with id 10 specified a more complex regex than allowed"), f"(a+)+$ refused as too complex (got {e})")
+t.ok(dnr("chrome.declarativeNetRequest.isRegexSupported({ regex: '(a+)+$' })") == {"isSupported": False, "reason": "memoryLimitExceeded"}, "isRegexSupported agrees: (a+)+$ is too complex")
+t.ok(dnr("chrome.declarativeNetRequest.isRegexSupported({ regex: '(a|ab)+$' })") == {"isSupported": False, "reason": "memoryLimitExceeded"}, "and so is a repeated group whose alternatives start alike")
+t.ok(dnr("chrome.declarativeNetRequest.isRegexSupported({ regex: '^https?://([a-z0-9-]+\\\\.)*example\\\\.com/' })") == {"isSupported": True}, "a nested group with a separator each round stays (filter lists use it)")
+t.ok(dnr("chrome.declarativeNetRequest.isRegexSupported({ regex: 'a{1001}' })") == {"isSupported": False, "reason": "syntaxError"}, "a count over 1000 isn't RE2")
+start = time.time()
+r = fetch(site, u("cdn.localhost", "/res/" + "a" * 60 + "!"))
+took = time.time() - start
+t.ok(r != "blocked" and took < 5, f"a long run of a's in an address doesn't stall the browser ({took:.2f} s)")
+
 tab_id = b.call({"do": "extensions.tabId", "tab": site})["tabId"]
 dnr("chrome.declarativeNetRequest.updateSessionRules({ addRules: [{ id: 1, action: { type: 'block' }, condition: { urlFilter: '/sess/', tabIds: [%d] } }] })" % tab_id)
 t.ok(blocked(site, u("cdn.localhost", "/res/sess/")) and not blocked(trusted, u("cdn.localhost", "/res/sess/")), "session rule with tabIds")

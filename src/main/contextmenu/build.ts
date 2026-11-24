@@ -6,6 +6,7 @@
 import type { ID } from '../../shared/state'
 import type { PageMenuEntry } from '../../shared/modules/contextmenu'
 import { cleanLink, highlightLink } from './clean'
+import { refusesInternal } from '../settings/openers'
 
 export interface Facts {
   tab: ID
@@ -106,7 +107,9 @@ export function buildMenu(p: Electron.ContextMenuParams, f: Facts): PageMenuEntr
     if (link && /^mailto:/i.test(link)) {
       const address = decodeURIComponent(link.slice(7).split('?')[0])
       groups.push([{ label: 'Copy Email Address', act: { cmd: { do: 'ctx.copy', text: address } } }])
-    } else if (link && openable(link)) {
+    // A website's link to an Oriel page or a file isn't opened for it either
+    // (studio/09 §1.4; Chrome blocks chrome:// links the same way): Copy Link only.
+    } else if (link && openable(link) && !refusesInternal(p.frameURL || p.pageURL, link)) {
       // Open Link (a click's doing) is left out, as on the Mac (§3.38).
       groups.push([
         { label: 'Open Link in New Tab', act: { cmd: { do: 'ctx.open', url: link, where: 'tab', from: id } } },

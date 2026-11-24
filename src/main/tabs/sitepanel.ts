@@ -18,6 +18,8 @@ import { controllerFor, type WindowController } from '../views/window'
 import { pagePreload, sessionFor } from '../views/tabs'
 import { closePanel, panelOf, PANEL } from '../extensions/sidepanel'
 import { benchRequest } from '../bench/server'
+import { pageMayNotOpen } from '../settings/openers'
+import { keepOnPage } from '../views/guard'
 
 const LINE = 34
 
@@ -88,6 +90,7 @@ export function showSite(c: WindowController, url: string): boolean {
   box.setBorderRadius(PANEL.radius)
   const line = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true } })
   line.setBackgroundColor(dark ? '#1c1c1c' : '#ffffff')
+  keepOnPage(line.webContents)
   void line.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(linePage(dark)))
   const space = c.record.space
   const pseudo = { id: newID(), space, win: c.record.id, shy: false } as unknown as TabRecord
@@ -121,7 +124,7 @@ export function showSite(c: WindowController, url: string): boolean {
     else if (title.startsWith('close:')) closeSite(c)
   })
   wc.setWindowOpenHandler(({ url: target }) => {
-    if (allowed(target)) model.open(c.record, target, { foreground: true })
+    if (allowed(target) && !pageMayNotOpen(wc.getURL(), target, 'site panel')) model.open(c.record, target, { foreground: true })
     return { action: 'deny' }
   })
   void wc.loadURL(url).catch(() => {})
