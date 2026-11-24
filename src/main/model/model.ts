@@ -1301,6 +1301,15 @@ class Model extends EventEmitter {
   }
 
   /** A closed tab kept for ⇧⌘T (Browser.remember, §9.15). */
+  /** A closed tab's history, as its page told it after the close: into the
+   * ghost ⇧⌘T would bring back, if that hasn't happened yet. */
+  freshenGhost(tabID: ID, keep: Keepsake): void {
+    for (const win of this.windows.values()) {
+      const ghost = [...win.ghosts].reverse().find(g => g.was === tabID)
+      if (ghost && this.keeps.has(`ghost:${ghost.id}`)) { this.keeps.set(`ghost:${ghost.id}`, keep); return }
+    }
+  }
+
   private remember(win: WindowRecord, t: TabRecord, index: number, partner?: ID, onLeft = false): void {
     if (t.shy || t.empty || !t.url) return
     const keep = this.hooks.keepsake(t.id) ?? this.keeps.get(t.id)
