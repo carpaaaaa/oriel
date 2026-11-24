@@ -92,7 +92,8 @@ same(next(x for x in table if x["id"] == "view.reader")["keys"], ["Ctrl+Shift+R"
 same(next(x for x in table if x["id"] == "view.fold")["phase"], "later", "Ctrl+S is the page's first (Docs keeps it)")
 live = {x["id"] for x in table if x["live"]}
 t.ok({"file.newTab", "file.closeTab", "file.openAddress", "tabs.search", "edit.find", "view.reload"} <= live, "the keys with a command now are live")
-t.ok("view.reader" not in live and "history.show" in live, "keys whose command another module hasn't made yet stay the page's; History is live now that Settings made it")
+# Reading Mode (pages/reader.ts, settings area C) and History (Settings) have their commands now.
+t.ok({"view.reader", "history.show"} <= live, "Reading Mode and History are live now that their modules made them")
 
 # Settings' changes are differences: a key moved, a key taken off
 b.cmd("prefs.set", key="shortcuts", value={"edit.find": {"keys": ["Ctrl+Shift+F"]}})

@@ -37,14 +37,14 @@ export function FoldLayer(p: { layer: OverlayLayer }) {
     back?.cancel()
     back = null
     const t = timing(true)
-    el.dataset.out = `${t.duration} ${t.easing.slice(0, 40)}`
+    document.documentElement.dataset.foldOut = `${t.duration} ${t.easing.slice(0, 40)}`
     el.animate([{ transform: from === 'none' ? away() : from }, { transform: 'none' }], { ...t, fill: 'none' })
   }
   onMount(comeOut)
   createEffect(on(() => !!(p.layer as { going?: boolean }).going, going => {
     if (going) {
       const t = timing(false)
-      el.dataset.back = `${t.duration} ${t.easing.slice(0, 40)}`
+      document.documentElement.dataset.foldBack = `${t.duration} ${t.easing.slice(0, 40)}`
       back = el.animate([{ transform: 'none' }, { transform: away() }], { ...t, fill: 'forwards' })
     }
     else comeOut()

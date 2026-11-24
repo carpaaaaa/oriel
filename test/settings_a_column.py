@@ -123,18 +123,19 @@ v = frame()["visual"]
 
 def timing(which):
     """How the fold-out last moved (its own record: the animations end before a look)."""
-    v_ = k.js(f"const e = document.querySelector('.fold-out'); return e && e.dataset.{which}", root="overlay")
+    v_ = k.js(f"return document.documentElement.dataset.fold{which.capitalize()} || null", root="overlay")
     return (v_ or "").split(" ", 1) if v_ else None
 
 
 for slides in (False, True):
     setting("sidebar.slides", slides)
+    k.js("delete document.documentElement.dataset.foldOut; delete document.documentElement.dataset.foldBack; return 1", root="overlay")
     pointer(v["x"] + 2, v["y"] + 300)
     settle(lambda: edges()["peek"], "out", within=2)
     a_out = settle(lambda: timing("out"), "its slide", within=2)
     pointer(*away)
-    going = settle(lambda: edges()["going"], "going back", within=2)
-    a_in = timing("back") if going else None
+    gone_ = settle(lambda: not edges()["going"] and not edges()["peek"], "gone", within=2)
+    a_in = timing("back")
     gone = settle(lambda: not edges()["going"] and not edges()["peek"], "gone", within=2)
     if slides:
         t.ok(a_out and a_out[0] == "260" and a_out[1].startswith("cubic-bezier(0, 0, .58, 1)"), f"Slide the column in and out: out on ease-out 0.26 ({a_out})")
