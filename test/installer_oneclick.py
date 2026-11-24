@@ -38,13 +38,18 @@ if not setup or not setup.exists():
     sys.exit(1)
 NEW = json.loads((ROOT / "package.json").read_text())["version"]
 print(f"installer: {setup} ({NEW})")
+if NEW == "0.1.4":
+    print("the setup is 0.1.4 itself: nothing to update over")
+    sys.exit(1)
 
 
 def version_of(exe):
     if not Path(exe).exists():
         return None
     r = subprocess.run(["powershell", "-NoProfile", "-Command", f"(Get-Item -LiteralPath '{exe}').VersionInfo.ProductVersion"], capture_output=True, text=True)
-    return r.stdout.strip() or None
+    v = r.stdout.strip()
+    # Windows writes 0.1.4 as 0.1.4.0.
+    return (v[:-2] if v.count(".") == 3 and v.endswith(".0") else v) or None
 
 
 def running():
