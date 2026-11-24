@@ -208,8 +208,10 @@ press("Add")
 t.ok(pills() == [["Cancel", False], ["Save", True]], f"Add gives Cancel and Save, Save off: {pills()}")
 t.ok(detail() == "Type a word, like yt, then the site's search address with %s where the words you type go", f"the first words: {detail()!r}")
 e = editor()
-t.ok(e and e["wordHint"] == "word" and e["addressHint"] == "address with %s for the words, e.g. youtube.com/results?search_query=%s",
-     f"the Mac's two placeholders: {e}")
+t.ok(e and e["wordHint"] == "word" and e["addressHint"] == "address with %s for the words, e.g. https://youtube.com/results?search_query=%s",
+     f"the Mac's two placeholders, the example with its https:// (the user's wish, 24 Nov 2026): {e}")
+hint = ev("document.querySelector('.kw-hint')?.textContent ?? null")
+t.ok(hint == "The address starts with https:// or http://, with %s where the words go.", f"said under the editor: http or https ({hint!r})")
 hints = [style(".kw.editing input:nth-of-type(%d)" % n, "fontStyle", pseudo="::placeholder")["fontStyle"] for n in (1, 2)]
 t.ok(hints == ["italic", "italic"], f"both in italics, plainly examples: {hints}")
 look = style(".kw.editing", "marginLeft", "marginRight", "marginBottom", "paddingTop", "paddingLeft", "borderTopLeftRadius", "backgroundColor", "fontSize")

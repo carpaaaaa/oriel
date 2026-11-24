@@ -413,10 +413,12 @@ function KeywordEditor() {
           {/* Plainly examples, not an entry already there: in italics, with "e.g.". */}
           <input class="kw-word" placeholder="word" value={d().keyword} onInput={e => setDraft({ ...d(), keyword: e.currentTarget.value })} />
           <span class="kw-arrow">→</span>
-          <input class="kw-template" placeholder="address with %s for the words, e.g. youtube.com/results?search_query=%s" value={d().template}
+          <input class="kw-template" placeholder="address with %s for the words, e.g. https://youtube.com/results?search_query=%s" value={d().template}
             onInput={e => setDraft({ ...d(), template: e.currentTarget.value })} onKeyDown={e => { if (e.key === 'Enter') saveDraft() }} />
         </div>
       )}</Show>
+      {/* Said before it's refused: the address isn't completed with https://. */}
+      <Show when={draft()}><div class="kw-hint">The address starts with https:// or http://, with %s where the words go.</div></Show>
       {/* The one being changed is up in the editor, not here as well. */}
       <For each={keywords().filter(k => k.id !== draft()?.id)}>{k => (
         <div class="kw">

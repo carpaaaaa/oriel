@@ -85,7 +85,8 @@
   opacity: 0; transform: scale(.7); transform-origin: left center; pointer-events: none;
   transition: opacity var(--dur-settle) var(--ease-settle), transform var(--dur-settle) var(--ease-settle), background-color var(--dur-quick) var(--ease-quick); }
 .strip-plus.shown { opacity: 1; transform: none; pointer-events: auto; }
-.strip-plus:hover { background: var(--hover); }
+/* under the pointer the tabs' own grey, so it sits on the theme as the tabs do */
+.strip-plus:hover { background: var(--g-hover); }
 
 /* a group: its name (12.5 medium + 20), the band behind name and tabs, 10 after */
 .strip-group { flex: none; height: 28px; display: flex; align-items: center; gap: var(--tab-gap); border-radius: var(--row-radius); }

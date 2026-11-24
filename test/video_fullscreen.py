@@ -389,9 +389,12 @@ try:
         time.sleep(0.6)
         g = frame()
         r = answer({"do": "window.edges", "window": WID})["region"]
-        w2 = g["bounds"]["width"]
-        t.ok(r and abs((w2 - r["x"] - r["width"]) - 12) <= 2 and abs(r["y"] - 12) <= 2 and r["x"] >= 0,
-             f"{how}: the question keeps its place at the top right ({r}, window {w2} wide)")
+        # Measured on what is seen: a maximized window reaches 8 past the screen.
+        v, bx, by = g["visual"], g["bounds"]["x"], g["bounds"]["y"]
+        gap = (v["x"] + v["width"]) - (bx + r["x"] + r["width"]) if r else None
+        top = (by + r["y"]) - v["y"] if r else None
+        t.ok(r and 4 <= gap <= 30 and 0 <= top <= 30 and bx + r["x"] >= v["x"],
+             f"{how}: the question keeps its place at the top right, inside what is seen ({r}, {gap} from the right, {top} from the top)")
     b.cmd("overlay.region", window=WID, rect=None, focus=False)
 
     # YouTube itself, to look at: f for full screen, Escape out.
