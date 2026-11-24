@@ -85,3 +85,11 @@ benchRequest('field.hover', req => {
   }
   return {}
 })
+
+/** The window's content to a size, as a person dragging its edge would. */
+benchRequest('field.resize', req => {
+  const c = focusedController()
+  if (!c) throw new Error('no window')
+  c.base.setContentSize(Math.round(Number(req.width)), Math.round(Number(req.height)))
+  return { bounds: c.base.getContentBounds() }
+})

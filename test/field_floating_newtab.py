@@ -269,6 +269,32 @@ t.ok(field()["text"] == "", "another tab chosen puts the field away without keep
 key("Escape", to="overlay")
 away("Escape")
 
+# the tab already in front chosen again: the field stays up, the words with it
+# (Browser.select returns before putting it away; a click on the live tab is
+# beginTabEdit, which leaves it)
+before = ids()
+raise_over(bb)
+put("still here")
+row = json.loads(b.ui("""JSON.stringify((() => { const r = document.querySelector('.row[data-tab="%s"]').getBoundingClientRect()
+  return { x: r.x + r.width / 2, y: r.y + r.height / 2 } })())""" % bb))
+b.mouse(row["x"], row["y"])
+time.sleep(0.6)
+f = field()
+t.ok(up() and f["mode"] == "newTab" and f["text"] == "still here" and not b.window().get("tabEdit"),
+     f"a click on the tab in front, in the column: the field stays up with its words ({f['mode']}, {f['text']!r})")
+k.cmd("tab.select", id=bb)
+time.sleep(0.4)
+t.ok(up() and field()["text"] == "still here" and ids() == before, "choosing the tab in front again (its number): the field stays too")
+b.cmd("field.editTab", id=bb)
+time.sleep(0.3)
+t.ok(up() and field()["text"] == "still here", "...and so does the strip's press on it")
+key("Return", to="overlay")
+b.wait_for(lambda: len(ids()) == len(before) + 1, what="Return after the click")
+t.ok("still" in front()["url"] and k.name_of(k.tab(bb)["url"]) == "bravo",
+     f"...and Return still opens the words in a new tab ({front()['url']})")
+k.cmd("tab.close", id=front()["id"])
+time.sleep(0.4)
+
 # groups: over a grouped tab, Return's tab is in no group; New Tab in Group puts it at the group's end
 g1, g2, loose = k.page("g1"), k.page("g2"), k.page("loose")
 k.cmd("group.new", ids=[g1, g2])
@@ -339,6 +365,17 @@ hi = json.loads(b.ui("""JSON.stringify((() => { const f = document.querySelector
 t.ok(abs(hi["top"] - hi["h"] * 0.24) <= 1.5 and abs(hi["cx"] - hi["w"] / 2) <= 1.5,
      f"...the field centred on the window, its top 24% down ({hi})")
 t.ok(field()["high"], "...said in the field's state")
+w0 = v["ui"]
+b.call({"do": "field.resize", "width": w0["width"] - 200, "height": w0["height"] - 120})
+b.wait_for(lambda: (x := b.call({"do": "field.views"}))["ui"]["width"] == w0["width"] - 200 and x["overlay"] == x["ui"],
+           what="the veil following the window")
+hi = json.loads(b.ui("""JSON.stringify((() => { const f = document.querySelector('.field').getBoundingClientRect()
+  return { top: f.top, cx: f.x + f.width / 2, w: innerWidth, h: innerHeight } })())""", root="overlay"))
+t.ok(abs(hi["top"] - hi["h"] * 0.24) <= 1.5 and abs(hi["cx"] - hi["w"] / 2) <= 1.5 and hi["w"] == w0["width"] - 200,
+     f"the window made smaller with the field up: the veil follows it, the field 24% down and centred ({hi})")
+b.call({"do": "field.resize", "width": w0["width"], "height": w0["height"]})
+b.wait_for(lambda: (x := b.call({"do": "field.views"}))["ui"] == w0 and x["overlay"] == w0, what="the veil back to the whole window")
+t.ok(True, "...and back to the whole window when it grows again")
 key("Escape", to="overlay")
 away("Escape")
 key("L", "control")

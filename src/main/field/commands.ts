@@ -460,6 +460,38 @@ function closeOver(c: WindowController, m: Memory): void {
   publish(c, true)
 }
 
+/** The tab already in front chosen again, by a click on it in the column or
+ * the strip or by its number: ⌘T's floating field stays up and the keys go
+ * back to it (Browser.select returns before putting the field away,
+ * Browser.swift:5052-5057; beginTabEdit leaves it, :2562-2575). True when
+ * the field was up and stays. */
+export function stayUp(c: WindowController): boolean {
+  const m = memories.get(c.record)
+  if (!m || !m.launching || !m.editing || blankInFront(c)) return false
+  if (tabEditing(c)) cancelTabEdit(c)
+  m.focus++
+  if (c.overlayLayer.kind === 'field' && !c.overlay.webContents.isDestroyed()) c.overlay.webContents.focus()
+  publish(c)
+  return true
+}
+
+/** The veil in the middle of the window follows the window as it changes
+ * size, as the Mac's, drawn by the window, does (Omnibox.swift:68-71). */
+function followWindow(c: WindowController): void {
+  const m = memories.get(c.record)
+  if (!m || c.base.isDestroyed() || c.overlayLayer.kind !== 'field' || !onWindow(c, m)) return
+  const { width, height } = c.base.getContentBounds()
+  c.setOverlayRegion({ x: 0, y: 0, width, height }, false)
+}
+
+model.on('window-opened', (id: string) => setImmediate(() => {
+  const c = controllerFor(id)
+  if (!c) return
+  for (const e of ['resize', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'restore'] as const) {
+    c.base.on(e as 'resize', () => followWindow(c))
+  }
+}))
+
 /** For tab.select and the like: the field over a page goes. ⌘T's floating
  * field goes without keeping what was typed, as the Mac's editing = false
  * (Browser.swift:393): only Escape, ⌘W, a click outside or ⌘T keep it. */
