@@ -388,38 +388,32 @@ export function paintStickers(g: Ctx, w: number, h: number, t: HomeTuning, dark:
   return placed
 }
 
-/** One sticker: the die-cut edge and its shadow as one layer, then its layers. */
+/** One sticker: the die-cut edge, each of its strokes and fills casting its
+ * own shadow (a GraphicsContext filter applies to every drawing after it,
+ * one by one: where a later edge falls on an earlier one its shadow shows,
+ * as on the Mac), then the sticker's layers on top. */
 function drawSticker(g: Ctx, ls: Layer[], x: number, y: number, r: number, tilt: number, px: number, dark: boolean,
   p: ReturnType<typeof pen>, colour: (code: number) => string): void {
   const a = (tilt * Math.PI) / 180
-  // The edge, drawn apart in a square around the sticker, then laid down
-  // with the shadow (radius 0.04 and y 0.03 in the sticker's own units).
-  const dev = g.getTransform().transformPoint(new DOMPoint(x, y))
-  const half = Math.ceil(r * 1.8 * px) + 4
-  const ox = Math.floor(dev.x) - half, oy = Math.floor(dev.y) - half
-  const off = new OffscreenCanvas(half * 2, half * 2)
-  const l = off.getContext('2d')!
-  // Laid down on whole pixels: the sticker's centre keeps its fraction here.
-  l.setTransform(px, 0, 0, px, dev.x - ox, dev.y - oy)
-  l.rotate(a)
-  l.scale(r, r)
-  const white = p([1, 1, 1])
-  for (const q of ls) {
-    stroke(l, q.path, white, 0.34 + q.width)
-    if (q.width === 0) fill(l, q.path, white)
-  }
-  g.save()
-  g.setTransform(1, 0, 0, 1, 0, 0)
-  g.shadowColor = `rgb(0 0 0 / ${dark ? 0.35 : 0.14})`
-  g.shadowBlur = 2 * 0.04 * r * px
-  g.shadowOffsetX = -Math.sin(a) * 0.03 * r * px
-  g.shadowOffsetY = Math.cos(a) * 0.03 * r * px
-  g.drawImage(off, ox, oy)
-  g.restore()
   g.save()
   g.translate(x, y)
   g.rotate(a)
   g.scale(r, r)
+  // Radius 0.04 and y 0.03 in the sticker's own units; canvas shadows are
+  // in device pixels and ignore the transform, so they are turned here.
+  g.shadowColor = `rgb(0 0 0 / ${dark ? 0.35 : 0.14})`
+  g.shadowBlur = 2 * 0.04 * r * px
+  g.shadowOffsetX = -Math.sin(a) * 0.03 * r * px
+  g.shadowOffsetY = Math.cos(a) * 0.03 * r * px
+  const white = p([1, 1, 1])
+  for (const q of ls) {
+    stroke(g, q.path, white, 0.34 + q.width)
+    if (q.width === 0) fill(g, q.path, white)
+  }
+  g.shadowColor = 'transparent'
+  g.shadowBlur = 0
+  g.shadowOffsetX = 0
+  g.shadowOffsetY = 0
   for (const q of ls) {
     if (q.width === 0) fill(g, q.path, colour(q.colour))
     else stroke(g, q.path, colour(q.colour), q.width)

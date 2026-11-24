@@ -20,7 +20,8 @@ export function pen(dark: boolean, night = false) {
 export type Pen = ReturnType<typeof pen>
 
 export function css(c: RGB, alpha = 1): string {
-  const ch = (v: number) => (Math.max(0, Math.min(1, v)) * 255).toFixed(3)
+  // Rounded as Core Graphics rounds to 8 bits: 0.9 × 255 is 229.49999… → 229.
+  const ch = (v: number) => Math.round(Math.max(0, Math.min(1, v)) * 255)
   return `rgb(${ch(c[0])} ${ch(c[1])} ${ch(c[2])} / ${Math.max(0, Math.min(1, alpha))})`
 }
 

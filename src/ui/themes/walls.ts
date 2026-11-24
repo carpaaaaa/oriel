@@ -4,7 +4,7 @@
 
 import type { HomeTheme, RGB } from './model'
 import { seed, Seeded } from './random'
-import { applying, arcTo, type Ctx, ellipse, ellipseIn, fill, layer, linear, pen, type Pen, rectIn, roundedRectIn, scaleOf, stroke } from './draw'
+import { applying, arcTo, type Ctx, ellipse, ellipseIn, fill, linear, pen, type Pen, rectIn, roundedRectIn, scaleOf, stroke } from './draw'
 
 const night = new Set<HomeTheme>(['northernLights', 'saturnRise', 'moonscape', 'cityAtNight'])
 
@@ -368,7 +368,12 @@ class Scene {
       [0.16, 0.1, 1.3, 0.4, [0.35, 0.95, 0.65]], [0.26, 0.12, 1.7, 2.3, [0.30, 0.85, 0.85]],
       [0.12, 0.08, 2.1, 4.4, [0.55, 0.45, 0.92]], [0.32, 0.09, 1.2, 1.1, [0.40, 0.92, 0.55]]]
     const k = Math.min(w, h) * 0.014
-    layer(g, l => {
+    // The layer's blur acts on each ribbon as it is drawn (a filter applies
+    // to every drawing after it, one by one).
+    g.save()
+    g.filter = `blur(${k * scaleOf(g)}px)`
+    {
+      const l = g
       for (const [y0, ht, f, ph, c] of ribbons) {
         const p = new Path2D()
         for (let i = 0; i <= 60; i++) {
@@ -384,7 +389,8 @@ class Scene {
         p.closePath()
         fill(l, p, linear(l, 0, (y0 - 0.07) * h, 0, (y0 + ht + 0.07) * h, [this.pen(c, 0.0), this.pen(c, 0.6), this.pen([0.3, 0.8, 0.7], 0)]))
       }
-    }, { blur: k * scaleOf(g) })
+    }
+    g.restore()
     this.fill(this.ridge(0.68, 0.05, 1.2, 1.0), [0.30, 0.40, 0.56])
     this.fill(this.ridge(0.79, 0.035, 1.7, 3.2), [0.72, 0.80, 0.92])
     // The cabin on the near ridge.
