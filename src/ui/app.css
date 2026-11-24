@@ -68,9 +68,11 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .window.col-right.room-left .side-room { left: var(--card-gap); }
 .window.col-right.room-right .card { right: calc(var(--side) + var(--room-w) + var(--card-gap)); }
 .window.col-right.room-right .side-room { right: var(--side); }
-/* fold.loadingLine: 2 along the page's top, in the accent, clear of the corners */
+/* fold.loadingLine: 2 along the page's top, clear of the corners, in the
+   text's colour (the user's wish, 24 Nov 2026: dark on light, white on dark,
+   never the accent's blue) */
 .loading-line { position: absolute; left: calc(var(--card-gap) + var(--card-radius)); right: calc(var(--card-gap) + var(--card-radius)); top: calc(var(--top, var(--card-gap)) - 2px); height: 2px; pointer-events: none; z-index: 5; }
-.loading-line span { display: block; height: 100%; width: 8%; background: var(--accent, rgb(0, 122, 255)); opacity: .9; animation: loading-line 3s cubic-bezier(0, 0, .2, 1) forwards; }
+.loading-line span { display: block; height: 100%; width: 8%; background: var(--ink); opacity: .9; animation: loading-line 3s cubic-bezier(0, 0, .2, 1) forwards; }
 @keyframes loading-line { to { width: 90%; } }
 .window.top .top-strip { display: none; }
 .window.top .card { left: 0; right: 0; bottom: 0; border-radius: 0; box-shadow: 0 -1px 0 var(--hairline); }
