@@ -82,6 +82,16 @@ function keptAwake(t: TabView): boolean {
   return ((state.prefs['tabs.awakeSites'] as string[] | undefined) ?? []).includes(site)
 }
 
+/** Shield's host for a tab (without www), while Shield is on, outside a private tab. */
+function shieldSite(t: TabView): string | null {
+  if (t.shy || state.prefs['shield'] === false) return null
+  return siteOf(t)?.replace(/^www\./, '') ?? null
+}
+function shieldPaused(t: TabView): boolean {
+  const site = shieldSite(t)
+  return !!site && ((state.prefs['shield.paused'] as string[] | undefined) ?? []).includes(site)
+}
+
 /** A tab's or a pin's menu (§4.35). */
 export function tabMenu(t: TabView): Entry[] {
   const picked = state.picked ?? []
@@ -133,6 +143,13 @@ export function tabMenu(t: TabView): Entry[] {
     // Websites in the side panel (SidePanel.swift openInSidePanel): not a private tab's.
     { label: 'Open in Side Panel', enabled: web(t) && !t.shy && /^https?:/i.test(t.url), act: { cmd: { do: 'panel.site', url: t.url } } },
     { label: t.muted ? 'Unmute Tab' : 'Mute Tab', act: { cmd: { do: 'tab.mute', id: t.id, muted: !t.muted } } },
+    // Block Ads and Trackers for this site (studio/06 §5.1): the Mac's site card
+    // has a switch; here the words say what a click does, as Always Open / Stop
+    // Opening (a tick, on nearly always, would move every label). Only while
+    // Shield works, never in a private tab.
+    ...(shieldSite(t) ? [shieldPaused(t)
+      ? { label: 'Block Ads and Trackers on This Site', act: { cmd: { do: 'pages.shield.site', id: t.id, on: true } as Command } }
+      : { label: 'Stop Blocking Ads on This Site', act: { cmd: { do: 'pages.shield.site', id: t.id, on: false } as Command } }] : []),
     // Keep This Site Awake (§9.24): on the Mac it is on the site's card; Oriel has none yet.
     // Its tick only when on: a column for it would move every label (the Mac's tab menu has none).
     ...(siteOf(t) ? [{ label: 'Keep This Site Awake', checked: keptAwake(t) || undefined, act: { cmd: { do: 'tab.keepAwake', id: t.id, on: !keptAwake(t) } as Command } }] : []),

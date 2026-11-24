@@ -39,6 +39,14 @@ const slots = [
   '.ad-unit', '.adunit', '.adslot', '.dfp-ad', '.gpt-ad', '.w_ad',
 ]
 
+/** The slots uBlock Origin's lists don't hide everywhere (each of the
+ * others is an EasyList generic rule): with the lists working, these are
+ * the only generic ones left for Search's own rule. */
+const slotsBeyondLists = new Set([
+  '.adsbygoogle', 'ins.adsbygoogle', '[id^="google_ads_"]', '[id^="taboola-"]', '#taboola-below-article',
+  'iframe[src*="doubleclick.net"]', 'iframe[src*="googlesyndication"]', 'iframe[src*="amazon-adsystem"]',
+])
+
 /** Slots hidden only on the sites EasyList hides them on (Shield.slotsBySite). */
 const slotsBySite: [string[], string][] = [
   [['as.com', 'elpais.com'], '.ad'],
@@ -53,10 +61,12 @@ const reddit = ['shreddit-ad-post', 'shreddit-comments-page-ad', 'shreddit-sideb
 
 const onSite = (host: string, sites: string[]) => sites.some(s => host === s || host.endsWith('.' + s))
 
-/** WebKit's css-display-none for a page on `host` (with test stand-ins for Reddit). */
-export function hidingCSS(host: string, redditHosts: string[] = []): string {
+/** WebKit's css-display-none for a page on `host` (with test stand-ins for
+ * Reddit). `withLists`: uBlock Origin's lists are working, so Search's own
+ * generic slots are only the ones they don't hide. */
+export function hidingCSS(host: string, redditHosts: string[] = [], withLists = false): string {
   const h = host.toLowerCase()
-  const lists = [slots.join(', ')]
+  const lists = [(withLists ? slots.filter(s => slotsBeyondLists.has(s)) : slots).join(', ')]
   for (const [sites, selector] of slotsBySite) if (onSite(h, sites)) lists.push(selector)
   if (onSite(h, ['reddit.com', ...redditHosts])) lists.push(reddit.join(', '))
   return lists.map(l => `${l} { display: none !important; }`).join('\n')
@@ -98,9 +108,10 @@ const tracking = new Set(['fbclid', 'gclid', 'dclid', 'gbraid', 'wbraid', 'msclk
 const trackingOn: Record<string, string[]> = { si: ['youtube.com', 'youtu.be', 'spotify.com'] }
 const signatures = new Set(['x-amz-signature', 'x-goog-signature', 'signature', 'sig'])
 
-/** The address without its click IDs; the same address when there is none
- * or it carries a signature. Order, encoding and the fragment stay. */
-export function withoutClickIDs(address: string): string {
+/** The address without its click IDs (and the names in `more`, the lists'
+ * $removeparam for it); the same address when there is none or it carries
+ * a signature. Order, encoding and the fragment stay. */
+export function withoutClickIDs(address: string, more?: Set<string>): string {
   const q = address.indexOf('?')
   if (q < 0 || !/^https?:/i.test(address)) return address
   const hash = address.indexOf('#', q)
@@ -114,7 +125,8 @@ export function withoutClickIDs(address: string): string {
     try { return decodeURIComponent(raw.replace(/\+/g, ' ')).toLowerCase() } catch { return raw.toLowerCase() }
   })
   if (names.some(n => signatures.has(n))) return address
-  const kept = pieces.filter((_, i) => !clickID(names[i], host))
+  const extra = more?.size ? new Set([...more].map(n => n.toLowerCase())) : null
+  const kept = pieces.filter((_, i) => !clickID(names[i], host) && !(extra && names[i] && extra.has(names[i])))
   if (kept.length === pieces.length) return address
   return address.slice(0, q) + (kept.length ? '?' + kept.join('&') : '') + (hash < 0 ? '' : address.slice(hash))
 }

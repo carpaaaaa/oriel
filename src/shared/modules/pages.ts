@@ -48,6 +48,9 @@ declare module '../commands' {
     'pages.float.toggle': None
     'pages.float.skip': { seconds: number }
     'pages.float.tuck': None
+    // Block Ads and Trackers for one site (Shield.pause; the Mac's site card,
+    // Oriel's tab menu): the page reloads.
+    'pages.shield.site': { id: ID; on: boolean }
   }
 }
 

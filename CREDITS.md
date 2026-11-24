@@ -33,6 +33,7 @@ Oriel is not made, endorsed or supported by Office Commun. Search's copyright no
 | [TypeScript](https://github.com/microsoft/TypeScript) | Microsoft | Apache-2.0 |
 | [Bergamot Translator](https://github.com/browsermt/bergamot-translator) (`@browsermt/bergamot-translator`, the engine of Firefox Translations, in WebAssembly; with [Marian](https://github.com/browsermt/marian-dev), [SentencePiece](https://github.com/google/sentencepiece), [intgemm](https://github.com/kpu/intgemm) and [ssplit](https://github.com/browsermt/ssplit-cpp) inside) | the Bergamot project and Mozilla | MPL-2.0; the libraries inside keep their own (Marian and intgemm MIT, SentencePiece Apache-2.0). Its source is at the link. |
 | [eld](https://github.com/nitotm/efficient-language-detector-js), Efficient Language Detector | Nito T.M. | Apache-2.0 |
+| [@ghostery/adblocker](https://github.com/ghostery/adblocker), the engine behind Block ads and trackers (uBlock Origin's filter syntax: network, cosmetic and procedural filters, scriptlets, redirects), with its packages @ghostery/adblocker-content, @ghostery/adblocker-extended-selectors and @ghostery/url-parser | Ghostery GmbH and contributors | MPL-2.0. Its source is at the link. |
 
 The full list of what ships inside the app, with each license, is in `THIRD_PARTY_LICENSES.md` (made by `npm run licenses`).
 
@@ -43,6 +44,16 @@ The full list of what ships inside the app, with each license, is in `THIRD_PART
 ## Data
 
 The Public Suffix List, by Mozilla and contributors, through tldts (MPL-2.0).
+
+### Filter lists
+
+Block ads and trackers uses the lists uBlock Origin has on by default. A copy compiled at build time ships with Oriel (`out/main/blocker/engine.bin`); Oriel then fetches them from their own sources about once a day (`src/main/pages/blocker/lists.json`).
+
+| List | By | License |
+|---|---|---|
+| [uBlock filters](https://github.com/uBlockOrigin/uAssets): Ads, Badware risks, Privacy, Quick fixes, Unbreak; and uBlock Origin's scriptlets and redirect resources, in the form [@ghostery/adblocker](https://github.com/ghostery/adblocker) reads them | Raymond Hill and the uBlock Origin volunteers | GPL-3.0 |
+| [EasyList and EasyPrivacy](https://easylist.to) | The EasyList authors | GPL-3.0 or CC BY-SA 3.0 |
+| [Peter Lowe's Ad and tracking server list](https://pgl.yoyo.org/adservers/) | Peter Lowe | [his terms](https://pgl.yoyo.org/adservers/policy.php) |
 
 ## Pictures
 

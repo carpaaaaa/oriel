@@ -43,6 +43,10 @@ web.PAGES["/frame"] = lambda h: f"<title>frame</title><iframe src='https://third
 b.use("settings-c-blocking")
 b.launch(web.rules(*NAMES), "--ignore-certificate-errors")
 t = b.T()
+# Search's own rules alone, as on the Mac: uBlock Origin's lists, which
+# block more (pixel.quantserve.com even as a first party), have their own
+# tests in test/privacy_blocking.py.
+b.call({"do": "pages.blockerTest", "none": True})
 
 
 def setting(key, value):

@@ -16,3 +16,6 @@ riferimenti-privati/
 
 # Python caches of the tests
 __pycache__/
+
+# uBlock Origin lists fetched for the bundled snapshot (scripts/build.mjs)
+build/blocker/

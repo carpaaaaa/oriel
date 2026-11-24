@@ -3,7 +3,10 @@
 // Store.swift). Each is read on every request, so a switch reaches the next
 // load of every page. A private tab always has all of them.
 //  - Remove click trackers from links: gclid, fbclid and the like taken off
-//    a page's address before it loads (order 300, with the clean links).
+//    a page's address before it loads (order 300, with the clean links):
+//    Search's list (CleanLink.tracking without utm_) and the lists'
+//    $removeparam for pages (uBlock filters: Privacy), never on a signed
+//    address. Campaign tags (utm_) stay, as the row says.
 //  - Tell sites not to sell or share your data: Sec-GPC: 1 on every request
 //    (navigator.globalPrivacyControl is the preload's).
 //  - Try HTTPS first: a top-level http:// load tried over https://, and
@@ -15,6 +18,8 @@ import { app, type WebContents } from 'electron'
 import { net } from '../net'
 import { localHost, withoutClickIDs } from './lists'
 import { pref, shyContents, thirdParty } from './facts'
+import { paramsToRemove } from './blocker'
+import { contextOf } from './shield'
 
 // Remove click trackers from links
 
@@ -22,7 +27,11 @@ net.onBeforeRequest('click-ids', 300, d => {
   if (d.resourceType !== 'mainFrame' && d.resourceType !== 'subFrame') return
   if (d.method !== 'GET') return
   if (!pref<boolean>('privacy.clickIDs') && !shyContents(d.webContents)) return
-  const clean = withoutClickIDs(d.url)
+  let more: Set<string> | undefined
+  try { more = paramsToRemove(d.url, d.resourceType === 'mainFrame' ? 'main_frame' : 'sub_frame', d.resourceType === 'mainFrame' ? d.url : contextOf(d)) } catch {}
+  // utm_ stays even where a list would take it (the row promises it).
+  if (more) for (const name of more) if (/^utm_/i.test(name)) more.delete(name)
+  const clean = withoutClickIDs(d.url, more)
   if (clean !== d.url) return { redirectURL: clean }
 })
 

@@ -1,0 +1,92 @@
+{
+  "note": "uBlock Origin's default lists, from their official sources (the first address), with the mirrors uBlock Origin itself falls back to. The resources (scriptlets and redirects) are uBlock Origin's, in the form @ghostery/adblocker reads.",
+  "lists": [
+    {
+      "id": "ublock-filters",
+      "title": "uBlock filters: Ads",
+      "license": "GPL-3.0",
+      "urls": [
+        "https://ublockorigin.github.io/uAssets/filters/filters.txt",
+        "https://ublockorigin.pages.dev/filters/filters.txt",
+        "https://cdn.jsdelivr.net/gh/uBlockOrigin/uAssets@master/filters/filters.txt"
+      ]
+    },
+    {
+      "id": "ublock-badware",
+      "title": "uBlock filters: Badware risks",
+      "license": "GPL-3.0",
+      "urls": [
+        "https://ublockorigin.github.io/uAssets/filters/badware.txt",
+        "https://ublockorigin.pages.dev/filters/badware.txt",
+        "https://cdn.jsdelivr.net/gh/uBlockOrigin/uAssets@master/filters/badware.txt"
+      ]
+    },
+    {
+      "id": "ublock-privacy",
+      "title": "uBlock filters: Privacy",
+      "license": "GPL-3.0",
+      "urls": [
+        "https://ublockorigin.github.io/uAssets/filters/privacy.txt",
+        "https://ublockorigin.pages.dev/filters/privacy.txt",
+        "https://cdn.jsdelivr.net/gh/uBlockOrigin/uAssets@master/filters/privacy.txt"
+      ]
+    },
+    {
+      "id": "ublock-quick-fixes",
+      "title": "uBlock filters: Quick fixes",
+      "license": "GPL-3.0",
+      "urls": [
+        "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt",
+        "https://ublockorigin.pages.dev/filters/quick-fixes.txt",
+        "https://cdn.jsdelivr.net/gh/uBlockOrigin/uAssets@master/filters/quick-fixes.txt"
+      ]
+    },
+    {
+      "id": "ublock-unbreak",
+      "title": "uBlock filters: Unbreak",
+      "license": "GPL-3.0",
+      "urls": [
+        "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
+        "https://ublockorigin.pages.dev/filters/unbreak.txt",
+        "https://cdn.jsdelivr.net/gh/uBlockOrigin/uAssets@master/filters/unbreak.txt"
+      ]
+    },
+    {
+      "id": "easylist",
+      "title": "EasyList",
+      "license": "GPL-3.0 or CC-BY-SA-3.0",
+      "urls": [
+        "https://easylist.to/easylist/easylist.txt",
+        "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
+        "https://ublockorigin.pages.dev/thirdparties/easylist.txt"
+      ]
+    },
+    {
+      "id": "easyprivacy",
+      "title": "EasyPrivacy",
+      "license": "GPL-3.0 or CC-BY-SA-3.0",
+      "urls": [
+        "https://easylist.to/easylist/easyprivacy.txt",
+        "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
+        "https://ublockorigin.pages.dev/thirdparties/easyprivacy.txt"
+      ]
+    },
+    {
+      "id": "plowe",
+      "title": "Peter Lowe's Ad and tracking server list",
+      "license": "Peter Lowe's terms, https://pgl.yoyo.org/adservers/policy.php",
+      "urls": [
+        "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus&showintro=1&mimetype=plaintext"
+      ]
+    }
+  ],
+  "resources": {
+    "id": "resources",
+    "title": "uBlock Origin's scriptlets and redirect resources",
+    "license": "GPL-3.0",
+    "urls": [
+      "https://raw.githubusercontent.com/ghostery/adblocker/master/packages/adblocker/assets/ublock-origin/resources.json",
+      "https://cdn.jsdelivr.net/gh/ghostery/adblocker@master/packages/adblocker/assets/ublock-origin/resources.json"
+    ]
+  }
+}

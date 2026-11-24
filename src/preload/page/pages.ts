@@ -12,10 +12,17 @@ import { youtubePage, youtubeSkipper } from './youtube'
 import { setupFloat } from './float'
 import { setupCapture } from './capture'
 import { setupReader } from './reader'
+import { runScriptlets, watchPage, type Watch } from './blocker'
 
 interface PagePrefs {
   /** Shield's hiding rules for this site, or nothing while it is off or paused. */
   css: string
+  /** The lists' scriptlets for this page (run once, as it starts). */
+  scripts: string[]
+  /** The lists' procedural filters for this page. */
+  extended: unknown[]
+  /** Ask for the generic rules matching the page's classes and ids. */
+  dom: boolean
   /** YouTube's hosts while Shield works here, null otherwise. */
   youtube: string[] | null
   standIn: string
@@ -39,7 +46,9 @@ if (p) start(p)
 function start(first: PagePrefs): void {
   let now = first
 
-  // Main world, before the page's own scripts.
+  // Main world, before the page's own scripts: the lists' scriptlets, then
+  // Search's own for YouTube.
+  if (first.scripts?.length) runScriptlets(first.scripts)
   if (first.youtube) {
     try { contextBridge.executeInMainWorld({ func: youtubePage, args: [first.youtube, first.standIn] }) } catch {}
     try { youtubeSkipper(first.youtube) } catch {}
@@ -101,6 +110,17 @@ function start(first: PagePrefs): void {
     if (key) { try { webFrame.removeInsertedCSS(key) } catch {} sheets[name] = null }
     if (css) { try { sheets[name] = webFrame.insertCSS(css, { cssOrigin: origin }) } catch {} }
   }
+  // The generic rules for the page's classes and ids, added as they come.
+  let found: string[] = []
+  let watch: Watch | null = null
+  const unfound = () => { for (const key of found) { try { webFrame.removeInsertedCSS(key) } catch {} } found = [] }
+  const follow = (q: PagePrefs) => {
+    watch?.stop(); watch = null; unfound()
+    if (q.css && (q.dom || q.extended?.length)) {
+      watch = watchPage(q.dom, q.extended ?? [], css => { try { found.push(webFrame.insertCSS(css, { cssOrigin: 'user' })) } catch {} })
+    }
+  }
+  follow(first)
   const dress = (q: PagePrefs) => {
     sheet('shield', q.css)
     // Bounce off (Search's default): the page stops at its ends.
@@ -113,6 +133,8 @@ function start(first: PagePrefs): void {
     const was = now
     now = q
     if (q.css !== was.css || q.bounce !== was.bounce || q.style !== was.style) dress(q)
+    // Off or paused here, or back on: the page's own rules go or come back.
+    if (!q.css !== !was.css || q.dom !== was.dom) follow(q)
   })
 
   // Videos wait for a click (Safari's Never Auto-Play): a video or sound
