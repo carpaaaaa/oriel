@@ -75,6 +75,9 @@ def main():
     b.use(WORLD)
     try:
         b.launch()
+        # Room for two pages side by side on a small screen too (a CI runner).
+        b.call({"do": "window.place", "window": b.window()["id"], "x": 0, "y": 0, "width": 1000, "height": 700, "visual": True})
+        time.sleep(0.5)
         for n in ["a", "b", "c", "d"]:
             b.cmd("tab.open", url=f"{BASE}/?n={n}", foreground=True)
         b.wait_for(lambda: all(tab(n) for n in "abcd"), what="four tabs")
@@ -88,23 +91,24 @@ def main():
         print("- let go in the middle of the page: nothing")
         carry(B, middle)
         t.ok(split_of(A) is None, "no split")
-        t.ok(window()["overlay"]["kind"] == "none", "the bands gone")
-        t.ok(window()["activeID"] == A, "the page from before the press is back in front")
+        t.ok(b.wait_for(lambda: window()["overlay"]["kind"] == "none", within=3, what="the bands gone"), "the bands gone")
+        t.ok(b.wait_for(lambda: window()["activeID"] == A, within=3, what="A in front"), "the page from before the press is back in front")
 
         print("- let go in the right band: beside the page")
         carry(B, right)
         s = b.wait_for(lambda: split_of(A), within=3, what="the split")
         t.ok(s["tabs"] == [A, B], f"the carried tab on the right ({s['tabs']})")
         t.ok(all(abs(x - 0.5) < 0.01 for x in s["sizes"]), f"even shares ({s['sizes']})")
-        t.ok(window()["activeID"] == B, "the carried tab has the keys")
-        t.ok(window()["overlay"]["kind"] == "none", "the preview gone")
+        t.ok(b.wait_for(lambda: window()["activeID"] == B, within=3, what="B in front"), "the carried tab has the keys")
+        t.ok(b.wait_for(lambda: window()["overlay"]["kind"] == "none", within=3, what="the preview gone"), "the preview gone")
 
         print("- the divider")
+        b.wait_for(lambda: b.ui("!!document.querySelector('.divider')"), within=3, what="the divider")
         d = rect("document.querySelector('.divider')")
         x0, y0 = d["x"] + d["w"] / 2, d["y"] + d["h"] / 2
         b.call({"do": "window.drag", "path": [[x0 - 10 * i, y0] for i in range(16)]})
         time.sleep(0.6)
-        sizes = split_of(A)["sizes"]
+        sizes = b.wait_for(lambda: (lambda s: s if s[0] < 0.45 else None)(split_of(A)["sizes"]), within=3, what="narrower")
         t.ok(sizes[0] < 0.45, f"the left page narrower ({sizes})")
 
         print("- the X on picked tabs closes them all")
