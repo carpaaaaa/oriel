@@ -12,6 +12,7 @@ import { peekContents, peekInfo } from './peek'
 import { floatControls, floatInfo } from './float'
 import { allControllers } from '../views/window'
 import { captures } from './capture'
+import { readerInfo, readerSaid } from './reader'
 
 /** The last page menu each page asked for: its misspelt word, if any. */
 const menus = new Map<number, { misspelled: string; suggestions: string[] }>()
@@ -29,6 +30,8 @@ benchRequest('pages.state', req => {
     peeks: peekInfo(),
     float: floatInfo(),
     captures: captures.slice(-10),
+    reading: readerInfo(),
+    readerSaid: readerSaid.slice(-5),
     spelling: wc ? wc.session.isSpellCheckerEnabled() : null,
     menu: wc ? menus.get(wc.id) ?? null : null,
     commandLine: { smooth: app.commandLine.hasSwitch('enable-smooth-scrolling'), jumpy: app.commandLine.hasSwitch('disable-smooth-scrolling') },

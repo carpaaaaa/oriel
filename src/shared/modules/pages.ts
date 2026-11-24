@@ -38,6 +38,7 @@ declare module '../commands' {
     'view.float': { id?: ID }
     'view.capture': { mode?: 'area' | 'element' | 'page'; rect?: Rect }
     'view.style': { id?: ID }
+    'view.reader': None
     // Edit Site Style… (SiteStyles.swift)
     'pages.style.set': { host: string; css: string }
     'pages.style.close': None
