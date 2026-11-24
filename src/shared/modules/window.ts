@@ -56,7 +56,29 @@ declare module '../commands' {
     'view.zoom': { by?: number; reset?: boolean; id?: string }
     /** New shares of the split whose first page is `first` (§8.14). */
     'split.resize': { first: string; sizes: number[] }
+    /** A tab carried over the page: the bands at its edges, the preview of
+     * the side the pointer is in, or nothing any more (§8.17). */
+    'split.dropHint': { hint: SplitDropHint | null }
+    /** Let go in a band: the tab beside the page in front, on that side
+     * (§8.17, Browser.pair). */
+    'split.pair': { id: string; side: 'left' | 'right'; target?: string }
   }
+}
+
+/** The overlay's panel for a tab carried over the page (§8.17). */
+export const SPLIT_DROP = 'split.drop'
+
+export interface SplitDropHint {
+  /** The page's card, in the window. */
+  rect: { x: number; y: number; width: number; height: number }
+  /** The band's width (TabDrag.band). */
+  band: number
+  /** The band the pointer is in, or null: both bands, faint. */
+  side: 'left' | 'right' | null
+  /** The pages as they would be, left to right, the carried one marked. */
+  panes: { title: string; carried: boolean }[]
+  /** The page let go on (the one in front, or the one from before the press). */
+  page: string
 }
 
 declare module '../state' {

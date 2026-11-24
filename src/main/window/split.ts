@@ -5,6 +5,7 @@
 // the window's active tab.
 
 import type { SplitView } from '../../shared/state'
+import { SPLIT_DROP } from '../../shared/modules/window'
 import { handle } from '../router'
 import { model, type WindowRecord } from '../model/model'
 import { need } from '../context'
@@ -101,6 +102,65 @@ handle('split.toggle', (_a, ctx) => toggleSplit(need(ctx)))
 handle('split.focus', ({ side }, ctx) => focusBeside(need(ctx), side))
 handle('split.swap', (_a, ctx) => swap(need(ctx)))
 handle('split.separate', (_a, ctx) => separate(need(ctx)))
+// A tab carried from the column over the page (§8.17): the bands and the
+// preview are drawn in the overlay, over the page, where the interface
+// can't draw; the pointer stays the column's until it is let go.
+
+const showingDrop = (c: WindowController) => c.overlayLayer.kind === 'panel' && c.overlayLayer.name === SPLIT_DROP
+
+handle('split.dropHint', ({ hint }, ctx) => {
+  const c = need(ctx)
+  if (!hint) { if (showingDrop(c)) c.sendOverlay({ kind: 'none' }); return }
+  // Something else over the page (the field, a menu) goes first.
+  if (c.overlayLayer.kind !== 'none' && !showingDrop(c)) return
+  c.sendOverlay({ kind: 'panel', name: SPLIT_DROP, data: hint })
+  c.setOverlayRegion(hint.rect, false)
+})
+
+/** Browser.pair: the carried tab leaves a split of its own, goes in the row
+ * right beside the page it was let go on, takes that page's group, joins its
+ * split (shares made even) or makes a pair with it, and takes the keys. */
+export function pair(c: WindowController, id: string, side: 'left' | 'right', page?: string): boolean {
+  const win = c.record
+  const target = page && model.spaceTabs(win).includes(page) ? page : win.active[win.space]
+  const t = model.tabs.get(id), g = target ? model.tabs.get(target) : undefined
+  if (!t || !g || !target || id === target || t.pinID || t.empty || g.empty || !!t.shy !== !!g.shy) return false
+  const into = splitOf(win, target)
+  if (into?.tabs.includes(id) || (into && into.tabs.length >= MOST)) return false
+  // Out of a split of its own first.
+  win.splits = win.splits.flatMap(s => {
+    if (!s.tabs.includes(id)) return [s]
+    const tabs = s.tabs.filter(x => x !== id)
+    if (tabs.length < 2) return []
+    const sizes = s.sizes.filter((_, i) => s.tabs[i] !== id)
+    const sum = sizes.reduce((a, b) => a + b, 0) || 1
+    return [{ ...s, tabs, sizes: sizes.map(x => x / sum), focused: s.focused === id ? tabs[0] : s.focused }]
+  })
+  if ((t.groupID ?? null) !== (g.groupID ?? null)) model.moveToGroup(win, [id], g.groupID ?? null)
+  // In the row beside the page (beside the split's end on that side).
+  const pages = splitOf(win, target)?.tabs ?? [target]
+  const row = model.spaceTabs(win).filter(x => x !== id)
+  const at = side === 'left' ? row.indexOf(pages[0]) : row.indexOf(pages[pages.length - 1]) + 1
+  if (at >= 0) model.moveTab(win, id, at)
+  const now = splitOf(win, target)
+  if (now) {
+    const tabs = side === 'left' ? [id, ...now.tabs] : [...now.tabs, id]
+    win.splits = win.splits.map(s => (s === now ? { ...s, tabs, sizes: even(tabs.length), focused: id } : s))
+  } else {
+    win.splits = [...win.splits, { tabs: side === 'left' ? [id, target] : [target, id], axis: 'horizontal', sizes: even(2), focused: id }]
+  }
+  touch(win)
+  model.selectTab(win, id)
+  c.focusPage()
+  return true
+}
+
+handle('split.pair', ({ id, side, target }, ctx) => {
+  const c = need(ctx)
+  if (showingDrop(c)) c.sendOverlay({ kind: 'none' })
+  return { paired: pair(c, id, side === 'left' ? 'left' : 'right', typeof target === 'string' ? target : undefined) }
+})
+
 handle('split.resize', ({ first, sizes }, ctx) => {
   const win = need(ctx).record
   const split = win.splits.find(s => s.tabs[0] === first)

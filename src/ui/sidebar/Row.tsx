@@ -136,7 +136,13 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
     if (wasLive) void cmd({ do: 'field.editTab', id: t().id })
   }
 
-  const close = () => { if (closable()) void cmd({ do: 'tab.close', id: t().id }) }
+  // Picked among others (Ctrl- or Shift-click), its X closes all of them,
+  // as Ctrl+W does (§3.19): one Ctrl+Shift+T brings them back.
+  const close = () => {
+    if (!closable()) return
+    if (pickedAmongOthers(t().id)) void cmd({ do: 'tab.closeMany', ids: [...(state.picked ?? [])] })
+    else void cmd({ do: 'tab.close', id: t().id })
+  }
 
   // The address coming in on glide (Side.swift:2283): the mark and the title
   // fade where they stood as the field fades in over them; given back, they

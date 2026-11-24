@@ -196,3 +196,22 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .error-page h1 { font-size: var(--fs-panel-title); font-weight: 600; }
 .error-page p { color: var(--muted); }
 .pill { padding: 5px 10px; border-radius: 999px; background: var(--ink); color: var(--ground); justify-self: center; }
+
+/* A tab carried over the page (studio/01 §8.17): bands 6 in from the edges,
+   radius 10, a hairline of ink at 18%; in a band, the page as it would be:
+   halves 2 apart in 10 of padding, the carried one marked with ink. The Mac's
+   grounds (35%, 12%) are lifted to 65% and 82%: a page view can't be blurred
+   under the overlay, and a dark Oriel over a white page left the titles
+   light on light. */
+.split-drop { position: fixed; inset: 0; pointer-events: none; animation: split-drop-in var(--dur-quick, 140ms) cubic-bezier(0, 0, .58, 1); }
+@keyframes split-drop-in { from { opacity: 0 } to { opacity: 1 } }
+.split-band { position: absolute; top: 6px; bottom: 6px; border-radius: 10px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--ground) 65%, transparent); border: 1px solid rgb(var(--ink-rgb) / .18); color: rgb(var(--ink-rgb) / .55); }
+.split-band.left { left: 6px; }
+.split-band.right { right: 6px; }
+.split-preview { position: absolute; inset: 0; padding: 10px; display: flex; gap: 2px; background: color-mix(in srgb, var(--ground) 82%, transparent); }
+.split-half { flex: 1; min-width: 0; border-radius: 10px; display: grid; place-items: center; padding: 0 20px;
+  background: color-mix(in srgb, var(--ground) 42%, transparent); border: 1px solid rgb(var(--ink-rgb) / .12);
+  font-size: 13px; color: rgb(var(--ink-rgb) / .48); animation: split-drop-in var(--dur-quick, 140ms) cubic-bezier(0, 0, .58, 1); }
+.split-half span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.split-half.carried { background: rgb(var(--ink-rgb) / .1); border-color: rgb(var(--ink-rgb) / .3); color: rgb(var(--ink-rgb) / .78); font-weight: 500; }

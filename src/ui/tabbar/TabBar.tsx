@@ -14,7 +14,7 @@ import { state, cmd } from '../lib/store'
 import { outlet } from '../lib/registry'
 import type { GroupView, TabView } from '../../shared/state'
 import { G, Ring } from '../sidebar/glyphs'
-import { P, label, monogram, pinOf, picked, pref, restOf } from '../sidebar/derive'
+import { P, label, monogram, pinOf, picked, pickedAmongOthers, pref, restOf } from '../sidebar/derive'
 import { Mark } from '../sidebar/Row'
 import { SpaceDot, SpaceButtons } from '../sidebar/Foot'
 import { Wash, groupColour } from '../sidebar/Sidebar'
@@ -360,7 +360,12 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
       </Show>
       <Show when={(titled() || live()) && !addressing()}>
         <button class="strip-x" title={p.grouped && !t().asleep ? 'Put Away' : 'Close Tab'} onPointerDown={e => e.stopPropagation()}
-          onClick={e => { e.stopPropagation(); void cmd({ do: 'tab.close', id: t().id }) }}>
+          onClick={e => {
+            e.stopPropagation()
+            // Picked among others, its X closes all of them (§3.19).
+            if (pickedAmongOthers(t().id)) void cmd({ do: 'tab.closeMany', ids: [...(state.picked ?? [])] })
+            else void cmd({ do: 'tab.close', id: t().id })
+          }}>
           <span class="disc">{p.grouped ? <G.minus pt={8} weight="semibold" /> : <G.xmark pt={8} weight="semibold" />}</span>
         </button>
       </Show>

@@ -11,6 +11,8 @@ import type { TabView } from '../../shared/state'
 import { layout, pinCells, type Item, GAP } from './layout'
 import { P, parts, folderLines, foldersShown, pinOf, type Move } from './derive'
 import { setCarry, setShifted, setDropMark, setDropTarget, setSquareGhost, setRowGhost, carry } from './ui'
+import { splitHintAt } from '../chrome/SplitDrop'
+import type { SplitDropHint } from '../../shared/modules/window'
 
 export interface Pressed {
   key: string
@@ -45,6 +47,11 @@ let held: {
   place: { anchor: string | null; after: boolean; folder: string | null } | null
   group: string | null
   out: boolean
+  /** Over the page: the bands shown, and the side the pointer is in (§8.17). */
+  split: SplitDropHint | null
+  /** The page in front before the press opened the carried tab (Browser.cameFrom). */
+  cameFrom: string | null
+  broughtBack: boolean
 } | null = null
 
 /** A press on a line or a square: a click, or the start of a carry. */
@@ -54,7 +61,8 @@ export function press(e: PointerEvent, p: Pressed): void {
   const sq = p.kind === 'square' ? squareCell(p.tab!) : null
   held = {
     p, x0: e.clientX, y0: e.clientY, itemX: sq?.x ?? 0, itemY: sq?.y ?? item?.y ?? 0,
-    pointer: e.pointerId, carrying: false, move: null, place: null, group: null, out: false,
+    pointer: e.pointerId, carrying: false, move: null, place: null, group: null, out: false, split: null,
+    cameFrom: state.activeID ?? null, broughtBack: false,
   }
   window.addEventListener('pointermove', onMove)
   window.addEventListener('pointerup', onUp)
@@ -80,8 +88,43 @@ function onMove(e: PointerEvent): void {
   }
   const body = column.body.getBoundingClientRect()
   const px = e.clientX - body.left, py = e.clientY - body.top
+  if (overPage(e)) return
   if (held.p.kind === 'square') carrySquare(px, py, dx, dy)
   else carryLine(px, py, dy)
+}
+
+// over the page: the bands at its edges (studio/01 §8.17)
+
+/** A tab carried over the page: the bands, or the preview of a side, and
+ * nothing moves in the column meanwhile. False when the point is elsewhere. */
+function overPage(e: PointerEvent): boolean {
+  if (!held || held.p.kind !== 'row') return false
+  const tab = state.tabs.find(t => t.id === held!.p.tab)
+  // The press opened the carried tab: over the page, the page from before
+  // comes back, to be split with (TabDrag.bringBack, §8.17).
+  const opened = !!tab && state.activeID === tab.id
+  const page = opened && held.cameFrom && held.cameFrom !== tab!.id ? held.cameFrom : state.activeID ?? null
+  const hint = tab ? splitHintAt(e.clientX, e.clientY, tab, held.split?.side ?? null, page) : null
+  if (hint && opened && page && page !== tab!.id && !held.broughtBack) { held.broughtBack = true; void cmd({ do: 'tab.select', id: page }) }
+  const was = held.split
+  held.split = hint
+  if (!hint) {
+    if (was) void cmd({ do: 'split.dropHint', hint: null })
+    return false
+  }
+  if (!was || was.side !== hint.side || was.rect.width !== hint.rect.width || was.rect.x !== hint.rect.x) void cmd({ do: 'split.dropHint', hint })
+  held.move = null
+  held.place = null
+  held.group = null
+  batch(() => {
+    setCarry({ key: held!.p.key, y: held!.itemY + (e.clientY - held!.y0), x: 0, faded: true })
+    setShifted({})
+    setDropMark(null)
+    setDropTarget(null)
+    setSquareGhost(null)
+    setRowGhost(null)
+  })
+  return true
 }
 
 // what a point is over
@@ -289,6 +332,8 @@ function onUp(): void {
   // The click that ends a carry isn't a click.
   window.addEventListener('click', swallow, { capture: true, once: true })
   setTimeout(() => window.removeEventListener('click', swallow, true), 0)
+  // Let go in a band: beside the page; over the page elsewhere, nothing.
+  if (h.split) { if (h.split.side && h.p.tab) void cmd({ do: 'split.pair', id: h.p.tab, side: h.split.side, target: h.split.page }); return }
   void land(h)
 }
 
@@ -300,6 +345,7 @@ function onKey(e: KeyboardEvent): void {
 }
 
 function end(): void {
+  if (held?.split) void cmd({ do: 'split.dropHint', hint: null })
   held = null
   window.removeEventListener('pointermove', onMove)
   window.removeEventListener('pointerup', onUp)

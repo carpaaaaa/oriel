@@ -10,6 +10,8 @@ import { cmd, state } from '../lib/store'
 import type { OverlayLayer } from '../../shared/state'
 import { CaptionButtons, buttonStyle } from './Buttons'
 import { curve, Springs } from '../sidebar/motion'
+import { SplitDrop } from './SplitDrop'
+import { SPLIT_DROP } from '../../shared/modules/window'
 
 function Reveal() {
   return (
@@ -50,6 +52,9 @@ function ZoomPill(p: { layer: OverlayLayer }) {
 }
 
 registerPanel('window.zoom', ZoomPill)
+
+// A tab carried over the page: the bands, the preview (§8.17).
+registerPanel(SPLIT_DROP, SplitDrop)
 
 // Motion for both roots (Design.swift Motion): Reduce animations makes every
 // transition immediate (motion.instant); Save power in Low Power Mode makes

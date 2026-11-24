@@ -63,6 +63,15 @@ jobs:
       - name: Hide elements on sites, kept for each site (Ctrl+Shift+H, Ctrl+Shift+U, right click)
         if: always()
         run: python test/pages_hide.py
+      - name: A page not painted yet shows the dark, not white (dark ground while loading)
+        if: always()
+        run: python test/pages_ground.py
+      - name: See through the floating video away from the pointer (Oriel's window, picture in picture)
+        if: always()
+        run: python test/pages_float_fade.py
+      - name: A tab carried onto the page splits it; the divider; the X on picked tabs
+        if: always()
+        run: python test/split_drop.py
       - name: Everything kept for the next launch (quit, session end, monitors, full screen, Snap)
         if: always()
         run: python test/persist_all.py
