@@ -20,9 +20,14 @@ plain, Q = web.start(tls=False)
 
 
 class Looper(web.Handler):
-    """A site whose https address sends you back to http (some old sites do)."""
+    """A site whose https address sends you back to http (some old sites do);
+    its http address answers. (Only https redirects: an http /loop2 sending
+    to itself would loop with or without Try HTTPS first.)"""
     def do_GET(self):
-        if self.path.startswith("/loop"):
+        import ssl
+        if self.path.startswith("/loop") and isinstance(self.connection, ssl.SSLSocket):
+            with web.LOCK:
+                web.REQUESTS.append(("https", "loop.example", self.path, dict(self.headers.items())))
             self.send_response(302)
             self.send_header("Location", f"http://loop.example:{self.server.server_address[1]}/loop2")
             self.send_header("Content-Length", "0")
@@ -61,6 +66,8 @@ RESOURCES = json.dumps({
     "redirects": [{"name": "noop.js", "aliases": ["noopjs"], "body": "window.__orielNoop = 1;", "contentType": "application/javascript"}],
 })
 web.PAGES["/landing"] = "<title>landing</title>"
+web.PAGES["/loop"] = "<title>loop</title>"
+web.PAGES["/loop2"] = "<title>loop</title>"
 web.PAGES["/hf"] = "<title>hf</title>"
 web.PAGES["/page"] = "<title>page</title>"
 web.PAGES["/popopen"] = "<title>popopen</title>"
@@ -191,10 +198,13 @@ setting("shield", True)
 # 7. Try HTTPS first: a site whose https answer sends you back to http; a site that was down.
 setting("privacy.httpsFirst", True)
 loop = f"http://loop.example:{L}/loop"
+web.clear()
 b.cmd("tab.go", id=tab, input=loop)
 time.sleep(5)
 st = tab_of(tab)
-t.ok(not st.get("error"), f"a site that sends https back to http still loads ({st.get('url')}, error {st.get('error')})")
+tries = [r[2] for r in web.REQUESTS if r[1] == "loop.example" and r[0] == "https"]
+t.ok(not st.get("error") and len(tries) == 1,
+     f"a site that sends https back to http loads over http at once, no redirect loop ({st.get('url')}, error {st.get('error')}, https tries {tries})")
 
 b.cmd("tab.go", id=tab, input=f"http://flaky.example:{X}/hf")
 time.sleep(4)

@@ -164,7 +164,15 @@ const overrides: Record<string, Partial<Item>> = {
   'note.panel': { detail: 'Always there: right-click a tab › Open in Side Panel' },
   'note.awake': { detail: 'Always there: right-click a tab › Keep This Site Awake' },
   // Block ads and trackers: uBlock Origin's lists (pages module); off for one site from the tab's menu.
-  'shield': { more: "uBlock Origin's own lists, brought up to date once a day. On YouTube, the ads announced in the player's own data are taken out before the video starts. Turn it off for one site: right-click its tab › Stop Blocking Ads on This Site." },
+  'shield': {
+    detail: "Ads, trackers, pop-ups and harmful sites, with uBlock Origin's lists",
+    more: "uBlock Origin's own lists, each brought up to date once a day. A harmful site's page doesn't open, and the tab says why. While it's on, the tracking parameters the lists name come off links too. On YouTube, the ads announced in the player's own data are taken out before the video starts. Turn it off for one site: right-click its tab › Stop Blocking Ads on This Site.",
+  },
+  // What Oriel does (pages/privacy.ts, frame.ts, blank.ts), not WebKit's week of storage.
+  'sites.keep': {
+    detail: 'As in Safari, sites inside others get no cookies. Private tabs keep it on',
+    more: "On, a site inside another (a tracker's frame, a share button, an ad) is sent no cookies and keeps none, from its requests or its scripts, so it can't follow you from one site to the next; what it stores is kept apart for each site you visit. A sign-in inside another site (a comment box, a video player) may ask again. Off, as in Chrome, sites inside others get their cookies.",
+  },
   'mail.webmail': { more: "Email (mailto:) links clicked in a page open the webmail's new message in a tab beside it, with the address, subject and text filled in. From a private tab too, in an ordinary tab, where you're signed in. Links from other apps go there once Oriel opens email links." },
   'launcher.on': { detail: "A key of your own raises it over the app you're in, as the Start menu's search does" },
   'bench': { detail: 'A local pipe for testing; its tabs never take over' },
