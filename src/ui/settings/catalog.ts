@@ -63,8 +63,6 @@ export const removed: Record<string, string> = {
   'window.glass.style': 'Liquid Glass is macOS 26\'s',
   'inspector.chrome': 'the inspector already is Chrome\'s DevTools',
   'fullscreen.keepsWindow': 'Windows has no desktop of its own for a full-screen app',
-  'translate.target': 'no translation on the device yet',
-  'note.translate': 'no translation on the device yet',
   'pages.120': 'Chromium already draws at the screen\'s rate',
   'passwords.apple': 'Apple Passwords is the Mac\'s',
   'contacts.fill': 'no card of yours in Contacts on Windows',
@@ -135,6 +133,16 @@ const overrides: Record<string, Partial<Item>> = {
     more: 'Until a site is on, typing its name offers nothing more than any other words. Hover the site in the field to take it out, or press Backspace there.',
   },
   'note.sitesearch': { detail: 'One site at a time, as you turn them on in Site shortcuts: type red, then Tab, and search Reddit' },
+  // Translate Page on Windows: Bergamot and Mozilla's models, on the PC
+  // (translate module). Several languages for the right-click menu where
+  // the Mac has one.
+  'translate.target': {
+    title: 'Translation languages',
+    detail: 'Pages are translated on this PC. Right-click a page to translate it into the ones ticked',
+    more: 'Each language is downloaded from Mozilla once, the first time a page is translated into or out of it, and kept on this PC. Nothing of the page is sent anywhere.',
+    keys: ['translate.languages'],
+    kind: 'wide',
+  },
   'passwords.open': { detail: 'Kept by Windows, shown with Windows Hello' },
   'passwords.fill.prove': {
     title: 'Ask for Windows Hello before filling',
@@ -168,6 +176,8 @@ export const items: Item[] = (raw.items as Item[])
       title: o.title ?? (i.id === 'search.engine' || i.id === 'note.sitesearch' ? keep(i.title) : windowsText(i.title)),
       detail: o.detail ?? windowsText(i.detail),
       ...(i.more || o.more ? { more: o.more ?? windowsText(i.more!) } : {}),
+      ...(o.keys ? { keys: o.keys } : {}),
+      ...(o.kind ? { kind: o.kind } : {}),
     }
     return adapted
   })
