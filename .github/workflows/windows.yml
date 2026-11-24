@@ -100,7 +100,10 @@ jobs:
           # screen over everything: close it.
           Get-Process | Where-Object { $_.MainWindowTitle } | Format-Table Id, Name, MainWindowTitle
           Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+      - name: Every resize of the window, full screen in and out every way (real input)
+        run: python test/window_resize_all.py
       - name: Frame (bench)
+        if: always()
         env:
           SHOTS_DIR: shots
         run: python test/window_frame.py

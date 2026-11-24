@@ -33,6 +33,13 @@ const keep = (kind: string, e: unknown) => {
 }
 process.on('uncaughtException', e => keep('uncaughtException', e))
 process.on('unhandledRejection', e => keep('unhandledRejection', e))
+// A process that went down other than a page's own (the GPU, the interface,
+// the overlay): logged, and kept for the bench (state.gone).
+const gone: string[] = []
+;(globalThis as { orielGone?: string[] }).orielGone = gone
+const lost = (text: string) => { console.error(`[oriel] gone: ${text}`); gone.push(text); if (gone.length > 50) gone.shift() }
+app.on('child-process-gone', (_e, d) => { if (d.reason !== 'clean-exit') lost(`${d.type} ${d.reason} (${d.exitCode})`) })
+app.on('render-process-gone', (_e, wc, d) => { if (wc.getType() !== 'webview' && /[?&]root=/.test(wc.getURL())) lost(`interface ${wc.getURL().split('root=')[1]} ${d.reason} (${d.exitCode})`) })
 // Test worlds on a Mac: no Dock icon, never the active app (see context.ts).
 if (process.platform === 'darwin' && process.env.SEARCH_PROBE && process.env.SEARCH_SHOW !== '1') app.setActivationPolicy('accessory')
 // Windows 11's thin scrollbars that fade in, as Chrome has them.

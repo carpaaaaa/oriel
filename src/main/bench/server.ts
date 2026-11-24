@@ -33,6 +33,7 @@ async function answer(req: BenchRequest): Promise<BenchReply> {
         windows: allControllers().map(c => ({ ...c.state(), bounds: c.base.getBounds(), overlay: c.overlayLayer })),
         tabs: [...model.tabs.values()].map(t => ({ ...t, live: !!runtimes.get(t.id)?.view })),
         errors: ((globalThis as { orielErrors?: string[] }).orielErrors ?? []),
+        gone: ((globalThis as { orielGone?: string[] }).orielGone ?? []),
       }
     case 'cmd': {
       const value = await run(req.cmd as never, { window: pickWindow(req.window) })
