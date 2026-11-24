@@ -30,6 +30,15 @@ export interface ExtView {
  * the overlay's region starts this far before the card on every side. */
 export const CARD_ROOM = 22
 
+export interface StoreOffer {
+  id: string
+  /** As the store's page names it, or as the extension does once installed. */
+  name: string
+  /** The store's picture of it (https), or its own icon once installed. */
+  icon: string | null
+  installed: boolean
+}
+
 /** A card's arrow: on which side, at which window coordinate along it. */
 export interface Arrow { side: 'top' | 'bottom' | 'left' | 'right'; at: number }
 
@@ -48,6 +57,9 @@ export interface ExtState {
   manage: boolean
   /** The side panel of an extension, beside the page. */
   panel: { id: string; side: 'left' | 'right'; width: number } | null
+  /** On an extension's page in the Chrome Web Store: Oriel's own offer to
+   * add it (StoreOffer), whatever the store's page shows. */
+  store: StoreOffer | null
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -75,6 +87,8 @@ declare module '../commands' {
     'ext.manage': { open: boolean }
     'ext.panelClose': None
     'ext.panelWidth': { width: number }
+    /** The store bar measured itself: its region follows. */
+    'ext.storeFit': { width: number }
   }
 }
 
