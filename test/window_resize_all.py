@@ -486,6 +486,7 @@ try:
             click(*button("maximize"), 0.8)
             expect("maximized before the page's full screen", "maximized")
         for way in ("Escape", "page"):
+            answer({"do": "window.trace", "window": WID, "on": True})
             page_full(True)
             healthy(f"{base}, the page full screen ({way})")
             f = frame()
@@ -498,7 +499,10 @@ try:
                 settle(lambda: not b.ev(tab, "!!document.fullscreenElement"), 6)
             else:
                 page_full(False)
-            expect(f"{base}, the page out of full screen by {way}", base)
+            ok = expect(f"{base}, the page out of full screen by {way}", base)
+            trace = [x for x in answer({"do": "window.trace", "window": WID, "on": False})["trace"] if not x.startswith("0x") and not x.startswith("syscommand")]
+            if not ok or not near_rect(frame()["bounds"], frame()["bounds"]):
+                print("       trace: " + "\n              ".join(trace[-24:]))
         if base == "maximized":
             click(*button("maximize"), 0.8)
             expect("restored after the page's full screen", "free")

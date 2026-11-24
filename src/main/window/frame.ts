@@ -133,6 +133,12 @@ export class Frame {
   /** Window messages seen while tracing (tests). */
   tracing = false
   trace: string[] = []
+  /** For the tests: what full screen did, in order, with the window's state then. */
+  note(what: string): void {
+    if (!this.tracing || this.c.base.isDestroyed()) return
+    const b = this.c.base.getBounds()
+    this.trace.push(`${what} | electron full ${this.c.base.isFullScreen()} ours ${this.full} zoomed ${this.zoomed()} | ${b.x},${b.y} ${b.width}x${b.height}`)
+  }
   /** Full screen as we asked it (Electron doesn't know it for transparent windows on Windows). */
   private full = false
   /** The bounds it comes back to out of full screen: Electron keeps them to
@@ -196,8 +202,9 @@ export class Frame {
     this.state = this.compute()
     c.base.on('closed', () => this.stopPoll())
     // Full screen by F11, by a page (a video) or after a restart: all come here.
-    c.base.on('enter-full-screen', () => setImmediate(() => this.refresh()))
-    c.base.on('leave-full-screen', () => setImmediate(() => this.refresh()))
+    // Electron tells before it moves the window: where it was is read then.
+    c.base.on('enter-full-screen', () => { this.note('enter-full-screen'); this.entered(); setImmediate(() => this.refresh()) })
+    c.base.on('leave-full-screen', () => { this.note('leave-full-screen'); setImmediate(() => this.refresh()) })
     c.base.on('focus', () => this.refocusSoon())
     c.base.on('restore', () => this.refocusSoon())
   }
@@ -249,15 +256,17 @@ export class Frame {
     const b = this.c.base
     const was = this.state
     const next = this.compute()
-    if (next !== 'fullScreen' && !b.isMinimized()) {
-      const bounds = b.getBounds(), m = this.kind === 'drawn' && next === 'free' ? ROOM : NONE
+    const onScreen = screen.getDisplayMatching(b.getBounds()).bounds, now = b.getBounds()
+    const screenSized = now.x === onScreen.x && now.y === onScreen.y && now.width === onScreen.width && now.height === onScreen.height
+    if (next !== 'fullScreen' && !b.isMinimized() && !(next === 'free' && screenSized)) {
+      const bounds = now, m = this.kind === 'drawn' && next === 'free' ? ROOM : NONE
       const visual = { x: bounds.x + m.left, y: bounds.y + m.top, width: bounds.width - m.left - m.right, height: bounds.height - m.top - m.bottom }
       this.notFull = { state: next, bounds, visual, normal: next === 'free' ? bounds : this.restoreTo ?? b.getNormalBounds() }
     }
     // Into and out of full screen, by F11, a page (a video) or a restart:
     // Electron doesn't always say so with its events, the window's state does.
-    if (next === 'fullScreen' && was !== 'fullScreen') this.entered()
-    if (was === 'fullScreen' && next !== 'fullScreen') this.left()
+    if (next === 'fullScreen' && was !== 'fullScreen') { this.note('state: full'); this.entered() }
+    if (was === 'fullScreen' && next !== 'fullScreen') { this.note(`state: ${next}`); this.left() }
     // In full screen it covers the screen: a maximized window Windows keeps at
     // the work area, and Win+Left/Right moving it.
     if (next === 'fullScreen') setImmediate(() => { this.leaveMaximized(); this.cover() })
@@ -455,6 +464,7 @@ export class Frame {
     this.beforeFull = null
     setImmediate(() => {
       const b = this.c.base
+      this.note(`left: max ${!!max}, before ${JSON.stringify(before)}`)
       if (b.isDestroyed() || this.isFullScreen()) return
       const w = win32()
       if (max && w && this.hwnd) { if (!this.zoomed()) w.setPlacement(this.hwnd, { ...max, showCmd: SW_SHOWMAXIMIZED }) }
@@ -472,6 +482,7 @@ export class Frame {
   private leaveMaximized(): void {
     const w = win32()
     if (!w || !this.hwnd || this.fromMax || !this.zoomed()) return
+    this.note('leave maximized')
     this.fromMax = w.placement(this.hwnd)
     w.setStyle(this.hwnd, w.style(this.hwnd) & ~WS.MAXIMIZE)
     this.c.base.setBounds(screen.getDisplayMatching(this.c.base.getBounds()).bounds)
@@ -493,6 +504,7 @@ export class Frame {
    * screen meanwhile (Electron leaves a maximized window as it is). */
   pageFull(on: boolean): void {
     if (this.c.base.isDestroyed()) return
+    this.note(`page full ${on}`)
     if (on && !this.isFullScreen()) { this.byPage = true; this.setFullScreen(true) }
     else if (!on && this.byPage) { this.byPage = false; if (this.isFullScreen()) this.setFullScreen(false) }
   }

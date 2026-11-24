@@ -12,6 +12,6 @@ import { allControllers } from '../views/window'
 const holderOf = (wc: WebContents) => allControllers().find(c => c.base.contentView.children.some(v => (v as Electron.WebContentsView).webContents === wc))
 
 app.on('web-contents-created', (_e, wc) => {
-  wc.on('enter-html-full-screen', () => setImmediate(() => holderOf(wc)?.frame.pageFull(true)))
-  wc.on('leave-html-full-screen', () => setImmediate(() => holderOf(wc)?.frame.pageFull(false)))
+  wc.on('enter-html-full-screen', () => { holderOf(wc)?.frame.note('enter-html-full-screen'); setImmediate(() => holderOf(wc)?.frame.pageFull(true)) })
+  wc.on('leave-html-full-screen', () => { holderOf(wc)?.frame.note('leave-html-full-screen'); setImmediate(() => holderOf(wc)?.frame.pageFull(false)) })
 })
