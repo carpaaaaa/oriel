@@ -140,7 +140,8 @@ export const defaults = {
   'links.peek.stays': false,
   'links.optionSplit': false,
   'autoscroll': false,
-  'wheel.smooth': false,
+  /** On in Oriel, the user's choice (Search's default is off): Chrome glides on Windows. */
+  'wheel.smooth': true,
   'pages.bounce': false,
   'swipe.history': true,
   'launcher.on': false,

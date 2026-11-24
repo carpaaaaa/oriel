@@ -6,7 +6,7 @@ import { runtimes } from '../views/tabs'
 import { blocked } from './shield'
 import { fellBack } from './privacy'
 import { reminder } from './escape'
-import { gliding } from './smooth'
+import { gliding, systemGlides } from './smooth'
 import { model } from '../model/model'
 import { peekContents, peekInfo } from './peek'
 import { floatControls, floatInfo } from './float'
@@ -27,6 +27,7 @@ benchRequest('pages.state', req => {
     fellBack: fellBack.slice(-20),
     reminder: { ...reminder },
     gliding,
+    systemGlides: systemGlides(),
     peeks: peekInfo(),
     float: floatInfo(),
     captures: captures.slice(-10),

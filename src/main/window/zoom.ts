@@ -9,6 +9,14 @@
 // it. It is applied at every main-frame navigation and when a page comes on
 // screen.
 //
+// A step glides (the user's choice; the Mac's jumps): the factor follows the
+// fold-in spring (0.13 / 1.0: critically damped, about 190 ms, never past the
+// level) from where it is to the level, in log space so a level up is as long
+// as a level down. Another step on the way goes on from the level it was
+// heading for, keeping its speed, and the glide always lands exactly on the
+// level. The level is kept for the site and said at once. Reduce animations,
+// or saving power: at once.
+//
 // Each change says its level in a capsule over the page, where the Mac's says
 // it (Browser.swift:7637, the line that rises from the page's foot): the
 // light "announcement" (studio/02 §4.6 Avviso: ground, hairline, 12, 15 / 9,
@@ -25,6 +33,8 @@ import { addDefaults } from '../../shared/prefs'
 import { controllerFor, pageAttached, type WindowController } from '../views/window'
 import { runtimes } from '../views/tabs'
 import { benchRequest } from '../bench/server'
+import { Springs } from '../../shared/spring'
+import { savingPower } from './power'
 
 /** Chrome's levels (and Edge's): what Ctrl+wheel and Ctrl+= / Ctrl+- go through. */
 export const STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5]
@@ -58,8 +68,81 @@ export function zoomFor(url: string): number {
 
 function apply(wc: WebContents): void {
   if (wc.isDestroyed()) return
+  stopGlide(wc)
   const z = zoomFor(wc.getURL())
   if (Math.abs(wc.getZoomFactor() - z) >= NOTHING) wc.setZoomFactor(z)
+}
+
+// the glide
+
+const GLIDE = Springs.foldIn
+/** Close enough to land, in log space (0.01%), and slow enough. */
+const LANDED = 1e-4, STILL = 0.05
+const FRAME = 1000 / 60
+
+interface Glide { at: number; speed: number; to: number; last: number; timer: NodeJS.Timeout | null; landed: Array<(z: number) => void> }
+const glides = new WeakMap<WebContents, Glide>()
+
+/** The level a page is heading for, or is at. */
+function levelOf(wc: WebContents): number {
+  const g = glides.get(wc)
+  return g?.timer ? g.to : wc.getZoomFactor()
+}
+
+/** Ends a glide where it is (a navigation, the page gone). */
+function stopGlide(wc: WebContents): void {
+  const g = glides.get(wc)
+  if (!g?.timer) return
+  clearTimeout(g.timer)
+  g.timer = null
+  for (const f of g.landed.splice(0)) f(wc.isDestroyed() ? g.to : wc.getZoomFactor())
+}
+
+/** Glides the page's factor to `to`; resolves once it is there. */
+function glideTo(wc: WebContents, to: number): Promise<number> {
+  if (model.pref<boolean>('motion.instant') || savingPower()) {
+    stopGlide(wc)
+    wc.setZoomFactor(to)
+    return Promise.resolve(to)
+  }
+  let g = glides.get(wc)
+  if (!g) {
+    g = { at: 0, speed: 0, to, last: 0, timer: null, landed: [] }
+    glides.set(wc, g)
+    wc.once('destroyed', () => stopGlide(wc))
+  }
+  const glide = g
+  glide.to = to
+  if (!glide.timer) {
+    glide.at = Math.log(wc.getZoomFactor())
+    glide.speed = 0
+    glide.last = performance.now()
+    glide.timer = setTimeout(() => frame(wc, glide), FRAME)
+  }
+  return new Promise(resolve => glide.landed.push(resolve))
+}
+
+function frame(wc: WebContents, g: Glide): void {
+  if (wc.isDestroyed()) { g.timer = null; return }
+  const now = performance.now()
+  const goal = Math.log(g.to)
+  // SwiftUI's spring (spring.ts), in 1 ms steps so a late frame stays true.
+  const k = (2 * Math.PI / GLIDE.response) ** 2, c = (4 * Math.PI * GLIDE.damping) / GLIDE.response
+  const steps = Math.max(1, Math.min(100, Math.round(now - g.last)))
+  const dt = Math.min(now - g.last, 100) / 1000 / steps
+  for (let i = 0; i < steps; i++) {
+    g.speed += (k * (goal - g.at) - c * g.speed) * dt
+    g.at += g.speed * dt
+  }
+  g.last = now
+  if (Math.abs(goal - g.at) < LANDED && Math.abs(g.speed) < STILL) {
+    g.timer = null
+    wc.setZoomFactor(g.to) // exactly Chrome's level
+    for (const f of g.landed.splice(0)) f(g.to)
+    return
+  }
+  wc.setZoomFactor(Math.exp(g.at))
+  g.timer = setTimeout(() => frame(wc, g), FRAME)
 }
 
 /** The next level up or down from `now` (a zoom between levels goes to the next one). */
@@ -87,20 +170,21 @@ export function watchZoom(id: string, wc: WebContents): void {
     const last = runs.get(wc)
     if (last && last.up === up && now - last.at < RUN) { last.at = now; return }
     runs.set(wc, { at: now, up })
-    zoomTab(id, wc, nextStep(wc.getZoomFactor(), up))
+    void zoomTab(id, wc, nextStep(levelOf(wc), up))
   })
 }
 
-function zoomTab(id: string, wc: WebContents, to?: number, reset = false): number {
-  const before = wc.getZoomFactor()
+/** Glides to the level (kept for the site and said at once); resolves with it once there. */
+async function zoomTab(id: string, wc: WebContents, to?: number, reset = false): Promise<number> {
+  const before = levelOf(wc)
   const next = reset ? defaultZoom() : to ?? before
   if (Math.abs(next - before) < NOTHING) return before
-  wc.setZoomFactor(next)
+  const landed = glideTo(wc, next)
   const host = hostOf(wc.getURL())
   const tab = model.tabs.get(id)
   if (host && !tab?.shy) model.setPref(`zoom.${host}`, Math.abs(next - defaultZoom()) < 0.01 ? undefined : Math.round(next * 1000) / 1000)
   say(id, next)
-  return next
+  return landed
 }
 
 // the capsule
@@ -135,7 +219,7 @@ handle('view.zoom', ({ by, reset, id }, ctx) => {
   const tabID = id ?? c.record.active[c.record.space]
   const wc = tabID ? tabRuntime(c, tabID)?.contents : null
   if (!tabID || !wc || wc.isDestroyed()) return null
-  return zoomTab(tabID, wc, by === undefined || by === 1 ? undefined : stepBy(wc.getZoomFactor(), by), !!reset)
+  return zoomTab(tabID, wc, by === undefined || by === 1 ? undefined : stepBy(levelOf(wc), by), !!reset)
 })
 
 // For the tests: Ctrl+wheel on the page in front, `count` events `gap` ms apart.

@@ -114,7 +114,9 @@ time.sleep(0.3)
 t.ok(ev(tab, "getComputedStyle(document.documentElement).overscrollBehaviorY") == "auto", "on: Chromium's own bounce is left to it, at once")
 setting("pages.bounce", False)
 
-# 4. Smooth scrolling with a mouse wheel (off by default): a notch lands at once.
+# 4. Smooth scrolling with a mouse wheel (on by default in Oriel, the user's
+# choice; Search's is off): a notch glides, off it lands at once (more in
+# pages_scroll.py).
 def notch(tab):
     ev(tab, "window.ys = []; scrollTo(0, 0); 1")
     time.sleep(0.3)
@@ -127,17 +129,19 @@ def notch(tab):
 
 
 st = b.call({"do": "pages.state"})
-t.ok(st["commandLine"]["jumpy"] and not st["commandLine"]["smooth"], "off: Chromium is told not to glide")
+system = st["systemGlides"]
+t.ok(st["gliding"] == system and st["commandLine"]["smooth"] == system, "on: Chromium is told to glide (unless the system asks for less motion)")
 tab = tab_titled("tall", H + "/tall?w1")
-jumps = notch(tab)
-setting("wheel.smooth", True)
-st = b.call({"do": "pages.state"})
-t.ok(st["gliding"] and st["commandLine"]["smooth"] and not st["commandLine"]["jumpy"], "on: told to glide, for the pages made from now")
-tab2 = tab_titled("tall", H + "/tall?w2")
-glides = notch(tab2)
-print(f"    off: {jumps}\n    on:  {glides}")
-t.ok(len(jumps) >= 1 and len(glides) > len(jumps) and glides[-1] == max(glides), "a notch lands in one step off, glides over several frames on")
+glides = notch(tab)
 setting("wheel.smooth", False)
+st = b.call({"do": "pages.state"})
+t.ok(not st["gliding"] and st["commandLine"]["jumpy"] and not st["commandLine"]["smooth"], "off: told not to glide, for the pages made from now")
+tab2 = tab_titled("tall", H + "/tall?w2")
+jumps = notch(tab2)
+print(f"    on:  {glides}\n    off: {jumps}")
+t.ok(len(jumps) >= 1 and (len(glides) > len(jumps)) == system and glides[-1] == max(glides) == jumps[-1],
+     "a notch glides over several frames on, lands in one step off, at the same place")
+setting("wheel.smooth", True)
 
 # 5. Correct spelling as you type: Chromium's checker, on or off for every page.
 def typed(tab, text):

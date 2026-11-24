@@ -107,7 +107,7 @@ Voce nuova di Oriel, non del Mac: `window.buttons` (Themes › Window buttons, I
 | mouse | `links.peek.stays` | Peek stays with its tab | fatto: nascosto con suono in pausa su un'altra scheda, torna al ritorno (settings_c_peek) |
 | mouse | `links.optionSplit` | ⌥-click a link opens it in Split View | fatto: Alt-clic apre in Split View; spento segue il link come un clic (settings_c_mouse) |
 | mouse | `autoscroll` | Scroll with the middle button | fatto: script del Mac col segno; quello nativo di Chromium spento (settings_c_mouse) |
-| mouse | `wheel.smooth` | Smooth scrolling with a mouse wheel | vicino: animazione di scorrimento di Chromium, vale per le pagine create dopo il cambio (settings_c_mouse) |
+| mouse | `wheel.smooth` | Smooth scrolling with a mouse wheel | vicino: animazione di scorrimento di Chromium (quella di Chrome, sul compositore), accesa di base in Oriel per scelta di carpa (sul Mac è spenta), spenta se Windows chiede meno movimento; vale per le schede nuove subito, per quelle aperte al riavvio (pages_scroll, settings_c_mouse) |
 | mouse | `pages.bounce` | Bounce at the top and bottom | vicino: spento ferma l'elasticità (overscroll-behavior), acceso la lascia a Chromium; non verificabile a occhio sul Mac (settings_c_mouse) |
 | mouse | `swipe.history` | Hold a swipe to pick from history | tolta: Windows non dice a un'app inizio e fine di uno swipe del touchpad |
 | developer | `agents` | Let coding agents use Search | tolta per ora: il ponte per gli agenti (MCP su pipe locale, consenso, Stop) è da costruire; la riga torna con lui |

@@ -2,7 +2,8 @@
 """Ctrl+wheel zooms the page, a step of Chrome's levels for each run of close
 events, and the level is said in a capsule where the Mac says it (the light
 announcement 30 above the page's foot, studio/01 §2.22, studio/02 §4.6):
-right value, rewritten without coming up again, gone 1.2 s after the last
+right value, said at once while the page still glides there (at once with
+Reduce animations), rewritten without coming up again, gone 1.2 s after the last
 change, a click on it back to 100%, kept for the site after a restart,
 nothing when nothing changes. SHOTS_DIR keeps pictures, light and dark."""
 import os
@@ -104,6 +105,9 @@ t.ok(got["bg"] == "rgb(255, 255, 255)" and got["font"] == "12px" and k.near(got[
 b.ui("document.querySelector('.zoom-pill').__first = true; 1", root="overlay")
 time.sleep(0.3)
 wheel(up=True)
+# The level it goes to is said at once, while the page is still gliding there.
+early = b.wait_for(lambda: (p := pill()) and p["text"] == "125%" and zoom(), within=2, every=0.01, what="said at once")
+t.ok(early and early < 1.25 - 0.001, f"the capsule says 125% before the page is there ({early})")
 settle(lambda: near(zoom(), 1.25), "the next step")
 again = settle(lambda: (p := pill()) and p["text"] == "125%" and p, "rewritten", within=2)
 same = b.ui("!!document.querySelector('.zoom-pill')?.__first", root="overlay")
@@ -150,6 +154,7 @@ b.quit()
 start("dark")
 wheel(up=False)
 got = settle(lambda: (p := pill()) and p["text"] == "90%" and p, "dark capsule", within=3)
+settle(lambda: near(zoom(), 0.9), "landed on 90%", within=2)
 t.ok(near(zoom(), 0.9) and got and got["bg"] == "rgb(28, 28, 28)", f"Ctrl+wheel down: 90%, the capsule on the dark ground ({got})")
 if SHOTS:
     time.sleep(0.5)  # up, its spring over
@@ -160,6 +165,7 @@ settle(lambda: layer()["kind"] == "none", "gone", within=3)
 b.cmd("settings.set", id="motion.instant", value=True)
 time.sleep(0.3)
 wheel(up=True)
+t.ok(abs(zoom() - 1) < 1e-9, f"with Reduce animations the page is at the level at once, no glide ({zoom()})")
 got = settle(lambda: (p := pill()) and p["text"] == "100%" and p, "still capsule", within=3)
 moving = b.ui("document.getAnimations().length", root="overlay")
 t.ok(got and moving == 0, f"with Reduce animations it comes with no movement ({moving} animations)")
