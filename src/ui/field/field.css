@@ -104,3 +104,13 @@
 .find-button { width: 24px; height: 24px; flex: none; display: grid; place-items: center; color: var(--muted); border-radius: 6px; }
 .find-button.on { color: var(--ink); }
 .find-button:hover { color: var(--ink); }
+
+/* the address in the tab itself: 12.5 in the row's 16, the selection at 11%
+   of ink (TabBar.swift:1630-1690) */
+.field-tab-input { flex: 1; min-width: 0; height: 16px; font-size: 12.5px; line-height: 16px; color: var(--ink); caret-color: var(--ink); user-select: text; }
+.field-tab-input::selection { background: rgb(var(--ink-rgb) / .11); color: var(--ink); }
+/* its list, a panel of its own under the tab: 8 of clear room for the
+   shadow (black 10% r10 y4), padding 6, radius 14, a hairline (TabOffers.swift) */
+.field-taboffers-room { position: fixed; inset: 0; padding: 8px; pointer-events: none; }
+.field-list.field-taboffers { position: relative; top: auto; left: auto; right: auto; pointer-events: auto; transform-origin: top left;
+  box-shadow: inset 0 0 0 1px var(--hairline), 0 4px 20px rgba(0,0,0,.10); }

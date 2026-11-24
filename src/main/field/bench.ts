@@ -66,6 +66,13 @@ benchRequest('field.key', req => {
   return {}
 })
 
+/** Where the interface and the overlay are in the window, to measure across them. */
+benchRequest('field.views', () => {
+  const c = focusedController()
+  if (!c) throw new Error('no window')
+  return { ui: c.ui.getBounds(), overlay: c.overlay.getBounds(), layer: c.overlayLayer.kind }
+})
+
 /** The pointer moved to a point of one view, without a click (for :hover). */
 benchRequest('field.hover', req => {
   const c = focusedController()

@@ -4,4 +4,5 @@
 import './engines'
 import './commands'
 import './find'
+import './tabedit'
 import './bench'

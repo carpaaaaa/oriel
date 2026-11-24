@@ -159,15 +159,7 @@ export function Field(p: { place: 'page' | 'overlay' }) {
             </div>
           )}</Show>
           <For each={f().suggestions}>{(s, i) => (
-            <div class="field-row" classList={{ picked: i() === f().selected }} role="option" aria-selected={i() === f().selected}
-              onPointerDown={e => e.preventDefault()} onClick={() => void cmd({ do: 'field.take', index: i() })}>
-              <span class="field-icon"><RowIcon s={s} /></span>
-              <span class="field-key">{keyOf(s)}</span>
-              <Show when={s.detail}><span class="field-title">{s.detail}</span></Show>
-              <span class="field-spacer" />
-              <Show when={s.how === 'bookmark'}><span class="field-trail"><Bookmark size={11} /></span></Show>
-              <Show when={s.how !== 'bookmark' && s.pinned}><span class="field-trail"><Pin size={11} /></span></Show>
-            </div>
+            <OfferRow s={s} picked={i() === f().selected} take={() => void cmd({ do: 'field.take', index: i() })} />
           )}</For>
           <Show when={f().note}><div class="field-note">{f().note}</div></Show>
         </div>
@@ -178,6 +170,21 @@ export function Field(p: { place: 'page' | 'overlay' }) {
 
 /** The column before a row's words: the site's icon or letter, a lens for
  * words, a clock for words searched before, ⌘ for a command. */
+/** One row of a list of places (Omnibox.Row), under the field or the tab. */
+export function OfferRow(p: { s: Suggestion; picked: boolean; take: () => void }) {
+  return (
+    <div class="field-row" classList={{ picked: p.picked }} role="option" aria-selected={p.picked}
+      onPointerDown={e => e.preventDefault()} onClick={() => p.take()}>
+      <span class="field-icon"><RowIcon s={p.s} /></span>
+      <span class="field-key">{keyOf(p.s)}</span>
+      <Show when={p.s.detail}><span class="field-title">{p.s.detail}</span></Show>
+      <span class="field-spacer" />
+      <Show when={p.s.how === 'bookmark'}><span class="field-trail"><Bookmark size={11} /></span></Show>
+      <Show when={p.s.how !== 'bookmark' && p.s.pinned}><span class="field-trail"><Pin size={11} /></span></Show>
+    </div>
+  )
+}
+
 function RowIcon(p: { s: Suggestion }) {
   const how = () => p.s.how ?? (p.s.kind === 'search' ? 'search' : 'visited')
   return (

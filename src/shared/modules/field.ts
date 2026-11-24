@@ -36,6 +36,19 @@ export interface FindState {
   focus: number
 }
 
+/** The address being typed in the tab itself (Browser.editingTab, tabDraft,
+ * tabOffers, tabPicked). */
+export interface TabEditState {
+  id: ID
+  /** What the field in the tab is to show when `sync` moves. */
+  shown: string
+  offers: import('../state').Suggestion[]
+  selected: number
+  sync: number
+  /** Bumped when Return found nowhere to go: the tab shakes. */
+  refused: number
+}
+
 declare module '../state' {
   interface Suggestion {
     /** The Mac's kind, finer than `kind`. */
@@ -68,6 +81,8 @@ declare module '../state' {
   interface WindowState {
     /** Sent by the field module (registerSlice), so optional here. */
     find?: FindState
+    /** The address typed in the tab itself, or null. */
+    tabEdit?: TabEditState | null
   }
 }
 
@@ -114,6 +129,15 @@ declare module '../commands' {
     /** Shift+Return: what was typed, as it is, to the Shift-Return engine;
      * Return when none is chosen (§1.4). */
     'field.shiftSubmit': { text?: string }
+    /** The address in the tab itself (studio/01 §5.18). */
+    'field.editTab': { id: ID }
+    'field.tabType': { text: string; deleting?: boolean }
+    'field.tabMove': { by: number }
+    'field.tabCommit': { text?: string }
+    'field.tabCancel': None
+    'field.tabTake': { index: number }
+    'field.tabAnchor': { rect: { x: number; y: number; width: number; height: number } }
+    'field.tabBlur': { text?: string }
   }
 }
 
