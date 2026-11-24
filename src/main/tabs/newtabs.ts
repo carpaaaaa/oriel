@@ -11,6 +11,7 @@ import { popups, pageInput, runtimeFor } from '../views/tabs'
 import { controllerFor, type WindowController } from '../views/window'
 import { shortcut } from '../keys'
 import { benchRequest } from '../bench/server'
+import { groundPage } from '../pages/ground'
 
 // Sized pop-ups (Browser.swift:8976-8988, Windows.swift:320-324)
 
@@ -41,7 +42,7 @@ popups.open = (opener, details) => {
     createWindow: options => {
       const tab = model.popupTab(win, opener.id, details.url)
       const view = new WebContentsView({ webPreferences: options.webPreferences, webContents: (options as { webContents?: Electron.WebContents }).webContents })
-      view.setBackgroundColor('#FFFFFF')
+      groundPage(view)
       runtimeFor(tab.id).adopt(view)
       model.updateTab(tab.id, { asleep: false })
       controllerFor(win.id)?.placePages()

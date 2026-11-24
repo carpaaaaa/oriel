@@ -14,6 +14,7 @@ import { applyUserAgent } from '../ua'
 import { attachNet } from '../net'
 import { data } from '../data/api'
 import { pageMayNotOpen } from '../settings/openers'
+import { groundPage } from '../pages/ground'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 export const pagePreload = path.join(here, '../preload/page.cjs')
@@ -173,7 +174,8 @@ export class TabRuntime {
         scrollBounce: true,
       },
     })
-    view.setBackgroundColor('#FFFFFF')
+    // Dark until it paints, while Oriel is dark (studio/01 §2.6).
+    groundPage(view)
     this.view = view
     const wc = view.webContents
     // A tab muted asleep never lets out its first sound (§2.19).

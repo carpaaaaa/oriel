@@ -16,6 +16,7 @@ import { floatControls, floatInfo } from './float'
 import { allControllers } from '../views/window'
 import { captures } from './capture'
 import { readerInfo, readerSaid } from './reader'
+import { unpainted } from './ground'
 
 /** The last page menu each page asked for: its misspelt word, if any. */
 const menus = new Map<number, { misspelled: string; suggestions: string[] }>()
@@ -39,6 +40,8 @@ benchRequest('pages.state', req => {
     readerSaid: readerSaid.slice(-5),
     spelling: wc ? wc.session.isSpellCheckerEnabled() : null,
     menu: wc ? menus.get(wc.id) ?? null : null,
+    // Still on the dark ground, waiting for its first paint (ground.ts).
+    unpainted: wc ? unpainted(wc) : null,
     commandLine: { smooth: app.commandLine.hasSwitch('enable-smooth-scrolling'), jumpy: app.commandLine.hasSwitch('disable-smooth-scrolling') },
   }
 })

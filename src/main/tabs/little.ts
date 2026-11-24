@@ -21,6 +21,7 @@ import { handle } from '../router'
 import { need } from '../context'
 import { pageMayNotOpen } from '../settings/openers'
 import { keepOnPage } from '../views/guard'
+import { groundPage } from '../pages/ground'
 
 const LINE = 34
 const MIN = { width: 420, height: 320 }
@@ -103,7 +104,7 @@ export function openLittle(url: string, space?: string): Little {
   const page = new WebContentsView({
     webPreferences: { session: sessionFor(pseudo), preload: pagePreload, sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: true, spellcheck: true },
   })
-  page.setBackgroundColor('#FFFFFF')
+  groundPage(page)
   base.contentView.addChildView(page)
   base.contentView.addChildView(line)
   const l: Little = { id: newID(), base, line, page, space: chosen, url, opened: Date.now() }

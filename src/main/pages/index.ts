@@ -2,6 +2,7 @@
 // reading, blocking, mouse and developer): what a page is given and what
 // is done to its requests. Owned by the pages module.
 
+import './ground'
 import './smooth'
 import './shield'
 import './privacy'

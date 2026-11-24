@@ -20,6 +20,7 @@ import { closePanel, panelOf, PANEL } from '../extensions/sidepanel'
 import { benchRequest } from '../bench/server'
 import { pageMayNotOpen } from '../settings/openers'
 import { keepOnPage } from '../views/guard'
+import { groundPage } from '../pages/ground'
 
 const LINE = 34
 
@@ -95,7 +96,7 @@ export function showSite(c: WindowController, url: string): boolean {
   const space = c.record.space
   const pseudo = { id: newID(), space, win: c.record.id, shy: false } as unknown as TabRecord
   const page = new WebContentsView({ webPreferences: { session: sessionFor(pseudo), preload: pagePreload, sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: true, spellcheck: true } })
-  page.setBackgroundColor('#FFFFFF')
+  groundPage(page)
   box.addChildView(page)
   box.addChildView(line)
   // Above the pages, under the overlay.

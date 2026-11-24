@@ -23,6 +23,7 @@ import { controllerFor, registerSlice, type WindowController } from '../views/wi
 import { hidePanel, showPanel } from '../settings/slice'
 import { pref } from './facts'
 import { pageMayNotOpen } from '../settings/openers'
+import { groundPage } from './ground'
 
 const PRELOAD_WORLD = 999
 
@@ -111,7 +112,7 @@ export function openPeek(win: WindowRecord, from: ID, url: string): void {
   const view = new WebContentsView({
     webPreferences: { session: sessionFor(source), preload: pagePreload, sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: true, spellcheck: true, scrollBounce: true },
   })
-  view.setBackgroundColor('#FFFFFF')
+  groundPage(view)
   const p: Peek = { win: win.id, from, view, url, title: '', loading: true, shown: true }
   peeks.set(win.id, p)
   wire(p)
