@@ -66,6 +66,8 @@ export interface SettingsState {
   downloadsProgress: number | null
   /** Bumped when a download starts: the button swells (Fetching.swift:745). */
   downloadsStarted: number
+  /** The update popup in this window, at launch (updates.dismissed puts it away). */
+  update?: { version: string; notes?: string; ready: boolean; fetching: boolean } | null
 }
 
 declare module '../commands' {
@@ -95,6 +97,16 @@ declare module '../commands' {
     'download.clear': None
     'download.copy': { id: ID }
     'download.folder': None
+    // updates (06 §4) and What's New
+    'update.check': None
+    'update.install': None
+    'update.relaunch': None
+    'update.state': None
+    'update.notes': None
+    /** The popup's X: not again for this version (updates.dismissed). */
+    'update.dismiss': None
+    /** Update and Restart: fetched, put in place, opened. */
+    'update.now': None
     // keys.ts's table: Settings… (Ctrl+,), Passwords… (Alt+Shift+L),
     // Show History… (Ctrl+H), Downloads… (Ctrl+J), Clear Browsing Data…
     'app.settings': None

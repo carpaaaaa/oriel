@@ -71,8 +71,8 @@ export const removed: Record<string, string> = {
   'news.updates': 'Office Commun\'s list, for the Mac',
   'news.iphone': 'Search for iPhone\'s beta',
   'about.feedback': 'it writes to Office Commun',
-  'about.notes': 'no notes of Oriel\'s own yet',
   'extensions.safariApps': 'Safari apps are the Mac\'s',
+  'extensions.sites': 'Chromium in Electron runs content scripts as the manifest says, with no site access to change at runtime yet',
   'inlinePredictions': 'Chromium has no inline predictions',
 }
 

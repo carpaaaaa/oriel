@@ -119,12 +119,12 @@ Elenco generato il 24 novembre 2026: chiavi delle Impostazioni (`src/ui/settings
 
 | Gruppo | Chiave | Voce | Stato |
 |---|---|---|---|
-| passwords | `passkeys` | Offer passkeys | da fare |
-| apple | `passwords.apple` | Passwords from Apple's Passwords app | da fare |
-| forms | `contacts.fill` | Fill in your contact details | da fare |
-| updates | `update.install` | Install updates on its own | da fare |
-| news | `optin.joined` | News by email | da fare |
-| news | `optin.iphoneBeta` | Search for iPhone beta | da fare |
-| extensions | `extensions.sites` | Where an extension runs | da fare |
-| extensions | `extensions.safariApps` | From Safari apps | da fare |
-| search | `search.sites` | Search a site from the address field | da fare |
+| passwords | `passkeys` | Offer passkeys | fatto: acceso, le passkey sono quelle di Chromium (Windows Hello); spento, la pagina sente che non ci sono passkey né autenticatore (`main/settings/passkeys.ts`, `preload/page/internal.ts`); prova `test/settings_d_passkeys.py` |
+| apple | `passwords.apple` | Passwords from Apple's Passwords app | tolta: l'app Password di Apple e il suo helper esistono solo sul Mac |
+| forms | `contacts.fill` | Fill in your contact details | tolta: legge la scheda "La mia scheda" di Contatti del Mac; su Windows non c'è un equivalente affidabile |
+| updates | `update.install` | Install updates on its own | fatto: `electron-updater` sulle GitHub Releases del repo, controllo all'avvio e ogni ora, acceso scarica e installa all'uscita (o con Relaunch now), spento dice e aspetta Install, riacceso con un aggiornamento in attesa lo scarica subito; popup al primo avvio con Update and Restart e X (`updates.dismissed`), poi sezione Update prima nelle Impostazioni (`main/settings/updater.ts`); prove `test/settings_d_updates.py`, `test/settings_d_popup.py` |
+| news | `optin.joined` | News by email | tolta: è la lista email di Office Commun per Search su Mac. Al suo posto What's New: dopo un aggiornamento, una volta, le note di ogni versione dalle GitHub Releases (`oriel://release-notes`, Settings › About › What's New…); prova `test/settings_d_whatsnew.py` |
+| news | `optin.iphoneBeta` | Search for iPhone beta | tolta: la beta di Search per iPhone non riguarda Oriel |
+| extensions | `extensions.sites` | Where an extension runs | tolta per ora (nota della ricerca): in Electron Chromium inietta i content script come dice il manifesto e non c'è un permesso di sito da cambiare mentre gira; da rifare nel modulo estensioni quando ci sarà "Runs on" |
+| extensions | `extensions.safariApps` | From Safari apps | tolta: le estensioni dentro le app di Safari esistono solo sul Mac |
+| search | `search.sites` | Search a site from the address field | già attiva (nota "sempre lì"): la fa il modulo campo (`field/engines.ts` siteMatch); prova `test/settings_d_search.py` |
