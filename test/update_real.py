@@ -106,13 +106,29 @@ def click(x, y):
     user32.mouse_event(0x4, 0, 0, 0, 0)
 
 
+user32.SetWindowPos.argtypes = [wt.HWND, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+user32.SetForegroundWindow.argtypes = [wt.HWND]
+
+
 def clear_screen():
-    """Escape a Start menu left open (the ARM images start with it) and the first-run screen."""
+    """What the test machines put over everything: a Start menu left open (the
+    ARM images start with it), the first-run screen, a WSL install prompt;
+    then Oriel's window in front."""
     user32.keybd_event(0x1B, 0, 0, 0)
     time.sleep(0.05)
     user32.keybd_event(0x1B, 0, 2, 0)
-    subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force"], capture_output=True)
+    subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker, wsl, wslhost -ErrorAction SilentlyContinue | Stop-Process -Force"], capture_output=True)
     time.sleep(0.8)
+    pids = set(oriels())
+    def each(hwnd, _):
+        pid = wt.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if pid.value in pids and user32.IsWindowVisible(hwnd):
+            user32.SetWindowPos(hwnd, ctypes.c_void_p(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0040)  # topmost, no size, no move, show
+            user32.SetForegroundWindow(hwnd)
+        return True
+    user32.EnumWindows(EnumWindowsProc(each), 0)
+    time.sleep(0.5)
 
 
 def wait(pred, within, every=1.0):
