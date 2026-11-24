@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { smusso, corsiva, scorcio, sporto, SEARCH_D, f } from './geometria.mjs';
 import { SKIES, iconSVG } from './icona.mjs';
 
-const OUT = '/Users/carpa/Desktop/Cartella/Applicazioni/SearchWindows/tavole/icona';
+const OUT = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 const k = Math.tan(Math.PI / 8);
 
 const g1 = smusso(), g2 = corsiva({ wi: 260, hi: 320, t: 230, ang: 10 }), g3 = scorcio(), g4 = sporto({ B: 360, D: 250, v: 0.35, Hh: 300, g: 34 });

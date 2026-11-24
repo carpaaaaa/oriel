@@ -1,0 +1,1050 @@
+[
+ {
+  "what": "start",
+  "frame": {
+   "kind": "drawn",
+   "margin": {
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "left": 0
+   },
+   "state": "maximized",
+   "hollow": false,
+   "manual": false,
+   "manualResize": false,
+   "grip": {
+    "outside": 8,
+    "inside": 4,
+    "corner": 20
+   },
+   "variant": {
+    "style": "thick",
+    "maximize": "native",
+    "resize": "syscommand",
+    "move": "syscommand"
+   },
+   "bounds": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "visual": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "hwnd": 852370,
+   "style": "0x4070000",
+   "exStyle": "0x200100",
+   "arranged": false,
+   "zoomed": false,
+   "windowRect": {
+    "left": 0,
+    "top": 0,
+    "right": 1024,
+    "bottom": 720
+   },
+   "dwmFrame": {
+    "left": 0,
+    "top": 0,
+    "right": 1024,
+    "bottom": 720
+   },
+   "cursor": {
+    "x": 624,
+    "y": 116
+   },
+   "pages": [],
+   "zoom": null,
+   "pointer": {
+    "x": 624,
+    "y": 116
+   },
+   "minimized": false,
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "display": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 768
+   },
+   "scale": 1
+  }
+ },
+ {
+  "what": "placed",
+  "frame": {
+   "kind": "drawn",
+   "margin": {
+    "top": 30,
+    "right": 40,
+    "bottom": 50,
+    "left": 40
+   },
+   "state": "free",
+   "hollow": false,
+   "manual": false,
+   "manualResize": false,
+   "grip": {
+    "outside": 8,
+    "inside": 4,
+    "corner": 20
+   },
+   "variant": {
+    "style": "thick",
+    "maximize": "native",
+    "resize": "syscommand",
+    "move": "syscommand"
+   },
+   "bounds": {
+    "x": 110,
+    "y": 70,
+    "width": 774,
+    "height": 560
+   },
+   "visual": {
+    "x": 150,
+    "y": 100,
+    "width": 694,
+    "height": 480
+   },
+   "hwnd": 852370,
+   "style": "0x14070000",
+   "exStyle": "0x200100",
+   "arranged": false,
+   "zoomed": false,
+   "windowRect": {
+    "left": 110,
+    "top": 70,
+    "right": 884,
+    "bottom": 630
+   },
+   "dwmFrame": {
+    "left": 110,
+    "top": 70,
+    "right": 884,
+    "bottom": 630
+   },
+   "cursor": {
+    "x": 624,
+    "y": 116
+   },
+   "pages": [
+    {
+     "id": "9ac39c55-ef34-4ff8-8450-b872d876fa38",
+     "rect": {
+      "x": 272,
+      "y": 70,
+      "width": 454,
+      "height": 432
+     }
+    }
+   ],
+   "zoom": 1,
+   "pointer": {
+    "x": 624,
+    "y": 116
+   },
+   "minimized": false,
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "display": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 768
+   },
+   "scale": 1
+  }
+ },
+ {
+  "what": "move",
+  "before": {
+   "x": 110,
+   "y": 70,
+   "width": 774,
+   "height": 560
+  },
+  "after": {
+   "x": 230,
+   "y": 130,
+   "width": 774,
+   "height": 560
+  }
+ },
+ {
+  "what": "resize right",
+  "before": {
+   "x": 150,
+   "y": 100,
+   "width": 694,
+   "height": 480
+  },
+  "after": {
+   "x": 150,
+   "y": 100,
+   "width": 774,
+   "height": 480
+  }
+ },
+ {
+  "what": "resize corner",
+  "before": {
+   "x": 150,
+   "y": 100,
+   "width": 774,
+   "height": 480
+  },
+  "after": {
+   "x": 110,
+   "y": 100,
+   "width": 814,
+   "height": 510
+  }
+ },
+ {
+  "what": "maximize button",
+  "frame": {
+   "kind": "drawn",
+   "margin": {
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "left": 0
+   },
+   "state": "maximized",
+   "hollow": false,
+   "manual": false,
+   "manualResize": false,
+   "grip": {
+    "outside": 8,
+    "inside": 4,
+    "corner": 20
+   },
+   "variant": {
+    "style": "thick",
+    "maximize": "native",
+    "resize": "syscommand",
+    "move": "syscommand"
+   },
+   "bounds": {
+    "x": -8,
+    "y": -8,
+    "width": 1040,
+    "height": 736
+   },
+   "visual": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "hwnd": 852370,
+   "style": "0x15070000",
+   "exStyle": "0x200100",
+   "arranged": false,
+   "zoomed": true,
+   "windowRect": {
+    "left": -8,
+    "top": -8,
+    "right": 1032,
+    "bottom": 728
+   },
+   "dwmFrame": {
+    "left": -8,
+    "top": -8,
+    "right": 1032,
+    "bottom": 728
+   },
+   "cursor": {
+    "x": 855,
+    "y": 120
+   },
+   "pages": [
+    {
+     "id": "9ac39c55-ef34-4ff8-8450-b872d876fa38",
+     "rect": {
+      "x": 232,
+      "y": 40,
+      "width": 784,
+      "height": 670
+     }
+    }
+   ],
+   "zoom": 1,
+   "pointer": {
+    "x": 855,
+    "y": 120
+   },
+   "minimized": false,
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "display": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 768
+   },
+   "scale": 1
+  }
+ },
+ {
+  "what": "drag from maximized",
+  "frame": {
+   "kind": "drawn",
+   "margin": {
+    "top": 30,
+    "right": 40,
+    "bottom": 50,
+    "left": 40
+   },
+   "state": "free",
+   "hollow": false,
+   "manual": false,
+   "manualResize": false,
+   "grip": {
+    "outside": 8,
+    "inside": 4,
+    "corner": 20
+   },
+   "variant": {
+    "style": "thick",
+    "maximize": "native",
+    "resize": "syscommand",
+    "move": "syscommand"
+   },
+   "bounds": {
+    "x": 65,
+    "y": 97,
+    "width": 894,
+    "height": 590
+   },
+   "visual": {
+    "x": 105,
+    "y": 127,
+    "width": 814,
+    "height": 510
+   },
+   "hwnd": 852370,
+   "style": "0x14070000",
+   "exStyle": "0x200100",
+   "arranged": false,
+   "zoomed": false,
+   "windowRect": {
+    "left": 65,
+    "top": 97,
+    "right": 959,
+    "bottom": 687
+   },
+   "dwmFrame": {
+    "left": 65,
+    "top": 97,
+    "right": 959,
+    "bottom": 687
+   },
+   "cursor": {
+    "x": 512,
+    "y": 136
+   },
+   "pages": [
+    {
+     "id": "9ac39c55-ef34-4ff8-8450-b872d876fa38",
+     "rect": {
+      "x": 272,
+      "y": 70,
+      "width": 574,
+      "height": 462
+     }
+    }
+   ],
+   "zoom": 1,
+   "pointer": {
+    "x": 512,
+    "y": 136
+   },
+   "minimized": false,
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "display": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 768
+   },
+   "scale": 1
+  }
+ },
+ {
+  "what": "snap left",
+  "frame": {
+   "kind": "drawn",
+   "margin": {
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "left": 0
+   },
+   "state": "snapped",
+   "hollow": false,
+   "manual": false,
+   "manualResize": false,
+   "grip": {
+    "outside": 8,
+    "inside": 4,
+    "corner": 20
+   },
+   "variant": {
+    "style": "thick",
+    "maximize": "native",
+    "resize": "syscommand",
+    "move": "syscommand"
+   },
+   "bounds": {
+    "x": 0,
+    "y": 0,
+    "width": 640,
+    "height": 720
+   },
+   "visual": {
+    "x": 0,
+    "y": 0,
+    "width": 640,
+    "height": 720
+   },
+   "hwnd": 852370,
+   "style": "0x14070000",
+   "exStyle": "0x200100",
+   "arranged": true,
+   "zoomed": false,
+   "windowRect": {
+    "left": 0,
+    "top": 0,
+    "right": 640,
+    "bottom": 720
+   },
+   "dwmFrame": {
+    "left": 0,
+    "top": 0,
+    "right": 640,
+    "bottom": 720
+   },
+   "cursor": {
+    "x": 1,
+    "y": 216
+   },
+   "pages": [
+    {
+     "id": "9ac39c55-ef34-4ff8-8450-b872d876fa38",
+     "rect": {
+      "x": 232,
+      "y": 40,
+      "width": 400,
+      "height": 672
+     }
+    }
+   ],
+   "zoom": 1,
+   "pointer": {
+    "x": 1,
+    "y": 216
+   },
+   "minimized": false,
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "display": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 768
+   },
+   "scale": 1
+  }
+ },
+ {
+  "what": "win+up free",
+  "frame": {
+   "kind": "drawn",
+   "margin": {
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "left": 0
+   },
+   "state": "maximized",
+   "hollow": false,
+   "manual": false,
+   "manualResize": false,
+   "grip": {
+    "outside": 8,
+    "inside": 4,
+    "corner": 20
+   },
+   "variant": {
+    "style": "thick",
+    "maximize": "native",
+    "resize": "syscommand",
+    "move": "syscommand"
+   },
+   "bounds": {
+    "x": -8,
+    "y": -8,
+    "width": 1040,
+    "height": 736
+   },
+   "visual": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "hwnd": 852370,
+   "style": "0x15070000",
+   "exStyle": "0x200100",
+   "arranged": false,
+   "zoomed": true,
+   "windowRect": {
+    "left": -8,
+    "top": -8,
+    "right": 1032,
+    "bottom": 728
+   },
+   "dwmFrame": {
+    "left": -8,
+    "top": -8,
+    "right": 1032,
+    "bottom": 728
+   },
+   "cursor": {
+    "x": 624,
+    "y": 116
+   },
+   "pages": [
+    {
+     "id": "9ac39c55-ef34-4ff8-8450-b872d876fa38",
+     "rect": {
+      "x": 232,
+      "y": 40,
+      "width": 784,
+      "height": 672
+     }
+    }
+   ],
+   "zoom": 1,
+   "pointer": {
+    "x": 624,
+    "y": 116
+   },
+   "minimized": false,
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "display": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 768
+   },
+   "scale": 1
+  },
+  "trace": [
+   "syscommand 0xf030",
+   "0x24 0 2179b270fa0",
+   "0x46 0 2179b270fa0",
+   "0x24 0 2179b270a40",
+   "0x47 0 2179b270fa0",
+   "0x5 2 2d00400"
+  ]
+ },
+ {
+  "what": "win+down",
+  "frame": {
+   "kind": "drawn",
+   "margin": {
+    "top": 30,
+    "right": 40,
+    "bottom": 50,
+    "left": 40
+   },
+   "state": "free",
+   "hollow": false,
+   "manual": false,
+   "manualResize": false,
+   "grip": {
+    "outside": 8,
+    "inside": 4,
+    "corner": 20
+   },
+   "variant": {
+    "style": "thick",
+    "maximize": "native",
+    "resize": "syscommand",
+    "move": "syscommand"
+   },
+   "bounds": {
+    "x": 110,
+    "y": 70,
+    "width": 774,
+    "height": 560
+   },
+   "visual": {
+    "x": 150,
+    "y": 100,
+    "width": 694,
+    "height": 480
+   },
+   "hwnd": 852370,
+   "style": "0x14070000",
+   "exStyle": "0x200100",
+   "arranged": false,
+   "zoomed": false,
+   "windowRect": {
+    "left": 110,
+    "top": 70,
+    "right": 884,
+    "bottom": 630
+   },
+   "dwmFrame": {
+    "left": 110,
+    "top": 70,
+    "right": 884,
+    "bottom": 630
+   },
+   "cursor": {
+    "x": 624,
+    "y": 116
+   },
+   "pages": [
+    {
+     "id": "9ac39c55-ef34-4ff8-8450-b872d876fa38",
+     "rect": {
+      "x": 272,
+      "y": 70,
+      "width": 454,
+      "height": 432
+     }
+    }
+   ],
+   "zoom": 1,
+   "pointer": {
+    "x": 624,
+    "y": 116
+   },
+   "minimized": false,
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "display": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 768
+   },
+   "scale": 1
+  },
+  "trace": [
+   "syscommand 0xf120",
+   "0x46 0 d533ffe5f0",
+   "0x24 0 d533ffe090",
+   "0x46 0 d533ffdb40",
+   "0x24 0 d533ffd4d0",
+   "0x47 0 d533ffdb40",
+   "0x5 0 2300306",
+   "0x47 0 d533ffe5f0",
+   "0x5 0 2300306"
+  ]
+ },
+ {
+  "what": "win+left",
+  "frame": {
+   "kind": "drawn",
+   "margin": {
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "left": 0
+   },
+   "state": "snapped",
+   "hollow": false,
+   "manual": false,
+   "manualResize": false,
+   "grip": {
+    "outside": 8,
+    "inside": 4,
+    "corner": 20
+   },
+   "variant": {
+    "style": "thick",
+    "maximize": "native",
+    "resize": "syscommand",
+    "move": "syscommand"
+   },
+   "bounds": {
+    "x": 0,
+    "y": 0,
+    "width": 640,
+    "height": 720
+   },
+   "visual": {
+    "x": 0,
+    "y": 0,
+    "width": 640,
+    "height": 720
+   },
+   "hwnd": 852370,
+   "style": "0x14070000",
+   "exStyle": "0x200100",
+   "arranged": true,
+   "zoomed": false,
+   "windowRect": {
+    "left": 0,
+    "top": 0,
+    "right": 640,
+    "bottom": 720
+   },
+   "dwmFrame": {
+    "left": 0,
+    "top": 0,
+    "right": 640,
+    "bottom": 720
+   },
+   "cursor": {
+    "x": 624,
+    "y": 116
+   },
+   "pages": [
+    {
+     "id": "9ac39c55-ef34-4ff8-8450-b872d876fa38",
+     "rect": {
+      "x": 232,
+      "y": 40,
+      "width": 400,
+      "height": 672
+     }
+    }
+   ],
+   "zoom": 1,
+   "pointer": {
+    "x": 624,
+    "y": 116
+   },
+   "minimized": false,
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "display": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 768
+   },
+   "scale": 1
+  }
+ },
+ {
+  "what": "win+up",
+  "frame": {
+   "kind": "drawn",
+   "margin": {
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "left": 0
+   },
+   "state": "snapped",
+   "hollow": false,
+   "manual": false,
+   "manualResize": false,
+   "grip": {
+    "outside": 8,
+    "inside": 4,
+    "corner": 20
+   },
+   "variant": {
+    "style": "thick",
+    "maximize": "native",
+    "resize": "syscommand",
+    "move": "syscommand"
+   },
+   "bounds": {
+    "x": 0,
+    "y": 0,
+    "width": 640,
+    "height": 420
+   },
+   "visual": {
+    "x": 0,
+    "y": 0,
+    "width": 640,
+    "height": 420
+   },
+   "hwnd": 852370,
+   "style": "0x14070000",
+   "exStyle": "0x200100",
+   "arranged": true,
+   "zoomed": false,
+   "windowRect": {
+    "left": 0,
+    "top": 0,
+    "right": 640,
+    "bottom": 420
+   },
+   "dwmFrame": {
+    "left": 0,
+    "top": 0,
+    "right": 640,
+    "bottom": 420
+   },
+   "cursor": {
+    "x": 624,
+    "y": 116
+   },
+   "pages": [
+    {
+     "id": "9ac39c55-ef34-4ff8-8450-b872d876fa38",
+     "rect": {
+      "x": 232,
+      "y": 40,
+      "width": 400,
+      "height": 372
+     }
+    }
+   ],
+   "zoom": 1,
+   "pointer": {
+    "x": 624,
+    "y": 116
+   },
+   "minimized": false,
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "display": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 768
+   },
+   "scale": 1
+  }
+ },
+ {
+  "what": "snap top",
+  "frame": {
+   "kind": "drawn",
+   "margin": {
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "left": 0
+   },
+   "state": "maximized",
+   "hollow": false,
+   "manual": false,
+   "manualResize": false,
+   "grip": {
+    "outside": 8,
+    "inside": 4,
+    "corner": 20
+   },
+   "variant": {
+    "style": "thick",
+    "maximize": "native",
+    "resize": "syscommand",
+    "move": "syscommand"
+   },
+   "bounds": {
+    "x": -8,
+    "y": -8,
+    "width": 1040,
+    "height": 736
+   },
+   "visual": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "hwnd": 852370,
+   "style": "0x15070000",
+   "exStyle": "0x200100",
+   "arranged": false,
+   "zoomed": true,
+   "windowRect": {
+    "left": -8,
+    "top": -8,
+    "right": 1032,
+    "bottom": 728
+   },
+   "dwmFrame": {
+    "left": -8,
+    "top": -8,
+    "right": 1032,
+    "bottom": 728
+   },
+   "cursor": {
+    "x": 624,
+    "y": 1
+   },
+   "pages": [
+    {
+     "id": "9ac39c55-ef34-4ff8-8450-b872d876fa38",
+     "rect": {
+      "x": 232,
+      "y": 40,
+      "width": 784,
+      "height": 672
+     }
+    }
+   ],
+   "zoom": 1,
+   "pointer": {
+    "x": 624,
+    "y": 1
+   },
+   "minimized": false,
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "display": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 768
+   },
+   "scale": 1
+  }
+ },
+ {
+  "what": "inactive",
+  "frame": {
+   "kind": "drawn",
+   "margin": {
+    "top": 30,
+    "right": 40,
+    "bottom": 50,
+    "left": 40
+   },
+   "state": "free",
+   "hollow": false,
+   "manual": false,
+   "manualResize": false,
+   "grip": {
+    "outside": 8,
+    "inside": 4,
+    "corner": 20
+   },
+   "variant": {
+    "style": "thick",
+    "maximize": "native",
+    "resize": "syscommand",
+    "move": "syscommand"
+   },
+   "bounds": {
+    "x": 110,
+    "y": 70,
+    "width": 774,
+    "height": 560
+   },
+   "visual": {
+    "x": 150,
+    "y": 100,
+    "width": 694,
+    "height": 480
+   },
+   "hwnd": 852370,
+   "style": "0x14070000",
+   "exStyle": "0x200100",
+   "arranged": false,
+   "zoomed": false,
+   "windowRect": {
+    "left": 110,
+    "top": 70,
+    "right": 884,
+    "bottom": 630
+   },
+   "dwmFrame": {
+    "left": 110,
+    "top": 70,
+    "right": 884,
+    "bottom": 630
+   },
+   "cursor": {
+    "x": 624,
+    "y": 116
+   },
+   "pages": [
+    {
+     "id": "9ac39c55-ef34-4ff8-8450-b872d876fa38",
+     "rect": {
+      "x": 272,
+      "y": 70,
+      "width": 454,
+      "height": 432
+     }
+    }
+   ],
+   "zoom": 1,
+   "pointer": {
+    "x": 624,
+    "y": 116
+   },
+   "minimized": false,
+   "workArea": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 720
+   },
+   "display": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 768
+   },
+   "scale": 1
+  },
+  "focused": false
+ },
+ {
+  "what": "end"
+ }
+]
