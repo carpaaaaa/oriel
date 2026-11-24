@@ -12,6 +12,8 @@ b.use("field-ui")
 b.launch()
 t = b.T()
 CTRL = "meta" if sys.platform == "darwin" else "control"
+# Sites searched with Tab are off until turned on (Oriel, not the Mac): on, for these checks.
+b.cmd("prefs.set", key="search.sites", value=["Google", "Reddit", "YouTube", "X", "ChatGPT", "Claude", "Perplexity", "Wikipedia", "GitHub", "Stack Overflow", "MDN", "Amazon", "Google Maps", "IMDb", "Spotify", "Figma Community"])
 
 b.call({"do": "field.fake", "places": [
     {"kind": "history", "title": "GitHub", "url": "https://github.com/"},
@@ -22,7 +24,7 @@ b.call({"do": "field.fake", "places": [
 def inp(root="chrome"):
     js = ("(() => { const i = document.querySelector('.field input'); if (!i) return null;"
           " return JSON.stringify({ v: i.value, s: i.selectionStart, e: i.selectionEnd, f: document.activeElement === i,"
-          " p: i.placeholder, chip: document.querySelector('.chip-name')?.textContent ?? null }) })()")
+          " p: i.placeholder, chip: document.querySelector('.field-chip-name')?.textContent ?? null }) })()")
     v = b.ui(js, root=root)
     return json.loads(v) if v else None
 
@@ -117,7 +119,7 @@ try:
 except AssertionError:
     print({k: b.window()["field"].get(k) for k in ("text", "shown", "offer", "mode", "open")}, inp())
     raise
-row = b.ui("document.querySelector('.suggestion.offer')?.textContent")
+row = b.ui("document.querySelector('.field-offer')?.textContent")
 t.ok(row and "Search Reddit" in row and "Tab" in row, f"the list offers Search Reddit with its Tab key: {row!r}")
 b.key("Tab")
 x = settle(lambda x: x["chip"] == "Reddit", "chip")

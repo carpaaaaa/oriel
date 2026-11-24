@@ -32,7 +32,7 @@ export function FindBar() {
 
   return (
     <div class="find-room">
-      <div class="find" classList={{ missed: f().missed, narrow: narrow() }}>
+      <div class="find-pill" classList={{ missed: f().missed, narrow: narrow() }}>
         <input ref={input} class="find-field" spellcheck={false} autocomplete="off" placeholder="Find on page"
           aria-label="Find on page" title="" aria-description="Type text to search this page. Press Return to find the next match."
           onInput={e => { sent = e.currentTarget.value; void cmd({ do: 'find.input', text: sent }) }} onKeyDown={key} />

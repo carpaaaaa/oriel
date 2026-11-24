@@ -26,6 +26,7 @@ import { model } from './model/model'
 import { addDefaults } from '../shared/prefs'
 import { controlUp, edit, escape as fieldEscape, fieldShowing, holdKey, mem, putAway, searchTabsKey } from './field/commands'
 import { closeFind, findIsOpen, openFind, step as findStep } from './field/find'
+import { cancelTabEdit, tabEditing } from './field/tabedit'
 
 export interface Chord { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean; key: string; code: string; altGraph?: boolean }
 
@@ -89,6 +90,8 @@ function closeFront(c: WindowController): Command | boolean {
 function escapeKey(c: WindowController): boolean {
   const m = mem(c)
   const tab = model.activeTab(c.record)
+  // The address in the tab itself first, as the Mac's chain begins (App.swift take).
+  if (tabEditing(c)) { cancelTabEdit(c); return true }
   // The field over the page has the keys and is in front of Find.
   if (m.editing && tab && !tab.empty) return fieldEscape(c)
   if (findIsOpen(c)) return closeFind(c)

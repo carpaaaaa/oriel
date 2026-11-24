@@ -22,6 +22,7 @@ import { Chase, Springs, type Box } from '../sidebar/motion'
 import { openMenu } from '../menus/open'
 import { tabMenu, groupMenu } from '../menus/build'
 import { activeTab } from '../sidebar/ui'
+import { TabField } from '../field/TabField'
 
 const TAB = 186, MIN = 36, TITLED = 104, PIN = 30, PLUS = 30, HOLD = 40, GAP = 2
 
@@ -165,7 +166,8 @@ function press(t: TabView) {
     if (e.button !== 0 || (e.target as HTMLElement).closest('.strip-x, .speaker')) return
     const ctrl = e.ctrlKey || (window.search.platform === 'darwin' && e.metaKey)
     if (ctrl || e.shiftKey) { void cmd({ do: 'tab.pick', id: t.id, mode: ctrl && e.shiftKey ? 'addRange' : ctrl ? 'toggle' : 'range' }); return }
-    if (t.id === state.activeID) { void cmd({ do: 'field.open', target: 'here' }); return }
+    // A press on the tab you're on edits its address, in the tab (§5.18).
+    if (t.id === state.activeID) { if (state.tabEdit?.id !== t.id) void cmd({ do: 'field.editTab', id: t.id }); return }
     void cmd({ do: 'tab.select', id: t.id })
   }
 }
@@ -175,8 +177,10 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
   const live = () => t().id === state.activeID
   const rest = () => (live() ? restOf(t()) : null)
   const speaker = () => !t().loading && (t().audible || t().muted)
+  // Its address typed in the tab itself, which widens to 340 (TabBar.swift:643).
+  const addressing = () => state.tabEdit?.id === t().id
   return (
-    <div class="strip-tab" data-tab={t().id} style={{ width: `${p.width}px` }}
+    <div class="strip-tab" data-tab={t().id} style={{ width: `${addressing() ? Math.max(p.width, 340) : p.width}px` }}
       classList={{ live: live(), titled: p.titled, picked: picked(t().id), gliding: p.gliding, 'put-away': !!p.grouped && t().asleep && !live(), loading: t().loading }}
       title={p.titled ? undefined : label(t())}
       onPointerDown={press(t())}
@@ -184,8 +188,9 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
       onMouseDown={e => { if (e.button === 1) e.preventDefault() }}
       onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(tabMenu(t()), { x: e.clientX, y: e.clientY }, `tab:${t().id}`) }}>
       <div class="ground" />
-      <Show when={!t().empty}><Mark tab={{ ...t(), label: label(t()) }} size={15} /></Show>
-      <Show when={p.titled}>
+      <Show when={!t().empty && !addressing()}><Mark tab={{ ...t(), label: label(t()) }} size={15} /></Show>
+      <Show when={addressing()}><TabField /></Show>
+      <Show when={p.titled && !addressing()}>
         <span class="strip-title">
           <span class="title">{label(t())}</span>
           <Show when={rest()}>{r => <span class="rest"><span class="rest-name">{r().name}</span></span>}</Show>
@@ -197,7 +202,7 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
         </Show>
         <span class="strip-slot"><Show when={t().loading}><Ring /></Show></span>
       </Show>
-      <Show when={p.titled || live()}>
+      <Show when={(p.titled || live()) && !addressing()}>
         <button class="strip-x" title={p.grouped && !t().asleep ? 'Put Away' : 'Close Tab'} onPointerDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); void cmd({ do: 'tab.close', id: t().id }) }}>
           <span class="disc">{p.grouped ? <G.minus pt={8} weight="semibold" /> : <G.xmark pt={8} weight="semibold" />}</span>

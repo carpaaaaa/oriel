@@ -7,7 +7,7 @@ import './field.css'
 import { createEffect, For, on, onMount, Show } from 'solid-js'
 import type { Suggestion } from '../../shared/state'
 import { state, cmd } from '../lib/store'
-import { Bookmark, CommandKey, History, Lens, Pin } from './icons'
+import { Bookmark, CommandKey, History, Lens, Pin, XMark } from './icons'
 
 const hostOf = (url: string) => { try { return new URL(url).host.replace(/^www\./, '') } catch { return '' } }
 const withoutWWW = (a: string) => (a.toLowerCase().startsWith('www.') ? a.slice(4) : a)
@@ -93,6 +93,10 @@ export function Field(p: { place: 'page' | 'overlay' }) {
       if (e.altKey || e.ctrlKey || e.metaKey) return
       e.preventDefault()
       void cmd({ do: 'field.move', by: e.key === 'ArrowDown' ? 1 : -1 })
+    } else if (e.key === 'Enter' && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      // Shift+Return: the Shift-Return engine, or Return when there is none.
+      e.preventDefault()
+      void cmd({ do: 'field.shiftSubmit', text: input.value })
     } else if (e.key === 'Enter') {
       e.preventDefault()
       void cmd({ do: 'field.submit', text: input.value, newTab: e.altKey, front: e.altKey && e.shiftKey })
@@ -117,13 +121,22 @@ export function Field(p: { place: 'page' | 'overlay' }) {
   }
 
   return (
-    <div class="field-wrap" classList={{ [p.place]: true }}>
+    <div class="field-wrap" classList={{ [`field-on-${p.place}`]: true }}>
       <div class="field" ref={box}>
-        <div class="breath" />
+        <div class="field-breath" />
         <Show when={f().chip}>{chip => (
-          <span class="chip" aria-label={`Searching ${chip().name}`}>
-            <span class="chip-icon"><Lens size={11} /></span>
-            <span class="chip-name">{chip().name}</span>
+          <span class="field-chip" role="group" aria-label={`Searching ${chip().name}`}>
+            <span class="field-chip-icon">
+              <span class="field-chip-lens"><Lens size={11} /></span>
+              {/* Under the pointer the lens gives way to an X that takes the
+                  site out; what was typed stays, and the keys stay here. */}
+              <button class="field-chip-x" tabIndex={-1} aria-label={`Remove ${chip().name}`} title={`Remove ${chip().name}`}
+                onPointerDown={e => e.preventDefault()}
+                onClick={() => { void cmd({ do: 'field.unchip' }); input.focus() }}>
+                <XMark size={8} weight={2.4} />
+              </button>
+            </span>
+            <span class="field-chip-name">{chip().name}</span>
           </span>
         )}</Show>
         <input ref={input} spellcheck={false} autocomplete="off" placeholder={f().placeholder ?? 'Enter a web address'}
@@ -135,28 +148,20 @@ export function Field(p: { place: 'page' | 'overlay' }) {
           onKeyDown={key} />
       </div>
       <Show when={listShown()}>
-        <div class="suggestions" role="listbox">
+        <div class="field-list" role="listbox">
           <Show when={f().offer}>{site => (
-            <div class="suggestion offer" aria-label={`Search ${site().name}, press Tab`}
+            <div class="field-row field-offer" aria-label={`Search ${site().name}, press Tab`}
               onPointerDown={e => e.preventDefault()} onClick={() => void cmd({ do: 'field.lock' })}>
-              <span class="icon"><Lens size={11} /></span>
-              <span class="key">Search {site().name}</span>
-              <span class="spacer" />
-              <span class="tab-key">Tab</span>
+              <span class="field-icon"><Lens size={11} /></span>
+              <span class="field-key">Search {site().name}</span>
+              <span class="field-spacer" />
+              <span class="field-tabkey">Tab</span>
             </div>
           )}</Show>
           <For each={f().suggestions}>{(s, i) => (
-            <div class="suggestion" classList={{ picked: i() === f().selected }} role="option" aria-selected={i() === f().selected}
-              onPointerDown={e => e.preventDefault()} onClick={() => void cmd({ do: 'field.take', index: i() })}>
-              <span class="icon"><RowIcon s={s} /></span>
-              <span class="key">{keyOf(s)}</span>
-              <Show when={s.detail}><span class="title">{s.detail}</span></Show>
-              <span class="spacer" />
-              <Show when={s.how === 'bookmark'}><span class="trail"><Bookmark size={11} /></span></Show>
-              <Show when={s.how !== 'bookmark' && s.pinned}><span class="trail"><Pin size={11} /></span></Show>
-            </div>
+            <OfferRow s={s} picked={i() === f().selected} take={() => void cmd({ do: 'field.take', index: i() })} />
           )}</For>
-          <Show when={f().note}><div class="note">{f().note}</div></Show>
+          <Show when={f().note}><div class="field-note">{f().note}</div></Show>
         </div>
       </Show>
     </div>
@@ -165,6 +170,21 @@ export function Field(p: { place: 'page' | 'overlay' }) {
 
 /** The column before a row's words: the site's icon or letter, a lens for
  * words, a clock for words searched before, ⌘ for a command. */
+/** One row of a list of places (Omnibox.Row), under the field or the tab. */
+export function OfferRow(p: { s: Suggestion; picked: boolean; take: () => void }) {
+  return (
+    <div class="field-row" classList={{ picked: p.picked }} role="option" aria-selected={p.picked}
+      onPointerDown={e => e.preventDefault()} onClick={() => p.take()}>
+      <span class="field-icon"><RowIcon s={p.s} /></span>
+      <span class="field-key">{keyOf(p.s)}</span>
+      <Show when={p.s.detail}><span class="field-title">{p.s.detail}</span></Show>
+      <span class="field-spacer" />
+      <Show when={p.s.how === 'bookmark'}><span class="field-trail"><Bookmark size={11} /></span></Show>
+      <Show when={p.s.how !== 'bookmark' && p.s.pinned}><span class="field-trail"><Pin size={11} /></span></Show>
+    </div>
+  )
+}
+
 function RowIcon(p: { s: Suggestion }) {
   const how = () => p.s.how ?? (p.s.kind === 'search' ? 'search' : 'visited')
   return (
@@ -183,9 +203,9 @@ function RowMark(p: { url: string; favicon?: string }) {
   let broken = false
   const letter = () => hostOf(p.url)[0]?.toUpperCase() ?? '•'
   return (
-    <span class="row-mark">
-      <Show when={p.favicon && !broken} fallback={<span class="row-letter">{letter()}</span>}>
-        <img src={p.favicon} width={14} height={14} draggable={false} onError={e => { broken = true; e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { className: 'row-letter', textContent: letter() })) }} />
+    <span class="field-mark">
+      <Show when={p.favicon && !broken} fallback={<span class="field-letter">{letter()}</span>}>
+        <img src={p.favicon} width={14} height={14} draggable={false} onError={e => { broken = true; e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { className: 'field-letter', textContent: letter() })) }} />
       </Show>
     </span>
   )
