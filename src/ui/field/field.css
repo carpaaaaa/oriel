@@ -110,7 +110,8 @@
 
 /* the address in the tab itself: 12.5 in the row's 16, the selection at 11%
    of ink (TabBar.swift:1630-1690) */
-.field-tab-input { flex: 1; min-width: 0; height: 16px; font-size: 12.5px; line-height: 16px; color: var(--ink); caret-color: var(--ink); user-select: text; }
+/* 20 high: at 16 the field cut off the g's and p's tails (carpa, 24 Nov 2026). */
+.field-tab-input { flex: 1; min-width: 0; height: 20px; font-size: 12.5px; line-height: 20px; color: var(--ink); caret-color: var(--ink); user-select: text; }
 .field-tab-input::selection { background: rgb(var(--ink-rgb) / .11); color: var(--ink); }
 /* its list, a panel of its own under the tab: 8 of clear room for the
    shadow (black 10% r10 y4), padding 6, radius 14, a hairline (TabOffers.swift) */

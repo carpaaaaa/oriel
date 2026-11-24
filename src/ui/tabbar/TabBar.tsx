@@ -22,7 +22,7 @@ import { Chase, Springs, curve, keepLeaving, quietOn, stay, fadeBack, type Box }
 import { openMenu } from '../menus/open'
 import { tabMenu, groupMenu } from '../menus/build'
 import { activeTab } from '../sidebar/ui'
-import { TabField } from '../field/TabField'
+import { TabField, tabFieldText, fieldTextWidth } from '../field/TabField'
 
 const TAB = 186, MIN = 36, TITLED = 104, PIN = 30, PLUS = 30, HOLD = 40, GAP = 2
 
@@ -321,12 +321,19 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
   const live = () => t().id === state.activeID
   const rest = () => (live() ? restOf(t()) : null)
   const speaker = () => !t().loading && (t().audible || t().muted)
-  // Its address typed in the tab itself, which widens to 340 but never past
-  // the strip's room (TabBar.swift:991 `min(340, room)`), on glide (:337,
-  // :1072): the rest move aside on it rather than jump; its mark and title
-  // fade where they stood as the field fades in.
+  // Its address typed in the tab itself, never past 340 or the strip's room
+  // (TabBar.swift:991 `min(340, room)`), on glide (:337, :1072): the rest
+  // move aside on it rather than jump; its mark and title fade where they
+  // stood as the field fades in. As wide as the address needs (its 11 each
+  // side and a little air), never narrower than the tab was: a short one
+  // like oriel://settings no longer opens 340 wide (carpa, 24 Nov 2026).
   const addressing = () => state.tabEdit?.id === t().id
-  const width = held(() => !!p.leaving, () => (addressing() ? Math.min(340, p.room ?? 340) : p.width))
+  const fits = () => {
+    const most = Math.min(340, p.room ?? 340)
+    const need = Math.ceil(fieldTextWidth(tabFieldText()) + 11 * 2 + 14)
+    return Math.max(Math.min(p.width, most), Math.min(most, need))
+  }
+  const width = held(() => !!p.leaving, () => (addressing() ? fits() : p.width))
   const titled = held(() => !!p.leaving, () => p.titled)
   let wasAddressing = untrack(addressing)
   const glides = createMemo(() => { void p.width; const a = addressing(); const g = a !== wasAddressing; wasAddressing = a; return g })

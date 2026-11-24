@@ -61,11 +61,16 @@ export function Pictures<T>(p: { options: [T, string, () => JSX.Element][]; valu
 }
 
 /** A few things each shown or not, side by side (Settings.swift:1584). */
+/** Several things on or off at once, in the segmented control's track: each
+ * one shown is raised with its tick, as the segmented control's choice is
+ * (carpa, 24 Nov 2026: Windows' own checkboxes didn't belong here). */
 export function Ticks(p: { items: [string, boolean, (on: boolean) => void][] }) {
   return (
-    <div class="st-ticks">
+    <div class="st-ticks" role="group">
       <For each={p.items}>{([label, on, set]) => (
-        <label class="st-tick"><input type="checkbox" checked={on} onChange={e => set(e.currentTarget.checked)} />{label}</label>
+        <button class="st-tick" classList={{ on }} role="checkbox" aria-checked={on} onClick={() => set(!on)}>
+          <span class="st-tick-box"><Symbol name="checkmark" size={9} weight="semibold" /></span>{label}
+        </button>
       )}</For>
     </div>
   )

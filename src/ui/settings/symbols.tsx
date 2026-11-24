@@ -101,7 +101,8 @@ const paths: Record<string, string[]> = {
   'shift': ['M8 2.5 2.8 8.2h2.8v5h4.8v-5h2.8z'],
   'computermouse': ['M8 1.8a4 4 0 0 0-4 4v4.4a4 4 0 0 0 8 0V5.8a4 4 0 0 0-4-4', 'M8 3.8v2.4'],
   'hand.draw': ['M5 8.5V4a.9.9 0 0 1 1.8 0v3.5V2.9a.9.9 0 0 1 1.8 0v4.6V3.5a.9.9 0 0 1 1.8 0v4.5-2.5a.9.9 0 0 1 1.8 0V10c0 2.2-1.6 3.8-3.8 3.8H8c-1.2 0-2.2-.6-2.8-1.6L3.4 9.3a.9.9 0 0 1 1.5-1z'],
-  'hand.point.up.left': ['M4 2.2 4.6 9l1.6-1.6 1.6 3.4 1.4-.6-1.6-3.4h2.2z'],
+  // A hand, its first finger up (it was a small cursor arrow in the top left corner).
+  'hand.point.up.left': ['M6.3 9.6V3.4a1 1 0 0 1 2 0v4.1V7a1 1 0 0 1 2 0v.6a1 1 0 0 1 2 0v2.3c0 2.3-1.7 4-4 4H8c-1.2 0-2.1-.5-2.8-1.5L3.7 10.2a1 1 0 0 1 1.5-1.3z'],
   'cursorarrow.rays': ['M7 7l2.2 6.8 1-2.8 2.8-1z', 'M5 2.2v1.6M2.2 5h1.6M2.9 2.9l1.1 1.1'],
   'camera.viewfinder': ['M2.2 5V3.2a1 1 0 0 1 1-1H5M11 2.2h1.8a1 1 0 0 1 1 1V5M13.8 11v1.8a1 1 0 0 1-1 1H11M5 13.8H3.2a1 1 0 0 1-1-1V11', 'M8 5.8a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4'],
   'doc': ['M4 2h5.2L12 4.8V14H4z', 'M9 2v3h3'],

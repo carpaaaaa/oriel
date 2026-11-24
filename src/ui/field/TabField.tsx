@@ -4,10 +4,25 @@
 // goes, Escape (the main process's) gives the title back, a press anywhere
 // else keeps what was typed. The column's row and the strip's tab host it.
 
-import { createEffect, For, on, onCleanup, onMount } from 'solid-js'
+import { createEffect, createSignal, For, on, onCleanup, onMount } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import { OfferRow, shake } from './Field'
 import { curve, Springs } from '../sidebar/motion'
+
+const [typed, setTyped] = createSignal('')
+/** What the tab's address field holds now: the tab across the top is as
+ * wide as it needs (TabBar.tsx), not always 340. */
+export const tabFieldText = typed
+
+let ruler: CanvasRenderingContext2D | null = null
+/** The width of `s` in the field's type (12.5, the interface's face). */
+export function fieldTextWidth(s: string): number {
+  ruler ??= document.createElement('canvas').getContext('2d')
+  if (!ruler) return s.length * 7
+  const face = getComputedStyle(document.documentElement).getPropertyValue('--font-ui').trim() || 'sans-serif'
+  ruler.font = `12.5px ${face}`
+  return ruler.measureText(s).width
+}
 
 export function TabField() {
   let input!: HTMLInputElement
@@ -27,6 +42,7 @@ export function TabField() {
     const { duration, easing } = curve(Springs.glide)
     if (duration) input.animate([{ opacity: 0 }, { opacity: 1 }], { duration, easing })
     input.value = e()?.shown ?? ''
+    setTyped(input.value)
     input.focus()
     input.select()
     input.scrollLeft = 0
@@ -44,6 +60,7 @@ export function TabField() {
     if (n === synced) return
     synced = n
     input.value = e()?.shown ?? ''
+    setTyped(input.value)
     input.select()
   }, { defer: true }))
   // Nowhere to go: the tab shakes, the edit stays.
@@ -62,6 +79,7 @@ export function TabField() {
     if (!r?.ending || r.text !== text || input.value !== text || composing) return
     if (document.activeElement !== input || input.selectionStart !== text.length || input.selectionEnd !== text.length) return
     input.value = text + r.ending
+    setTyped(input.value)
     input.setSelectionRange(text.length, input.value.length)
     input.scrollLeft = 0
   }
@@ -80,7 +98,7 @@ export function TabField() {
     <input ref={input} class="field-tab-input" spellcheck={false} autocomplete="off" aria-label="Address"
       onPointerDown={ev => ev.stopPropagation()} onClick={ev => ev.stopPropagation()} onDblClick={ev => ev.stopPropagation()}
       onBeforeInput={ev => { deleting = ev.inputType.startsWith('delete') }}
-      onInput={() => { if (!composing) void send() }}
+      onInput={() => { setTyped(input.value); if (!composing) void send() }}
       onCompositionStart={() => { composing = true }}
       onCompositionEnd={() => { composing = false; void send() }}
       onKeyDown={key}

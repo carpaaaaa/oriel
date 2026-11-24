@@ -260,8 +260,11 @@ export class Frame {
     return { x: v.x - m.left, y: v.y - m.top, width: width + m.left + m.right, height: height + m.top + m.bottom }
   }
 
+  /** In full screen as a borderless window (window.fullScreenStyle). */
+  borderless(): boolean { return this.state === 'fullScreen' && model.pref<string>('window.fullScreenStyle') === 'borderless' }
+
   view(): FrameView {
-    return { kind: this.kind, margin: this.margin(), state: this.state, hollow: this.hollow, manual: this.manual, manualResize: this.resizesByHand, grip: GRIP }
+    return { kind: this.kind, margin: this.margin(), state: this.state, borderless: this.borderless(), hollow: this.hollow, manual: this.manual, manualResize: this.resizesByHand, grip: GRIP }
   }
 
   private compute(): State {

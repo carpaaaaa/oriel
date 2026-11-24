@@ -13,7 +13,7 @@ import { columnSliding } from '../chrome/slide'
 
 /** The band above the page that the window's buttons sit in (Windows,
  * Oriel's frame or Windows' own), gone in full screen. */
-export const capBand = () => state.chrome === 'windows' && !state.fullScreen && state.frame?.state !== 'fullScreen'
+export const capBand = () => state.chrome === 'windows' && ((!state.fullScreen && state.frame?.state !== 'fullScreen') || !!state.frame?.borderless)
 
 export type DoorPlace = 'strip' | 'corner' | 'foot'
 

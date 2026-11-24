@@ -9,7 +9,7 @@ import { state, cmd } from '../lib/store'
 import type { TabView } from '../../shared/state'
 import { G, Ring } from './glyphs'
 import { P, label, monogram, restOf, markSize, picked, pickedAmongOthers, pinOf } from './derive'
-import { editing, setEditing, reading } from './ui'
+import { editing, setEditing, reading, dropTarget } from './ui'
 import { openMenu } from '../menus/open'
 import { tabMenu } from '../menus/build'
 import { press } from './drag'
@@ -152,7 +152,7 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
   return (
     <div ref={el} class="row" data-tab={t().id}
       classList={{
-        live: live(), picked: picked(t().id), status: status() && !addressing(), closable: closable() && !isEditing() && !addressing(),
+        live: live(), picked: picked(t().id), 'split-target': dropTarget() === `s:${t().id}`, status: status() && !addressing(), closable: closable() && !isEditing() && !addressing(),
         dim: dim(), 'put-away': putAway(), editing: isEditing() || addressing(), addressing: addressing(), 'at-rest': !!rest(), empty: t().empty,
       }}
       onPointerDown={onDown}

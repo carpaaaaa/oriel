@@ -15,6 +15,10 @@ export interface FrameView {
   margin: Insets
   /** How the window sits on the screen. Snapped = arranged by Windows Snap. */
   state: 'free' | 'maximized' | 'snapped' | 'fullScreen'
+  /** Full screen as a borderless window (Settings › Appearance › Full
+   * screen): the whole screen, the window drawn as when maximized, its
+   * buttons always there. */
+  borderless?: boolean
   /** The pointer is over the clear margin: clicks go to what is behind. */
   hollow: boolean
   /** Moving is done by hand (on a Mac, or without user32), not by Windows. */

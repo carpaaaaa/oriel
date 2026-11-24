@@ -52,6 +52,9 @@ let held: {
   /** The page in front before the press opened the carried tab (Browser.cameFrom). */
   cameFrom: string | null
   broughtBack: boolean
+  /** Resting on another tab's line: armed after a moment still there, let go
+   * it splits with that tab (carpa, 24 Nov 2026: "a tab carried onto another"). */
+  onto: { id: string; x: number; y: number; armed: boolean; timer: ReturnType<typeof setTimeout> | null } | null
 } | null = null
 
 /** A press on a line or a square: a click, or the start of a carry. */
@@ -62,7 +65,7 @@ export function press(e: PointerEvent, p: Pressed): void {
   held = {
     p, x0: e.clientX, y0: e.clientY, itemX: sq?.x ?? 0, itemY: sq?.y ?? item?.y ?? 0,
     pointer: e.pointerId, carrying: false, move: null, place: null, group: null, out: false, split: null,
-    cameFrom: state.activeID ?? null, broughtBack: false,
+    cameFrom: state.activeID ?? null, broughtBack: false, onto: null,
   }
   window.addEventListener('pointermove', onMove)
   window.addEventListener('pointerup', onUp)
@@ -89,6 +92,7 @@ function onMove(e: PointerEvent): void {
   const body = column.body.getBoundingClientRect()
   const px = e.clientX - body.left, py = e.clientY - body.top
   if (overPage(e)) return
+  if (ontoTab(e, py)) return
   if (held.p.kind === 'square') carrySquare(px, py, dx, dy)
   else carryLine(px, py, dy)
 }
@@ -125,6 +129,69 @@ function overPage(e: PointerEvent): boolean {
     setRowGhost(null)
   })
   return true
+}
+
+// onto another tab's line: the two side by side
+
+/** Still this long, moving no more than this, on the middle of a line. */
+const REST = 380
+const REST_MOVE = 6
+
+/** The tab whose line (where it stands before anything made room) has its
+ * middle half at this height, if the carried tab can stand beside it. */
+function tabUnder(py: number, carried: TabView): TabView | null {
+  if (!column || carried.pinID || carried.empty) return null
+  const ry = py - column.rowsTop()
+  const it = layout().items.find(i => i.kind === 'row' && i.key !== `t:${carried.id}` && ry >= i.y + i.h * 0.25 && ry <= i.y + i.h * 0.75)
+  const id = it && it.key.startsWith('t:') ? it.key.slice(2) : null
+  const t = id ? state.tabs.find(x => x.id === id) : undefined
+  if (!t || t.pinID || t.empty || !!t.shy !== !!carried.shy) return null
+  const split = state.splits.find(s => s.tabs.includes(t.id))
+  if (split && (split.tabs.includes(carried.id) || split.tabs.length >= 4)) return null
+  return t
+}
+
+function disarm(): void {
+  const o = held?.onto
+  if (!o) return
+  if (o.timer) clearTimeout(o.timer)
+  if (o.armed) setDropTarget(null)
+  held!.onto = null
+}
+
+/** Resting on another tab's line arms the split: the lines stop making room,
+ * that line is marked. False while the carry goes on as a move. */
+function ontoTab(e: PointerEvent, py: number): boolean {
+  if (!held || held.p.kind !== 'row') return false
+  const carried = state.tabs.find(t => t.id === held!.p.tab)
+  const target = carried ? tabUnder(py, carried) : null
+  const o = held.onto
+  if (!target) { disarm(); return false }
+  if (o && o.id === target.id) {
+    if (o.armed) return true
+    if (Math.hypot(e.clientX - o.x, e.clientY - o.y) <= REST_MOVE) return false
+    if (o.timer) clearTimeout(o.timer)
+  } else disarm()
+  const fresh = { id: target.id, x: e.clientX, y: e.clientY, armed: false, timer: null as ReturnType<typeof setTimeout> | null }
+  held.onto = fresh
+  fresh.timer = setTimeout(() => {
+    if (!held || held.onto !== fresh) return
+    fresh.armed = true
+    fresh.timer = null
+    held.move = null
+    held.place = null
+    held.group = null
+    batch(() => {
+      setShifted({})
+      setRowGhost(null)
+      setSquareGhost(null)
+      setDropMark(null)
+      setDropTarget(`s:${fresh.id}`)
+      const c = carry()
+      if (c) setCarry({ ...c, faded: true })
+    })
+  }, REST)
+  return false
 }
 
 // what a point is over
@@ -332,6 +399,9 @@ function onUp(): void {
   // The click that ends a carry isn't a click.
   window.addEventListener('click', swallow, { capture: true, once: true })
   setTimeout(() => window.removeEventListener('click', swallow, true), 0)
+  // Let go on another tab's line, armed: the two side by side, the carried
+  // one on the right.
+  if (h.onto?.armed && h.p.tab) { void cmd({ do: 'split.pair', id: h.p.tab, side: 'right', target: h.onto.id }); return }
   // Let go in a band: beside the page; over the page elsewhere, nothing.
   if (h.split) { if (h.split.side && h.p.tab) void cmd({ do: 'split.pair', id: h.p.tab, side: h.split.side, target: h.split.page }); return }
   void land(h)
@@ -346,6 +416,7 @@ function onKey(e: KeyboardEvent): void {
 
 function end(): void {
   if (held?.split) void cmd({ do: 'split.dropHint', hint: null })
+  if (held?.onto?.timer) clearTimeout(held.onto.timer)
   held = null
   window.removeEventListener('pointermove', onMove)
   window.removeEventListener('pointerup', onUp)

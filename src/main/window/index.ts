@@ -13,6 +13,7 @@ import './dusk'
 import '../../shared/modules/window'
 import { registerSlice } from '../views/window'
 import { addDefaults } from '../../shared/prefs'
+import { model } from '../model/model'
 import { benchRequest } from '../bench/server'
 import { allControllers, controllerFor, focusedController } from '../views/window'
 import { testEnv } from '../testhooks'
@@ -25,6 +26,8 @@ if (process.platform === 'win32' && testEnv('SEARCH_PROBE')) app.commandLine.app
 addDefaults({ 'window.nativeFrame': false, 'window.buttons': 'inline' })
 
 registerSlice('frame', c => c.frame.view())
+// Full screen or borderless chosen in Settings: the window drawn again at once.
+model.on('window-changed', (id: string, slices: string[]) => { if (slices?.includes('prefs')) controllerFor(id)?.mark('frame') })
 registerSlice('room', c => c.sideRoom())
 
 
