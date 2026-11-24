@@ -85,15 +85,15 @@ const SKIES = {
   },
   notte: {
     nome: 'Notte', base: ['#09122B', '#152652'], ink: '#FFFBF4', grain: 0.12, bare: ['#8FA8E8', '#4D69B4', '#2E4688'],
-    blobs: [[300, 1000, 560, 210, 120, 0.9, '#2C4C95', -28], [620, 940, 300, 110, 90, 0.55, '#6A82C4', -28], [-40, 560, 180, 420, 110, 0.5, '#1F3A78'], [860, 120, 380, 260, 130, 0.75, '#050A1C']],
+    blobs: [[300, 1000, 560, 210, 120, 0.9, '#2C4C95', -28], [620, 940, 300, 110, 90, 0.55, '#6A82C4', -28], [-40, 560, 180, 420, 110, 0.5, '#1F3A78'], [900, 60, 520, 300, 200, 0.6, '#050A1C', -30]],
   },
   oliva: {
     nome: 'Oliva', base: ['#2B3019', '#525932'], ink: '#FFFBF4', grain: 0.13, bare: ['#B9B27A', '#7F8549', '#565D30'],
-    blobs: [[260, 980, 580, 210, 120, 0.9, '#7D8050', -26], [640, 900, 280, 110, 90, 0.6, '#A9A36D', -26], [-60, 560, 180, 420, 110, 0.5, '#3C4325'], [880, 130, 360, 260, 130, 0.75, '#1C200E']],
+    blobs: [[260, 980, 580, 210, 120, 0.9, '#7D8050', -26], [640, 900, 280, 110, 90, 0.6, '#A9A36D', -26], [-60, 560, 180, 420, 110, 0.5, '#3C4325'], [900, 60, 520, 300, 200, 0.6, '#1C200E', -30]],
   },
   brace: {
     nome: 'Brace', base: ['#110E0C', '#1B1613'], ink: '#FFFBF4', grain: 0.12, bare: ['#F58A47', '#D4572A', '#A0361A'],
-    blobs: [[170, 1000, 540, 210, 130, 0.95, '#A6381A', -32], [110, 1030, 270, 110, 80, 0.85, '#E3672C', -32], [700, 720, 420, 260, 150, 0.35, '#3B2A21'], [900, 120, 300, 240, 120, 0.6, '#070605']],
+    blobs: [[170, 1000, 540, 210, 130, 0.95, '#A6381A', -32], [110, 1030, 270, 110, 80, 0.85, '#E3672C', -32], [700, 720, 420, 260, 150, 0.35, '#3B2A21'], [920, 60, 480, 280, 200, 0.55, '#070605', -30]],
   },
 };
 
@@ -106,11 +106,12 @@ function iconSVG(m, sky, plate, grain) {
   const skyG = () => {
     let g = '<rect width="1024" height="1024" fill="url(#sb)"/>';
     defs += `<linearGradient id="sb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky.base[0]}"/><stop offset="1" stop-color="${sky.base[1]}"/></linearGradient>`;
-    const seen = {};
-    for (const [bx, by, rx, ry, bl, op, col, rot] of sky.blobs) {
-      if (!seen[bl]) { seen[bl] = 1; defs += `<filter id="b${bl}" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="${bl}"/></filter>`; }
-      g += `<ellipse cx="${bx}" cy="${by}" rx="${rx}" ry="${ry}" fill="${col}" opacity="${op}" filter="url(#b${bl})"${rot ? ` transform="rotate(${rot} ${bx} ${by})"` : ''}/>`;
-    }
+    // macchie morbide: gradiente radiale che arriva a zero sul bordo (le sfocature grandi di Chromium lasciano un bordo)
+    const prof = [[0, 1], [0.3, 0.93], [0.5, 0.72], [0.68, 0.42], [0.84, 0.15], [1, 0]];
+    sky.blobs.forEach(([bx, by, rx, ry, bl, op, col, rot], i) => {
+      defs += `<radialGradient id="m${i}">${prof.map(([o, a]) => `<stop offset="${o}" stop-color="${col}" stop-opacity="${r(a * op)}"/>`).join('')}</radialGradient>`;
+      g += `<ellipse cx="${bx}" cy="${by}" rx="${r(rx + 1.7 * bl)}" ry="${r(ry + 1.7 * bl)}" fill="url(#m${i})"${rot ? ` transform="rotate(${rot} ${bx} ${by})"` : ''}/>`;
+    });
     if (grain && sky.grain) {
       defs += '<filter id="gr" x="0" y="0" width="1024" height="1024" filterUnits="userSpaceOnUse"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="7" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>';
       g += `<rect width="1024" height="1024" filter="url(#gr)" opacity="${sky.grain}" style="mix-blend-mode:overlay"/>`;

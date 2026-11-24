@@ -12,7 +12,8 @@ From Search, Oriel takes:
 - the behaviour: how tabs open, close, sleep and come back, the shortcuts, the settings and their defaults, the way extensions are offered, how other browsers' data is brought over, read from Search's source and its tests (`studio/`);
 - the file formats of the session, spaces, pins, history and bookmarks, so the two can understand each other;
 - the shape of its tests: a bench socket that drives the app in a world of its own;
-- parts of its interface text, in English, adapted where it names macOS.
+- parts of its interface text, in English, adapted where it names macOS;
+- the mark: Oriel's icon is Search's own, the pill with a letter cut out, with an O where Search has its S (`build/icon/`).
 
 Oriel is not made, endorsed or supported by Office Commun. Search's copyright notice is kept in `LICENSE`, as its license asks. Bugs in Oriel are Oriel's: please don't report them to Search.
 
