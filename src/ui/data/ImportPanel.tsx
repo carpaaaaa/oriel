@@ -5,6 +5,7 @@
 
 import { For, Show } from 'solid-js'
 import { state, cmd } from '../lib/store'
+import { Dropdown } from '../lib/Dropdown'
 import { appName, type ImportPanelState, type ImportPreview, type ImportSourceView } from '../../shared/modules/data'
 
 const n = (x: number) => x.toLocaleString('en-US')
@@ -90,17 +91,18 @@ function Options(props: { s: ImportPanelState; v: ImportSourceView }) {
       </Show>
       <Show when={props.v.profiles.length > 1}>
         <Line title="Profile">
-          <select
+          <Dropdown
             class="bt-profile"
+            size="small"
+            label="Profile"
             value={props.s.chosen[props.v.id] ?? props.v.usual ?? ''}
-            onChange={e => void cmd({ do: 'import.profile', source: props.v.id, profile: e.currentTarget.value })}
-          >
-            <For each={props.v.profiles}>
-              {pr => <option value={pr.id}>{pr.id === props.v.usual ? `Most recent: ${pr.name}` : pr.name}</option>}
-            </For>
-            <hr />
-            <option value="">All profiles</option>
-          </select>
+            set={profile => void cmd({ do: 'import.profile', source: props.v.id, profile })}
+            options={[
+              ...props.v.profiles.map((pr): [string, string] => [pr.id, pr.id === props.v.usual ? `Most recent: ${pr.name}` : pr.name]),
+              null,
+              ['', 'All profiles'],
+            ]}
+          />
         </Line>
         <div class="bt-rule" />
       </Show>

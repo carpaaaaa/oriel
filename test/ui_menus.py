@@ -69,7 +69,7 @@ m = k.js("const m = document.querySelector('.menu'); const s = getComputedStyle(
          " return { radius: s.borderTopLeftRadius, padTop: parseFloat(s.paddingTop), row: ri.height, text: l.x - r.x, inset: ri.x - r.x, hr: getComputedStyle(i).borderTopLeftRadius, sep: sep.height, font: s.fontSize }",
          root="overlay")
 t.ok(m["radius"] == "12px" and m["padTop"] == 5 and k.near(m["row"], 24) and k.near(m["sep"], 11), f"corners 12, 5 above, items 24, separators 11: {m}")
-t.ok(k.near(m["text"], 17) and k.near(m["inset"], 5) and m["hr"] == "6px" and m["font"] == "13px", f"text 17 in, the highlight 5 in with a radius of 6, 13 points: {m}")
+t.ok(k.near(m["text"], 17) and k.near(m["inset"], 5) and m["hr"] == "7px" and m["font"] == "13px", f"text 17 in, the highlight 5 in with a radius of 7 (12 − 5, concentric), 13 points: {m}")
 ov = overlay_bounds()
 pick("Move to Group")
 sub = k.js("return document.querySelectorAll('.menu').length", root="overlay")
