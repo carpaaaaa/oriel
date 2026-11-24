@@ -105,10 +105,12 @@
 .rest-name.plain { font-weight: 400; }
 .row.put-away .titles, .row.put-away .mark { opacity: .45; }
 .row.dim:not(:hover) .titles, .row.dim:not(:hover) .mark { opacity: .45; }
-.row.empty .title { color: var(--g-muted); }
-.row.live.empty .title { color: var(--ink); }
 .sign { flex: none; color: var(--g-muted); opacity: .7; }
 .sign.rec { opacity: .8; }
+/* a sign wears the row's colour, at its own .7 (.8 recording) (Side.swift:2140-2150,
+   2318-2324): ink at 70% under the pointer, ink on the live row */
+.row:hover .sign { color: var(--ink-hover-text); }
+.row.live .sign { color: var(--ink); }
 
 .mark { flex: none; display: grid; place-items: center; overflow: hidden; }
 .mark img { display: block; width: 100%; height: 100%; object-fit: contain; }

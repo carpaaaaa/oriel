@@ -8,7 +8,9 @@ ground and Greys.white's on the strip's); with Settings › Appearance › Tabs 
 High contrast text on, in ink (white 0.09, 0.93). So do the pins' letters, the
 sites' letters and the group and pin folder headings. Measured in the column
 and across the top, light and dark, off and on: first in the real window
-through Settings, then on the fixtures."""
+through Settings, then on the fixtures. Then the row's colour on its signs
+(ink at 70% on the live row) and on New Tab's title (ink at 70% under the
+pointer)."""
 import sys
 import time
 from pathlib import Path
@@ -145,5 +147,66 @@ for look in ("light", "dark"):
         want = INK[look] if high else MUTED[look]
         t.ok(m["folder"] is not None and lands(m["folder"], m["ground"], want),
              f"pin rows, {look}, {'on' if high else 'off'}: a pin folder's heading {want:.1f} ({m['folder']})")
+
+# 3. The row's colour on its signs and on an empty tab's title (Side.swift:2140-2157,
+# 2318-2324): a sign is the row's colour at .7 (.8 recording), so ink on the live
+# row, ink at 70% under the pointer; New Tab's title, ink at 70% under the pointer.
+# The pointer can't be held over a row from here: every :hover rule is copied,
+# in its place, as .force-hover, and the row is given that class.
+FORCE = """
+  if (!window.__forceHover) {
+    window.__forceHover = true;
+    const walk = list => {
+      for (let i = list.cssRules.length - 1; i >= 0; i--) {
+        const r = list.cssRules[i];
+        if (r instanceof CSSStyleRule) {
+          if (!r.selectorText.includes(':hover')) continue;
+          try { list.insertRule(r.selectorText.replaceAll(':hover', '.force-hover') + ' ' + r.cssText.slice(r.cssText.indexOf('{')), i + 1) } catch {}
+        } else if (r.cssRules) walk(r);
+      }
+    };
+    for (const s of document.styleSheets) { try { walk(s) } catch {} }
+  }"""
+ROWS = FORCE + """
+  const rows = [...document.querySelectorAll('.sidebar .row')];
+  const live = rows.find(r => r.classList.contains('live'));
+  const shy = rows.find(r => !r.classList.contains('live') && r.querySelector('.title')?.textContent === 'The Verge');
+  const empty = rows.find(r => !r.classList.contains('live') && r.classList.contains('empty'));
+  const look = (e, f) => { if (!e) return null; const s = getComputedStyle(e); return [s.color, s.opacity] };
+  const hovered = (row, sel) => { row?.classList.add('force-hover'); const v = look(row?.querySelector(sel)); row?.classList.remove('force-hover'); return v };
+  return { eye: look(live?.querySelector('.sign:not(.rec)')), rec: look(live?.querySelector('.sign.rec')),
+    restSign: look(shy?.querySelector('.sign')), hoverSign: hovered(shy, '.sign'),
+    restEmpty: look(empty?.querySelector('.title')), hoverEmpty: hovered(empty, '.title'), emptyText: empty?.querySelector('.title')?.textContent }"""
+for look in ("light", "dark"):
+    ink = "rgb(23, 23, 23)" if look == "light" else "rgb(237, 237, 237)"
+    ink70 = ink.replace("rgb(", "rgba(").replace(")", ", 0.7)")
+    grey = GREY[("side", look)]
+    for high in (False, True):
+        s = uk.fixture("many")
+        live_id = s["activeID"]
+        for x in s["tabs"]:
+            if x["id"] == live_id:
+                x.update(shy=True, capturing=True)
+            elif x.get("title") == "The Verge":
+                x["shy"] = True
+        loose = next(x for x in s["tabs"] if not x.get("pinID") and not x.get("groupID") and x["id"] != live_id)
+        s["tabs"].append({**loose, "id": "empty-tab", "empty": True, "url": "", "title": "", "label": "", "name": None,
+                          "favicon": None, "shy": False, "capturing": False})
+        s["prefs"] = {**s.get("prefs", {}), KEY: high, "glyph": "letters"}
+        uk.fake(s, look=look)
+        time.sleep(0.4)
+        m = uk.js(ROWS)
+        where = f"side, {look}, {'on' if high else 'off'}"
+        t.ok(m["eye"] and uk.same_colour(m["eye"][0], ink) and m["eye"][1] == "0.7", f"{where}: on the live row, the private tab's eye in ink at 70% ({m['eye']})")
+        t.ok(m["rec"] and uk.same_colour(m["rec"][0], ink) and m["rec"][1] == "0.8", f"{where}: and the recording sign in ink at 80% ({m['rec']})")
+        rest = ink if high else grey
+        t.ok(m["restSign"] and uk.same_colour(m["restSign"][0], rest) and m["restSign"][1] == "0.7",
+             f"{where}: on a row not live, the eye in {'ink' if high else 'the row grey'} at 70% ({m['restSign']})")
+        t.ok(m["hoverSign"] and uk.same_colour(m["hoverSign"][0], ink if high else ink70) and m["hoverSign"][1] == "0.7",
+             f"{where}: under the pointer, the eye in {'ink' if high else 'ink at 70%'}, at its 70% ({m['hoverSign']})")
+        t.ok(m["emptyText"] == "New Tab" and m["restEmpty"] and uk.same_colour(m["restEmpty"][0], rest),
+             f"{where}: New Tab's title at rest, {'ink' if high else 'the row grey'} ({m['restEmpty']})")
+        t.ok(m["hoverEmpty"] and uk.same_colour(m["hoverEmpty"][0], ink if high else ink70),
+             f"{where}: New Tab's title under the pointer, {'ink' if high else 'ink at 70%'} ({m['hoverEmpty']})")
 uk.thaw()
 t.done()
