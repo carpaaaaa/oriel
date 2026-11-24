@@ -52,3 +52,6 @@
 @media (prefers-reduced-motion: reduce) {
   .dd-list, .dd-list.placed, .dd-list.placed.leaving { transition: none; transform: none; }
 }
+
+/* Room for descenders under a cut value (settings.css says why). */
+.dd-value { padding-bottom: 2px; margin-bottom: -2px; }
