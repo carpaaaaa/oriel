@@ -11,6 +11,7 @@ import { outlet } from '../lib/registry'
 import { CaptionButtons, buttonStyle } from './Buttons'
 import { EDGES, gripDown, wireFrame } from './frame'
 import { Panes } from './Split'
+import { foldSlide } from './slide'
 
 export function ChromeRoot() {
   let slot!: HTMLDivElement
@@ -76,10 +77,23 @@ export function ChromeRoot() {
   // strip of 52 is the window's top and the page goes under it; the window
   // lays that out here, the strip only draws itself (tabbar/).
   const strip = () => state.sidebar.layout === 'top' && !state.sidebar.folded
-  const side = () => (state.sidebar.folded || strip() ? 0 : state.sidebar.icons ? 52 : state.sidebar.width)
+  // Ctrl+S slides the column off the edge and back, the card's edge beside
+  // it every frame, the page measured there each frame (slide.ts).
+  const slide = foldSlide(() => measure())
+  const docked = () => (state.sidebar.icons ? 52 : state.sidebar.width)
+  const gap = () => (where() === 'fullScreen' && !pref('layout.cardsFullScreen') ? 0 : parseFloat(getComputedStyle(frameEl).getPropertyValue('--card-gap')) || 0)
+  const side = () => {
+    const o = slide.out()
+    if (o !== null) return gap() + (docked() - gap()) * o
+    return state.sidebar.folded || strip() ? 0 : docked()
+  }
+  const columnShift = () => {
+    const o = slide.out()
+    return o === null ? undefined : `${(state.sidebar.side === 'right' ? 1 : -1) * docked() * (1 - o)}px 0`
+  }
   // Settings › Tabs › On the right (sidebar.position): the column on the
   // window's right, the page's card on its left (studio/01 §5.1).
-  const onRight = () => state.sidebar.layout === 'side' && state.sidebar.side === 'right' && !state.sidebar.folded
+  const onRight = () => state.sidebar.layout === 'side' && state.sidebar.side === 'right' && (!state.sidebar.folded || slide.out() !== null)
   const pref = (k: string) => !!state.prefs?.[k]
   // A loading line with the tabs hidden (fold.loadingLine, App.swift:623,
   // Fold.swift LoadingLine): folded away, 2 points along the page's top while
@@ -101,8 +115,8 @@ export function ChromeRoot() {
         '--grip-corner': `${state.frame?.grip.corner ?? 20}px`,
       }}>
       <div class="window on-frame" classList={{ windows: state.chrome === 'windows', blurred: !state.focused, top: strip(), 'col-right': onRight(), compact: pref('tabs.compact'), 'btn-inline': ownButtons() && buttonStyle() === 'inline', [`room-${state.room?.side}`]: !!state.room }}
-        style={{ '--side': `${side()}px`, '--top': strip() ? (pref('tabs.compact') ? 'var(--strip-compact)' : 'var(--strip)') : undefined, '--room': `${state.room?.width ?? 0}px` }}>
-        <Show when={!state.sidebar.folded}>
+        style={{ '--side': `${side()}px`, '--fold-shift': columnShift(), '--top': strip() ? (pref('tabs.compact') ? 'var(--strip-compact)' : 'var(--strip)') : undefined, '--room': `${state.room?.width ?? 0}px` }}>
+        <Show when={!state.sidebar.folded || slide.out() !== null}>
           <Sidebar />
         </Show>
         <div class="top-strip" />

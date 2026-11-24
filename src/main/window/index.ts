@@ -44,6 +44,14 @@ benchRequest('window.place', req => {
   c.frame.refresh()
   return { bounds: c.base.getBounds(), visual: c.frame.visual() }
 })
+// For the tests: every place a page view is put, with the time (ui_motion.py,
+// Ctrl+S sliding the page with the column).
+benchRequest('window.pageTrace', req => {
+  const c = pick(req.window)
+  const trace = c.pageTrace ?? []
+  c.pageTrace = req.on ? [] : null
+  return { trace }
+})
 benchRequest('window.trace', req => {
   const c = pick(req.window)
   const trace = c.frame.trace
