@@ -64,6 +64,11 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .blurred .caption-buttons button:not(:hover) { color: var(--caption-rest); }
 /* the minimize line on a whole pixel */
 .caption-buttons .minimize svg { transform: translateY(.5px); }
+/* Full screen: the strip with the buttons that comes down from the top
+   (chrome/register.tsx), in the overlay over the page. */
+.reveal-strip { position: fixed; left: 0; right: 0; top: 0; height: var(--caption-height); background: var(--frame);
+  box-shadow: 0 1px 0 var(--hairline), 0 4px 12px rgba(0, 0, 0, .10); animation: reveal-in var(--dur-quick) var(--ease-quick); }
+@keyframes reveal-in { from { transform: translateY(-100%); } }
 
 /* Grips: resizing starts just outside and just inside the visible edge. */
 .grips { position: absolute; inset: var(--m-top) var(--m-right) var(--m-bottom) var(--m-left); pointer-events: none; z-index: 30; }
