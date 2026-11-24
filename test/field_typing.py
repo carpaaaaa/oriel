@@ -49,8 +49,15 @@ def typing(word, root, to, label, ending=None, offered=True):
     for i in range(1, len(word) + 1):
         key(word[i - 1], to)
         time.sleep(0.15)
+        # The list comes in at .98 for 140 ms: judged once it has settled,
+        # within a second. A field gone for good stays gone.
+        ok_now = lambda x: x and x["shown"] and x["inList"] and x["fixed"] == 0 and x["v"].startswith(word[:i]) and x["chip"] is None
+        end = time.time() + 1.0
         x = look(root)
-        good = x and x["shown"] and x["inList"] and x["fixed"] == 0 and x["v"].startswith(word[:i]) and x["chip"] is None
+        while not ok_now(x) and time.time() < end:
+            time.sleep(0.1)
+            x = look(root)
+        good = ok_now(x)
         if not good:
             print(f"   after {word[:i]!r}: {x}")
             ok = False
@@ -84,7 +91,8 @@ for mode in ("light", "dark"):
                 b.call({"do": "data.visit", "url": "https://github.com/", "title": "GitHub"})
         # the offer row is what broke the field: the sites typed here on
         b.cmd("prefs.set", key="search.sites", value=["GitHub", "Reddit", "YouTube", "Amazon", "Wikipedia"])
-        # a blank tab
+        # a blank tab, once its field is there with the keys
+        b.wait_for(lambda: b.ui("document.activeElement === document.querySelector('.field input')"), what="the field has the keys")
         typing("github", "chrome", "ui", label + ", blank tab", ".com" if history else None)
         if history:
             key("Return", "ui")
