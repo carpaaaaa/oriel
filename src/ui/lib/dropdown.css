@@ -1,0 +1,54 @@
+/* The pop-up button and its list (lib/Dropdown.tsx; studio/02 §4.6 menus,
+   §4.8 shadows, §6.1 quick and settle). Tokens from shared/tokens.css. */
+
+.dd-button {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 100%;
+  height: 24px; padding: 0 8px 0 10px; border-radius: 7px;
+  font: inherit; font-size: 12.5px; letter-spacing: var(--tracking-ui); color: var(--ink);
+  background: var(--ground);
+  box-shadow: inset 0 0 0 1px var(--hairline), 0 1px 2px rgba(0, 0, 0, .04);
+  transition: background var(--dur-quick) var(--ease-quick), box-shadow var(--dur-quick) var(--ease-quick);
+  white-space: nowrap; text-align: left; cursor: default;
+}
+.dd-button:hover:not(:disabled), .dd-button.open { background: var(--hover); }
+.dd-button:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--hairline), 0 0 0 3px rgb(var(--ink-rgb) / .14); }
+.dd-button:disabled { opacity: .4; }
+.dd-button.small { height: 22px; font-size: 11.5px; padding: 0 8px 0 10px; border-radius: 999px; }
+.dd-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.dd-arrows { flex: none; color: var(--muted); }
+
+/* The list: the rebuilt menu (SiteCard.swift MenuMetrics), on the app's ground. */
+.dd-list {
+  position: fixed; z-index: 1000; box-sizing: border-box;
+  padding: 5px 0; border-radius: 12px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  background: var(--ground); color: var(--ink);
+  box-shadow: 0 0 0 1px var(--hairline), 0 10px 30px rgba(0, 0, 0, .12), 0 2px 6px rgba(0, 0, 0, .06);
+  font-family: var(--font-ui); font-size: 13px; line-height: 16px; letter-spacing: var(--tracking-ui);
+  white-space: nowrap; user-select: none; cursor: default;
+  opacity: 0; transform: scale(.98) translateY(-2px); transform-origin: 50% 30%;
+}
+.dd-list::-webkit-scrollbar { display: none; }
+.dd-list.placed {
+  opacity: 1; transform: none;
+  transition: opacity var(--dur-quick) var(--ease-quick), transform var(--dur-settle) var(--ease-settle);
+}
+.dd-list.placed.leaving { opacity: 0; transform: scale(.99); transition: opacity var(--dur-quick) var(--ease-quick), transform var(--dur-quick) var(--ease-quick); }
+:root[data-look="dark"] .dd-list { box-shadow: 0 0 0 1px var(--hairline), 0 10px 30px rgba(0, 0, 0, .4), 0 2px 6px rgba(0, 0, 0, .2); }
+.dd-list.small { font-size: 12.5px; }
+
+/* A row: 24 high, the highlight 5 in from each edge with corners of 7, so
+   it runs concentric with the list's 12 (12 − 5 = 7). */
+.dd-row {
+  position: relative; height: 24px; margin: 0 5px; padding: 0 12px 0 22px; border-radius: 7px;
+  display: flex; align-items: center;
+}
+.dd-row.hot { background: var(--wash); }
+.dd-row.off { color: var(--faint); }
+.dd-tick { position: absolute; left: 7px; top: 7px; color: var(--ink); }
+.dd-label { flex: 1; }
+.dd-sep { height: 11px; display: flex; align-items: center; margin: 0 16px; }
+.dd-sep::after { content: ""; flex: 1; height: 1px; background: var(--hairline); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dd-list, .dd-list.placed, .dd-list.placed.leaving { transition: none; transform: none; }
+}
