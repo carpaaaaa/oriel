@@ -145,6 +145,9 @@ jobs:
       - name: Gone
         shell: pwsh
         run: |
+          # NSIS's uninstaller runs from a copy in Temp (Un_A.exe) and goes on
+          # after winget has its answer: wait for it to finish first.
+          Wait-Process -Name Un_A -Timeout 120 -ErrorAction SilentlyContinue
           if (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\Oriel\Oriel.exe')) { throw 'Oriel.exe is still there' }
           $left = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Oriel*' }
           if ($left) { throw 'The Apps & features entry is still there' }
