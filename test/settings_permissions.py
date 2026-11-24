@@ -106,12 +106,19 @@ b.cmd("tab.new", url=origin + "/other")
 b.wait_for(lambda: b.active()["title"] == "other", what="other tab")
 b.wait_for(lambda: (b.call({"do": "settings.state"})["asked"] or [{}])[-1].get("answer") == "left", what="refused on leaving")
 t.ok(not asking(), "leaving the tab refuses its question")
+# The refusal reaches the page before the window takes it off screen
+# (Chromium would hold a hidden page's answer and ask again on its return):
+# the page hears it at once, as on the Mac (Browser.cancelDisplay).
+b.wait_for(lambda: ev(page, "window.loc"), what="location settled")
+t.ok(ev(page, "window.loc") == "refused 1", "the page hears it at once (code 1)")
 t.ok(f"capture.{origin}|location" not in prefs(), "a question left unanswered keeps nothing")
-# The page behind is hidden, and Chromium holds its answer; shown again, the
-# page is still waiting and asks again: answered, it hears it.
 b.cmd("tab.select", id=page)
-b.wait_for(asking, what="asked again on return")
-t.ok(asking()["wants"] == "location", "back on the page, its still-waiting question comes up again")
+time.sleep(0.8)
+t.ok(not asking(), "back on the page, the question doesn't come up again")
+# Asked again, Don't allow: the page hears it and the refusal is kept.
+ev(page, "window.loc = null; navigator.geolocation.getCurrentPosition(() => window.loc = 'yes', e => window.loc = 'refused ' + e.code); 1")
+b.wait_for(asking, what="asked again")
+t.ok(asking()["wants"] == "location", "asked again, the question comes up")
 time.sleep(0.6)
 b.cmd("permission.answer", answer="deny")
 b.wait_for(lambda: ev(page, "window.loc"), what="location settled")

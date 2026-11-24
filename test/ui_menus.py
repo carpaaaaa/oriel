@@ -118,13 +118,14 @@ k.js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); ret
 time.sleep(0.3)
 t.ok(not k.js("return !!document.querySelector('.menu')", root="overlay"), "Escape closes it")
 t.ok(overlay_bounds() == {"kind": "none"}, f"…and the main process lets the overlay go (menu.close): {overlay_bounds()}")
-# The focus moves on the main process's turn: on a busy machine, a moment later.
-for _ in range(8):
+# Keys follow the focus only in a window in front: a quiet test world on a
+# Mac stays behind the person's apps (and is never brought forward).
+if b.window().get("focused"):
     b.key("k")
-    time.sleep(0.3)
-    if b.ev(front, "window.__keys"):
-        break
-t.ok("k" in (b.ev(front, "window.__keys") or []), f"…the keys back to the page in front (window.focusPage): {b.ev(front, 'window.__keys')}")
+    time.sleep(0.4)
+    t.ok(b.ev(front, "window.__keys") == ["k"], f"…the keys back to the page in front (window.focusPage): {b.ev(front, 'window.__keys')}")
+else:
+    print("  (the window isn't in front: where the keys go can't be followed here)")
 
 # Pin, then the pin's menu (§6.1-§6.11)
 context(f'.row[data-tab="{bb}"]')
