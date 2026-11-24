@@ -49,7 +49,7 @@ jobs:
         run: |
           New-Item -ItemType Directory manifests | Out-Null
           foreach ($f in 'CharStudio.Oriel.yaml', 'CharStudio.Oriel.installer.yaml', 'CharStudio.Oriel.locale.en-US.yaml') {
-            Invoke-WebRequest "https://raw.githubusercontent.com/carpaaaaa/winget-pkgs/${{ inputs.branch }}/manifests/c/CharStudio/Oriel/${{ inputs.version }}/$f" -OutFile "manifests/$f"
+            Invoke-WebRequest "https://raw.githubusercontent.com/carpaaaaa/winget-pkgs/${{ inputs.branch }}/manifests/c/CharStudio/Oriel/${{ inputs.version }}/$f" -OutFile "manifests/$f" -MaximumRetryCount 5 -RetryIntervalSec 5
           }
       - name: Validate
         shell: pwsh
@@ -59,7 +59,8 @@ jobs:
           if ($out -notmatch 'Manifest validation succeeded') { exit 1 }
           exit 0
       - name: Install
-        run: winget install --manifest manifests --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+        timeout-minutes: 8
+        run: winget install --manifest manifests --silent --accept-package-agreements --accept-source-agreements --disable-interactivity --verbose-logs
       - name: What the installer wrote
         shell: pwsh
         run: |
@@ -84,3 +85,14 @@ jobs:
           $left = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Oriel*' }
           if ($left) { throw 'The Apps & features entry is still there' }
           'Uninstalled cleanly'
+      - name: What was running, if it stalled
+        if: failure() || cancelled()
+        shell: pwsh
+        run: Get-Process | Where-Object { $_.ProcessName -match 'Oriel|winget|AppInstaller|Setup|Un_A|nsis|smartscreen|consent' } | Format-Table ProcessName, Id, StartTime, Path -AutoSize
+      - name: winget's logs
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: winget-logs-${{ matrix.os }}
+          path: ~\AppData\Local\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\DiagOutputDir\
+          if-no-files-found: ignore
