@@ -68,8 +68,6 @@ export interface ShortcutLine {
   /** Windows' other keys for it (Close Tab: Ctrl+F4 too). */
   also: string[]
   changed: boolean
-  /** Shown, not changed here. */
-  fixed?: boolean
   /** The extension a command comes from. */
   detail?: string
 }
@@ -79,8 +77,6 @@ export interface ShortcutsView {
   /** The tab numbers' line, in Tabs. */
   numbers: { keys: string; note: string }
   extensions: ShortcutLine[]
-  /** Keys that are always these (keys.ts's fixed ones). */
-  fixed: ShortcutLine[]
   /** Something to reset: a key changed, or the peek's click. */
   changed: boolean
 }

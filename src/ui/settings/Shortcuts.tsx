@@ -13,7 +13,7 @@ import type { ShortcutLine, ShortcutsView } from '../../shared/modules/settings'
 
 // Kept by id: a command's box, listening for a key, stays through updates.
 type View = Omit<ShortcutsView, 'sections'> & { sections: (ShortcutsView['sections'][number] & { id: string })[]; ready: boolean }
-const [view, setView] = createStore<View>({ sections: [], numbers: { keys: '', note: '' }, extensions: [], fixed: [], changed: false, ready: false })
+const [view, setView] = createStore<View>({ sections: [], numbers: { keys: '', note: '' }, extensions: [], changed: false, ready: false })
 async function load(): Promise<void> {
   const v = await call<ShortcutsView>({ do: 'settings.shortcuts' })
   if (v) setView(reconcile({ ...v, sections: v.sections.map(s => ({ ...s, id: s.name })), ready: true }, { key: 'id' }))
@@ -47,8 +47,7 @@ export function ShortcutsEditor() {
       || [1, 2, 3, 4, 5, 6, 7, 8, 9].some(n => squash(`${mod}+${n}`).includes(squash(w)))
   }
   const extensions = () => view.extensions.filter(fits)
-  const fixed = () => view.fixed.filter(fits)
-  const nothing = () => !view.sections.some(s => s.lines.some(fits)) && !numbersFit() && !extensions().length && !fixed().length
+  const nothing = () => !view.sections.some(s => s.lines.some(fits)) && !numbersFit() && !extensions().length
   return (
     <div class="kbset">
       <Hunt value={hunt()} set={setHunt} prompt="Search commands or keys" />
@@ -81,12 +80,6 @@ export function ShortcutsEditor() {
               <Card><Lines lines={extensions()} /></Card>
             </div>
           </Show>
-          <Show when={fixed().length}>
-            <div class="kbset-section" data-section="Fixed">
-              <Caption text="Always these keys" />
-              <Card><Lines lines={fixed()} /></Card>
-            </div>
-          </Show>
           <Show when={view.changed && !words()}>
             <div class="kbset-reset"><Pill title="Reset All to Defaults" act={() => void call({ do: 'settings.shortcutResetAll' })} /></div>
           </Show>
@@ -111,11 +104,9 @@ function CommandLine(q: { line: ShortcutLine }) {
   let openAt: ((at: { x: number; y: number }) => void) | undefined
   const detail = () => [q.line.detail, q.line.also.length ? `Also ${q.line.also.join(', ')}` : ''].filter(Boolean).join(' · ')
   return (
-    <div class="kbset-row" data-command={q.line.id} onContextMenu={e => { if (q.line.fixed) return; e.preventDefault(); openAt?.({ x: e.clientX, y: e.clientY }) }}>
+    <div class="kbset-row" data-command={q.line.id} onContextMenu={e => { e.preventDefault(); openAt?.({ x: e.clientX, y: e.clientY }) }}>
       <Line title={q.line.title} detail={detail() || undefined} class="kbset-line">
-        <Show when={!q.line.fixed} fallback={<span class="kbset-key fixed" title="Can't be changed">{q.line.key ?? 'None'}</span>}>
-          <KeyBox line={q.line} />
-        </Show>
+        <KeyBox line={q.line} />
       </Line>
       <PopMenu label={`Shortcut for ${q.line.title}`} opener={o => (openAt = o)} items={() => [
         { label: 'Clear Shortcut', disabled: !q.line.key, act: () => void call({ do: 'settings.shortcutClear', id: q.line.id }) },

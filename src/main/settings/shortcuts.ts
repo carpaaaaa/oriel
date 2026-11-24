@@ -19,8 +19,9 @@ import { pref, setKey } from './prefs'
 const SECTIONS = ['Search', 'File', 'Edit', 'View', 'Tabs', 'Spaces', 'Profiles', 'Bookmarks', 'History'] as const
 const AI = new Set(['view.summarize', 'view.ask'])
 const DUSK = new Set(['view.dusk', 'view.duskPause'])
-/** The keys that pick a tab by its place: one line, "Tab 1 to 9". */
-const NUMBERS = new Set([...[1, 2, 3, 4, 5, 6, 7, 8].map(n => `tab.${n}`), 'tab.last'])
+/** A command whose other keys are the same key spelled otherwise: ⌘+ is
+ * ⇧⌘= on some keyboards (KeyCombo.init), so a new key takes all their place. */
+const SAME_KEY = new Set(['view.zoomIn'])
 /** Never an extension's: closing, a new tab or window (KeyCombo.isBrowserOnly). */
 const BROWSER_ONLY = /^Ctrl\+(Shift\+)?(Alt\+)?[WTN]$/
 
@@ -44,13 +45,14 @@ const keyOf = (name: string) => (name.endsWith('++') ? '+' : name.split('+').pop
 
 const swapped = () => !!pref('spaces') && !!pref('spaces.commandNumbers')
 /** Not changed here: the Mac's own (Quit, Full Screen) and keys.ts's fixed
- * section (Escape, Alt+F4, Ctrl+Shift+Tab...). */
+ * section (Escape, Alt+F4, Ctrl+Shift+Tab...). Not listed either, as the
+ * Mac's Command.all hasn't them; only Tab 1 to 9 is shown (FixedKey). */
 const fixed = (b: Binding) => !!b.fixed || b.section === 'Fixed'
 
 /** In the list, as the Mac's ShortcutsPage.shown: what has nothing behind it
  * here, or belongs to a feature turned off, isn't listed. */
 function shown(b: Binding): boolean {
-  if (b.section === 'Fixed' || !live(b)) return false
+  if (fixed(b) || !live(b)) return false
   if (b.section === 'Spaces' && !pref('spaces')) return false
   if (b.section === 'Profiles' || AI.has(b.id)) return false
   if (DUSK.has(b.id) && !pref('pages.dusk')) return false
@@ -62,7 +64,7 @@ function shown(b: Binding): boolean {
 
 function lineOf(b: Binding, c: Changed): ShortcutLine {
   const keys = keysOf(b).map(display)
-  return { id: b.id, title: b.title, key: keys[0] ?? null, also: keys.slice(1), changed: !fixed(b) && !!c[b.id], fixed: fixed(b) || undefined }
+  return { id: b.id, title: b.title, key: keys[0] ?? null, also: keys.slice(1), changed: !!c[b.id] }
 }
 
 /** An extension's command's key unless changed: its manifest's, while that
@@ -83,7 +85,6 @@ function view(): ShortcutsView {
     sections,
     numbers: { keys: swapped() ? 'Alt+1 to Alt+9' : 'Ctrl+1 to Ctrl+9', note },
     extensions: extensionCommands().map(e => ({ id: e.id, title: e.title, detail: e.extension, key: e.key ? display(e.key) : null, also: [], changed: !!c[e.id] })),
-    fixed: bindings.filter(b => b.section === 'Fixed' && !NUMBERS.has(b.id) && live(b)).map(b => lineOf(b, c)),
     changed: Object.keys(c).length > 0 || (pref<string>('links.peekClick') ?? 'shift') !== 'shift',
   }
 }
@@ -101,6 +102,15 @@ function keysNow(c: Changed, id: string): string[] {
   if (c[id]) return (c[id].keys ?? []).map(canonical)
   if (isExt(id)) { const k = extensionCommands().find(e => e.id === id)?.key; return k ? [k] : [] }
   return defaultsOf(id)
+}
+
+/** Windows' other keys for a command (Close Tab's Ctrl+F4, Reload's F5),
+ * kept beside a new key: the ones it has now, or, after Clear Shortcut,
+ * the table's that no other command has taken. */
+function extrasOf(c: Changed, id: string): string[] {
+  if (isExt(id) || SAME_KEY.has(id)) return []
+  if (c[id] && !c[id].keys) return defaultsOf(id).slice(1).filter(k => !owner(k, id))
+  return keysNow(c, id).slice(1)
 }
 
 /** Only a difference from the default is kept. */
@@ -142,7 +152,8 @@ handle('settings.shortcutKey', ({ id, chord, again }) => {
   if (other && again !== name) return { owner: other.title, name: display(name), again: name }
   const c = changed()
   if (other) setFor(c, other.id, keysNow(c, other.id).filter(k => k !== name))
-  setFor(c, id, [name])
+  // The key in the box changes; Windows' other keys for it stay.
+  setFor(c, id, [name, ...extrasOf(c, id).filter(k => k !== name)])
   save(c)
   return { done: true, said: other ? `${display(name)} moved from ${other.title}` : null }
 })
