@@ -486,6 +486,17 @@ export class Frame {
     if (now.x !== d.x || now.y !== d.y || now.width !== d.width || now.height !== d.height) b.setBounds(d)
   }
 
+  /** Full screen put on for a page's own (pagefull.ts), to be taken off with it. */
+  private byPage = false
+
+  /** A page entered or left its own full screen: the window covers the
+   * screen meanwhile (Electron leaves a maximized window as it is). */
+  pageFull(on: boolean): void {
+    if (this.c.base.isDestroyed()) return
+    if (on && !this.isFullScreen()) { this.byPage = true; this.setFullScreen(true) }
+    else if (!on && this.byPage) { this.byPage = false; if (this.isFullScreen()) this.setFullScreen(false) }
+  }
+
   /** Was maximized under full screen (windows.json keeps it maximized). */
   maximizedUnderFull(): boolean { return !!this.fromMax }
 
