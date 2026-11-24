@@ -7,6 +7,7 @@ import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid
 import { state, cmd, activeTab } from '../lib/store'
 import { Sidebar } from '../sidebar/Sidebar'
 import { Field } from '../field/Field'
+import { outlet } from '../lib/registry'
 import { WinClose, WinMaximize, WinMinimize, WinRestore } from '../lib/icons'
 import { EDGES, gripDown, wireFrame } from './frame'
 import { Panes } from './Split'
@@ -101,7 +102,9 @@ export function ChromeRoot() {
           <Show when={split()} fallback={<>
             <Show when={activeTab()?.empty}>
               <div class="empty-page">
+                <For each={outlet('blank.under')}>{C => <C />}</For>
                 <Field place="page" />
+                <For each={outlet('blank.over')}>{C => <C />}</For>
               </div>
             </Show>
             <Show when={activeTab()?.error}>
