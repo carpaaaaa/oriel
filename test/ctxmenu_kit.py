@@ -209,8 +209,17 @@ def is_open():
     return bool(last()["open"])
 
 
+def _reopen_if_gone(menu):
+    """A test window loses its focus now and then on a Mac shared with other
+    windows (and the menu goes with it, as it should): open it again."""
+    if menu == 0 and not dom_items(0) and LAST_CLICK[0]:
+        print("  (the window lost its focus: the menu again)")
+        right_click_at(*LAST_CLICK[0])
+
+
 def pick(label, menu=0, wait=0.6):
     """Pointer over the row, then released on it."""
+    _reopen_if_gone(menu)
     ok = ojs(f"const m = document.querySelectorAll('.ctx-host .menu')[{menu}]; const e = m && [...m.querySelectorAll('.menu-item')].find(x => x.dataset.label === {json.dumps(label)});"
              " if (!e) return false; e.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true })); e.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 })); return true")
     if not ok:
@@ -263,6 +272,7 @@ def shot(name):
 def style_check(t):
     """The rows as the menus are drawn (studio/02 §4.6): 24 high, corners of
     12, the highlight 5 in with corners of 7, in grey, never blue."""
+    _reopen_if_gone(0)
     first = ojs("const m = document.querySelector('.ctx-host .menu'); const i = [...m.querySelectorAll('.menu-item')].find(x => !x.classList.contains('off'));"
                 " i.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true })); return i.dataset.label")
     time.sleep(0.25)

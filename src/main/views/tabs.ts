@@ -278,25 +278,29 @@ export class TabRuntime {
       canGoBack: wc.navigationHistory.canGoBack(),
       canGoForward: wc.navigationHistory.canGoForward(),
     })
+    // A page's source (View Page Source) is told by its inner address:
+    // the tab keeps saying view-source:, as Chrome's address does.
+    const shown = (url: string) => (this.record?.url === `view-source:${url}` ? this.record.url : url)
     wc.on('did-start-navigation', details => {
       if (!details.isMainFrame || details.isSameDocument || !details.url || details.url === 'about:blank') return
       const t = this.record
       if (!t || details.url.startsWith('chrome-error:')) return
       // The address goes forward as soon as the load starts; the title waits
       // for the page (§2.7, §2.8).
-      update({ url: details.url, ...(t.url !== details.url ? { title: '' } : {}) })
+      const url = shown(details.url)
+      update({ url, ...(t.url !== url ? { title: '' } : {}) })
     })
     wc.on('did-start-loading', () => update({ loading: true }))
     wc.on('did-stop-loading', () => { update({ loading: false }); nav() })
     wc.on('did-navigate', (_e, url) => {
       // A new document: whatever the last one captured has ended with it.
-      if (url && url !== 'about:blank' && !url.startsWith('chrome-error:')) update({ url, error: undefined, dead: undefined, crashed: undefined, capturing: undefined })
+      if (url && url !== 'about:blank' && !url.startsWith('chrome-error:')) update({ url: shown(url), error: undefined, dead: undefined, crashed: undefined, capturing: undefined })
       nav()
-      this.visit(url)
+      this.visit(shown(url))
     })
     wc.on('did-navigate-in-page', (_e, url, isMainFrame) => {
       if (!isMainFrame) return
-      update({ url })
+      update({ url: shown(url) })
       nav()
       // Another page by pushState counts; a fragment alone doesn't.
       if (url.split('#')[0] !== this.lastVisit.split('#')[0]) this.visit(url)

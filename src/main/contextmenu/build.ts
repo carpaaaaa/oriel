@@ -13,6 +13,8 @@ export interface Facts {
   shy: boolean
   /** One of Oriel's own pages (oriel://). */
   internal: boolean
+  /** Split View on (Settings, `splitView`): its rows only then (§3.38). */
+  split: boolean
   canBack: boolean
   canForward: boolean
   /** The engine searches go to, and the others for Search With. */
@@ -110,7 +112,7 @@ export function buildMenu(p: Electron.ContextMenuParams, f: Facts): PageMenuEntr
         { label: 'Open Link in New Tab', act: { cmd: { do: 'ctx.open', url: link, where: 'tab', from: id } } },
         { label: 'Open Link in New Window', act: { cmd: { do: 'ctx.open', url: link, where: 'window', from: id } } },
         ...(f.shy ? [] : [{ label: 'Open Link in Private Window', act: { cmd: { do: 'ctx.open', url: link, where: 'private', from: id } } } as PageMenuEntry]),
-        ...(f.internal ? [] : [{ label: 'Open Link in Split View', act: { cmd: { do: 'ctx.open', url: link, where: 'split', from: id } } } as PageMenuEntry]),
+        ...(f.internal || !f.split ? [] : [{ label: 'Open Link in Split View', act: { cmd: { do: 'ctx.open', url: link, where: 'split', from: id } } } as PageMenuEntry]),
       ])
       if (/^(https?|ftp|data|blob):/i.test(link)) groups.push([{ label: 'Download Linked File', act: { cmd: { do: 'ctx.save', id, url: link } } }])
       groups.push([
@@ -126,7 +128,7 @@ export function buildMenu(p: Electron.ContextMenuParams, f: Facts): PageMenuEntr
       const lens = f.engine.id === 'bing' ? 'Bing' : 'Google'
       groups.push([
         { label: 'Open Image in New Tab', act: { cmd: { do: 'ctx.open', url: src, where: 'tab', from: id } } },
-        ...(f.internal || !web(src) ? [] : [{ label: 'Open Image in Split View', act: { cmd: { do: 'ctx.open', url: src, where: 'split', from: id } } } as PageMenuEntry]),
+        ...(f.internal || !f.split || !web(src) ? [] : [{ label: 'Open Image in Split View', act: { cmd: { do: 'ctx.open', url: src, where: 'split', from: id } } } as PageMenuEntry]),
       ])
       groups.push([
         { label: 'Save Image As…', act: { cmd: { do: 'ctx.save', id, url: src, ask: true } } },
