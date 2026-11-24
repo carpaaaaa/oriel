@@ -168,6 +168,8 @@ for state in ("free", "maximized"):
     for i in range(3):
         pointer(v["x"] + 2, v["y"] + v["height"] / 2)
         out = settle(lambda: edges()["peek"], "out", within=3)
+        # Its slide over (a busy machine draws it late): measured where it rests.
+        settle(lambda: b.ui("document.getAnimations().length === 0 && !!document.querySelector('.fold-out')", root="overlay"), "settled", within=2)
         doors = json.loads(b.ui("JSON.stringify((() => { " + SEEN + " return [...document.querySelectorAll('.fold-out .helm > .door')].map(e => seen(e, null)) })())", root="overlay")) if out else []
         t.ok(out and len(doors) == 3 and all(x["shown"] and x["top"] for x in doors), f"{state}: the pointer at the edge, the column out with its doors ({i + 1}: {len(doors)})")
         region = edges()["region"]

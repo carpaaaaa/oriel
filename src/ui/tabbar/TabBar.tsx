@@ -58,10 +58,14 @@ export function TabBar() {
   onMount(() => {
     // The strip's own width: the window drawn by Oriel is narrower than the
     // view by its clear margin (window/frame.ts ROOM).
-    const ro = new ResizeObserver(() => { setWidth(bar.clientWidth); setFarW(far.offsetWidth); nearNow() })
+    const read = () => { setWidth(bar.clientWidth); setFarW(far.offsetWidth); nearNow() }
+    const ro = new ResizeObserver(read)
     ro.observe(bar)
     ro.observe(far)
-    createEffect(on(onLeft, () => queueMicrotask(() => { if (near?.isConnected) ro.observe(near); nearNow() })))
+    // Read at once too: a window that draws no frame yet (covered, asleep)
+    // delivers no ResizeObserver, and the tabs were sized for the view.
+    read()
+    createEffect(on(onLeft, () => queueMicrotask(() => { if (near?.isConnected) ro.observe(near); read() })))
     onCleanup(() => ro.disconnect())
   })
 
@@ -73,11 +77,13 @@ export function TabBar() {
   const controls = () => (state.chrome === 'windows' ? state.controlsWidth : 0)
   // TabBar.swift:656-690: the room, what the pins, names and bands spend, each tab's width.
   const each = createMemo(() => {
-    const room = width() - controls() - lights() - (onLeft() ? nearW() : 0) - dot() - 12 - PLUS - HOLD - farW() - 3 * GAP
+    // + is 29 wide and has the row's gap before it (the Mac's 30 left the row 1 over).
+    const room = width() - controls() - lights() - (onLeft() ? nearW() : 0) - dot() - 12 - (PLUS - 1 + GAP) - HOLD - farW() - 3 * GAP
     const open = groups().filter(x => !x.g.folded)
     const shown = loose().length + open.reduce((n, x) => n + x.tabs.length, 0) + groups().filter(x => x.g.folded && x.tabs.some(t => t.id === state.activeID)).length
     const names = groups().reduce((w, x) => w + measure(x.g.name) + 20, 0)
-    const line = pins().length && (groups().length || loose().length) ? 3 : 0
+    // The line between pins and tabs: 1 and its margins, and the row's gap after it.
+    const line = pins().length && (groups().length || loose().length) ? 3 + GAP : 0
     const spend = pins().length * PIN + names + Math.max(0, pins().length + shown + groups().length - 1) * GAP + line + open.length * 8
     return Math.max(MIN, Math.min(TAB, (room - spend) / Math.max(1, shown)))
   })

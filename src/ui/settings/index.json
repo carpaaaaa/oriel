@@ -430,6 +430,25 @@
    "kind": "wide"
   },
   {
+   "id": "window.buttons",
+   "group": "themes",
+   "icon": "macwindow",
+   "title": "Window buttons",
+   "detail": "Inline, as doors beside the tabs, or Classic, in the corner as in Windows",
+   "keys": [
+    "window.buttons"
+   ],
+   "words": [
+    "minimize",
+    "maximize",
+    "close",
+    "caption buttons",
+    "title bar",
+    "window controls"
+   ],
+   "kind": "wide"
+  },
+  {
    "id": "look",
    "group": "theme",
    "icon": "circle.lefthalf.filled",

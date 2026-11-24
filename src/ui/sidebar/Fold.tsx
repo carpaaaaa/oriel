@@ -30,11 +30,24 @@ export function FoldLayer(p: { layer: OverlayLayer }) {
     if (pref('sidebar.slides', false)) return out ? { duration: 260, easing: 'cubic-bezier(0, 0, .58, 1)' } : { duration: 220, easing: 'cubic-bezier(.42, 0, 1, 1)' }
     return curve(out ? Springs.foldOut : Springs.foldIn)
   }
-  onMount(() => {
-    el.animate([{ transform: away() }, { transform: 'none' }], { ...timing(true), fill: 'none' })
-  })
+  let back: Animation | null = null
+  const comeOut = () => {
+    // Met on its way back (Fold.swift: it turns round): from where it is.
+    const from = back ? getComputedStyle(el).transform : away()
+    back?.cancel()
+    back = null
+    const t = timing(true)
+    el.dataset.out = `${t.duration} ${t.easing.slice(0, 40)}`
+    el.animate([{ transform: from === 'none' ? away() : from }, { transform: 'none' }], { ...t, fill: 'none' })
+  }
+  onMount(comeOut)
   createEffect(on(() => !!(p.layer as { going?: boolean }).going, going => {
-    if (going) el.animate([{ transform: 'none' }, { transform: away() }], { ...timing(false), fill: 'forwards' })
+    if (going) {
+      const t = timing(false)
+      el.dataset.back = `${t.duration} ${t.easing.slice(0, 40)}`
+      back = el.animate([{ transform: 'none' }, { transform: away() }], { ...t, fill: 'forwards' })
+    }
+    else comeOut()
   }, { defer: true }))
   return (
     <div ref={el} class="fold-out on-frame" data-tabs-ui="fold" classList={{ right: !strip() && state.sidebar.side === 'right', top: strip() }}

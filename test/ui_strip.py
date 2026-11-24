@@ -62,13 +62,12 @@ part = k.js("const e = document.querySelector('.strip-tab'); const m = e.querySe
 t.ok(k.near(part[0], 11) and k.near(part[1], 15) and k.near(part[2], 6) and k.near(part[3], 7) and k.near(part[4], 15), f"air 11, mark 15, 6, title … slot 15, air 7: {part}")
 # Narrower in equal parts, they fit the window drawn by Oriel (the strip is
 # measured, not the view with its clear margin), the far end before the buttons.
-# (The row's sums leave 3 over: the pin line's gap and the +'s; the margin was 80.)
 some = {**s, "tabs": s["tabs"] + [{**s["tabs"][-1], "id": f"y{i}", "label": f"Tab {i}", "title": f"Tab {i}", "url": f"https://example{i}.com/"} for i in range(6)]}
 k.fake(some, look="light")
 time.sleep(0.4)
 fit = k.js("const r = document.querySelector('.strip-row'); const f = rel(document.querySelector('.strip-far').getBoundingClientRect());"
-           " return [r.scrollWidth - r.clientWidth, f.right, W0.width, document.querySelector('.strip-tab').getBoundingClientRect().width]")
-t.ok(fit[3] < 186 and fit[0] <= 4 and fit[1] <= fit[2] - 138 + 0.5, f"shrunk to fit: nothing hidden in the row, the far end before the window's buttons: {fit}")
+           " const c = document.querySelector('.window > .caption-buttons'); return [r.scrollWidth - r.clientWidth, f.right, c ? rel(c.getBoundingClientRect()).x : W0.width, document.querySelector('.strip-tab').getBoundingClientRect().width]")
+t.ok(fit[3] < 186 and fit[0] <= 0 and fit[1] <= fit[2] + 0.5, f"shrunk to fit: nothing hidden in the row, the far end before the window's buttons: {fit}")
 many = {**s, "tabs": s["tabs"] + [{**s["tabs"][-1], "id": f"x{i}", "label": f"Tab {i}", "title": f"Tab {i}", "url": f"https://example{i}.com/"} for i in range(30)]}
 k.fake(many, look="light")
 time.sleep(0.4)
@@ -132,7 +131,8 @@ k.fake({**few, "prefs": {**few["prefs"], "toolbar.left": False}}, look="light")
 time.sleep(0.4)
 d = k.js(DOORS)
 W = k.rect(".window")
-t.ok(len(d) == 3 and all(x[3] for x in d) and d[2][0] + 26 <= W["w"] - 138 + 0.5 and k.near(k.wrect(".strip-pin")["x"], 14),
+caps = k.wrect(".window > .caption-buttons")
+t.ok(len(d) == 3 and all(x[3] for x in d) and d[2][0] + 26 <= caps["x"] + 0.5 and k.near(k.wrect(".strip-pin")["x"], 14),
      f"off: at the far end before the window's buttons, the pins 12 in again: {d}")
 k.fake({**k.fixture("many"), "prefs": {"toolbar.left": False}}, look="light")
 time.sleep(0.4)

@@ -18,8 +18,13 @@ function rest(folded: boolean): void {
   }
 }
 
+let buttons = model.pref<string>('window.buttons')
+
 model.on('window-changed', (_id: string, slices: string[]) => {
   if (!slices.includes('prefs')) return
+  // Window buttons changed: their room at the strip's end with it.
+  const style = model.pref<string>('window.buttons')
+  if (style !== buttons) { buttons = style; for (const c of allControllers()) c.mark('window') }
   const now = !!model.pref<boolean>('sidebar.hides')
   if (now === hides) return
   hides = now

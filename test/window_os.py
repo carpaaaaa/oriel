@@ -298,13 +298,17 @@ try:
     # 4. The maximize button, then restore.
     v = frame()["visual"]
     normal = frame()["bounds"]
-    click(px(v["x"] + v["width"] - 46 - 23), px(v["y"] + 20), 0.8)
+    # Where the maximize button is, whichever Window buttons (Inline doors or Classic places).
+    mb = json.loads(b.ui("JSON.stringify(document.querySelector('.window > .caption-buttons .maximize').getBoundingClientRect())"))
+    bounds = frame()["bounds"]
+    click(px(bounds["x"] + mb["x"] + mb["width"] / 2), px(bounds["y"] + mb["y"] + mb["height"] / 2), 0.8)
     f = frame()
     note("maximize button", frame=f)
     t.ok(f["state"] == "maximized" and f["visual"] == f["workArea"], "the maximize button maximizes (%s)" % f["state"])
     grab("4-maximized")
-    v = f["visual"]
-    click(px(v["x"] + v["width"] - 46 - 23), px(v["y"] + 20), 0.8)
+    mb = json.loads(b.ui("JSON.stringify(document.querySelector('.window > .caption-buttons .maximize').getBoundingClientRect())"))
+    bounds = frame()["bounds"]
+    click(px(bounds["x"] + mb["x"] + mb["width"] / 2), px(bounds["y"] + mb["y"] + mb["height"] / 2), 0.8)
     f = frame()
     t.ok(f["state"] == "free" and f["bounds"] == normal, "the button restores (%s)" % f["bounds"])
 

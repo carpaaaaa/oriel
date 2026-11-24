@@ -7,16 +7,12 @@
 import { createEffect, createRoot } from 'solid-js'
 import { registerPanel } from '../lib/registry'
 import { cmd, state } from '../lib/store'
-import { WinClose, WinMinimize, WinRestore } from '../lib/icons'
+import { CaptionButtons, buttonStyle } from './Buttons'
 
 function Reveal() {
   return (
-    <div class="reveal-strip" data-window-ui="reveal">
-      <div class="caption-buttons">
-        <button class="minimize" title="Minimize" onClick={() => cmd({ do: 'window.minimize' })}><WinMinimize /></button>
-        <button class="maximize" title="Exit Full Screen" onClick={() => cmd({ do: 'window.fullScreen', on: false })}><WinRestore /></button>
-        <button class="close" title="Close" onClick={() => cmd({ do: 'window.close' })}><WinClose /></button>
-      </div>
+    <div class="reveal-strip" classList={{ inline: buttonStyle() === 'inline' }} data-window-ui="reveal">
+      <CaptionButtons full />
     </div>
   )
 }

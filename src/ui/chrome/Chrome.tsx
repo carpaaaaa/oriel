@@ -8,7 +8,7 @@ import { state, cmd, activeTab } from '../lib/store'
 import { Sidebar } from '../sidebar/Sidebar'
 import { Field } from '../field/Field'
 import { outlet } from '../lib/registry'
-import { WinClose, WinMaximize, WinMinimize, WinRestore } from '../lib/icons'
+import { CaptionButtons, buttonStyle } from './Buttons'
 import { EDGES, gripDown, wireFrame } from './frame'
 import { Panes } from './Split'
 
@@ -100,7 +100,7 @@ export function ChromeRoot() {
         '--grip-out': `${state.frame?.grip.outside ?? 8}px`, '--grip-in': `${state.frame?.grip.inside ?? 4}px`,
         '--grip-corner': `${state.frame?.grip.corner ?? 20}px`,
       }}>
-      <div class="window on-frame" classList={{ windows: state.chrome === 'windows', blurred: !state.focused, top: strip(), 'col-right': onRight(), [`room-${state.room?.side}`]: !!state.room }}
+      <div class="window on-frame" classList={{ windows: state.chrome === 'windows', blurred: !state.focused, top: strip(), 'col-right': onRight(), compact: pref('tabs.compact'), 'btn-inline': ownButtons() && buttonStyle() === 'inline', [`room-${state.room?.side}`]: !!state.room }}
         style={{ '--side': `${side()}px`, '--top': strip() ? (pref('tabs.compact') ? 'var(--strip-compact)' : 'var(--strip)') : undefined, '--room': `${state.room?.width ?? 0}px` }}>
         <Show when={!state.sidebar.folded}>
           <Sidebar />
@@ -129,13 +129,7 @@ export function ChromeRoot() {
           <div class="loading-line" data-window-ui="loading-line"><span /></div>
         </Show>
         <Show when={ownButtons()}>
-          <div class="caption-buttons">
-            <button class="minimize" title="Minimize" onClick={() => cmd({ do: 'window.minimize' })}><WinMinimize /></button>
-            <button class="maximize" title={state.maximized ? 'Restore Down' : 'Maximize'} onClick={() => cmd({ do: 'window.maximize' })}>
-              {state.maximized ? <WinRestore /> : <WinMaximize />}
-            </button>
-            <button class="close" title="Close" onClick={() => cmd({ do: 'window.close' })}><WinClose /></button>
-          </div>
+          <CaptionButtons />
         </Show>
       </div>
       <Show when={resizable()}>

@@ -121,26 +121,41 @@ time.sleep(0.4)
 v = frame()["visual"]
 
 
-def anims():
-    return k.js("return document.getAnimations().map(a => { const t = a.effect.getTiming(); return [t.duration, t.easing] })", root="overlay")
+def timing(which):
+    """How the fold-out last moved (its own record: the animations end before a look)."""
+    v_ = k.js(f"const e = document.querySelector('.fold-out'); return e && e.dataset.{which}", root="overlay")
+    return (v_ or "").split(" ", 1) if v_ else None
 
 
-for slides, out_ms, in_ms in ((False, None, None), (True, 260, 220)):
+for slides in (False, True):
     setting("sidebar.slides", slides)
     pointer(v["x"] + 2, v["y"] + 300)
     settle(lambda: edges()["peek"], "out", within=2)
-    a_out = anims()
+    a_out = settle(lambda: timing("out"), "its slide", within=2)
     pointer(*away)
     going = settle(lambda: edges()["going"], "going back", within=2)
-    a_in = anims()
+    a_in = timing("back") if going else None
     gone = settle(lambda: not edges()["going"] and not edges()["peek"], "gone", within=2)
     if slides:
-        t.ok(any(x[0] == 260 and x[1].startswith("cubic-bezier(0, 0, 0.58, 1)") for x in a_out), f"Slide the column in and out: out on ease-out 0.26 ({a_out})")
-        t.ok(going and any(x[0] == 220 and x[1].startswith("cubic-bezier(0.42, 0, 1, 1)") for x in a_in), f"…back on ease-in 0.22 ({a_in})")
+        t.ok(a_out and a_out[0] == "260" and a_out[1].startswith("cubic-bezier(0, 0, .58, 1)"), f"Slide the column in and out: out on ease-out 0.26 ({a_out})")
+        t.ok(a_in and a_in[0] == "220" and a_in[1].startswith("cubic-bezier(.42, 0, 1, 1)"), f"…back on ease-in 0.22 ({a_in})")
     else:
-        t.ok(any(x[1].startswith("linear(") for x in a_out), f"out on the fold-out spring ({a_out})")
-        t.ok(going and any(x[1].startswith("linear(") and 150 <= x[0] <= 260 for x in a_in), f"the pointer gone, it slides back on the fold-in spring, not just gone ({a_in})")
+        t.ok(a_out and a_out[1].startswith("linear("), f"out on the fold-out spring ({a_out})")
+        t.ok(a_in and a_in[1].startswith("linear(") and 150 <= float(a_in[0]) <= 260, f"the pointer gone, it slides back on the fold-in spring, not just gone ({a_in})")
     t.ok(gone, "…and the overlay is let go once it has")
+# Met on its way back, it turns round and comes out whole.
+pointer(v["x"] + 2, v["y"] + 300)
+settle(lambda: edges()["peek"], "out", within=2)
+time.sleep(0.4)
+pointer(*away)
+settle(lambda: edges()["going"], "going back", within=2)
+pointer(v["x"] + 2, v["y"] + 300)
+settle(lambda: edges()["peek"], "out again", within=2)
+time.sleep(0.6)
+x = k.js("const e = document.querySelector('.fold-out'); return e && e.getBoundingClientRect().x", root="overlay")
+t.ok(x is not None and abs(x) <= 0.5, f"met on its way back, it turns round and rests out ({x})")
+pointer(*away)
+settle(lambda: not edges()["going"] and not edges()["peek"], "gone", within=2)
 setting("sidebar.slides", False)
 b.cmd("sidebar.fold", folded=False)
 time.sleep(0.3)

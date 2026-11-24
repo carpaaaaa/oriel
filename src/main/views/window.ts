@@ -84,7 +84,8 @@ export class WindowController {
     this.overlay.setBounds({ x: 0, y: 0, width: 0, height: 0 })
     this.ui.webContents.loadFile(uiPage, { query: { root: 'chrome' } })
     this.overlay.webContents.loadFile(uiPage, { query: { root: 'overlay' } })
-    this.ui.webContents.once('did-finish-load', () => { if (!this.base.isVisible()) this.base.show() })
+    // A window closed before its interface had loaded: nothing to show.
+    this.ui.webContents.once('did-finish-load', () => { if (!this.base.isDestroyed() && !this.base.isVisible()) this.base.show() })
 
     this.layout()
     // The frame is read again first, so the margin is right before the pages move.
@@ -154,7 +155,8 @@ export class WindowController {
       focused: this.base.isFocused(),
       maximized: this.base.isMaximized(),
       fullScreen: this.frame.isFullScreen(),
-      controlsWidth: this.chrome === 'windows' && !this.frame.isFullScreen() ? 138 : 0,
+      // The window's buttons' room at the strip's end: Classic 3 × 46, Inline 3 doors and 10 (chrome/Buttons.tsx).
+      controlsWidth: this.chrome === 'windows' && !this.frame.isFullScreen() ? (model.pref<string>('window.buttons') === 'classic' ? 138 : 96) : 0,
       space: r.space,
       spaces: model.spaces,
       tabs: model.spaceTabs(r).map(id => model.tabs.get(id)!).filter(Boolean).map(({ home, touched, letGo, ...view }) => view),
