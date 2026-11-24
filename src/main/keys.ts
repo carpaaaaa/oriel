@@ -234,11 +234,54 @@ void none
 // Settings › Shortcuts keeps only what was changed (ShortcutStore): { id: { keys } }.
 addDefaults({ shortcuts: {} })
 
-/** The keys a command has now: Settings' if changed there, else the table's. */
+type Changed = Record<string, { keys: string[] | null }>
+const changedKeys = (): Changed => model.pref<Changed>('shortcuts') ?? {}
+
+/** A chord as chordName spells it, its modifiers Ctrl, Shift, Alt: the
+ * table writes Alt+Shift+L, a key pressed reads Shift+Alt+L. */
+export function canonical(name: string): string {
+  const parts = name.split('+')
+  const key = parts.pop() ?? ''
+  if (!key && name.endsWith('+')) return name // Ctrl++ (the + key)
+  return [parts.includes('Ctrl') && 'Ctrl', parts.includes('Shift') && 'Shift', parts.includes('Alt') && 'Alt', key].filter(Boolean).join('+')
+}
+
+/** The keys a command has now: Settings' if changed there, else the table's;
+ * never one Windows keeps, whatever the file says (ShortcutStore.init). */
 export function keysOf(binding: Binding): string[] {
   if (binding.fixed) return binding.keys
-  const changed = (model.pref<Record<string, { keys: string[] | null }>>('shortcuts') ?? {})[binding.id]
-  return changed ? changed.keys ?? [] : binding.keys
+  const changed = changedKeys()[binding.id]
+  return (changed ? changed.keys ?? [] : binding.keys).filter(k => !reserved(canonical(k)))
+}
+
+/** Whether a command has this key now (`name` as chordName spells it). */
+export const hasKey = (binding: Binding, name: string) => keysOf(binding).some(k => canonical(k) === name)
+
+/** A key given to a command in Settings: it wins over a module's own for
+ * the same chord, as the Mac's custom keys come before the menus (studio/03
+ * §4.4 point 13). */
+function changedOwner(name: string, phase: 'first' | 'later'): Binding | undefined {
+  const changed = changedKeys()
+  return bindings.find(x => !x.fixed && x.phase === phase && changed[x.id] && hasKey(x, name) && live(x))
+}
+
+/** A key the table had that no command has now: the page's again, unless
+ * Settings gave it to an extension (ShortcutStore.isFreed). */
+function freed(name: string): boolean {
+  const changed = changedKeys()
+  return bindings.some(x => changed[x.id] && x.keys.some(k => canonical(k) === name)) && !bindings.some(x => hasKey(x, name))
+}
+
+/** Settings is reading a key in this page (KeyBox): every key goes to it
+ * (studio/03 §4.4 point 3). Until it stops, or the page goes. */
+const recorders = new WeakSet<WebContents>()
+const watched = new WeakSet<WebContents>()
+export function standAside(wc: WebContents, on: boolean): void {
+  if (!on) { recorders.delete(wc); return }
+  recorders.add(wc)
+  if (watched.has(wc)) return
+  watched.add(wc)
+  wc.on('did-start-navigation', () => recorders.delete(wc))
 }
 
 /** Never shortcuts on Windows (studio/03 §13.3, Shortcuts.isReserved): the
@@ -253,15 +296,18 @@ export function reserved(name: string): boolean {
   return /Ctrl\+(Shift\+)?Alt\+/.test(name) || name.includes('Meta+') || name.includes('Win+')
 }
 
-const extra: { first: [string, Action][]; later: [string, Action][] } = { first: [], later: [] }
+/** [chord, action, given in Settings or by an extension rather than a
+ * module's own way of doing a table command]. */
+const extra: { first: [string, Action, boolean][]; later: [string, Action, boolean][] } = { first: [], later: [] }
 
 /** Modules add shortcuts from their own files. A module's own wins over the
- * table's for the same chord. */
-export function shortcut(name: string, phase: 'first' | 'later', action: Action): void {
+ * table's for the same chord, unless Settings moved that chord. `given`:
+ * a key an extension has, not a module's own way of doing a table command. */
+export function shortcut(name: string, phase: 'first' | 'later', action: Action, given = false): void {
   const list = extra[phase]
   const at = list.findIndex(([n]) => n === name)
   if (at >= 0) list.splice(at, 1)
-  list.unshift([name, action])
+  list.unshift([name, action, given])
 }
 
 /** Takes back a module's shortcut: the chord is free again (for the page or
@@ -280,10 +326,23 @@ export function live(binding: Binding): boolean {
 }
 
 export function findBinding(name: string, phase: 'first' | 'later'): Binding | undefined {
-  return bindings.find(x => x.phase === phase && keysOf(x).includes(name) && live(x))
+  return bindings.find(x => x.phase === phase && hasKey(x, name) && live(x))
+}
+
+/** A table command's action: a module's own for its first key if there is
+ * one (the tabs module's Ctrl+W), else the table's. */
+function actionOf(binding: Binding, phase: 'first' | 'later'): Action {
+  for (const k of binding.keys.map(canonical)) {
+    const own = extra[phase].find(([n, , g]) => n === k && !g)?.[1]
+    if (own) return own
+  }
+  return binding.action ?? (() => binding.needs!)
 }
 
 export function findAction(name: string, phase: 'first' | 'later'): Action | undefined {
+  const mine = changedOwner(name, phase)
+  if (mine) return actionOf(mine, phase)
+  if (freed(name)) return extra[phase].find(([n, , g]) => n === name && g)?.[1]
   const own = extra[phase].find(([n]) => n === name)?.[1]
   if (own) return own
   const found = findBinding(name, phase)
@@ -342,6 +401,7 @@ export function onInput(c: WindowController, input: Electron.Input, fromPage: bo
     return false
   }
   if (input.type !== 'keyDown' || input.isComposing) return false
+  if (from && recorders.has(from)) return false
   if (from && holdKey(c, input, from)) return true
   const name = chordName({ ctrl: input.control, shift: input.shift, alt: input.alt, meta: input.meta, key: input.key, code: input.code })
   if (!name) return false
