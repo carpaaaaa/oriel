@@ -7,7 +7,7 @@ import './field.css'
 import { createEffect, For, on, onMount, Show } from 'solid-js'
 import type { Suggestion } from '../../shared/state'
 import { state, cmd } from '../lib/store'
-import { Bookmark, CommandKey, History, Lens, Pin } from './icons'
+import { Bookmark, CommandKey, History, Lens, Pin, XMark } from './icons'
 
 const hostOf = (url: string) => { try { return new URL(url).host.replace(/^www\./, '') } catch { return '' } }
 const withoutWWW = (a: string) => (a.toLowerCase().startsWith('www.') ? a.slice(4) : a)
@@ -121,8 +121,17 @@ export function Field(p: { place: 'page' | 'overlay' }) {
       <div class="field" ref={box}>
         <div class="field-breath" />
         <Show when={f().chip}>{chip => (
-          <span class="field-chip" aria-label={`Searching ${chip().name}`}>
-            <span class="field-chip-icon"><Lens size={11} /></span>
+          <span class="field-chip" role="group" aria-label={`Searching ${chip().name}`}>
+            <span class="field-chip-icon">
+              <span class="field-chip-lens"><Lens size={11} /></span>
+              {/* Under the pointer the lens gives way to an X that takes the
+                  site out; what was typed stays, and the keys stay here. */}
+              <button class="field-chip-x" tabIndex={-1} aria-label={`Remove ${chip().name}`} title={`Remove ${chip().name}`}
+                onPointerDown={e => e.preventDefault()}
+                onClick={() => { void cmd({ do: 'field.unchip' }); input.focus() }}>
+                <XMark size={8} weight={2.4} />
+              </button>
+            </span>
             <span class="field-chip-name">{chip().name}</span>
           </span>
         )}</Show>

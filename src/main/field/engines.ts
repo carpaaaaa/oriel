@@ -15,6 +15,8 @@ addDefaults({
   'search.shiftCustom': '',
   'search.keywords': [],
   'search.suggest': false,
+  // Sites searched with Tab, each off until turned on (not the Mac's default).
+  'search.sites': [],
   commandbar: false,
   'newtab.floating': false,
   'field.window': false,
@@ -199,8 +201,18 @@ export function builtInSites(): SearchSite[] {
   return made
 }
 
-/** The site the words begin the name of (SiteSearch.match). Learned sites
- * (OpenSearch) are P1 and not here yet; `visits` weighs a tie. */
+/** The built-in sites turned on in Settings › Browsing › Site shortcuts.
+ * Unlike the Mac (always on), none is until the user turns it on: typing a
+ * site's name offers nothing special before then (the user's decision). */
+export function enabledSites(): SearchSite[] {
+  const on = model.pref<unknown>('search.sites')
+  const names = new Set(Array.isArray(on) ? on.filter((n): n is string => typeof n === 'string') : [])
+  return builtInSites().filter(s => names.has(s.name))
+}
+
+/** The site the words begin the name of (SiteSearch.match), among the sites
+ * turned on and the site shortcuts. Learned sites (OpenSearch) are P1 and
+ * not here yet; `visits` weighs a tie. */
 export function siteMatch(typed: string, visits: (sites: SearchSite[]) => Record<string, number> = () => ({}), list = keywords()): SearchSite | null {
   const word = typed.toLowerCase().split(/\s+/).filter(Boolean).join(' ')
   if (word.length < 2 || word.includes('/')) return null
@@ -217,7 +229,7 @@ export function siteMatch(typed: string, visits: (sites: SearchSite[]) => Record
     if (!fits.length) return
     found.push({ site, length: Math.min(...fits.map(f => f.length)), whole: fits.includes(word), builtIn: true })
   }
-  builtInSites().forEach(consider)
+  enabledSites().forEach(consider)
   for (const k of list) {
     if (!keywordAccepts(k.template)) continue
     const key = k.keyword.trim().toLowerCase()

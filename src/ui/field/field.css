@@ -36,6 +36,13 @@
 /* the site Tab put in the field: 22 high, 8 at the sides, wash, radius 7 */
 .field-chip { flex: none; height: 22px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 7px; background: var(--wash); animation: field-chip-in var(--dur-quick) var(--ease-quick); transform-origin: left center; }
 .field-chip-icon { width: 14px; height: 14px; display: grid; place-items: center; color: var(--muted); border-radius: 3px; }
+/* under the pointer the lens gives way to an X on a disc of ink 7% (the
+   tab's close, studio/02 §4.2, at the chip's icon size), quick */
+.field-chip-lens, .field-chip-x { grid-area: 1 / 1; display: grid; place-items: center; transition: opacity var(--dur-quick) var(--ease-quick); }
+.field-chip-x { width: 14px; height: 14px; border-radius: 50%; background: var(--ink-close-disc); color: var(--muted); opacity: 0; pointer-events: none; }
+.field-chip:hover .field-chip-lens { opacity: 0; }
+.field-chip:hover .field-chip-x { opacity: 1; pointer-events: auto; }
+.field-chip-x:hover { color: var(--ink); }
 .field-chip-name { font-size: var(--fs-body); font-weight: 500; color: var(--ink); white-space: nowrap; }
 @keyframes field-chip-in { from { opacity: 0; transform: scale(.9); } }
 

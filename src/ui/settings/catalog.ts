@@ -125,6 +125,13 @@ const overrides: Record<string, Partial<Item>> = {
   'spaces': { more: 'Each space can be signed in where the others are or start afresh.' },
   'spaces.commandNumbers': { more: "The two sets of keys swap places. A space's key you changed in Keyboard & Mouse › Shortcuts stays as you set it." },
   'field.window': { more: 'As Arc and Zen place it: the column is dimmed with the page. Off, the field is centred on the page beside the column.' },
+  // Searching a site with Tab: each site off until turned on here (the
+  // user's choice for Oriel; on the Mac it is always on). Field module.
+  'search.keywords': {
+    detail: 'Turn a site on, then type its name and press Tab to search it. Or a word of your own: "yt cats"',
+    more: 'Until a site is on, typing its name offers nothing more than any other words. Hover the site in the field to take it out, or press Backspace there.',
+  },
+  'note.sitesearch': { detail: 'One site at a time, as you turn them on in Site shortcuts: type red, then Tab, and search Reddit' },
   'passwords.open': { detail: 'Kept by Windows, shown with Windows Hello' },
   'passwords.fill.prove': {
     title: 'Ask for Windows Hello before filling',

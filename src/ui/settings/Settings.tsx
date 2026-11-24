@@ -14,6 +14,7 @@ import { Always, Card, GroupBlock, Hunt, Line, Menu, Nothing, Pictures, Pill, Se
 import { Symbol } from './symbols'
 import { CardPicture, LayoutPicture, LookPicture } from './pictures'
 import { PermissionSites, PopupSites } from './PermissionSites'
+import { searchSiteList } from '../../shared/modules/field'
 import './settings.css'
 
 type Prefs = Record<string, unknown>
@@ -311,7 +312,7 @@ function after(i: Item, searched: boolean): JSX.Element {
   switch (i.id) {
     case 'search.engine': return <Show when={p('search.engine') === 'custom'}><TemplateField id="search.custom" /></Show>
     case 'search.shift': return <Show when={p('search.shift') === 'custom'}><TemplateField id="search.shiftCustom" /></Show>
-    case 'search.keywords': return <KeywordEditor />
+    case 'search.keywords': return <><SiteSwitches /><KeywordEditor /></>
     case 'privacy.forget': return <Show when={!searched}><div class="st-under"><PermissionSites seen={permissionsSeen()} notificationsOn={p('notifications.ask') !== false} /><PopupSites sites={p<string[]>('privacy.popupSites') ?? []} remove={s => void set('privacy.popupSites', (p<string[]>('privacy.popupSites') ?? []).filter(x => x !== s))} /></div></Show>
     case 'passkeys': return <Show when={!searched}><NeverAsked /></Show>
     default: return null
@@ -323,6 +324,27 @@ function TemplateField(q: { id: string }) {
     <div class="st-template">
       <input placeholder="https://example.com/search?q=%s" value={p<string>(q.id) ?? ''} onChange={e => void set(q.id, e.currentTarget.value)} aria-label="Search address" />
     </div>
+  )
+}
+
+/** The sites the field searches with Tab, each with its switch, all off
+ * until turned on (the field module's `search.sites`; the user's choice for
+ * Oriel, where the Mac has them always on). */
+function SiteSwitches() {
+  const on = () => new Set(p<string[]>('search.sites') ?? [])
+  const turn = (name: string, v: boolean) => {
+    const now = on()
+    if (v) now.add(name); else now.delete(name)
+    void set('search.sites', searchSiteList.map(s => s.name).filter(n => now.has(n)))
+  }
+  return (
+    <For each={searchSiteList}>{s => (
+      <div class="kw kw-site-row" data-site={s.name}>
+        <span class="kw-word kw-site">{s.name}</span>
+        <span class="kw-template">{s.host}</span>
+        <Switch on={on().has(s.name)} set={v => turn(s.name, v)} label={`Search ${s.name} with Tab`} />
+      </div>
+    )}</For>
   )
 }
 
