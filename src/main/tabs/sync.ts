@@ -33,6 +33,7 @@ import { bookmarks } from '../data/store'
 import { moreFacts, setKey } from '../settings/prefs'
 import { tellPages } from '../settings/internal'
 import { benchRequest } from '../bench/server'
+import { controllerFor } from '../views/window'
 
 // MARK: - the merge (SyncMerge.swift)
 
@@ -673,7 +674,9 @@ function watchFolder(dir: string, scope: string): void {
 // MARK: - when
 
 let started = false
-model.on('window-opened', () => setImmediate(() => {
+model.on('window-opened', (id: string) => setImmediate(() => {
+  // Oriel coming forward (Sync.swift: didBecomeActive): a pass soon.
+  controllerFor(id)?.base.on('focus', () => schedule())
   if (started) return
   started = true
   const kept = model.pref<string>('sync.folder')

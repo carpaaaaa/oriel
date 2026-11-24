@@ -134,7 +134,8 @@ export function tabMenu(t: TabView): Entry[] {
     { label: 'Open in Side Panel', enabled: web(t) && !t.shy && /^https?:/i.test(t.url), act: { cmd: { do: 'panel.site', url: t.url } } },
     { label: t.muted ? 'Unmute Tab' : 'Mute Tab', act: { cmd: { do: 'tab.mute', id: t.id, muted: !t.muted } } },
     // Keep This Site Awake (§9.24): on the Mac it is on the site's card; Oriel has none yet.
-    ...(siteOf(t) ? [{ label: 'Keep This Site Awake', checked: keptAwake(t), act: { cmd: { do: 'tab.keepAwake', id: t.id, on: !keptAwake(t) } as Command } }] : []),
+    // Its tick only when on: a column for it would move every label (the Mac's tab menu has none).
+    ...(siteOf(t) ? [{ label: 'Keep This Site Awake', checked: keptAwake(t) || undefined, act: { cmd: { do: 'tab.keepAwake', id: t.id, on: !keptAwake(t) } as Command } }] : []),
     { label: 'Put to Sleep', enabled: !t.asleep && !t.empty && t.id !== state.activeID && !keptAwake(t), act: { cmd: { do: 'tab.putToSleep', id: t.id } } },
     sep,
     ...closeItems(t),

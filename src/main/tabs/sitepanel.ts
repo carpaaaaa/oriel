@@ -41,6 +41,7 @@ function lineName(url: string | null): string {
 
 interface Site { box: View; line: WebContentsView; page: WebContentsView; space: string; first: string; arrived: string | null; place: (r: Electron.Rectangle | null) => void }
 const open = new Map<string, Site>()
+const hooked = new WeakSet<WindowController>()
 
 const linePage = (dark: boolean) => `<!doctype html><meta charset=utf-8><style>
 html,body{margin:0;height:100%;background:${dark ? '#1c1c1c' : '#ffffff'};font:600 12.5px system-ui,"Segoe UI",sans-serif;color:${dark ? '#ededed' : '#171717'};-webkit-user-select:none}
@@ -102,6 +103,11 @@ export function showSite(c: WindowController, url: string): boolean {
     place: r => { if (r) lay(s, r); else if (open.get(c.record.id) === s) drop(c, s) },
   }
   open.set(c.record.id, s)
+  // The window closing lets its panel's pages go.
+  if (!hooked.has(c)) {
+    hooked.add(c)
+    c.base.once('closed', () => { const now = open.get(c.record.id); if (now) drop(c, now) })
+  }
   const wc = page.webContents
   const tell = () => {
     if (wc.isDestroyed() || line.webContents.isDestroyed()) return

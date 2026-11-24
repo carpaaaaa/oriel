@@ -47,35 +47,35 @@ Elenco generato il 24 novembre 2026: chiavi delle Impostazioni (`src/ui/settings
 
 | Gruppo | Chiave | Voce | Stato |
 |---|---|---|---|
-| browser | `mail.webmail` | Email links open in | da fare |
-| browser | `sync.folder` | Sync with your other Macs | da fare |
-| browser | `handoff` | Handoff to your iPhone and iPad | da fare |
-| browser | `icloud.sync` | Sync with iCloud | da fare |
-| browser | `quit.confirm` | Confirm before quitting | da fare |
-| newtabs | `tabs.swipeBackCloses` | Swipe back closes a tab a link opened | da fare |
-| newtabs | `home.grid` | Show the Home bookmarks on a new tab | da fare |
-| newtabs | `tabs.undoReopens` | ⌘Z reopens a closed tab | da fare |
-| newtabs | `tabs.popupWindows` | Open sized pop-ups in small windows | da fare |
-| memory | `tabs.close.after` | Close tabs you leave alone | da fare |
-| tabwindows | `tabs.mirror` | Same tabs in every window | da fare |
-| links | `links.little` | Open links from other apps in a small window | da fare |
-| links | `links.little.tabs` | Go to a tab that has the page | da fare |
-| spaces | `profiles.oneWindow` | Profiles in one window | da fare |
-| spaces | `spaces.links` | Send links to a space | da fare |
-| spaces | `spaces.links.rules` | Send links to a space | da fare |
-| spaces | `links.ask` | Ask which space for links from other apps | da fare |
-| spaces | `links.ask.last` | Ask which space for links from other apps | da fare |
-| pins | `pins.commandNewTab` | ⌘-click on a pin opens a new tab | da fare |
-| anywhere | `launcher.on` | Open the address field from any app | da fare |
-| anywhere | `launcher.key` | Open the address field from any app | da fare |
-| anywhere | `launcher.little` | Open in a small window | da fare |
-| newtabs | `tabs.groups` | Tab groups | da fare |
-| links | `panel.sites` | Websites in the side panel | da fare |
-| memory | `tabs.keepAwake` | Keep selected sites awake | da fare |
-| spaces | `spaces.gradient` | A space's colour or gradient | da fare |
-| pins | `pins.shared` | Pins in every space | da fare |
-| pins | `pins.numberBack` | A pin's number again goes back | da fare |
-| links | `links.show` | Show where links go | da fare |
+| browser | `mail.webmail` | Email links open in | fatto: un link mailto: in una pagina apre la bozza del webmail scelto in una scheda accanto, con indirizzo, oggetto e testo; anche da una scheda privata, in una normale; i mailto da altre app ci vanno con Oriel per le email (settings_b_links) |
+| browser | `sync.folder` | Sync with your other Macs | fatto: la cartella del Mac (Search Sync/<ambito>/<dispositivo>.json, SyncMerge alla lettera: timbri, cancellazioni, chi entra timbra 0, tipi interi protetti, voci sconosciute portate) per impostazioni, spazi con gradiente e forza, pin, cartelle dei pin e segnalibri; Oriel e Search su Mac si sincronizzano; la scelta parte da OneDrive, iCloud Drive o Dropbox; passaggi 1 s dopo l'accensione, 2 s dopo un cambio, quando un file della cartella cambia, ogni 30 s, quando Oriel torna davanti (settings_b_sync) |
+| browser | `handoff` | Handoff to your iPhone and iPad | tolta: Handoff è di Apple (già in catalog.ts); la cartella di sync non porta le schede aperte |
+| browser | `icloud.sync` | Sync with iCloud | tolta: niente CloudKit da Windows (già in catalog.ts, riga icloud); al suo posto la sync a cartella |
+| browser | `quit.confirm` | Confirm before quitting | fatto: Quit Oriel? con Quit e Cancel prima di Ctrl+Shift+Q o Quit Oriel; spento chiude senza chiedere (settings_b_tabs) |
+| newtabs | `tabs.swipeBackCloses` | Swipe back closes a tab a link opened | fatto: due dita indietro sul touchpad (rotella orizzontale) su una scheda aperta da un link, senza nulla prima, la chiude e torna alla scheda di prima; il tasto indietro del mouse no (settings_b_links) |
+| newtabs | `home.grid` | Show the Home bookmarks on a new tab | fatto: i siti della cartella Home dei segnalibri, fino a 16, come tessere sotto il campo di una scheda vuota (settings_b_links) |
+| newtabs | `tabs.undoReopens` | ⌘Z reopens a closed tab | fatto: Ctrl+Z subito dopo la chiusura riapre la scheda, una volta; un tasto o un clic dopo e Ctrl+Z torna alla pagina (settings_b_tabs) |
+| newtabs | `tabs.popupWindows` | Open sized pop-ups in small windows | fatto: un pop-up che chiede una misura ha una finestra sua a quella misura, window.opener vivo; spento è una scheda (settings_b_tabs) |
+| memory | `tabs.close.after` | Close tabs you leave alone | fatto: 12 ore, un giorno, una settimana, un mese; restano pin, nominate, in gruppo, siti tenuti svegli, suono, chiamate, testo scritto; finiscono in archive.json (formato del Mac) e in History › Archived Tabs…, Ctrl+Shift+T le riporta; anche a Oriel chiuso (settings_b_tabs) |
+| tabwindows | `tabs.mirror` | Same tabs in every window | fatto: Twins.swift, la riga condivisa per spazio: aperta, chiusa, spostata, rinominata, raggruppata in una finestra è così nelle altre, ogni finestra con la sua pagina; piegatura dei gruppi per finestra; twinID nella sessione solo da acceso (settings_b_windows) |
+| links | `links.little` | Open links from other apps in a small window | fatto: un link da un'altra app apre una finestrella 900x640 (poi dove la si è lasciata, a scalare), riga col sito e Open in Oriel; Ctrl+O la tiene come scheda senza ricaricare, Ctrl+W o Esc la chiudono; il menu di una scheda la apre (Open in Small Window, lì la pagina si ricarica) (settings_b_arrive, settings_b_panel) |
+| links | `links.little.tabs` | Go to a tab that has the page | fatto: una pagina già aperta in una scheda va a quella scheda, niente finestrella (settings_b_arrive) |
+| spaces | `profiles.oneWindow` | Profiles in one window | tolta per ora: Oriel non ha ancora profili (solo Personal); la riga torna con loro (catalog.ts) |
+| spaces | `spaces.links` | Send links to a space | fatto: i link da altre app e quelli che una pagina di un altro spazio apre in una scheda nuova vanno nello spazio del sito, sottodomini compresi (settings_b_arrive) |
+| spaces | `spaces.links.rules` | Send links to a space | fatto: regole {site, space} come sul Mac; Always Open <sito> in <spazio> e Stop Opening nel menu della scheda (settings_b_arrive) |
+| spaces | `links.ask` | Ask which space for links from other apps | fatto: pannello con ogni spazio e la sua cifra, Invio nel segnato, Always salva una regola con Send links to a space acceso (settings_b_arrive) |
+| spaces | `links.ask.last` | Ask which space for links from other apps | fatto: lo spazio dove è andato il sito viene segnato la volta dopo, 200 al massimo (settings_b_arrive) |
+| pins | `pins.commandNewTab` | ⌘-click on a pin opens a new tab | fatto: Ctrl-clic su un pin a casa apre la pagina in una scheda dietro; su un pin che ha vagato tiene la pagina tra le schede sciolte e il pin torna a casa; spento lo aggiunge alla selezione (settings_b_tabs) |
+| anywhere | `launcher.on` | Open the address field from any app | vicino: una scorciatoia globale di Windows (globalShortcut) porta davanti la finestra con il campo di una scheda nuova; non un campo che galleggia sopra l'altra app come sul Mac (settings_b_arrive, che non prende mai tasti veri) |
+| anywhere | `launcher.key` | Open the address field from any app | fatto: il tasto scelto in Settings diventa la scorciatoia globale, Ctrl al posto di ⌘; spento la rende (settings_b_arrive) |
+| anywhere | `launcher.little` | Open in a small window | fatto: Invio apre la pagina in una finestrella invece che in una scheda (settings_b_arrive) |
+| newtabs | `tabs.groups` | Tab groups | fatto (sempre presente): Move to Group › New Group nel menu della scheda (settings_b_windows) |
+| links | `panel.sites` | Websites in the side panel | fatto (sempre presente): Open in Side Panel nel menu della scheda e Show Side Panel (tasto da scegliere, Oriel non ha il menu View): Claude o un altro sito accanto alla pagina con gli accessi dello spazio, riga con Open in a Tab e Close, un altro spazio lo ricarica con i suoi accessi (settings_b_panel) |
+| memory | `tabs.keepAwake` | Keep selected sites awake | fatto (sempre presente): Keep This Site Awake nel menu della scheda (Oriel non ha la carta del sito): il sito non dorme e non si chiude da solo, tabs.awakeSites (settings_b_tabs) |
+| spaces | `spaces.gradient` | A space's colour or gradient | fatto (sempre presente con gli spazi): Colour… offre i sei gradienti del Mac e la forza Subtle, Rich, Vivid, scritti in spaces.json come sul Mac (settings_b_windows) |
+| pins | `pins.shared` | Pins in every space | fatto (sempre presente con gli spazi): Keep in Every Space nel menu del pin (settings_b_windows) |
+| pins | `pins.numberBack` | A pin's number again goes back | fatto (sempre presente): Ctrl+numero di un pin due volte torna alla scheda di prima (settings_b_windows) |
+| links | `links.show` | Show where links go | fatto (sempre presente): l'indirizzo del link sotto il puntatore in un cartellino in basso, a destra se il puntatore è a sinistra (settings_b_links) |
 
 ## C. Pagine, video, lettura, blocco, mouse (pages, net, media)
 
