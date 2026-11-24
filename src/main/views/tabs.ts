@@ -69,6 +69,39 @@ export function partitionFor(t: TabRecord): string {
   return 'persist:personal'
 }
 
+/** A page's history: every entry, with the state each one keeps. */
+function historyOf(wc: WebContents): Keepsake | undefined {
+  const nav = wc.navigationHistory
+  const entries = nav.getAllEntries()
+  return entries.length ? { entries, index: nav.getActiveIndex() } : undefined
+}
+
+/** Has the page tell its history entry its scroll and typed fields now.
+ * Chromium hears them only on a timer, 1 s while the page shows and 5 s
+ * while it is hidden (a tab behind, a window minimized or covered), so a
+ * page let go sooner came back without them. replaceState of the same state
+ * and address, in the tabs module's own world (the page's patched history
+ * never sees it), commits them at once: told once the browser has the
+ * commit, or after `wait` at most. */
+export function tellHistory(wc: WebContents, wait = 500): Promise<void> {
+  return new Promise(resolve => {
+    if (wc.isDestroyed() || wc.isCrashed() || wc.isLoading()) { resolve(); return }
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      if (!wc.isDestroyed()) wc.off('did-navigate-in-page', heard)
+      resolve()
+    }
+    const heard = (_e: unknown, _url: string, main: boolean) => { if (main) finish() }
+    const timer = setTimeout(finish, wait)
+    wc.on('did-navigate-in-page', heard)
+    wc.executeJavaScriptInIsolatedWorld(1001, [{ code: 'try { history.replaceState(history.state, ""); true } catch { false }' }])
+      .then(ok => { if (!ok) finish() }, finish)
+  })
+}
+
 export function sessionFor(t: TabRecord): Session {
   return sessionNamed(partitionFor(t))
 }
@@ -209,21 +242,43 @@ export class TabRuntime {
   keepsake(): Keepsake | undefined {
     const wc = this.contents
     if (!wc || this.shell || wc.isLoading()) return undefined
-    const nav = wc.navigationHistory
-    const entries = nav.getAllEntries()
-    return entries.length ? { entries, index: nav.getActiveIndex() } : undefined
+    return historyOf(wc)
   }
 
-  /** Let the page go, keep its history (Sleep.swift, §2.28). */
+  /** Let the page go, keep its history (Sleep.swift, §2.28): as it is now,
+   * then as the page tells it once asked (its scroll and what was typed,
+   * §2.29), unless the tab woke meanwhile. */
   sleep(): boolean {
     const wc = this.contents
     if (!wc || this.shell) return false
-    const nav = wc.navigationHistory
-    const entries = nav.getAllEntries()
-    if (entries.length) model.keeps.set(this.id, { entries, index: nav.getActiveIndex() })
-    this.destroy()
+    const now = historyOf(wc)
+    if (now) model.keeps.set(this.id, now)
+    this.letGo(fresh => { if (fresh && now && model.keeps.get(this.id) === now) model.keeps.set(this.id, fresh) })
     model.updateTab(this.id, { asleep: true, loading: false, audible: false })
     return true
+  }
+
+  /** The page out of its window and silent at once, then let go once it has
+   * told its history entry what it holds (tellHistory); `then` gets the
+   * history as it is after. A page already gone: then(undefined). */
+  letGo(then: (keep: Keepsake | undefined) => void): void {
+    const view = this.view
+    const wc = view && !view.webContents.isDestroyed() && !this.shell ? view.webContents : null
+    if (!view || !wc) { this.destroy(); then(undefined); return }
+    if (this.record?.capturing) model.updateTab(this.id, { capturing: undefined })
+    this.view = null
+    this.shell = false
+    this.lastVisit = ''
+    viewHost.parentOf(view)?.removeChildView(view)
+    wc.setAudioMuted(true)
+    // A page still arriving has no history to keep yet (keepsake). Read
+    // after the commit, the page counts as loading for a moment: its
+    // entries are already the ones told.
+    const arriving = wc.isLoading()
+    void tellHistory(wc).then(() => {
+      const keep = wc.isDestroyed() || arriving ? undefined : historyOf(wc)
+      try { then(keep) } finally { if (!wc.isDestroyed()) wc.close({ waitForBeforeUnload: false }) }
+    })
   }
 
   /** Moved to a space with other cookies: built again in that store, its
@@ -281,7 +336,10 @@ export class TabRuntime {
   }
 
   private wire(wc: WebContents): void {
-    const update = (patch: Partial<TabRecord>) => model.updateTab(this.id, patch)
+    // A page being let go (letGo) still answers for a moment: it no longer
+    // speaks for the tab.
+    const mine = () => this.view?.webContents === wc
+    const update = (patch: Partial<TabRecord>) => { if (mine()) model.updateTab(this.id, patch) }
     const nav = () => update({
       canGoBack: wc.navigationHistory.canGoBack(),
       canGoForward: wc.navigationHistory.canGoForward(),
@@ -301,13 +359,14 @@ export class TabRuntime {
     wc.on('did-start-loading', () => update({ loading: true }))
     wc.on('did-stop-loading', () => { update({ loading: false }); nav() })
     wc.on('did-navigate', (_e, url) => {
+      if (!mine()) return
       // A new document: whatever the last one captured has ended with it.
       if (url && url !== 'about:blank' && !url.startsWith('chrome-error:')) update({ url: shown(url), error: undefined, dead: undefined, crashed: undefined, capturing: undefined })
       nav()
       this.visit(shown(url))
     })
     wc.on('did-navigate-in-page', (_e, url, isMainFrame) => {
-      if (!isMainFrame) return
+      if (!isMainFrame || !mine()) return
       update({ url: shown(url) })
       nav()
       // Another page by pushState counts; a fragment alone doesn't.
@@ -315,6 +374,7 @@ export class TabRuntime {
     })
     wc.on('page-title-updated', (_e, title, explicitSet) => {
       // Chromium names an untitled page by its address: no title (§2.8).
+      if (!mine()) return
       const t = explicitSet ? title : ''
       update({ title: t })
       const tab = this.record
@@ -322,7 +382,7 @@ export class TabRuntime {
     })
     wc.on('page-favicon-updated', (_e, favicons) => update({ favicon: favicons[0] }))
     wc.on('audio-state-changed', e => update({ audible: e.audible }))
-    wc.on('render-process-gone', (_e, details) => this.gone(details.reason))
+    wc.on('render-process-gone', (_e, details) => { if (mine()) this.gone(details.reason) })
     wc.on('did-fail-load', (_e, code, _description, url, isMainFrame) => {
       // Not errors: a load stopped or replaced, a page become a download (§2.33).
       if (!isMainFrame || code === -3) return
@@ -391,7 +451,10 @@ model.hooks.live = id => !!runtimes.get(id)?.awake
 
 model.on('tab-closed', (id: ID) => {
   const r = runtimes.get(id)
-  r?.destroy()
+  // Closed: ⇧⌘T's copy of its history, as the page tells it once asked
+  // (§9.17). A private tab has none, and goes at once with what it kept.
+  if (r?.partition?.startsWith('shy-')) r.destroy()
+  else r?.letGo(fresh => { if (fresh) model.freshenGhost(id, fresh) })
   runtimes.delete(id)
   // The last tab of a private store gone: what it kept goes too (§2.35).
   const partition = r?.partition

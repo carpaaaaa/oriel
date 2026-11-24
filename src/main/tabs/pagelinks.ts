@@ -127,6 +127,10 @@ benchRequest('settingsb.swipe', async req => {
   const wc = runtimes.get(String(req.id))?.contents
   if (!wc) throw new Error('no page')
   const dx = Number(req.deltaX ?? -40)
+  // A page Chromium counts as hidden (the screen locked or asleep on a night
+  // run) gets no wheel events at all: shown for the swipe, as on screen.
+  wc.setBackgroundThrottling(false)
+  setTimeout(() => { if (!wc.isDestroyed()) wc.setBackgroundThrottling(true) }, 1500)
   for (let i = 0; i < Number(req.count ?? 8); i++) {
     wc.sendInputEvent({ type: 'mouseWheel', x: 200, y: 200, deltaX: -dx, deltaY: 0, canScroll: true } as Electron.MouseWheelInputEvent)
     await new Promise(r => setTimeout(r, 16))
