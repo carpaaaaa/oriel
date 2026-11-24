@@ -137,3 +137,60 @@
 .hp-remove { visibility: hidden; margin-right: 10px; border: 0; background: transparent; font: inherit; font-size: var(--fs-detail); color: var(--unsafe); cursor: default; }
 .hp-row:hover .hp-remove { visibility: visible; }
 .hp-foot { display: flex; align-items: center; padding-top: 4px; }
+
+/* The bookmark button (BookmarkDoor, Side.swift Door): a door of 26, the
+   ribbon at 11 medium, filled on a page that is kept. */
+.bookmark-door svg { display: block; }
+
+/* What hangs off it (Bookmarks.swift:1140-1420): a card of 280 on the
+   ground, corner 12, its arrow at the button. */
+.bm-region { position: fixed; inset: 0; outline: none; }
+.bm-card { position: absolute; box-sizing: border-box; background: var(--ground); border-radius: var(--menu-radius); overflow: hidden;
+  box-shadow: 0 0 0 .5px var(--card-edge), 0 6px 20px rgba(0,0,0,.14); animation: bm-in .12s ease-out; color: var(--ink); }
+.bm-arrow { position: absolute; width: 14px; height: 14px; background: var(--ground); transform: rotate(45deg); border-radius: 2px;
+  box-shadow: 0 0 0 .5px var(--card-edge), 0 2px 8px rgba(0,0,0,.1); animation: bm-in .12s ease-out; }
+@keyframes bm-in { from { opacity: 0 } to { opacity: 1 } }
+
+/* the list: rows of 27 and 1 between, 6 round them; 12.5, the mark 15 */
+.bm-list { display: flex; flex-direction: column; height: 100%; }
+.bm-none { margin: 0; padding: 14px; font-size: 12.5px; color: var(--muted); }
+.bm-rows { box-sizing: border-box; padding: 6px; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 1px; flex: none; }
+.bm-rows::-webkit-scrollbar { display: none; }
+.bm-row { flex: none; height: 27px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding-right: 10px; border-radius: 8px; font-size: 12.5px; }
+.bm-row:hover { background: var(--wash); }
+.bm-chevron, .bm-chevron-room { flex: none; width: 10px; display: grid; place-items: center; color: var(--faint); }
+.bm-chevron svg { transition: transform var(--dur-quick) var(--ease-quick); }
+.bm-chevron.open svg { transform: rotate(90deg); }
+.bm-mark { flex: none; width: 15px; height: 15px; border-radius: 3.3px; overflow: hidden; display: grid; place-items: center; }
+.bm-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.bm-letter { width: 100%; height: 100%; display: grid; place-items: center; background: var(--ink-mark-bg); color: var(--muted); font-size: 8.4px; font-weight: 500; line-height: 1; }
+.bm-folder { color: var(--muted); }
+.bm-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.bm-title.unnamed { color: var(--muted); }
+.bm-count { flex: none; font-size: 11px; color: var(--faint); margin-left: 8px; }
+.bm-empty { flex: none; padding-top: 5px; padding-bottom: 5px; font-size: 12px; color: var(--faint); }
+.bm-rule { flex: none; height: 1px; background: var(--hairline); }
+.bm-foot { flex: none; padding: 6px; display: flex; flex-direction: column; gap: 1px; }
+.bm-foot-row { height: 27px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink); text-align: left; }
+.bm-foot-row:not(:disabled):hover { background: var(--wash); }
+.bm-foot-row:disabled { opacity: .4; }
+.bm-foot-symbol { flex: none; width: 14px; display: grid; place-items: center; color: var(--muted); }
+
+/* the card: 14 in, Bookmarked 13 semibold, Name and Folder 11.5 in 42, the
+   field 12.5 on the wash, corner 8; Remove in red, Done filled */
+.bm-bookmarked { box-sizing: border-box; height: 100%; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.bm-heading { font-size: 13px; font-weight: 600; color: var(--ink); }
+.bm-lines { display: flex; flex-direction: column; gap: 8px; }
+.bm-line { display: flex; align-items: center; gap: 10px; }
+.bm-label { flex: none; width: 42px; font-size: 11.5px; color: var(--muted); }
+.bm-field { flex: 1; min-width: 0; height: 26px; box-sizing: border-box; padding: 5px 8px; border: 0; border-radius: 8px; background: var(--wash);
+  font: inherit; font-size: 12.5px; color: var(--ink); outline: none; }
+.bm-field::placeholder { color: var(--muted); }
+.bm-folder-pick { position: relative; flex: 1; min-width: 0; height: 26px; box-sizing: border-box; display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 8px; background: var(--wash); color: var(--muted); }
+.bm-folder-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; color: var(--ink); }
+.bm-updown { flex: none; color: var(--muted); }
+.bm-select { position: absolute; inset: 0; width: 100%; opacity: 0; font-size: 12.5px; }
+.bm-buttons { display: flex; align-items: center; gap: 8px; margin-top: auto; }
+.bm-remove { font-size: 12.5px; color: rgb(255 59 48 / .75); padding: 5px 2px; }
+.bm-done { margin-left: auto; font-size: 12.5px; font-weight: 500; background: var(--ink); color: var(--ground); padding: 5px 14px; border-radius: 999px; }

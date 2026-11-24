@@ -10,18 +10,45 @@ import { Dynamic } from 'solid-js/web'
 import { state, cmd } from '../lib/store'
 import { outlet } from '../lib/registry'
 import { Glyph } from './glyphs'
-import { P, spaceSymbol, currentSpace } from './derive'
+import { P, pref, spaceSymbol, currentSpace } from './derive'
 import { tint, tintAlpha } from './look'
 import { openMenu } from '../menus/open'
 import { spaceMenu } from '../menus/build'
 import { reducedMotion } from './motion'
 
-/** How many doors the foot holds, each 26 and 2 apart (Side.swift keptWidth:
- * the downloads door always counted, so one starting doesn't send them down). */
+/** The doors that always show, each 26 and 2 apart (Side.swift keptWidth,
+ * 1768-1777): downloads counted whether running or not, so one starting
+ * doesn't send them down; the puzzle (with extensions), the bookmark button,
+ * the space's icon or a button per space. Pinned extensions aren't: up in
+ * the band they give way, from the last, to what fits (upRoom). */
 export function footDoors(): number {
   const ext = (state.ext?.list.length ?? 0) > 0
-  const pinned = ext ? (state.ext?.list ?? []).filter(e => e.enabled && e.pinned && e.action).slice(0, 3).length : 0
-  return 1 + (ext && !state.prefs?.['foot.extensions.hidden'] ? 1 : 0) + pinned + (P.spaces() && !P.spaceButtons() ? 1 : 0) + (P.spaceButtons() ? state.spaces.length : 0)
+  return 1 + (ext && !state.prefs?.['foot.extensions.hidden'] ? 1 : 0) + (state.prefs?.['foot.bookmarks.hidden'] ? 0 : 1)
+    + (P.spaces() && !P.spaceButtons() ? 1 : 0) + (P.spaceButtons() ? state.spaces.length : 0)
+}
+
+/** On the right, the window's buttons are at the band's far end on Windows:
+ * the doors stop short of them (studio/01 §5.8 point 6). */
+export const capRoom = () => (state.chrome === 'windows' && state.sidebar.side === 'right' ? state.controlsWidth : 0)
+
+/** What the band has right of back, forward and reload (Side.swift beyondHelm):
+ * the column less its margins, the helm, the sidebar button, 12 of air, and
+ * on the right the window's buttons. */
+export function beyondHelm(): number {
+  const helm = ['back', 'forward', 'reload'].filter(d => !pref(`helm.${d}.hidden`, false)).length
+  return state.sidebar.width - 20 - (helm * 26 + Math.max(0, helm - 1) * 4) - (P.foldButton() ? 30 : 0) - 12 - capRoom()
+}
+
+/** Buttons at the top (sidebar.doorsUp; Side.swift:196-203): up only if the
+ * doors that always show fit beside the helm; never with icons only. */
+export function doorsUp(): boolean {
+  return pref('sidebar.doorsUp', false) && state.sidebar.layout !== 'top' && !P.iconColumn() && footDoors() * 28 - 2 <= beyondHelm()
+}
+
+/** How many pinned extensions fit up in the band beside the doors that stay
+ * (SideFoot.room, up). */
+export function upRoom(): number {
+  return Math.max(0, Math.floor((beyondHelm() + 2 - footDoors() * 28) / 28))
 }
 
 export function Foot(p: { vertical?: boolean; up?: boolean }) {

@@ -101,3 +101,13 @@
 .tabbar.contrast .strip-group-name { color: var(--ink); }
 
 /* The page under the strip is the window's layout (app.css, .window.top). */
+
+/* The far end's order, whoever draws each (TabBar.swift:264-279): downloads,
+   the extensions and their puzzle, back, forward and reload (8 after them),
+   the bookmark button, a button per space; the translate sign first. */
+.strip-far > .fetch-door { order: 1; }
+.strip-far > .ext-slot { order: 2; }
+.strip-far > .strip-helm { order: 3; }
+.strip-far > .bookmark-door { order: 4; }
+.strip-far > .space-buttons { order: 5; }
+.strip-far:has(> .bookmark-door) > .strip-helm { margin-right: 8px; }

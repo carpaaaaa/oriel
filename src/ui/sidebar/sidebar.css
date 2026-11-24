@@ -265,3 +265,17 @@
   box-shadow: 0 0 0 1.5px var(--frame); pointer-events: none; white-space: nowrap; }
 .fold-out.top { left: 0; right: 0; bottom: auto; box-shadow: 0 4px 40px rgba(0, 0, 0, .14); }
 .fold-out .sidebar { position: absolute; inset: 0; width: auto !important; }
+
+/* The foot's order, whoever draws each (Side.swift:1706-1747): the space's
+   icon, the extensions, the bookmark button, a button per space, downloads;
+   up beside the helm the puzzle goes to the far end and downloads come after
+   the space's icon; one above the other, downloads first, the space's icon last. */
+.foot > .space-dot { order: 1; }
+.foot > .ext-slot { order: 2; }
+.foot > .bookmark-door { order: 3; }
+.foot > .space-buttons { order: 4; }
+.foot > .fetch-door { order: 5; }
+.foot.up > .fetch-door { order: 2; }
+.foot.up > .ext-slot { order: 5; }
+.foot.vertical > .fetch-door { order: 0; }
+.foot.vertical > .space-dot { order: 6; }

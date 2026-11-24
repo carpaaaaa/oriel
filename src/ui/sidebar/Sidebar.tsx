@@ -16,7 +16,7 @@ import { layout, pinCells, type Item } from './layout'
 import { Row } from './Row'
 import { GroupHeading, FolderHeading, KeepLine, NewTabRow, RowGhost, openColumnMenu } from './Lines'
 import { PinGrid } from './Pins'
-import { Foot, footDoors, spaceStep } from './Foot'
+import { Foot, capRoom, doorsUp, spaceStep } from './Foot'
 import { PlayerRow } from './Player'
 import { Tiles } from './Tiles'
 import { wash, grain } from './look'
@@ -262,14 +262,7 @@ export function Column() {
   const rowsHeight = () => L().height
 
   // Buttons at the top (sidebar.doorsUp; Side.swift:196-203): up only if they
-  // fit beside the helm, keptWidth ≤ beyondHelm (width − 20 − the helm − the
-  // sidebar button); never with icons only.
-  const doorsUp = () => {
-    if (!pref('sidebar.doorsUp', false) || icons()) return false
-    const helm = ['back', 'forward', 'reload'].filter(d => !pref(`helm.${d}.hidden`, false)).length
-    const beyond = width() - 20 - (helm * 26 + Math.max(0, helm - 1) * 4) - (P.foldButton() ? 30 : 0) - 12
-    return footDoors() * 28 - 2 <= beyond
-  }
+  // fit beside the helm, keptWidth ≤ beyondHelm (Foot.tsx); never with icons only.
 
   // What's playing in other tabs (sidebar.player; Player.swift): the newest
   // tab to make a sound that is out of sight, its pause; paused from here it
@@ -301,7 +294,7 @@ export function Column() {
       style={{ width: `${width()}px` }}
       onContextMenu={e => { if (!(e.target as HTMLElement).closest('.row, .square, .tile, .group-heading, .folder-heading, .door, .foot > *')) { e.preventDefault(); void openColumnMenu(e) } }}>
       <Wash />
-      <div class="band drag">
+      <div class="band drag" style={{ 'padding-right': capRoom() ? `${capRoom()}px` : undefined }}>
         <Show when={!icons()}><Helm /></Show>
         <For each={outlet('sidebar.top')}>{c => <Dynamic component={c} />}</For>
         {/* Buttons at the top (sidebar.doorsUp): the foot's doors beside the helm, when they fit */}

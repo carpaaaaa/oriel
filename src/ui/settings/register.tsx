@@ -1,6 +1,7 @@
 // The settings module's places: its pages in a tab (oriel://settings,
 // oriel://downloads), its panels over the page (the site's question, the
-// downloads card), and the downloads button at the column's foot.
+// downloads card), and the downloads button at the column's foot or at
+// the end of the tab strip.
 // Owned by the settings module.
 
 import { registerOutlet, registerPage, registerPanel } from '../lib/registry'
@@ -15,4 +16,5 @@ registerPage('downloads', DownloadsPage)
 registerPanel('settings.permission', PermissionQuestion)
 registerPanel('settings.downloads', DownloadsFloat)
 registerPanel('settings.update', UpdatePopup)
-registerOutlet('sidebar.foot', DownloadsDoor)
+registerOutlet('sidebar.foot', () => <DownloadsDoor where="foot" />)
+registerOutlet('strip.end', () => <DownloadsDoor where="strip" />)

@@ -36,6 +36,11 @@ interface Live {
 }
 
 const live = new Map<ID, Live>()
+/** The last one in: the button says so (arrow.down) until then, and goes
+ * if nothing else keeps it (Fetches.settle, linger 5 s). */
+let doneUntil = 0
+let doneTimer: NodeJS.Timeout | null = null
+const LINGER = 5000
 let kept: Keep[] = []
 let loaded = false
 let started = 0
@@ -135,6 +140,7 @@ async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): P
   }
   live.set(id, { entry, item, session: s, shy, retryName: retried ?? name })
   started++
+  doneUntil = 0
   say(`Downloading ${entry.name}`)
   item.on('updated', (_e, state) => {
     entry.received = item.getReceivedBytes()
@@ -152,6 +158,7 @@ async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): P
     if (l) l.item = null
     if (state === 'completed') {
       live.delete(id)
+      settle(true)
       if (entry.path && process.platform === 'win32') markDownloaded(entry.path, url)
       if (shy) say(`Saved ${entry.name}`)
       else {
@@ -164,10 +171,12 @@ async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): P
       flash()
     } else if (state === 'cancelled') {
       live.delete(id)
+      settle(false)
     } else {
       entry.state = 'failed'
       entry.canResume = false
       entry.error = 'The download failed.'
+      settle(false)
       say('Download failed')
       // A private download that failed leaves nothing behind (06 §3.1).
       if (shy) { live.delete(id); if (entry.path) try { unlinkSync(entry.path) } catch {} }
@@ -203,6 +212,23 @@ function changed(): void {
   if (tellTimer) return
   tellTimer = setTimeout(() => { tellTimer = null; tellPages('downloads', listed(), 'downloads'); taskbar() }, 50)
 }
+
+/** A download coming in: stopped and failed ones are no activity (Fetches.running). */
+function running(): boolean {
+  return [...live.values()].some(l => l.item && ['downloading', 'resuming', 'pausing'].includes(l.entry.state))
+}
+
+/** The last one in, the circle says so for 5 s, then goes; one that failed
+ * with nothing else running takes it away at once (Fetches.settle). */
+function settle(succeeded: boolean): void {
+  if (running()) return
+  if (doneTimer) { clearTimeout(doneTimer); doneTimer = null }
+  if (!succeeded) { doneUntil = 0; return }
+  doneUntil = Date.now() + LINGER
+  doneTimer = setTimeout(() => { doneTimer = null; changed() }, LINGER + 20)
+  doneTimer.unref?.()
+}
+const done = () => !running() && Date.now() < doneUntil
 
 function progress(): number | null {
   const going = [...live.values()].filter(l => l.item && !['failed', 'completed'].includes(l.entry.state))
@@ -252,10 +278,17 @@ registerSlice('downloads', (): DownloadView[] => {
 
 settingsPart(c => ({
   downloadsOpen: open.has(c.record.id),
-  downloadsButton: live.size > 0 || keptList().length > 0 || !!model.pref<boolean>('downloads.button') || open.has(c.record.id),
+  // FetchDoor.shows: a download coming in or just in, one stopped or failed
+  // still listed, Always show the downloads button, or its list hanging.
+  // Finished ones in the list don't keep it (Fetching.swift:699-701).
+  downloadsButton: live.size > 0 || done() || !!model.pref<boolean>('downloads.button') || open.has(c.record.id),
   downloadsProgress: progress(),
+  downloadsDone: done(),
   downloadsStarted: started,
 }))
+
+// Always show the downloads button, ticked or unticked: the button at once.
+model.on('window-changed', (_id: string, slices: string[]) => { if (slices.includes('prefs')) markAllSettings() })
 
 // commands
 
@@ -339,7 +372,8 @@ handle('downloads.show', async ({ toggle, anchor }, ctx) => {
     const b = c.base.getContentBounds()
     const width = 340, height = 420
     const x = Math.max(8, Math.min(b.width - width - 8, Math.round((anchor?.x ?? 120) - 26)))
-    const y = Math.max(8, Math.round((anchor?.y ?? b.height - 40) - height - 6))
+    const top = (anchor?.y ?? b.height) < b.height / 2
+    const y = top ? Math.round((anchor?.y ?? 0) + 26 + 6) : Math.max(8, Math.round((anchor?.y ?? b.height - 40) - height - 6))
     showPanel(c, 'settings.downloads', { x, y, width, height })
   } else {
     open.delete(c.record.id)

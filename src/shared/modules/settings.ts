@@ -66,6 +66,8 @@ export interface SettingsState {
   downloadsProgress: number | null
   /** Bumped when a download starts: the button swells (Fetching.swift:745). */
   downloadsStarted: number
+  /** Everything is in: arrow.down on the button for 5 s (Fetches.done). */
+  downloadsDone?: boolean
   /** The update popup in this window, at launch (updates.dismissed puts it away). */
   update?: { version: string; notes?: string; ready: boolean; fetching: boolean } | null
 }

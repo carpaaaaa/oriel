@@ -13,12 +13,16 @@ import { History } from './history'
 let historyStore: History | null = null
 let bookmarkStore: Bookmarks | null = null
 
+const bookmarkWatchers: (() => void)[] = []
+/** Told whenever the bookmarks change, after every window is marked. */
+export function onBookmarks(f: () => void): void { bookmarkWatchers.push(f) }
+
 /** Made at first use: the userData folder is set by then. */
 export function history(): History { return (historyStore ??= new History()) }
 export function bookmarks(): Bookmarks {
   if (!bookmarkStore) {
     bookmarkStore = new Bookmarks()
-    bookmarkStore.onChange = () => markAll()
+    bookmarkStore.onChange = () => { markAll(); for (const f of bookmarkWatchers) f() }
   }
   return bookmarkStore
 }
@@ -32,11 +36,15 @@ export function windowData(c: WindowController): WindowData {
   return d
 }
 
+/** What other parts of the module add to the slice (the bookmark button's popover, door.ts). */
+const parts: ((c: WindowController) => Partial<DataState>)[] = []
+export function dataPart(f: (c: WindowController) => Partial<DataState>): void { parts.push(f) }
+
 function slice(c: WindowController): DataState {
   const d = windowData(c)
   const active = model.activeTab(c.record)
   const url = active && !active.empty ? active.url : ''
-  return { bookmarked: !!url && bookmarks().contains(url), fill: d.fill, save: d.save, import: d.import }
+  return Object.assign({ bookmarked: !!url && bookmarks().contains(url), fill: d.fill, save: d.save, import: d.import }, ...parts.map(f => f(c)))
 }
 
 registerSlice('data', slice)

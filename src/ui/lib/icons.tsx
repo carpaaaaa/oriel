@@ -23,6 +23,9 @@ export const SpeakerOff = svg(() => <><path d="M3 6.2h2.2L8.4 3.6v8.8L5.2 9.8H3z
 export const Globe = svg(() => <><circle cx="8" cy="8" r="5.6" /><path d="M2.6 8h10.8M8 2.4c1.6 1.6 2.4 3.5 2.4 5.6S9.6 12 8 13.6C6.4 12 5.6 10.1 5.6 8S6.4 4 8 2.4" /></>)
 export const Search = svg(() => <><circle cx="7" cy="7" r="4.2" /><path d="m10.2 10.2 3.3 3.3" /></>)
 export const Sidebar = svg(() => <><rect x="2.5" y="3" width="11" height="10" rx="2.2" /><path d="M6.3 3v10" /></>)
+/** bookmark and bookmark.fill (the bookmark button, BookmarkDoor): the ribbon. */
+export const Bookmark = svg(() => <path d="M4.6 3.4c0-.66.54-1.2 1.2-1.2h4.4c.66 0 1.2.54 1.2 1.2v10.2L8 11.1l-3.4 2.5z" />)
+export const BookmarkFill = svg(() => <path d="M4.6 3.4c0-.66.54-1.2 1.2-1.2h4.4c.66 0 1.2.54 1.2 1.2v10.2L8 11.1l-3.4 2.5z" fill="currentColor" />)
 export const Puzzle = svg(() => <path d="M6 2.8a1.4 1.4 0 0 1 2.8 0v1h2.6v2.6h1a1.4 1.4 0 0 1 0 2.8h-1v3.2H8.6v-1a1.4 1.4 0 0 0-2.8 0v1H2.6V9.2h1a1.4 1.4 0 0 0 0-2.8h-1V3.8H6z" />)
 
 /** Windows 11 caption glyphs (Segoe Fluent's shapes at 10 px). */
