@@ -54,7 +54,7 @@ export function ChromeRoot() {
     onCleanup(() => { ro.disconnect(); window.removeEventListener('resize', measure); unwire() })
   })
   createEffect(() => {
-    void state.activeID; void activeTab()?.empty; void state.sidebar.width; void state.sidebar.folded; void state.sidebar.layout; void state.maximized
+    void state.activeID; void activeTab()?.empty; void state.sidebar.width; void state.sidebar.folded; void state.sidebar.layout; void state.sidebar.side; void state.sidebar.icons; void state.prefs?.['tabs.compact']; void state.maximized
     void state.frame?.state; void state.frame?.margin.top; void state.frame?.margin.left
     const s = split()
     if (s) { void s.sizes.join(); void s.tabs.join(); void state.tabs.length }
@@ -76,7 +76,15 @@ export function ChromeRoot() {
   // strip of 52 is the window's top and the page goes under it; the window
   // lays that out here, the strip only draws itself (tabbar/).
   const strip = () => state.sidebar.layout === 'top' && !state.sidebar.folded
-  const side = () => (state.sidebar.folded || strip() ? 0 : state.sidebar.width)
+  const side = () => (state.sidebar.folded || strip() ? 0 : state.sidebar.icons ? 52 : state.sidebar.width)
+  // Settings › Tabs › On the right (sidebar.position): the column on the
+  // window's right, the page's card on its left (studio/01 §5.1).
+  const onRight = () => state.sidebar.layout === 'side' && state.sidebar.side === 'right' && !state.sidebar.folded
+  const pref = (k: string) => !!state.prefs?.[k]
+  // A loading line with the tabs hidden (fold.loadingLine, App.swift:623,
+  // Fold.swift LoadingLine): folded away, 2 points along the page's top while
+  // it loads, clear of the card's round corners.
+  const loadingLine = () => state.sidebar.folded && pref('fold.loadingLine') && !!activeTab()?.loading && !activeTab()?.empty
   const margin = () => state.frame?.margin ?? { top: 0, right: 0, bottom: 0, left: 0 }
   // Our own buttons: always with the frame we draw; with Windows' frame only
   // when developing on a Mac (Windows draws its own there).
@@ -92,8 +100,8 @@ export function ChromeRoot() {
         '--grip-out': `${state.frame?.grip.outside ?? 8}px`, '--grip-in': `${state.frame?.grip.inside ?? 4}px`,
         '--grip-corner': `${state.frame?.grip.corner ?? 20}px`,
       }}>
-      <div class="window on-frame" classList={{ windows: state.chrome === 'windows', blurred: !state.focused, top: strip(), [`room-${state.room?.side}`]: !!state.room }}
-        style={{ '--side': `${side()}px`, '--top': strip() ? 'var(--strip)' : undefined, '--room': `${state.room?.width ?? 0}px` }}>
+      <div class="window on-frame" classList={{ windows: state.chrome === 'windows', blurred: !state.focused, top: strip(), 'col-right': onRight(), [`room-${state.room?.side}`]: !!state.room }}
+        style={{ '--side': `${side()}px`, '--top': strip() ? (pref('tabs.compact') ? 'var(--strip-compact)' : 'var(--strip)') : undefined, '--room': `${state.room?.width ?? 0}px` }}>
         <Show when={!state.sidebar.folded}>
           <Sidebar />
         </Show>
@@ -116,6 +124,9 @@ export function ChromeRoot() {
         </div>
         <Show when={state.room}>
           <div class="side-room" ref={roomEl} />
+        </Show>
+        <Show when={loadingLine()}>
+          <div class="loading-line" data-window-ui="loading-line"><span /></div>
         </Show>
         <Show when={ownButtons()}>
           <div class="caption-buttons">

@@ -1,6 +1,12 @@
 /* The interface. Values from studio/02-aspetto.md; tokens in shared/tokens.css. */
 
 * { box-sizing: border-box; margin: 0; }
+/* Settings › Reduce animations: every transition at once; Save power in Low
+   Power Mode: glide and settle a short ease-out (Design.swift Motion). */
+:root[data-motion="instant"] { --dur-quick: 0ms; --dur-glide: 0ms; --dur-settle: 0ms; --dur-fold-out: 0ms; --dur-fold-in: 0ms; --dur-light: 0ms; }
+:root[data-motion="instant"] *, :root[data-motion="instant"] *::before, :root[data-motion="instant"] *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
+:root[data-motion="instant"] .ring { animation-duration: var(--dur-ring) !important; }
+:root[data-motion="light"] { --dur-glide: 160ms; --ease-glide: var(--ease-quick); --dur-settle: 160ms; --ease-settle: var(--ease-quick); }
 html, body, #root { height: 100%; overflow: hidden; }
 html { font-family: var(--font-ui); letter-spacing: var(--tracking-ui); font-size: var(--fs-body); color: var(--ink); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; user-select: none; cursor: default; }
 /* The window paints itself (.window); around it the view is clear. */
@@ -49,6 +55,19 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 /* Tabs across the top (studio/01 §4.3, studio/02 §4.3): the strip is the
    window's top (--top from Chrome.tsx), the page under it edge to edge with a
    hairline, in full screen too. */
+/* The column on the right (sidebar.position): the card from the left gap
+   to the column; the room beside the page then on the left (studio/01 §5.1,
+   side_panel.py "column on the right, the panel on the left"). */
+.window.col-right .card { left: var(--card-gap); right: var(--side); }
+.window.col-right .top-strip { left: 0; right: var(--side); }
+.window.col-right.room-left .card { left: calc(var(--card-gap) * 2 + var(--room-w)); }
+.window.col-right.room-left .side-room { left: var(--card-gap); }
+.window.col-right.room-right .card { right: calc(var(--side) + var(--room-w) + var(--card-gap)); }
+.window.col-right.room-right .side-room { right: var(--side); }
+/* fold.loadingLine: 2 along the page's top, in the accent, clear of the corners */
+.loading-line { position: absolute; left: calc(var(--card-gap) + var(--card-radius)); right: calc(var(--card-gap) + var(--card-radius)); top: calc(var(--top, var(--card-gap)) - 2px); height: 2px; pointer-events: none; z-index: 5; }
+.loading-line span { display: block; height: 100%; width: 8%; background: var(--accent, rgb(0, 122, 255)); opacity: .9; animation: loading-line 3s cubic-bezier(0, 0, .2, 1) forwards; }
+@keyframes loading-line { to { width: 90%; } }
 .window.top .top-strip { display: none; }
 .window.top .card { left: 0; right: 0; bottom: 0; border-radius: 0; box-shadow: 0 -1px 0 var(--hairline); }
 :root[data-state="fullScreen"] .window.top :is(.card, .side-room) { top: var(--top); }

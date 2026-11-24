@@ -69,9 +69,10 @@ async function answer(req: BenchRequest): Promise<BenchReply> {
       const c = pickWindow(req.window)
       const wc = c.base.contentView.children.map(v => (v as Electron.WebContentsView).webContents).find(w => w?.isFocused()) ?? c.ui.webContents
       const modifiers = (req.modifiers ?? []) as Electron.InputEvent['modifiers']
-      wc.sendInputEvent({ type: 'keyDown', keyCode: req.key, modifiers })
-      if (req.key.length === 1) wc.sendInputEvent({ type: 'char', keyCode: req.key, modifiers })
-      wc.sendInputEvent({ type: 'keyUp', keyCode: req.key, modifiers })
+      // phase 'down' or 'up' alone: a key held, then let go (Ctrl showing the tab numbers).
+      if (req.phase !== 'up') wc.sendInputEvent({ type: 'keyDown', keyCode: req.key, modifiers })
+      if (req.key.length === 1 && !req.phase) wc.sendInputEvent({ type: 'char', keyCode: req.key, modifiers })
+      if (req.phase !== 'down') wc.sendInputEvent({ type: 'keyUp', keyCode: req.key, modifiers })
       return { ok: true }
     }
     case 'mouse': {
@@ -83,8 +84,9 @@ async function answer(req: BenchRequest): Promise<BenchReply> {
       const b = v.getBounds()
       const x = req.x - b.x, y = req.y - b.y, button = req.button ?? 'left', clickCount = req.clicks ?? 1
       v.webContents.sendInputEvent({ type: 'mouseMove', x, y })
-      v.webContents.sendInputEvent({ type: 'mouseDown', x, y, button, clickCount })
-      v.webContents.sendInputEvent({ type: 'mouseUp', x, y, button, clickCount })
+      // phase 'down' or 'up' alone: the button held (a tab giving under it), then let go.
+      if (req.phase !== 'up') v.webContents.sendInputEvent({ type: 'mouseDown', x, y, button, clickCount })
+      if (req.phase !== 'down') v.webContents.sendInputEvent({ type: 'mouseUp', x, y, button, clickCount })
       return { ok: true }
     }
     case 'focus' as never: {

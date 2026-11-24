@@ -18,9 +18,9 @@ export type BenchRequest =
   /** A picture of the window, written as PNG to `path`. */
   | { do: 'shot'; path: string; window?: string }
   /** Send a key to the focused page or interface, as a person would. */
-  | { do: 'key'; key: string; modifiers?: string[]; window?: string }
+  | { do: 'key'; key: string; modifiers?: string[]; window?: string; phase?: 'down' | 'up' }
   /** Move and press the mouse at a point of the window. */
-  | { do: 'mouse'; x: number; y: number; button?: 'left' | 'right' | 'middle'; clicks?: number; window?: string }
+  | { do: 'mouse'; x: number; y: number; button?: 'left' | 'right' | 'middle'; clicks?: number; window?: string; phase?: 'down' | 'up' }
   /** Wait until the main process has nothing pending. */
   | { do: 'settle' }
   | { do: 'quit' }

@@ -4,8 +4,9 @@
 // the layer): a strip of 40 over the page with Minimize, Exit Full Screen and
 // Close, so a window is never left without a way out.
 
+import { createEffect, createRoot } from 'solid-js'
 import { registerPanel } from '../lib/registry'
-import { cmd } from '../lib/store'
+import { cmd, state } from '../lib/store'
 import { WinClose, WinMinimize, WinRestore } from '../lib/icons'
 
 function Reveal() {
@@ -21,3 +22,12 @@ function Reveal() {
 }
 
 registerPanel('window.reveal', Reveal)
+
+// Motion for both roots (Design.swift Motion): Reduce animations makes every
+// transition immediate (motion.instant); Save power in Low Power Mode makes
+// glide and settle a short ease-out while Windows saves power (motion.light).
+createRoot(() => createEffect(() => {
+  const p = state.prefs ?? {}
+  const root = document.documentElement.dataset
+  root.motion = p['motion.instant'] ? 'instant' : p['motion.light'] && state.power?.saving ? 'light' : ''
+}))

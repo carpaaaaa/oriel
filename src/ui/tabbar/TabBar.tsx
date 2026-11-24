@@ -130,7 +130,7 @@ export function TabBar() {
   )
 
   return (
-    <header ref={bar} class="tabbar drag" data-tabs-ui="strip" style={{ '--controls': `${controls()}px` }}
+    <header ref={bar} class="tabbar drag" data-tabs-ui="strip" classList={{ compact: pref('tabs.compact', false) }} style={{ '--controls': `${controls()}px` }}
       onPointerEnter={() => setInside(true)} onPointerLeave={() => setInside(false)}>
       <Wash />
       <div class="strip-band">

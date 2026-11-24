@@ -77,6 +77,11 @@ declare module '../commands' {
 }
 
 declare module '../state' {
+  interface WindowState {
+    /** Ctrl held with Settings › Show tab numbers while Ctrl is held: the
+     * number Ctrl+1-9 gives each tab (TabShortcutHint.swift), else null. */
+    tabHints?: Record<ID, number> | null
+  }
   interface TabView {
     /** What the tab says, in Tab.label's order (§2.8). */
     label?: string
