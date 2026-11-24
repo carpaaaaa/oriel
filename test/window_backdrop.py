@@ -8,6 +8,10 @@
                                     right corner that takes the keys, so
                                     Oriel is drawn at rest
 """
+import sys
+if sys.platform != "win32":
+    print("window_backdrop.py runs on Windows only")
+    raise SystemExit(0)
 import ctypes, sys
 from ctypes import wintypes as wt
 

@@ -37,7 +37,7 @@ same(chord("[", "BracketLeft", ctrl=True, alt=True)["name"], None, "Italian AltG
 same(chord("ł", "KeyL", ctrl=True, alt=True)["name"], None, "Polish AltGr+L types ł: never a shortcut")
 same(chord("€", "KeyE", altGraph=True)["name"], None, "AltGraph reported by the page: never")
 same(chord("è", "BracketLeft", ctrl=True)["later"], "tabs.back", "Italian Ctrl+è: the [ key's place, Back")
-same(chord("+", "BracketRight", ctrl=True)["later"], "view.zoomIn" if False else None, "Italian Ctrl++ is not Forward")
+same(chord("+", "BracketRight", ctrl=True)["later"], "view.zoomIn", "Italian Ctrl++ is zoom, not Forward")
 same(chord("+", "BracketRight", ctrl=True)["name"], "Ctrl++", "Italian Ctrl++ reads as +")
 same(chord("}", "BracketRight", ctrl=True, shift=True)["first"], "tabs.next", "Ctrl+Shift+] by place: Next Tab")
 same(chord("PageDown", "PageDown", ctrl=True)["first"], "tabs.next", "Ctrl+PageDown: Next Tab")
