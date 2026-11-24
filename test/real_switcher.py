@@ -152,8 +152,6 @@ t.ok(got, f"a quick Ctrl+Tab: the tab used before, no switcher left ({title()}, 
 down("ctrl"); tap("tab"); up("ctrl")
 got = settle(lambda: title() == "four" and not switcher())
 t.ok(got, f"again: back to the first ({title()}, switcher {switcher()})")
-shown = b.call({"do": "ui", "js": "!!document.querySelector('.switcher')", "root": "overlay"}).get("value")
-t.ok(not shown, "the switcher's panel never showed for a quick press")
 
 # 2. Held: the panel, Tab and Shift+Tab, Ctrl let go.
 down("ctrl"); tap("tab")

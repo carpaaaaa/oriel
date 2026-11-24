@@ -25,7 +25,8 @@ async function take(id: ID): Promise<void> {
   if (!wc || wc.isDestroyed() || !inFront(id)) return
   try {
     const image = await wc.capturePage()
-    if (image.isEmpty() || !model.tabs.has(id)) return
+    // Another tab came to the front while it was drawn: this one may be blank.
+    if (image.isEmpty() || !model.tabs.has(id) || !inFront(id)) return
     const size = image.getSize()
     const small = size.width > 360 ? image.resize({ width: 360, quality: 'good' }) : image
     pictures.delete(id)
@@ -56,6 +57,7 @@ registerSlice('switcherPictures', c => {
 const open = new Set<string>()
 model.on('window-changed', (id: string, slices: string[]) => {
   if (!slices.includes('switcher')) return
+  if (!model.windows.has(id)) { open.delete(id); return }
   const up = !!model.windows.get(id)?.switcher
   if (up === open.has(id)) return
   if (up) open.add(id); else open.delete(id)

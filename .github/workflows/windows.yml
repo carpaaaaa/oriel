@@ -248,6 +248,11 @@ jobs:
         env:
           SHOTS_DIR: shots
         run: python test/default_browser.py
+      # One click: a clean install, and over 0.1.4 put in a folder of its own
+      # by the old installer, as the updater and as a person run it.
+      - name: One-click installer (clean, over 0.1.4 in its own folder, uninstalled)
+        if: always()
+        run: python test/installer_oneclick.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

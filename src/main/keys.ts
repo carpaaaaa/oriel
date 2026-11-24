@@ -371,6 +371,8 @@ export function chordName(k: Chord): string | null {
   const ctrl = process.platform === 'darwin' ? k.meta || k.ctrl : k.ctrl
   // Ctrl+Alt is AltGr on Windows: it types, it is never a shortcut.
   if (ctrl && k.alt) return null
+  // Alt with the keypad's digits types a character by its code (Alt+0233 é).
+  if (k.alt && /^Numpad[0-9]$/.test(k.code)) return null
   let key: string
   if (['+', '-', '='].includes(k.key)) key = k.key // zoom keys wherever they sit (+ is on ] in Italian and German)
   else if (places[k.code]) key = places[k.code]

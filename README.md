@@ -52,7 +52,7 @@ On purpose, or not yet:
 
 The links always point to the latest release; every file is also on the [releases page](https://github.com/carpaaaaa/oriel/releases), built by GitHub Actions from this repository.
 
-Because the installer isn't signed yet, Windows SmartScreen says "Windows protected your PC" the first time: choose **More info**, then **Run anyway**. To make Oriel your default browser: Settings, Make it the default, which opens Windows' Default apps on Oriel.
+Open the installer and that's all: Oriel installs for you alone (no administrator needed, no questions) and opens when it's done. Because the installer isn't signed yet, Windows SmartScreen says "Windows protected your PC" the first time: choose **More info**, then **Run anyway**. To make Oriel your default browser: Settings, Make it the default, which opens Windows' Default apps on Oriel.
 
 ## Security
 
