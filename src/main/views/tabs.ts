@@ -25,6 +25,8 @@ type Hooks = {
   input?: (tab: TabRuntime, event: Electron.Event, input: Electron.Input) => void
   created?: (tab: TabRuntime, contents: WebContents) => void
   contextMenu?: (tab: TabRuntime, params: Electron.ContextMenuParams) => void
+  /** Block ads and trackers: a $popup filter for what the page opens (pages/shield.ts). */
+  refusePopup?: (pageURL: string, url: string, referrer: string) => boolean
 }
 
 export const hooks: Hooks = {}
@@ -404,6 +406,8 @@ export class TabRuntime {
     wc.setWindowOpenHandler(details => {
       // A website gets no Oriel page, script, data: or file (studio/09 §1.4).
       if (pageMayNotOpen(wc.getURL(), details.url, 'window.open')) return { action: 'deny' }
+      // A pop-up the lists name (uBlock Origin's $popup) never opens.
+      try { if (hooks.refusePopup?.(wc.getURL(), details.url, details.referrer?.url ?? '')) return { action: 'deny' } } catch {}
       // A sized pop-up (a sign-in, a call): its own small window with Open
       // sized pop-ups in small windows, a tab otherwise (§3.35). Either way
       // its page is the one Chromium made, so the opener can talk to it.

@@ -5,8 +5,10 @@
 // needs the script to exist ($redirect), parameters taken off ($removeparam),
 // the lists' exceptions (@@) and $important honoured, a whole page left
 // alone where a list says so ($document). A page itself is blocked only by
-// a filter written for pages ($document); the lists' CSP is added to the
-// pages they name. Search's own rules (its 52 third parties and YouTube's ad
+// a filter written for pages ($document, or $all, as the Badware list
+// writes them), with the tab's "A block list stopped this page."; a tab or
+// a window a page opens is refused by a $popup filter for it (as uBlock
+// Origin closes the pop-up); the lists' CSP is added to the pages they name. Search's own rules (its 52 third parties and YouTube's ad
 // paths) still apply where the lists say nothing, and give way to their
 // exceptions; with no engine at all (it couldn't be read) they are all
 // there is, as on the Mac. Read on every request, so the switch and a
@@ -19,10 +21,10 @@ import { net } from '../net'
 import { addDefaults } from '../../shared/prefs'
 import { handle } from '../router'
 import { model } from '../model/model'
-import { runtimes } from '../views/tabs'
+import { hooks, runtimes } from '../views/tabs'
 import { hostOf, shieldOn, testHosts, thirdParty, topAddress } from './facts'
 import { isUnwanted, youtubeRule } from './lists'
-import { blocker, cspFor, excepted, forDocuments, pageAllowed, request } from './blocker'
+import { blocker, cspFor, excepted, forDocuments, pageAllowed, popupBlocked, request } from './blocker'
 
 addDefaults({ 'shield.paused': [] as string[] })
 
@@ -97,6 +99,18 @@ net.onBeforeRequest('shield', 100, d => {
     return { cancel: true }
   }
 })
+
+// The lists' $popup: a page opening a listed address in a tab or a window
+// (window.open, a link with a target) is refused, as uBlock Origin closes
+// the pop-up. The opener is the frame that asked, as its referrer tells,
+// else the page; Shield off or paused on the page leaves it.
+hooks.refusePopup = (page, url, referrer) => {
+  if (!/^https?:/i.test(page) || !shieldOn(hostOf(page))) return false
+  const opener = /^https?:/i.test(referrer) ? referrer : page
+  if (!popupBlocked(url, opener, page)) return false
+  note(blocked, url)
+  return true
+}
 
 // The lists' $csp, added to the pages and frames they name.
 net.onHeadersReceived('shield-csp', 120, (d, headers) => {

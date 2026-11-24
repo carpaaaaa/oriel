@@ -2,8 +2,10 @@
 // sandboxed preloads must be), and the interface (Vite); then the ad
 // blocker's snapshot: uBlock Origin's default lists, fetched into
 // build/blocker when missing or a week old, compiled into
-// out/main/blocker/engine.bin so the first launch blocks offline.
-// node scripts/build.mjs [--watch] [--no-ui] [--refresh-lists] [--offline]
+// out/main/blocker/engine.bin so the first launch blocks offline. A
+// release build (--release) stops with an error when that engine can't be
+// made: Oriel never ships without uBlock Origin's lists.
+// node scripts/build.mjs [--watch] [--no-ui] [--refresh-lists] [--offline] [--release]
 import { build, context } from 'esbuild'
 import { build as vite } from 'vite'
 import { cp, mkdir } from 'node:fs/promises'
@@ -12,6 +14,7 @@ import { execFileSync } from 'node:child_process'
 
 const watch = process.argv.includes('--watch')
 const noUI = process.argv.includes('--no-ui')
+const release = process.argv.includes('--release')
 
 const common = { bundle: true, platform: 'node', target: 'node24', sourcemap: true, logLevel: 'warning' }
 const main = {
@@ -55,9 +58,11 @@ await cp('src/ui/public', 'out/ui', { recursive: true }).catch(() => {})
 console.log('built', new Date().toLocaleTimeString())
 
 /** The lists bundled with Oriel: fetched when missing or older than a week
- * (or with --refresh-lists), compiled when they changed. Offline with no
- * lists yet, Oriel ships without them and blocks with Search's own rules
- * until its first daily update. */
+ * (or with --refresh-lists), compiled when they changed, with a copy of
+ * each beside the engine (the last good copy of a list whose update fails).
+ * Offline with no lists yet, a development build goes without them and
+ * blocks with Search's own rules until its first daily update; a release
+ * build stops there. */
 function snapshot() {
   const dir = 'build/blocker'
   const engine = 'out/main/blocker/engine.bin'
@@ -66,13 +71,20 @@ function snapshot() {
   const ids = [...sources.lists, sources.resources].map(s => s.id)
   const age = f => (existsSync(f) ? Date.now() - statSync(f).mtimeMs : Infinity)
   const run = (...args) => execFileSync(process.execPath, [tool, ...args], { stdio: 'inherit' })
+  const fail = why => {
+    if (!release) { console.warn(`[blocker] ${why}: Oriel will block with its own short list until its first update`); return }
+    console.error(`\n[blocker] RELEASE BUILD STOPPED: ${why}. Oriel can't ship without uBlock Origin's lists.\n`)
+    process.exit(1)
+  }
   if (!process.argv.includes('--offline') && (process.argv.includes('--refresh-lists') || age(`${dir}/meta.json`) > 7 * 24 * 3600 * 1000)) {
-    try { run('fetch', dir) } catch { console.warn('[blocker] the lists could not be fetched: the copy already here (if any) is bundled') }
+    try { run('fetch', dir) } catch { console.warn('[blocker] not every list could be fetched: the copies already here (if any) are bundled') }
   }
-  if (!ids.every(id => existsSync(`${dir}/${id}.txt`))) {
-    console.warn('[blocker] no lists in build/blocker: Oriel will block with its own short list until its first update')
-    return
-  }
+  const missing = ids.filter(id => !existsSync(`${dir}/${id}.txt`))
+  if (missing.length) return fail(`no ${missing.join(', ')} in ${dir}`)
+  const copies = ids.map(id => `out/main/blocker/lists/${id}.txt.gz`)
   const newest = Math.min(...ids.map(id => age(`${dir}/${id}.txt`)), age(tool), age('src/main/pages/blocker/lists.json'))
-  if (age(engine) > newest) run('compile', dir, engine)
+  if (age(engine) > newest || copies.some(f => !existsSync(f))) {
+    try { run('compile', dir, engine) } catch { return fail('the engine could not be compiled') }
+  }
+  if (!existsSync(engine)) fail(`no ${engine}`)
 }

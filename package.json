@@ -15,7 +15,7 @@
     "build": "node scripts/build.mjs",
     "start": "node scripts/build.mjs && electron .",
     "typecheck": "tsc -p .",
-    "dist": "node scripts/build.mjs && electron-builder --win --x64 --arm64",
+    "dist": "node scripts/build.mjs --release && electron-builder --win --x64 --arm64",
     "licenses": "node scripts/licenses.mjs",
     "icon": "node scripts/make-icon.mjs"
   },

@@ -79,8 +79,10 @@ ipcMain.handle('pages:cosmetics', (event, features: { classes?: unknown; ids?: u
   if (!frame) return ''
   const { url, top } = frameAddresses(frame, event.sender)
   if (!url || !/^https?:/i.test(top) || !shieldOn(hostOf(top))) return ''
-  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(0, 5000) : [])
-  return cosmeticsForDOM(url, strings(features?.classes), strings(features?.ids), strings(features?.hrefs))
+  // A page sends what it likes: so many names, each of a sensible length
+  // (a class or an id of 256 characters at most, a link of 2,048).
+  const strings = (v: unknown, longest: number) => (Array.isArray(v) ? v.slice(0, 5000).filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= longest) : [])
+  return cosmeticsForDOM(url, strings(features?.classes, 256), strings(features?.ids, 256), strings(features?.hrefs, 2048))
 })
 
 /** Frames given their share, for the bench. */
