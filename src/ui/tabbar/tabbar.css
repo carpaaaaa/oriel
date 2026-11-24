@@ -1,0 +1,78 @@
+/* Tabs across the top (studio/02 §4.3, studio/01 §4.3-§4.18). On the page's
+   white: the greys are Greys.white (tokens' defaults, not .on-frame). */
+
+.tabbar { position: absolute; left: 0; right: 0; top: 0; height: var(--strip); background: var(--ground); isolation: isolate;
+  padding-right: var(--controls, 0px); font-size: var(--fs-tab); --accent: rgb(0, 122, 255); }
+.tabbar .wash { position: absolute; }
+.strip-band { position: absolute; left: 0; right: var(--controls, 0px); top: 11px; height: var(--band); display: flex; align-items: center; gap: var(--tab-gap); }
+.strip-lights { flex: none; height: 100%; }
+.strip-row { position: relative; flex: 0 1 auto; min-width: 0; height: 100%; display: flex; align-items: center; gap: var(--tab-gap);
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-app-region: no-drag; }
+.strip-row::-webkit-scrollbar { display: none; }
+.strip-spring { flex: 1 0 40px; height: 100%; }
+.strip-far { flex: none; display: flex; align-items: center; gap: 2px; margin-right: 12px; -webkit-app-region: no-drag; }
+.strip-helm { display: flex; gap: var(--door-gap); margin-right: 8px; }
+.strip-far .strip-helm:last-child { margin-right: 0; }
+
+.strip-pill { position: absolute; left: 0; top: 0; opacity: 0; border-radius: var(--row-radius); background: var(--g-wash); pointer-events: none; }
+.strip-pill.on { opacity: 1; }
+
+/* a tab: 28 in the band of 30; air 11, mark 15, 6, title, 6, spring ≥ 2, 6, slot 15, air 7 */
+.strip-tab { position: relative; flex: none; height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 7px 0 11px; border-radius: var(--row-radius); }
+.strip-tab .ground { position: absolute; inset: 0; border-radius: var(--row-radius); }
+.strip-tab:hover .ground { background: var(--g-hover); }
+.strip-tab:not(.titled) .ground { background: var(--g-tile); }
+.strip-tab.live .ground { background: var(--g-wash); }
+.strip-tab.picked .ground { background: var(--g-wash); box-shadow: inset 0 0 0 1px var(--ink-picked-outline); }
+.strip-tab.gliding .ground { background: transparent; }
+.strip-tab:not(.titled) { justify-content: center; padding: 0; }
+.strip-tab > * { position: relative; }
+.strip-title { flex: 1; min-width: 0; display: grid; margin-right: 8px; }
+.strip-title .title, .strip-title .rest { grid-area: 1 / 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--fs-tab); color: var(--g-muted); }
+.strip-tab:hover .title { color: var(--ink-hover-text); }
+.strip-tab.live .title { color: var(--ink); opacity: 0; }
+.strip-tab.live:not(:has(.rest)) .title { opacity: 1; }
+.strip-tab.live:hover .title { opacity: 1; }
+.strip-tab.live:hover .rest { opacity: 0; }
+.strip-title .rest { color: var(--ink); }
+.strip-title .rest-name { font-weight: 500; }
+.strip-tab.put-away .strip-title, .strip-tab.put-away .mark { opacity: .45; }
+.strip-slot { flex: none; width: var(--close); height: var(--close); display: grid; place-items: center; color: var(--muted); }
+.strip-slot .ring { opacity: .7; animation: spin var(--dur-ring) linear infinite; }
+.strip-tab.loading:hover .strip-slot { opacity: 0; }
+.strip-tab .speaker { flex: none; }
+.strip-tab:hover .speaker { margin-right: 8px; }
+.strip-x { position: absolute !important; right: 0; top: 0; width: 30px; height: 28px; display: none; place-items: center; }
+.strip-tab.titled:hover .strip-x { display: grid; }
+.strip-tab:not(.titled).live:hover .strip-x { display: grid; right: auto; left: 50%; transform: translateX(-50%); }
+.strip-tab:not(.titled).live:hover .mark { opacity: 0; }
+.strip-x .disc { width: var(--close); height: var(--close); border-radius: 50%; display: grid; place-items: center; background: var(--ink-close-disc); color: var(--muted); }
+
+/* a pin: a square of 30, its letter 12 medium, its icon 16 */
+.strip-pin { position: relative; flex: none; width: var(--tab-pin); height: 28px; display: grid; place-items: center; }
+.strip-pin .ground { position: absolute; inset: 0; border-radius: var(--row-radius); background: var(--g-tile); }
+.strip-pin:hover .ground { background: var(--g-hover); }
+.strip-pin.live .ground { background: var(--g-pin-live); }
+.strip-pin.gliding .ground { background: var(--g-tile); }
+.strip-pin > :not(.ground) { position: relative; }
+.strip-pin .pin-letter { font-size: 12px; font-weight: 500; color: var(--muted); }
+.strip-pin.live .pin-letter { color: var(--ink); }
+.strip-pin.asleep .pin-letter { opacity: .45; }
+.pin-line { flex: none; width: 1px; height: 20px; background: var(--hairline); margin: 0 1px; }
+
+/* + right after the last tab: 15 with 7 each side, radius 9, there with the pointer in the strip */
+.strip-plus { flex: none; width: 29px; height: 27px; border-radius: var(--row-radius); display: grid; place-items: center; color: var(--muted);
+  opacity: 0; transform: scale(.7); transform-origin: left center; pointer-events: none;
+  transition: opacity var(--dur-settle) var(--ease-settle), transform var(--dur-settle) var(--ease-settle), background-color var(--dur-quick) var(--ease-quick); }
+.strip-plus.shown { opacity: 1; transform: none; pointer-events: auto; }
+.strip-plus:hover { background: var(--hover); }
+
+/* a group: its name (12.5 medium + 20), the band behind name and tabs, 10 after */
+.strip-group { flex: none; height: 28px; display: flex; align-items: center; gap: var(--tab-gap); border-radius: var(--row-radius); }
+.strip-group.open { background: var(--band); margin-right: 8px; }
+.strip-group-name { flex: none; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+
+/* the page under the strip, edge to edge (until the window module lays it out itself) */
+html .window:has(> .tabbar), html .window.windows:has(> .tabbar) { --side: 0px; --top: var(--strip); }
+html .window:has(> .tabbar) .card { left: 0; right: 0; bottom: 0; border-radius: 0; box-shadow: 0 -1px 0 var(--hairline); }
+.window:has(> .tabbar) .top-strip { display: none; }
