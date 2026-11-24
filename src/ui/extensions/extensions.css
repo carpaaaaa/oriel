@@ -73,3 +73,22 @@
 .ext-switch span { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform var(--dur-quick) var(--ease-quick); }
 .ext-switch.on { background: var(--ink); }
 .ext-switch.on span { transform: translateX(12px); background: var(--ground); }
+
+/* Oriel's bar on a Web Store page (StoreOffer, studio/04 §2.9): a capsule on
+   ground with a hairline and a soft shadow, 30 above the page's foot. 44 tall
+   with the button 9 in from every side, so the corners stay concentric
+   (22 outside, 13 inside). */
+.ext-store-region { position: fixed; inset: 0; }
+.ext-store { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); width: max-content; height: 44px; box-sizing: border-box;
+  display: flex; align-items: center; gap: 12px; padding: 9px 9px 9px 16px; border-radius: 22px;
+  background: var(--ground); box-shadow: 0 0 0 1px var(--hairline), 0 6px 20px rgba(0,0,0,.12); animation: ext-rise .22s cubic-bezier(.2,.8,.2,1); }
+@keyframes ext-rise { from { opacity: 0; transform: translate(-50%, 6px) } to { opacity: 1; transform: translate(-50%, 0) } }
+.ext-store-icon { display: block; width: 18px; height: 18px; border-radius: 5px; object-fit: contain; flex: none; }
+.ext-store-glyph { display: grid; place-items: center; width: 18px; height: 18px; color: var(--muted); flex: none; }
+.ext-store-name { font-size: 12.5px; color: var(--ink); max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ext-store-state { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.ext-store-button { flex: none; height: 26px; padding: 0 11px; border-radius: 13px; font: inherit; font-size: 12px; line-height: 26px;
+  background: var(--ink); color: var(--ground); white-space: nowrap; transition: opacity var(--dur-quick) var(--ease-quick); }
+.ext-store-button:hover { opacity: .86; }
+.ext-store-button.quiet { background: var(--wash); color: var(--ink); }
+.ext-store-ring { width: 10px; height: 10px; margin-right: 8px; }

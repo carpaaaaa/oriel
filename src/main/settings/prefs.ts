@@ -16,6 +16,7 @@ import { allControllers, type WindowController } from '../views/window'
 import { openInternal, scheme } from './internal'
 import { forgetPermissions } from './permissions'
 import { forgetDownloadAddresses } from './downloads'
+import { check, install, relaunch, updateFacts, updateNow } from './updater'
 
 /** What Oriel said last (the Mac's announcement line), for the bench. */
 export const said: string[] = []
@@ -165,6 +166,7 @@ export function settingsValues() {
       name: brand.name,
       platform: process.platform,
       dark: nativeTheme.shouldUseDarkColors,
+      update: updateFacts(),
     },
   }
 }
@@ -174,7 +176,7 @@ handle('settings.values', () => settingsValues())
 
 handle('settings.open', async ({ page, find }, ctx) => {
   const c = need(ctx)
-  const section = page ?? (pref<string>('settings.page') || 'general')
+  const section = page ?? (updateFacts().pending ? 'update' : (pref<string>('settings.page') || 'general'))
   const id = await openInternal(c, `${scheme}://settings/${section}${find ? `?find=${encodeURIComponent(find)}` : ''}`)
   return { tab: id }
 })
@@ -243,8 +245,19 @@ handle('settings.do', async ({ id, arg }, ctx) => {
     case 'arc.undo':
       undoArc()
       return say('Put back as it was')
-    case 'updates.check':
-      return say(await updater.check() ?? 'This is the latest one')
+    case 'updates.check': {
+      const m = await check(true)
+      return m ? say(m) : settingsValues()
+    }
+    case 'updates.install':
+      await install()
+      return settingsValues()
+    case 'updates.relaunch':
+      relaunch()
+      return settingsValues()
+    case 'updates.now':
+      await updateNow()
+      return settingsValues()
     case 'profiles':
       return say('Profiles come in a later version')
     default:
@@ -253,8 +266,6 @@ handle('settings.do', async ({ id, arg }, ctx) => {
   }
 })
 
-/** The updater module replaces this (studio/06 §4). */
-export const updater: { check: () => Promise<string | null> } = { check: async () => null }
 
 // Set Up Like Arc (SettingsIndex.swift setUpLikeArc, LikeArc)
 

@@ -26,6 +26,7 @@ import { model } from './model/model'
 import { addDefaults } from '../shared/prefs'
 import { controlUp, edit, escape as fieldEscape, fieldShowing, holdKey, mem, putAway, searchTabsKey } from './field/commands'
 import { closeFind, findIsOpen, openFind, step as findStep } from './field/find'
+import { cancelTabEdit, tabEditing } from './field/tabedit'
 
 export interface Chord { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean; key: string; code: string; altGraph?: boolean }
 
@@ -89,6 +90,8 @@ function closeFront(c: WindowController): Command | boolean {
 function escapeKey(c: WindowController): boolean {
   const m = mem(c)
   const tab = model.activeTab(c.record)
+  // The address in the tab itself first, as the Mac's chain begins (App.swift take).
+  if (tabEditing(c)) { cancelTabEdit(c); return true }
   // The field over the page has the keys and is in front of Find.
   if (m.editing && tab && !tab.empty) return fieldEscape(c)
   if (findIsOpen(c)) return closeFind(c)
@@ -218,7 +221,9 @@ export const bindings: Binding[] = [
   ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => b(`tab.${n}`, `Tab ${n}`, 'Fixed', `⌘${n}`, [`Ctrl+${n}`], first({ fixed: true, action: c => nth(c, n - 1) }))),
   b('tab.last', 'Last Tab', 'Fixed', '⌘9', ['Ctrl+9'], first({ fixed: true, action: c => nth(c, -1) })),
   b('escape', 'Escape', 'Fixed', 'Esc', ['Escape'], first({ fixed: true, action: c => escapeKey(c) })),
-  b('stop', 'Stop Loading', 'Fixed', '', ['Escape'], { fixed: true, action: () => ({ do: 'tab.stop' }) }),
+  // Escape the page left alone: stop loading, else out of full screen (the
+  // way out a window with no buttons in sight needs, studio/01 §1.19).
+  b('stop', 'Stop Loading', 'Fixed', '', ['Escape'], { fixed: true, action: c => (c.frame.isFullScreen() && !model.activeTab(c.record)?.loading ? { do: 'window.fullScreen', on: false } : { do: 'tab.stop' }) }),
   // Windows closes a window on Alt+F4 whatever the page says.
   b('window.close', 'Close Window', 'Fixed', '', ['Alt+F4'], first({ fixed: true, action: () => ({ do: 'window.close' }) })),
   // Alt+Home is Chrome's home page; Search has none but a pin's own page.

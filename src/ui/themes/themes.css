@@ -1,0 +1,91 @@
+/* The themes module: the blank tab's wall and door, and Settings › Themes
+   (HomeTheme.swift, ThemesPage.swift; studio/02 §2.8, §4.2, §8.1-8.3). */
+
+/* the background: ground, then the painting filling the box, centred
+   (SwiftUI's aspect fill and clip) */
+.home-bg { position: absolute; inset: 0; overflow: hidden; background: var(--ground); pointer-events: none; border-radius: inherit; }
+.home-bg-art { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+.home-bg-veil { position: absolute; inset: 0; background: var(--ground); }
+
+/* on the blank tab: the card's own corners; the breath stops over a theme
+   (Omnibox.swift UnlessThemed: "the wall moves the eye already") */
+.empty-page:has(> .blank-wall) { border-radius: inherit; }
+.empty-page:has(> .blank-wall:not([data-shown="off"])) .field .breath { display: none; }
+
+/* the door to Settings: the column's door (26, radius 8, muted, ink 70% on
+   the hover grey), 14 in from the card's bottom right corner */
+.blank-door {
+  position: absolute; right: 14px; bottom: 14px; width: var(--door); height: var(--door); border-radius: var(--door-radius);
+  display: grid; place-items: center; color: var(--muted); -webkit-app-region: no-drag;
+  transition: background-color var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick), box-shadow var(--dur-quick) var(--ease-quick);
+}
+.blank-door:hover { background: var(--g-hover); color: var(--ink-hover-text); }
+/* over a theme: on the ground with a hairline, as the field stands there */
+.blank-door.themed { background: var(--ground); box-shadow: inset 0 0 0 1px var(--hairline); }
+.blank-door.themed:hover { background: var(--hover); }
+
+/* Settings › Themes: one column, 16 apart */
+.th { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; color: var(--ink); }
+.th-note { font-size: 12px; line-height: 14.3px; color: var(--muted); }
+.th-small { font-size: 11px; line-height: 13.1px; color: var(--muted); }
+
+/* the window in small: 480 × 300, radius 12 and a hairline */
+.th-mock { position: relative; width: 480px; max-width: 100%; aspect-ratio: 480 / 300; border-radius: 12px; overflow: hidden; background: var(--ground); flex: none; }
+.th-mock::after { content: ""; position: absolute; inset: 0; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--hairline); pointer-events: none; }
+.th-mock .home-bg { border-radius: 0; }
+.th-mock-field {
+  position: absolute; left: 50%; top: 50%; width: 220px; height: 30px; transform: translate(-50%, -50%);
+  display: grid; place-items: center; border-radius: 9px; background: var(--ground); box-shadow: inset 0 0 0 1px var(--hairline);
+  font-size: 11px; color: var(--muted); white-space: nowrap;
+}
+.th-bar { display: block; border-radius: 3px; background: color-mix(in srgb, var(--muted) 35%, transparent); }
+.th-mock-column { position: absolute; top: 0; bottom: 0; left: 0; width: 70px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: color-mix(in srgb, var(--ground) 55%, transparent); }
+.th-mock-column.right { left: auto; right: 0; }
+.th-mock-column .th-bar { height: 8px; }
+.th-mock-strip { position: absolute; left: 0; right: 0; top: 0; height: 26px; padding: 0 10px; display: flex; align-items: center; gap: 6px; background: color-mix(in srgb, var(--ground) 55%, transparent); }
+.th-mock-strip .th-bar { width: 56px; height: 10px; }
+
+/* presets: three columns of 166, 14 apart; 160 × 100 radius 10 and a
+   hairline, 3 of margin, a ring of the accent 2.5 wide at radius 13 on the
+   choice; the name 6 under it, 11.5, medium and ink when chosen */
+/* (the Mac's three columns are 526 wide, more than the row leaves in a
+   600 column: here they give way, never cut, keeping 160 × 100's shape) */
+.th-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 166px)); gap: 14px; justify-content: start; align-items: start; align-self: stretch; }
+.th-card { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.th-ring { display: block; width: 100%; padding: 3px; border-radius: 13px; box-shadow: inset 0 0 0 2.5px transparent; }
+.th-card.on .th-ring { box-shadow: inset 0 0 0 2.5px var(--th-accent, #007AFF); }
+.th-thumb { position: relative; display: block; width: 100%; aspect-ratio: 160 / 100; border-radius: 10px; overflow: hidden; background: var(--ground); }
+.th-thumb::after { content: ""; position: absolute; inset: 0; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--hairline); pointer-events: none; }
+.th-name { font-size: 11.5px; line-height: 13.7px; color: var(--muted); }
+.th-card.on .th-name { color: var(--ink); font-weight: 500; }
+
+/* solid: six discs of 24, 10 apart, edged 1.5 in hairline (ink when chosen) */
+.th-solid { display: flex; align-items: center; gap: 10px; }
+.th-swatch { width: 24px; height: 24px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--hairline); flex: none; }
+.th-swatch.on { box-shadow: inset 0 0 0 1.5px var(--ink); }
+
+/* ColorPicker: label, then the well */
+.th-well-row { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; line-height: 15.5px; color: var(--ink); cursor: default; }
+.th-well { position: relative; width: 38px; height: 22px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .14), 0 0 0 3px var(--ground), 0 0 0 4px var(--hairline); overflow: hidden; }
+.th-well input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+
+.th-gradient { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; align-self: stretch; }
+.th-wells { display: flex; gap: 16px; padding-left: 4px; }
+
+/* image: 176 × 114 radius 8 and a hairline (wash with a photo when none),
+   then the pills and the note, 8 apart */
+.th-image { display: flex; align-items: flex-start; gap: 16px; }
+.th-image-frame { position: relative; width: 176px; height: 114px; border-radius: 8px; overflow: hidden; flex: none; background: var(--ground); }
+.th-image-frame::after { content: ""; position: absolute; inset: 0; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--hairline); pointer-events: none; }
+.th-image-none { position: absolute; inset: 0; display: grid; place-items: center; background: var(--wash); color: var(--muted); }
+.th-image-side { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+
+.th-check { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 14.3px; color: var(--ink); }
+.th-check input { margin: 0; accent-color: var(--th-accent, #007AFF); }
+
+/* sliders: label 12 muted 64 wide, the slider, the value 11 tabular 40 wide */
+.th-sliders { display: flex; flex-direction: column; gap: 8px; align-self: stretch; }
+.th-slider { display: flex; align-items: center; gap: 10px; align-self: stretch; }
+.th-slider-title { width: 64px; flex: none; font-size: 12px; color: var(--muted); }
+.th-slider input { flex: 1; min-width: 0; accent-color: var(--th-accent, #007AFF); }
+.th-slider-value { width: 40px; flex: none; text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); }

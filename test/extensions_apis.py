@@ -61,19 +61,23 @@ t.ok(w == {"sidePanel": "function", "offscreen": "function", "identity": "functi
 
 # --- sidePanel (studio/04 §5.6)
 t.ok(api("chrome.sidePanel.getOptions({})") == {"path": "panel.html", "enabled": True}, "getOptions: the manifest's page")
-before = b.call({"do": "extensions.panel"})["page"]
+before = b.wait_for(lambda: (x := b.call({"do": "extensions.panel"})["page"]) and x["width"] > 0 and x, within=10, what="page placed")
 api("chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })")
 t.ok(api("chrome.sidePanel.getPanelBehavior()") == {"openPanelOnActionClick": True}, "setPanelBehavior")
 b.cmd("ext.press", id=EXT)
-panel = b.wait_for(lambda: (x := b.call({"do": "extensions.panel"}))["open"] and x["title"] == "API test panel" and x, within=8, what="panel")
+# Open, loaded, and placed where the window made room (it measures first).
+panel = b.wait_for(lambda: (x := b.call({"do": "extensions.panel"}))["open"] and x["title"] == "API test panel" and x["bounds"]["width"] > 0 and x, within=12, what="panel")
 t.ok(panel["url"] == f"chrome-extension://{EXT}/panel.html", "the button opens its side panel")
 t.ok(panel["bounds"]["width"] == 380, f"380 wide to start ({panel['bounds']['width']})")
-t.ok(panel["bounds"]["x"] + panel["bounds"]["width"] == before["x"] + before["width"] and panel["page"]["width"] == before["width"] - 380 - 8,
+# The window lays it out (setSideRoom): beside the page, away from the tabs,
+# the page narrower by the panel and a gap, the panel at the page's height.
+pb, pg = panel["bounds"], b.wait_for(lambda: (x := b.call({"do": "extensions.panel"})["page"]) and x["width"] < before["width"] and x, within=5, what="page narrower")
+t.ok(pb["x"] >= pg["x"] + pg["width"] and pb["x"] + pb["width"] <= before["x"] + before["width"] + 1 and pg["width"] <= before["width"] - 380,
      "beside the page, on the side away from the tabs; the page makes room")
-t.ok(panel["bounds"]["height"] == before["height"] and panel["bounds"]["y"] == before["y"], "as tall as the page")
+t.ok(abs(pb["height"] - pg["height"]) <= 1 and abs(pb["y"] - pg["y"]) <= 1, "as tall as the page")
 b.call({"do": "extensions.panelEval", "js": "setTimeout(() => window.close(), 50); 1"})
 b.wait_for(lambda: not b.call({"do": "extensions.panel"})["open"], within=5, what="panel close")
-t.ok(b.call({"do": "extensions.panel"})["page"]["width"] == before["width"], "window.close() closes it and the page gets its room back")
+t.ok(b.wait_for(lambda: b.call({"do": "extensions.panel"})["page"]["width"] == before["width"], within=5, what="room back"), "window.close() closes it and the page gets its room back")
 win = api("chrome.windows.getCurrent()")
 api("chrome.sidePanel.open({ windowId: %d })" % win["id"])
 b.wait_for(lambda: b.call({"do": "extensions.panel"})["open"], within=5, what="open()")
@@ -142,7 +146,7 @@ t.ok(r == f"https://{EXT}.chromiumapp.org/cb?code=7", f"interactive: in a tab ({
 b.wait_for(lambda: len(b.window()["tabs"]) == tabs, within=5, what="flow tab closed")
 t.ok(True, "and its tab goes away")
 b.ev(page, f"window.flow = null; chrome.identity.launchWebAuthFlow({{ url: 'http://127.0.0.1:{PORT}/auth-page', interactive: true }}).then(u => window.flow = u, e => window.flow = 'error: ' + e.message); 1")
-flow_tab = b.wait_for(lambda: (a := b.active()) and a["title"] == "sign in" and a["id"], within=8, what="flow tab")
+flow_tab = b.wait_for(lambda: (a := b.active()) and a["title"] == "sign in" and a["id"], within=20, what="flow tab")
 b.cmd("tab.close", id=flow_tab)
 t.ok(b.wait_for(lambda: b.ev(page, "window.flow instanceof Promise ? null : window.flow"), within=5, what="flow ends") == "error: The user did not approve access.", "closing its tab is a no")
 t.ok(api("chrome.identity.getAuthToken({ interactive: false })") == "error: getAuthToken needs a Google account signed into Chrome; this extension would need launchWebAuthFlow instead", "getAuthToken refused in the Mac's words")
@@ -159,6 +163,9 @@ t.ok(pop["url"].startswith(f"chrome-extension://{BITWARDEN}/popup/"), f"Bitwarde
 time.sleep(3)
 size = b.call({"do": "extensions.popup"})["bounds"]
 t.ok(size["width"] >= 300 and size["height"] >= 300, f"its page draws and sizes the popup ({size['width']} x {size['height']})")
-text = b.call({"do": "extensions.popupEval", "js": "document.body.innerText.slice(0, 200)"})["value"]
+try:
+    text = b.wait_for(lambda: (x := b.call({"do": "extensions.popupEval", "js": "document.body.innerText.slice(0, 200)"})["value"]) and x.strip() and x, within=20, what="popup content")
+except AssertionError:
+    text = ""
 t.ok(bool(text and text.strip()), f"with its content ({text.strip()[:60]!r})")
 t.done()

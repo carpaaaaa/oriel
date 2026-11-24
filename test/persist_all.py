@@ -273,9 +273,11 @@ launch()
 win = lambda i=0: k.wid(i)
 
 # settings
-for key, value in [("search.engine", "kagi"), ("look", "dark"), ("home.theme", "image"), ("home.theme.image", str(picture)),
-                   ("tabs.layout", "right"), ("spaces", True), ("pins.folders", True), ("tabs.sleep", "sooner")]:
+for key, value in [("search.engine", "kagi"), ("look", "dark"), ("tabs.layout", "right"), ("spaces", True), ("pins.folders", True), ("tabs.sleep", "sooner")]:
     b.cmd("settings.set", id=key, value=value)
+# the blank tab's own picture, chosen as in Settings, Themes (copied into the data folder)
+b.call({"do": "themes.answer", "file": str(picture)})
+b.cmd("themes.choose")
 b.cmd("prefs.set", key="search.keywords", value=[{"keyword": "yt", "template": "https://www.youtube.com/results?search_query=%s"}])
 b.cmd("prefs.set", key="shortcuts", value={"tab.new": {"keys": ["Ctrl+Shift+K"]}})
 
@@ -399,7 +401,9 @@ t.ok(wins[1].get("maximized") is True and wins[1]["frame"].startswith("{{"), "a 
 sp = next(x for x in after["spaces"] if x[0] == STUDIO)
 t.ok('"angle": 30' in sp[4] and sp[5] == "rich", "a space's gradient and strength come through other changes to spaces.json")
 t.ok(after["windows"][0]["space"] == work_id, "the window shows the space it was left on")
-t.ok(Path(after["prefs"]["home.theme.image"]).exists(), "the theme's picture is still there")
+kept_picture = Path(after["prefs"]["home.theme.image"] or "")
+t.ok(after["prefs"]["home.theme"] == "custom" and kept_picture.is_file() and kept_picture.parent.name == "Theme",
+     f"the theme: its own picture, kept in the data folder ({kept_picture})")
 
 store_id = k.by_name("store")["id"] if k.by_name("store") else None
 if not store_id:

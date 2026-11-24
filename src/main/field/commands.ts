@@ -11,7 +11,7 @@ import { addressURL, fileURL, reachable, shownAddress } from '../address'
 import type { Suggestion } from '../../shared/state'
 import type { FieldMode, SiteView } from '../../shared/modules/field'
 import { need } from '../context'
-import { destination, siteMatch, siteURL, type SearchSite } from './engines'
+import { destination, engineURL, shiftTemplate, siteMatch, siteURL, type SearchSite } from './engines'
 import {
   EngineSuggester, engineQuestion, openPages, placeOffers, SUGGEST_MOST, suggestionRow, switcherFallback,
 } from './suggest'
@@ -439,6 +439,31 @@ export async function submit(c: WindowController, o: Submit): Promise<void> {
   go(c, reachable(target), aside || fromSwitcher ? { newTab: true, front: fromSwitcher && !aside ? true : !!o.front } : {})
 }
 
+/** Shift-Return (Browser.submitToShiftEngine, studio/03 §1.4): exactly what
+ * was typed, searched with the Shift-Return engine; the row walked to, the
+ * grey ending, a site in the field and a site shortcut are passed over.
+ * With none chosen in Settings it is Return. */
+export async function shiftSubmit(c: WindowController, text?: string): Promise<void> {
+  const template = shiftTemplate()
+  if (!template) return submit(c, { text })
+  const m = mem(c)
+  await m.pending
+  // What the input shows is what was typed plus the ending or a row walked
+  // to: the words are what was typed, unless a key went in before its answer.
+  const words = text != null && text !== m.shown ? text : m.typed
+  const url = engineURL(words, template)
+  if (!url) {
+    m.refusals++
+    publish(c)
+    return
+  }
+  m.summoning = false
+  m.summonHeld = false
+  m.chip = null
+  m.picked = null
+  go(c, url, {})
+}
+
 /** A row clicked: taken as it is, never through the keyboard's pick. */
 async function take(c: WindowController, index: number): Promise<void> {
   const m = mem(c)
@@ -635,6 +660,7 @@ handle('field.input', async ({ text }, ctx) => {
   publish(c)
 })
 handle('field.submit', (o, ctx) => submit(need(ctx), o))
+handle('field.shiftSubmit', ({ text }, ctx) => shiftSubmit(need(ctx), text))
 handle('field.commit', async ({ index, text, newTab }, ctx) => {
   const c = need(ctx)
   const m = mem(c)

@@ -7,6 +7,7 @@ import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid
 import { state, cmd, activeTab } from '../lib/store'
 import { Sidebar } from '../sidebar/Sidebar'
 import { Field } from '../field/Field'
+import { outlet } from '../lib/registry'
 import { WinClose, WinMaximize, WinMinimize, WinRestore } from '../lib/icons'
 import { EDGES, gripDown, wireFrame } from './frame'
 import { Panes } from './Split'
@@ -53,7 +54,7 @@ export function ChromeRoot() {
     onCleanup(() => { ro.disconnect(); window.removeEventListener('resize', measure); unwire() })
   })
   createEffect(() => {
-    void state.activeID; void activeTab()?.empty; void state.sidebar.width; void state.sidebar.folded; void state.maximized
+    void state.activeID; void activeTab()?.empty; void state.sidebar.width; void state.sidebar.folded; void state.sidebar.layout; void state.maximized
     void state.frame?.state; void state.frame?.margin.top; void state.frame?.margin.left
     const s = split()
     if (s) { void s.sizes.join(); void s.tabs.join(); void state.tabs.length }
@@ -71,7 +72,11 @@ export function ChromeRoot() {
     root.cardsFullScreen = String(!!state.prefs['layout.cardsFullScreen'])
   })
 
-  const side = () => (state.sidebar.folded ? 0 : state.sidebar.width)
+  // Tabs across the top (studio/01 §4.3, studio/02 §4.3): the column's
+  // strip of 52 is the window's top and the page goes under it; the window
+  // lays that out here, the strip only draws itself (tabbar/).
+  const strip = () => state.sidebar.layout === 'top' && !state.sidebar.folded
+  const side = () => (state.sidebar.folded || strip() ? 0 : state.sidebar.width)
   const margin = () => state.frame?.margin ?? { top: 0, right: 0, bottom: 0, left: 0 }
   // Our own buttons: always with the frame we draw; with Windows' frame only
   // when developing on a Mac (Windows draws its own there).
@@ -87,8 +92,8 @@ export function ChromeRoot() {
         '--grip-out': `${state.frame?.grip.outside ?? 8}px`, '--grip-in': `${state.frame?.grip.inside ?? 4}px`,
         '--grip-corner': `${state.frame?.grip.corner ?? 20}px`,
       }}>
-      <div class="window on-frame" classList={{ windows: state.chrome === 'windows', blurred: !state.focused, [`room-${state.room?.side}`]: !!state.room }}
-        style={{ '--side': `${side()}px`, '--room': `${state.room?.width ?? 0}px` }}>
+      <div class="window on-frame" classList={{ windows: state.chrome === 'windows', blurred: !state.focused, top: strip(), [`room-${state.room?.side}`]: !!state.room }}
+        style={{ '--side': `${side()}px`, '--top': strip() ? 'var(--strip)' : undefined, '--room': `${state.room?.width ?? 0}px` }}>
         <Show when={!state.sidebar.folded}>
           <Sidebar />
         </Show>
@@ -97,7 +102,9 @@ export function ChromeRoot() {
           <Show when={split()} fallback={<>
             <Show when={activeTab()?.empty}>
               <div class="empty-page">
+                <For each={outlet('blank.under')}>{C => <C />}</For>
                 <Field place="page" />
+                <For each={outlet('blank.over')}>{C => <C />}</For>
               </div>
             </Show>
             <Show when={activeTab()?.error}>

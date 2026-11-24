@@ -122,6 +122,15 @@ saved = json.loads((folder / "icons" / "pages.json").read_text(encoding="utf-8")
 t.ok(saved.get(HOST, {}).get("/a/page", {}).get("light") == ident, "pages.json in the Mac's shape: site, path, light, seen")
 b.launch()
 t.ok(bool(req("data.icon", url=SITE + "/a/page")["value"]), "after a restart, there before any page says it")
+# The column wears it before the page says its own (data.icon from the
+# column's mark): a page of the site that has no icon of its own.
+b.cmd("prefs.set", key="glyph", value="icons")
+lone = b.cmd("tab.new", url=SITE + "/a/missing", background=True)
+mark = b.wait_for(lambda: b.ui(f"document.querySelector('.row[data-tab=\"{lone}\"] .mark img')?.getAttribute('src') || ''"), within=8, what="the column's mark")
+time.sleep(1.0)  # its page loaded: its own /favicon.ico isn't there
+mark = b.ui(f"document.querySelector('.row[data-tab=\"{lone}\"] .mark img')?.getAttribute('src') || ''")
+t.ok(mark.startswith("data:image/png"), "the column shows the site's kept icon on a tab whose page gave none that loads")
+b.cmd("prefs.set", key="glyph", value="letters")
 
 # Forgetting a page from the history forgets its icon.
 b.cmd("history.forget", url=SITE + "/b/page")

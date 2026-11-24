@@ -156,3 +156,9 @@ benchRequest('extensions.offscreen', async req => {
   if (!wc) return { open: false }
   return { open: true, url: wc.getURL(), value: req.js ? await wc.executeJavaScript(String(req.js), true) : null }
 })
+
+/** Where the overlay sits now (the store bar's region). */
+benchRequest('extensions.overlay', req => {
+  const c = windowOf(req)
+  return { layer: c.overlayLayer, bounds: c.overlay.getBounds() }
+})

@@ -65,6 +65,14 @@ declare module '../commands' {
     'space.colour': { id: ID; colour: number }
     'space.order': { id: ID; by: 1 | -1 }
     'space.delete': { id: ID }
+    // drawn menus (studio/02 §4.6; studio/01 §4.35-§4.37, §6.25, §7.12)
+    /** A drawn menu (`entries`) or popover (`panel`) over the page: the main
+     * process raises the overlay over the window with the keys, as the
+     * layer { kind: 'panel', name: 'tabs.menu', data }. `room` is the
+     * window's size as its interface measures it. */
+    'menu.open': { entries?: unknown[]; panel?: string; data?: unknown; at: { x: number; y: number }; source?: string; room: { w: number; h: number } }
+    /** The menu or popover is gone; `refocus` gives the keys back to the page. */
+    'menu.close': { refocus?: boolean }
   }
 }
 

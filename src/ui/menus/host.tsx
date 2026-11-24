@@ -18,6 +18,8 @@ type Shown =
 
 const [shown, setShown] = createSignal<Shown | null>(null)
 let mainLayer: OverlayLayer = { kind: 'none' }
+/** The layer's name for the tabs interface's menus (main/tabs/menus.ts). */
+export const MENU = 'tabs.menu'
 let fading = false
 
 export const menuShown = shown
@@ -37,17 +39,14 @@ export function claim(room: { w: number; h: number }) {
 export function release(refocus: boolean) {
   if (mainLayer.kind !== 'none') return
   void cmd({ do: 'overlay.region', rect: null })
-  if (refocus) {
-    const t = state.tabs.find(x => x.id === state.activeID)
-    if (t && !t.empty && !state.field.open) void cmd({ do: 'field.close' })
-  }
+  if (refocus && !state.field.open) void cmd({ do: 'window.focusPage' })
 }
 
 export function close(refocus = true) {
   if (!shown()) return
   setShown(null)
   post({ type: 'shown', window: state.windowID, source: null })
-  release(refocus)
+  void cmd({ do: 'menu.close', refocus })
 }
 
 export async function run(act: Act | undefined): Promise<void> {
@@ -76,23 +75,31 @@ function pick(e: Entry) {
   }, 70)
 }
 
+/** What the main process raised (menu.open): a menu or a popover. */
+function raise(l: OverlayLayer) {
+  if (l.kind !== 'panel' || l.name !== MENU || !l.data) return false
+  const d = l.data as { entries?: Entry[]; panel?: string; data?: unknown; at: { x: number; y: number }; source?: string; room?: { w: number; h: number } }
+  const room = d.room?.w ? d.room : { w: window.innerWidth, h: window.innerHeight }
+  if (d.panel) setShown({ kind: 'panel', panel: d.panel, at: d.at, data: d.data, room })
+  else setShown({ kind: 'menu', entries: d.entries ?? [], at: d.at, source: d.source ?? '', room })
+  post({ type: 'shown', window: state.windowID, source: d.panel ? null : d.source ?? null })
+  return true
+}
+
 export function MenuHost() {
   onMount(() => {
     const off = listen((m: Message) => {
       if (m.window !== state.windowID) return
-      if (m.type === 'menu') {
-        const room = (m as any).room ?? { w: window.innerWidth, h: window.innerHeight }
-        setShown({ kind: 'menu', entries: m.entries, at: m.at, source: m.source, room })
-        claim(room)
-        post({ type: 'shown', window: state.windowID, source: m.source })
-      } else if (m.type === 'panel') {
-        const room = (m as any).room ?? { w: window.innerWidth, h: window.innerHeight }
-        setShown({ kind: 'panel', panel: m.panel, at: m.at, data: m.data, room })
-        claim(room)
-      } else if (m.type === 'close') close(false)
+      if (m.type === 'close') close(false)
     })
-    const offLayer = window.search.onOverlay(l => { mainLayer = l; if (l.kind !== 'none' && shown()) { setShown(null) } })
-    void window.search.overlayNow().then(l => { if (l) mainLayer = l })
+    // The menu is a layer of the main process: anything else raised there
+    // (the field, a panel, a question) takes its place.
+    const offLayer = window.search.onOverlay(l => {
+      mainLayer = l
+      if (raise(l)) return
+      if (shown()) { setShown(null); post({ type: 'shown', window: state.windowID, source: null }) }
+    })
+    void window.search.overlayNow().then(l => { if (l) { mainLayer = l; raise(l) } })
     const blur = () => close(false)
     window.addEventListener('blur', blur)
     onCleanup(() => { off(); offLayer(); window.removeEventListener('blur', blur) })
