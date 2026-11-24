@@ -155,6 +155,11 @@ export class Frame {
   /** What the window was the last time it wasn't in full screen (read at
    * each refresh): where full screen comes back to, whoever started it. */
   private notFull: { state: State; bounds: Rectangle; visual: Rectangle; normal: Rectangle } | null = null
+  /** The bounds the last time it was free and not screen-sized: what a
+   * maximized window comes back to when Electron can't say. */
+  private lastFree: Rectangle | null = null
+  /** Corrections made for a client area past the screen's edges (tests). */
+  fixes: string[] = []
 
   constructor(private readonly c: WindowController, kind: FrameKind) {
     this.kind = kind
@@ -221,11 +226,28 @@ export class Frame {
     return { x: bounds.x + m.left, y: bounds.y + m.top, width: bounds.width - m.left - m.right, height: bounds.height - m.top - m.bottom }
   }
 
+  /** The bounds a maximized window comes back to: the last free bounds
+   * Oriel saw. Electron's own can't be trusted for a transparent window
+   * maximized by Windows (NativeWindowViews::GetNormalBounds answers its
+   * restore_bounds_): empty when it never maximized it itself, and windows.json
+   * kept {{40, 30}, {-80, -80}}; the screen's after a full screen, which set
+   * them on the way in. Then Electron's if they can be a window's, else the
+   * default size in the middle. */
+  private normalBounds(): Rectangle {
+    if (this.lastFree) return this.lastFree
+    const n = this.c.base.getNormalBounds()
+    const d = screen.getDisplayMatching(n.width > 0 ? n : this.c.base.getBounds()).bounds
+    const screenSized = n.x === d.x && n.y === d.y && n.width === d.width && n.height === d.height
+    if (n.width >= 100 && n.height >= 60 && !screenSized) return n
+    const work = screen.getDisplayMatching(this.c.base.getBounds()).workArea
+    const width = Math.min(VISIBLE.width, work.width), height = Math.min(VISIBLE.height, work.height)
+    return this.boundsFor({ x: work.x + Math.round((work.width - width) / 2), y: work.y + Math.round((work.height - height) / 2), width, height })
+  }
+
   /** The visible rectangle it comes back to when not maximized or snapped. */
   normalVisual(): Rectangle {
-    const b = this.c.base
     if (this.state === 'free') return this.visual()
-    const n = this.beforeFull ?? this.restoreTo ?? b.getNormalBounds()
+    const n = this.beforeFull ?? this.restoreTo ?? this.normalBounds()
     const m = this.kind === 'drawn' ? ROOM : NONE
     return { x: n.x + m.left, y: n.y + m.top, width: n.width - m.left - m.right, height: n.height - m.top - m.bottom }
   }
@@ -262,8 +284,11 @@ export class Frame {
     if (next !== 'fullScreen' && !b.isMinimized() && !(next === 'free' && screenSized)) {
       const bounds = now, m = this.kind === 'drawn' && next === 'free' ? ROOM : NONE
       const visual = { x: bounds.x + m.left, y: bounds.y + m.top, width: bounds.width - m.left - m.right, height: bounds.height - m.top - m.bottom }
-      this.notFull = { state: next, bounds, visual, normal: next === 'free' ? bounds : this.restoreTo ?? b.getNormalBounds() }
+      this.notFull = { state: next, bounds, visual, normal: next === 'free' ? bounds : this.restoreTo ?? this.normalBounds() }
+      if (next === 'free') this.lastFree = bounds
     }
+    // Maximized or full screen, the client area stays on the screen.
+    if (next === 'maximized' || next === 'fullScreen') this.checkFitSoon()
     // Into and out of full screen, by F11, a page (a video) or a restart:
     // Electron doesn't always say so with its events, the window's state does.
     if (next === 'fullScreen' && was !== 'fullScreen') { this.note('state: full'); this.entered() }
@@ -336,7 +361,7 @@ export class Frame {
    * does with its own maximized windows. */
   private restoreUnder(p: { x: number; y: number }): void {
     const work = screen.getDisplayNearestPoint(p).workArea
-    const normal = this.restoreTo ?? this.c.base.getNormalBounds()
+    const normal = this.restoreTo ?? this.normalBounds()
     const vis = { width: normal.width - ROOM.left - ROOM.right, height: normal.height - ROOM.top - ROOM.bottom }
     const share = (p.x - work.x) / Math.max(1, work.width)
     const x = Math.round(p.x - share * vis.width)
@@ -413,8 +438,11 @@ export class Frame {
   unmaximize(): void {
     // Aero Snap to the top (and native maximize) make a really maximized
     // window, which Electron's unmaximize for transparent windows doesn't know.
-    if (this.zoomed()) win32()?.show(this.hwnd, SW_RESTORE)
-    else this.c.base.unmaximize()
+    // Asked of Windows for its next turn, not inside the call: Restore Down
+    // after a full screen left maximized took the whole app down (a
+    // segfault, from 0.1.7) while Windows sized the window inside it.
+    if (this.zoomed()) { win32()?.showAsync(this.hwnd, SW_RESTORE); setTimeout(() => this.refresh(), 0); return }
+    this.c.base.unmaximize()
     this.refresh()
   }
 
@@ -495,6 +523,42 @@ export class Frame {
     this.fromMax = w.placement(this.hwnd)
     w.setStyle(this.hwnd, w.style(this.hwnd) & ~WS.MAXIMIZE)
     this.c.base.setBounds(screen.getDisplayMatching(this.c.base.getBounds()).bounds)
+  }
+
+  // the client area on the screen
+
+  private fitTimer: NodeJS.Timeout | null = null
+  private checkFitSoon(): void {
+    if (!this.hwnd || this.fitTimer) return
+    this.fitTimer = setTimeout(() => { this.fitTimer = null; this.checkFit(0) }, 150)
+  }
+
+  /** Maximized, the client area is the work area; in full screen, the
+   * monitor. Past an edge (the window's buttons cut off on the right), the
+   * frame is measured again, and if that isn't enough the window is put
+   * there again: maximized once more, or covering its screen. */
+  private checkFit(tries: number): void {
+    const w = win32()
+    const b = this.c.base
+    if (!w || !this.hwnd || b.isDestroyed() || b.isMinimized()) return
+    const state = this.compute()
+    if (state !== 'maximized' && state !== 'fullScreen') return
+    const m = w.monitorOf(this.hwnd)
+    if (!m) return
+    const area = state === 'fullScreen' ? m.monitor : m.work
+    const c = w.clientRect(this.hwnd)
+    const past = Math.max(area.left - c.left, c.right - area.right, area.top - c.top, c.bottom - area.bottom)
+    if (past <= 1) return
+    const said = `${state} past the screen by ${past}: client ${c.left},${c.top},${c.right},${c.bottom} area ${area.left},${area.top},${area.right},${area.bottom} (try ${tries})`
+    this.fixes.push(said)
+    if (this.fixes.length > 20) this.fixes.shift()
+    console.warn('[frame]', said)
+    if (tries === 0) w.frameChanged(this.hwnd)
+    else if (tries === 1) {
+      if (state === 'fullScreen') this.cover()
+      else if (this.zoomed()) { w.showAsync(this.hwnd, SW_RESTORE); w.showAsync(this.hwnd, SW_MAXIMIZE) }
+    } else return
+    setTimeout(() => this.checkFit(tries + 1), 200)
   }
 
   /** In full screen the window covers its screen. */
@@ -583,6 +647,8 @@ export class Frame {
       out.dwmFrame = w.dwmFrame(this.hwnd)
       out.cursor = w.cursor()
     }
+    if (w && this.hwnd) { out.client = w.clientRect(this.hwnd); out.monitor = w.monitorOf(this.hwnd) }
+    out.fixes = this.fixes.slice(-10)
     out.pages = this.c.pageBounds()
     const wc = this.c.activeRuntime()?.contents
     out.zoom = wc && !wc.isDestroyed() ? wc.getZoomFactor() : null

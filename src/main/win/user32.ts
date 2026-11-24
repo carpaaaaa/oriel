@@ -56,6 +56,10 @@ export interface Win32 {
   arranged(hwnd: number): boolean | null
   zoomed(hwnd: number): boolean
   show(hwnd: number, cmd: number): void
+  /** The same, done by Windows when the window's thread next reads its queue,
+   * not inside this call: no window event comes back into JavaScript while
+   * a call into Windows is still open. */
+  showAsync(hwnd: number, cmd: number): void
   /** Where Windows keeps the window, maximized or not, and its restored size. */
   placement(hwnd: number): Placement | null
   setPlacement(hwnd: number, placement: Placement): void
@@ -71,6 +75,12 @@ export interface Win32 {
    * (Chromium's picture in picture is one, and no BaseWindow of Electron's). */
   topmostOf(pid: number, except: number[]): number[]
   title(hwnd: number): string
+  /** The client area on the screen, physical pixels. */
+  clientRect(hwnd: number): { left: number; top: number; right: number; bottom: number }
+  /** The window's monitor and its work area, physical pixels. */
+  monitorOf(hwnd: number): { monitor: { left: number; top: number; right: number; bottom: number }; work: { left: number; top: number; right: number; bottom: number } } | null
+  /** Windows asked to measure the frame again (WM_NCCALCSIZE), nothing moved. */
+  frameChanged(hwnd: number): void
 }
 
 let cached: Win32 | null | undefined
@@ -105,6 +115,7 @@ function load(): Win32 {
   const SetWindowPos = user32.func('int __stdcall SetWindowPos(intptr_t hwnd, intptr_t after, int x, int y, int cx, int cy, uint32_t flags)')
   const IsZoomed = user32.func('int __stdcall IsZoomed(intptr_t hwnd)')
   const ShowWindow = user32.func('int __stdcall ShowWindow(intptr_t hwnd, int cmd)')
+  const ShowWindowAsync = user32.func('int __stdcall ShowWindowAsync(intptr_t hwnd, int cmd)')
   const GetWindowPlacement = user32.func('int __stdcall GetWindowPlacement(intptr_t hwnd, _Inout_ SEARCH_WINDOWPLACEMENT *placement)')
   const SetWindowPlacement = user32.func('int __stdcall SetWindowPlacement(intptr_t hwnd, const SEARCH_WINDOWPLACEMENT *placement)')
   const GetWindowRect = user32.func('int __stdcall GetWindowRect(intptr_t hwnd, _Out_ SEARCH_RECT *rect)')
@@ -118,6 +129,11 @@ function load(): Win32 {
   const FindWindowExW = user32.func('intptr_t __stdcall FindWindowExW(intptr_t parent, intptr_t after, str16 cls, str16 title)')
   const GetWindowThreadProcessId = user32.func('uint32_t __stdcall GetWindowThreadProcessId(intptr_t hwnd, _Out_ uint32_t *pid)')
   const GetWindowTextW = user32.func('int __stdcall GetWindowTextW(intptr_t hwnd, _Out_ void *text, int max)')
+  koffi.struct('SEARCH_MONITORINFO', { cbSize: 'uint32_t', rcMonitor: RECT, rcWork: RECT, dwFlags: 'uint32_t' })
+  const GetClientRect = user32.func('int __stdcall GetClientRect(intptr_t hwnd, _Out_ SEARCH_RECT *rect)')
+  const ClientToScreen = user32.func('int __stdcall ClientToScreen(intptr_t hwnd, _Inout_ SEARCH_POINT *point)')
+  const MonitorFromWindow = user32.func('intptr_t __stdcall MonitorFromWindow(intptr_t hwnd, uint32_t flags)')
+  const GetMonitorInfoW = user32.func('int __stdcall GetMonitorInfoW(intptr_t monitor, _Inout_ SEARCH_MONITORINFO *info)')
   const DwmSetWindowAttribute = dwmapi.func('int32_t __stdcall DwmSetWindowAttribute(intptr_t hwnd, uint32_t attribute, const void *value, uint32_t size)')
   const DwmGetWindowAttribute = dwmapi.func('int32_t __stdcall DwmGetWindowAttribute(intptr_t hwnd, uint32_t attribute, _Out_ SEARCH_RECT *value, uint32_t size)')
 
@@ -157,6 +173,7 @@ function load(): Win32 {
     arranged: hwnd => (IsWindowArranged ? IsWindowArranged(hwnd) !== 0 : null),
     zoomed: hwnd => IsZoomed(hwnd) !== 0,
     show: (hwnd, cmd) => { ShowWindow(hwnd, cmd) },
+    showAsync: (hwnd, cmd) => { ShowWindowAsync(hwnd, cmd) },
     placement(hwnd) {
       const p = { length: 44, flags: 0, showCmd: 0, ptMinPosition: { x: 0, y: 0 }, ptMaxPosition: { x: 0, y: 0 }, rcNormalPosition: { left: 0, top: 0, right: 0, bottom: 0 } }
       return GetWindowPlacement(hwnd, p) ? p : null
@@ -194,6 +211,21 @@ function load(): Win32 {
       }
       return found
     },
+    clientRect(hwnd) {
+      const r = { left: 0, top: 0, right: 0, bottom: 0 }
+      GetClientRect(hwnd, r)
+      const p = { x: 0, y: 0 }
+      ClientToScreen(hwnd, p)
+      return { left: p.x, top: p.y, right: p.x + r.right, bottom: p.y + r.bottom }
+    },
+    monitorOf(hwnd) {
+      const m = MonitorFromWindow(hwnd, 2 /* MONITOR_DEFAULTTONEAREST */)
+      if (!m) return null
+      const zero = { left: 0, top: 0, right: 0, bottom: 0 }
+      const info = { cbSize: 40, rcMonitor: { ...zero }, rcWork: { ...zero }, dwFlags: 0 }
+      return GetMonitorInfoW(m, info) ? { monitor: info.rcMonitor, work: info.rcWork } : null
+    },
+    frameChanged: hwnd => { SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_FLAGS) },
     title(hwnd) {
       const buf = Buffer.alloc(512)
       const n = GetWindowTextW(hwnd, buf, 256)

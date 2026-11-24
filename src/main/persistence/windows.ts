@@ -67,7 +67,9 @@ function restore(c: WindowController): void {
   // Windows has no way for a program to snap a window: it comes back free,
   // where Snap had put it.
   const want = parseFrame(p.snapped ?? p.frame)
-  if (want) {
+  // A rectangle that can't be a window (an empty one kept for a maximized
+  // window before 0.1.8: {{40, 30}, {-80, -80}}): the default place instead.
+  if (want && want.width >= 100 && want.height >= 60) {
     c.base.setBounds(c.frame.boundsFor(onDisplays(want, p.display)))
     c.frame.refresh()
   }
