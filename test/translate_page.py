@@ -114,6 +114,12 @@ sign = b.ui("(() => { const s = document.querySelector('.tr-sign'); return s && 
 t.ok(sign == "failed", "the sign shows the trouble")
 t.ok(b.wait_for(lambda: k.mark(en) is None, within=11, what="failure mark gone"), "and goes after 8 seconds")
 
+# No words to tell the language by.
+nums = k.open_page("numbers")
+k.translate(nums, "en")
+rep, mark = k.wait_done(nums, 30)
+t.ok(mark and mark["phase"] == "failed" and mark["error"] == "Oriel couldn't tell which language this page is in", f"a page of numbers: can't tell its language: {mark}")
+
 # Nothing of the page went anywhere: no request but the page's own.
 t.ok(b.call({"do": "translate.fetched"})["fetched"] == [], "the stand-in fetched nothing")
 

@@ -236,7 +236,7 @@ ipcMain.handle('translate:begin', async (event, { session, sample, hint }: { ses
   try {
     const from = await detectPage(String(sample ?? '').slice(0, 4000), String(hint ?? ''))
     if (job.cancelled) return { stop: true }
-    if (!from || !known(from)) return fail(job, `${brand.name} couldn't tell which language this page is in`), { stop: true }
+    if (!from || !known(from)) { fail(job, `${brand.name} couldn't tell which language this page is in`); return { stop: true } }
     job.from = from
     job.report.source = from
     patchMark(job, { from })
@@ -244,7 +244,7 @@ ipcMain.handle('translate:begin', async (event, { session, sample, hint }: { ses
     if (fake) { job.route = []; return { from } }
     const pairs = await route(from, job.to).catch(error => { throw Object.assign(new Error('offline'), { cause: error }) })
     if (job.cancelled) return { stop: true }
-    if (!pairs) return fail(job, `${languageName(from)} to ${languageName(job.to)} can't be translated on this PC`), { stop: true }
+    if (!pairs) { fail(job, `${languageName(from)} to ${languageName(job.to)} can't be translated on this PC`); return { stop: true } }
     if (missing(pairs).length) {
       const t = Date.now()
       patchMark(job, { phase: 'downloading', progress: 0 })

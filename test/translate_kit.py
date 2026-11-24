@@ -104,7 +104,9 @@ MEDIUM = ("<!doctype html><html lang=\"it\"><head><meta charset=\"utf-8\"><title
                     for i, (a, b, c, d) in enumerate(zip(_GUIDE, _GUIDE[1:] + _GUIDE[:1], _GUIDE[2:] + _GUIDE[:2], _GUIDE[3:] + _GUIDE[:3])))
           + "</body></html>")
 
-PAGES = {"/it": IT, "/fr": FR, "/en": EN, "/mixed": MIXED, "/medium": MEDIUM}
+NUMBERS = "<!doctype html><html><head><meta charset=\"utf-8\"><title>2026</title></head><body><p>12 345 678</p><p>2026-11-24</p></body></html>"
+
+PAGES = {"/it": IT, "/fr": FR, "/en": EN, "/mixed": MIXED, "/medium": MEDIUM, "/numbers": NUMBERS}
 
 
 class Site(BaseHTTPRequestHandler):
