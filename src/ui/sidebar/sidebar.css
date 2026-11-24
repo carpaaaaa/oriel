@@ -100,6 +100,7 @@
 .row.at-rest:hover .rest { opacity: 0; }
 .rest { display: flex; color: var(--ink); text-overflow: clip; }
 .rest-dim, .rest-lead { color: var(--muted); flex: none; white-space: pre; }
+/* rtl only to cut from the left; the <bdi> inside keeps "en." in its own order (in rtl the dot jumped first: ".en"). */
 .rest-lead { flex: 0 1 auto; overflow: hidden; direction: rtl; text-overflow: ellipsis; }
 .rest-name { font-weight: 500; flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .rest-name.plain { font-weight: 400; }
