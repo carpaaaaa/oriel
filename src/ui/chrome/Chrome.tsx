@@ -12,6 +12,7 @@ import { CaptionButtons, buttonStyle } from './Buttons'
 import { EDGES, gripDown, wireFrame } from './frame'
 import { Panes } from './Split'
 import { foldSlide } from './slide'
+import { capBand, cornerRight } from '../data/where'
 
 export function ChromeRoot() {
   let slot!: HTMLDivElement
@@ -144,6 +145,13 @@ export function ChromeRoot() {
         </Show>
         <Show when={loadingLine()}>
           <div class="loading-line" data-window-ui="loading-line"><span /></div>
+        </Show>
+        {/* Beside the window's buttons, up in the band above the page: the
+            bookmark button (data/where.ts), 12 left of them. */}
+        <Show when={capBand()}>
+          <div class="chrome-end" style={{ right: `${cornerRight()}px` }}>
+            <For each={outlet('chrome.end')}>{C => <C />}</For>
+          </div>
         </Show>
         <Show when={ownButtons()}>
           <CaptionButtons />

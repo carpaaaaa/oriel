@@ -27,6 +27,9 @@ export function Menu(p: {
   close: (all: boolean) => void
   depth?: number
   keys?: boolean
+  /** The least room kept from the view's left and top edges (4): more where
+   * the view isn't the whole window, so the shadow isn't cut. */
+  edge?: number
 }) {
   let el!: HTMLDivElement
   const [hot, setHot] = createSignal(-1)
@@ -43,12 +46,13 @@ export function Menu(p: {
     // pulled up from the bottom.
     const w = el.offsetWidth, h = el.offsetHeight
     let x = p.at.x, y = p.at.y
+    const edge = p.edge ?? 4
     if (p.beside) {
       x = p.beside.right - 4
-      if (x + w > p.room.w - 4) x = Math.max(4, p.beside.left - w + 4)
+      if (x + w > p.room.w - 4) x = Math.max(edge, p.beside.left - w + 4)
       y = p.at.y - PAD
-    } else if (x + w > p.room.w - 4) x = Math.max(4, x - w)
-    if (y + h > p.room.h - 4) y = Math.max(4, p.room.h - 4 - h)
+    } else if (x + w > p.room.w - 4) x = Math.max(edge, x - w)
+    if (y + h > p.room.h - 4) y = Math.max(edge, p.room.h - 4 - h)
     setPos({ x, y })
   })
   onCleanup(() => clearTimeout(timer))
@@ -125,7 +129,7 @@ export function Menu(p: {
       </div>
       <Show when={open()}>{o => (
         <Menu entries={p.entries[o().index].submenu!} at={{ x: o().right, y: o().top }} beside={{ left: o().left, right: o().right }}
-          room={p.room} pick={p.pick} depth={(p.depth ?? 0) + 1} keys
+          room={p.room} pick={p.pick} depth={(p.depth ?? 0) + 1} keys edge={p.edge}
           close={all => { if (all) p.close(true); else { setOpen(null); setKeysHere(true) } }} />
       )}</Show>
     </>

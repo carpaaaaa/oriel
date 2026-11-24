@@ -2,13 +2,15 @@
 // studio/05 §3.2, studio/01 §4.3, §5.9): a click on the button opens the list
 // (BookmarksDropdown: the tree, then Add This Page or Edit This Bookmark…),
 // ⇧⌘B the card for the page in front (BookmarkCard: its name, its folder,
-// Remove, Done). It hangs under the button in the strip and up beside back,
-// forward and reload, toward the page from the column's foot. It goes on a
-// pick, a click elsewhere, Escape, or when anything else floats.
+// Remove, Done). It hangs under the button, up beside the window's buttons
+// on Windows (ui/data/where.ts), toward the page from the column's foot. A
+// row's right-click menu (BookmarkOutline.Row: Open, Rename…, New Folder
+// Inside…, Move to, Remove) is drawn over it, and its questions in its place.
+// It goes on a pick, a click elsewhere, Escape, or when anything else floats.
 // Owned by the data module.
 
 import type { WebContents } from 'electron'
-import type { BookmarkLine, BookmarkNode, BookmarksPopover } from '../../shared/modules/data'
+import type { BookmarkAskView, BookmarkLine, BookmarkNode, BookmarksPopover } from '../../shared/modules/data'
 import type { ID, Rect } from '../../shared/state'
 import { handle, run } from '../router'
 import { need } from '../context'
@@ -26,8 +28,18 @@ import { editable, parse } from './urls'
  * wide; rows of 28 (27 and 1 between), the list as tall as its rows up to
  * 360, 6 round it; the foot's row 27 with 6 round it; the card 280 by 154. */
 export const POP = { width: 280, line: 28, most: 360, empty: 44, foot: 39, card: 154, room: 22, gap: 6 }
+/** The questions' heights (ui/data/BookmarkDoor.tsx Ask): 14 round them, the
+ * heading 16, 10 between; a field or a line of 15 (Rename Bookmark's two),
+ * the buttons 26. */
+const ASK = { name: 116, nameDetail: 156, sure: 106 }
 
-interface Open { anchor: Rect; card: string | null; expanded: Set<string> }
+interface Open {
+  anchor: Rect; card: string | null; expanded: Set<string>
+  /** A row's right-click menu is up. */
+  menu?: boolean
+  /** A question in the list's place. */
+  ask?: { kind: 'rename' | 'folder' | 'remove'; id: string } | null
+}
 const open = new Map<ID, Open>()
 /** When a click elsewhere closed it: the button's own click that follows
  * closes rather than opens it again. */
@@ -107,18 +119,39 @@ function place(c: WindowController, anchor: Rect, height: number): Pick<Bookmark
   return { rect: { x: Math.round(x), y: Math.round(anchor.y + anchor.height + POP.gap), width: w, height: h }, arrow: { side: 'top', at: Math.round(cx) } }
 }
 
+/** The question asked, as the overlay draws it (Bookmarks.askRename: the
+ * name it has in the field, its name or address when emptied; askNewFolder:
+ * "Folder name"; askRemove: the sites going with a folder). */
+function askView(o: Open): BookmarkAskView | null {
+  const node = o.ask ? bookmarks().bookmark(o.ask.id) : undefined
+  if (!o.ask || !node) return null
+  const folder = isFolder(node)
+  const label = !folder && !node.title.trim() && node.url ? editable(node.url) : node.title
+  return {
+    kind: o.ask.kind, id: node.id, folder, title: node.title,
+    placeholder: o.ask.kind === 'folder' ? 'Folder name' : label,
+    count: folder ? count(node.children ?? []) : 0,
+  }
+}
+
+function askHeight(a: BookmarkAskView): number {
+  if (a.kind === 'remove') return ASK.sure
+  return a.kind === 'rename' && !a.folder ? ASK.nameDetail : ASK.name
+}
+
 function view(c: WindowController): BookmarksPopover | null {
   const o = open.get(c.record.id)
   if (!o) return null
   const roots = bookmarks().roots
   const page = keepable(c)
   const card = o.card ? bookmarks().bookmark(o.card) : undefined
-  const height = card ? POP.card : listHeight(roots, o.expanded) + 1 + POP.foot
+  const ask = card ? null : askView(o)
+  const height = card ? POP.card : ask ? askHeight(ask) : listHeight(roots, o.expanded) + 1 + POP.foot
   const parent = card ? parentOf(card.id, roots) ?? null : null
   return {
     ...place(c, o.anchor, height),
     room: POP.room,
-    lines: card ? [] : lines(roots, o.expanded),
+    lines: card || ask ? [] : lines(roots, o.expanded),
     listHeight: listHeight(roots, o.expanded),
     kept: !!page && bookmarks().contains(page),
     keepable: !!page,
@@ -126,6 +159,8 @@ function view(c: WindowController): BookmarksPopover | null {
       id: card.id, title: card.title, placeholder: card.url ? editable(card.url) : '',
       folder: parent?.id ?? null, folderName: parent?.title ?? 'Top Level', folders: folders(roots),
     } : null,
+    ask,
+    menu: !!o.menu && !card && !ask,
   }
 }
 
@@ -136,7 +171,17 @@ function show(c: WindowController): void {
   if (!v) return
   if (!mine(c)) c.sendOverlay({ kind: 'panel', name: 'data.bookmarks' })
   const r = v.rect, room = POP.room
-  c.setOverlayRegion({ x: r.x - room, y: r.y - room, width: r.width + room * 2, height: r.height + room * 2 }, true)
+  const x = r.x - room, y = r.y - room
+  if (v.menu) {
+    // The menu where the right click was, inside the window drawn: the
+    // overlay on to its right and bottom edges, its corner where it was, so
+    // the card stays put under the menu.
+    const { width: W, height: H } = c.base.getContentBounds()
+    const m = c.frame.margin()
+    c.setOverlayRegion({ x, y, width: Math.max(r.width + room * 2, W - m.right - x), height: Math.max(r.height + room * 2, H - m.bottom - y) }, true)
+  } else {
+    c.setOverlayRegion({ x, y, width: r.width + room * 2, height: r.height + room * 2 }, true)
+  }
   watchClicks(c)
   mark(c)
 }
@@ -220,27 +265,91 @@ handle('bookmarks.add', async (_a, ctx) => {
   if (!node) return null
   mark(c)
   const o = open.get(c.record.id)
-  if (c.record.sidebar.folded && !o) return { id: node.id, added: !was, card: false }
-  const anchor = o?.anchor ?? await doorAnchor(c)
+  // With the tabs folded away the button is still up beside the window's
+  // buttons on Windows; with none to hang the card from, it is only kept.
+  const door = o ? null : await doorRect(c)
+  if (c.record.sidebar.folded && !o && !door) return { id: node.id, added: !was, card: false }
+  const anchor = o?.anchor ?? door ?? fallbackAnchor(c)
   open.set(c.record.id, { anchor, card: node.id, expanded: o?.expanded ?? opening(bookmarks().roots) })
   show(c)
   return { id: node.id, added: !was, card: true }
 })
 
-/** Where the button is when ⇧⌘B asks and it wasn't pressed: read from the
- * window's interface, else the Mac's fallbacks, the column's foot or the
- * window's top right. */
-async function doorAnchor(c: WindowController): Promise<Rect> {
+/** Where the button is when ⇧⌘B asks and it wasn't pressed, read from the
+ * window's interface. */
+async function doorRect(c: WindowController): Promise<Rect | null> {
   try {
     const r = await c.ui.webContents.executeJavaScript(
       "(() => { const e = document.querySelector('.bookmark-door'); if (!e) return null; const b = e.getBoundingClientRect(); return b.width ? { x: b.x, y: b.y, width: b.width, height: b.height } : null })()")
     if (r) return r as Rect
   } catch {}
-  const { width, height } = c.base.getContentBounds()
-  return c.record.sidebar.layout === 'side'
-    ? { x: c.record.sidebar.side === 'left' ? 52 : width - 78, y: height - 36, width: 26, height: 26 }
-    : { x: width - 150, y: 13, width: 26, height: 26 }
+  return null
 }
+
+/** Else where it would be: the column's foot on the Mac, otherwise up
+ * beside the window's buttons (12 before them). */
+function fallbackAnchor(c: WindowController): Rect {
+  const { width, height } = c.base.getContentBounds()
+  const windows = c.chrome === 'windows'
+  if (!windows && c.record.sidebar.layout === 'side')
+    return { x: c.record.sidebar.side === 'left' ? 52 : width - 78, y: height - 36, width: 26, height: 26 }
+  const controls = windows ? (model.pref<string>('window.buttons') === 'classic' ? 138 : 96) : 0
+  return { x: width - controls - 12 - 26, y: 13, width: 26, height: 26 }
+}
+
+// A row's right-click menu and its questions (BookmarkOutline.Row contextMenu,
+// Bookmarks.askRename, askNewFolder, askRemove), the list staying open.
+
+handle('bookmark.menu', ({ open: up }, ctx) => {
+  const c = need(ctx)
+  const o = open.get(c.record.id)
+  if (!o) return null
+  if (!!o.menu !== up) { o.menu = up; show(c) }
+  return { folders: folders(bookmarks().roots) }
+})
+
+handle('bookmark.ask', ({ id, kind }, ctx) => {
+  const c = need(ctx)
+  const o = open.get(c.record.id)
+  const node = bookmarks().bookmark(id)
+  if (!o || !node) return
+  o.menu = false
+  // A folder with something in it asks first: it all goes with it, and there
+  // is no taking it back. Anything else goes at once.
+  if (kind === 'remove' && !(isFolder(node) && node.children?.length)) { bookmarks().remove(id); show(c); return }
+  o.ask = { kind, id }
+  show(c)
+})
+
+handle('bookmark.askClose', (_a, ctx) => {
+  const c = need(ctx)
+  const o = open.get(c.record.id)
+  if (!o?.ask) return
+  o.ask = null
+  show(c)
+})
+
+/** An empty name: a bookmark's is kept empty (its address then reads in the
+ * list), a folder's changes nothing, a new folder isn't made. */
+handle('bookmark.answer', ({ title }, ctx) => {
+  const c = need(ctx)
+  const o = open.get(c.record.id)
+  const a = o?.ask
+  if (!o || !a) return
+  o.ask = null
+  const node = bookmarks().bookmark(a.id)
+  const name = (title ?? '').trim()
+  if (node && a.kind === 'rename') {
+    if ((name || !isFolder(node)) && name !== node.title) bookmarks().rename(a.id, name)
+  } else if (node && a.kind === 'folder') {
+    if (bookmarks().newFolder(name, a.id)) o.expanded.add(a.id)
+  } else if (node) {
+    bookmarks().remove(a.id)
+  }
+  show(c)
+})
+
+handle('bookmark.moveTo', ({ id, folder }) => { bookmarks().move(id, folder) })
 
 // The popover goes when anything else takes the overlay's place, and with
 // the bookmark it was a card for.
