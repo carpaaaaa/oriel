@@ -57,6 +57,9 @@ jobs:
       - name: Data, the bookmark button beside the window's buttons, removing bookmarks
         if: always()
         run: python test/data_bookmarks_door.py
+      - name: Hide elements on sites, kept for each site (Ctrl+Shift+H, Ctrl+Shift+U, right click)
+        if: always()
+        run: python test/pages_hide.py
       - name: Everything kept for the next launch (quit, session end, monitors, full screen, Snap)
         if: always()
         run: python test/persist_all.py
