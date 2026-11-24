@@ -43,6 +43,6 @@ b.ev(tab, "(() => { const f = document.querySelector('.st-find input'); f.value 
 time.sleep(0.3)
 found = b.ev(tab, "[...document.querySelectorAll('.sr[data-row]')].map(r => r.dataset.row)")
 t.ok("note.sitesearch" in found, f"Settings finds the note ({found})")
-t.ok("Always there: type red, then Tab, and search Reddit" in b.ev(tab, "document.body.innerText"), "in the Mac's words")
+t.ok("type red, then Tab, and search Reddit" in b.ev(tab, "document.body.innerText"), "the note says how, one site at a time")
 t.ok(not b.state().get("errors"), "no error in the main process")
 t.done()
