@@ -186,11 +186,12 @@ function control(i: Item): JSX.Element {
       options={[['tab', 'In a tab'], ['popover', 'Floating by the button'], ['panel', 'In the side panel']]} />
     // Themes
     case 'home.theme': return (
-      <div class="theme-control">
+      // The themes module's page (src/ui/themes/ThemesPage.tsx) when it is there.
+      <Show when={pageFor('settings.themes')} fallback={<div class="theme-control">
         <Segmented value={p<string>('home.theme') ?? 'off'} set={v => void set('home.theme', v)}
           options={[['off', 'Off'], ['wall', 'Wall painting'], ['stickers', 'Stickers'], ['solid', 'Solid colour'], ['gradient', 'Gradient'], ['image', 'Image']]} />
         <Show when={(p<string>('home.theme') ?? 'off') === 'off'}><div class="st-under-note">The blank tab stays plain.</div></Show>
-      </div>
+      </div>}>{c => <Dynamic component={c()} />}</Show>
     )
     // Appearance
     case 'look': return <Pictures value={p<string>('look') ?? 'system'} set={v => void set('look', v)}

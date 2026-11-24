@@ -24,6 +24,8 @@ export function panelFor(name: string): Component<{ layer: OverlayLayer }> | und
 export type OutletName =
   | 'sidebar.top' | 'sidebar.helm' | 'sidebar.afterPins' | 'sidebar.foot'
   | 'strip.end' | 'card.over' | 'chrome.end'
+  // the empty tab: behind its field (the themes' wall) and over it
+  | 'blank.under' | 'blank.over'
 
 const [outlets, setOutlets] = createSignal<Record<string, Component[]>>({})
 export function registerOutlet(name: OutletName, component: Component): void {
