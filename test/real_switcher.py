@@ -286,6 +286,12 @@ time.sleep(0.2)
 up("ctrl")
 time.sleep(0.4)
 t.ok(not switcher() and b.active()["id"] == before, "Esc: the switcher goes, the tab stays")
+# Esc with Ctrl held is Ctrl+Esc, Windows' own key for Start: said, then put away.
+fg = user32.GetAncestor(user32.GetForegroundWindow(), 2)
+print(f"  (after Ctrl+Esc, in front: {'Oriel' if fg == frame()['hwnd'] else fg})", flush=True)
+if fg != frame()["hwnd"]:
+    tap("esc")
+    time.sleep(0.5)
 
 focus_page()
 down("ctrl"); tap("tab"); tap("tab")
