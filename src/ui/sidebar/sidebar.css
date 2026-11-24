@@ -9,6 +9,9 @@
 }
 :root[data-look="dark"] .sidebar { --accent: rgb(10, 132, 255); }
 .sidebar.right { left: auto; right: 0; }
+/* Ctrl+S sliding it off the edge and back (chrome/slide.ts): what it holds
+   moves, the space's wash stays the window's. */
+.window > .sidebar > :not(.wash) { translate: var(--fold-shift, none); }
 
 /* the space's wash: the window's size, under everything of the chrome */
 .wash { position: fixed; inset: 0; z-index: -1; pointer-events: none; }

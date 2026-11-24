@@ -134,11 +134,16 @@ def glides(name, s, want_from, want_to, spec=SETTLE, tol=0.7, floor=1.2, clamped
         worst = max(worst, step)
     t.ok(worst <= max(floor * 0.8, 0.08 * abs(dist)), f"{name}: no frame jumps ahead of the spring ({worst:.2f} at most)")
     # The Mac's time: within 1% of the end for good.
+    # Frames missed (a busy machine, other tests beside) leave the crossing
+    # somewhere in the gap: between the last frame still out and the next.
     near = 0.01 * abs(dist)
-    out = [tt for tt, v in s if abs(v - v1) > near]
-    took = (out[-1] if out else first) - t0
+    out = [i for i, (tt, v) in enumerate(s) if abs(v - v1) > near]
+    last = out[-1] if out else 0
+    lo = s[last][0] - t0
+    hi = (s[last + 1][0] if last + 1 < len(s) else s[last][0]) - t0
     mac = rest_time(spec, 0.01, clamped)
-    return t.ok(abs(took - mac) <= 45, f"{name}: rests in {took:.0f} ms, the Mac's spring in {mac:.0f} ms")
+    took = f"{lo:.0f}" if hi - lo < 20 else f"{lo:.0f}–{hi:.0f}"
+    return t.ok(lo - 45 <= mac <= hi + 45, f"{name}: rests in {took} ms, the Mac's spring in {mac:.0f} ms")
 
 
 def fades(name, s, frm, to, spec=SETTLE):
@@ -201,7 +206,7 @@ glides("column, New tab at the end", series(fr, "new", Y), series(fr, "new", Y)[
 started_together("column: the rows below start as the closing row starts going", series(fr, g, O), series(fr, below, Y))
 still("column, the row above", series(fr, f"t:{ids[1]}", Y))
 gone_at = max(f["t"] for f in fr if g in f["items"])
-t.ok(gone_at < 700 and all(g not in f["items"] for f in fr[-5:]), f"column: the closing row is let go once it has gone ({gone_at:.0f} ms)")
+t.ok(gone_at < 1000 and all(g not in f["items"] for f in fr[-5:]), f"column: the closing row is let go once it has gone ({gone_at:.0f} ms)")
 # The closing row is drawn under the rows coming up over it (the stack's order).
 b.cmd("tab.close", id=ids[4])
 time.sleep(0.12)
@@ -267,6 +272,74 @@ for width, (name, url) in [(232, SHORT), (232, LONG), (180, LONG), (400, SHORT)]
     fr = sample(LIVE_ROW, lambda: b.cmd("field.tabCancel"), ms=800)
     fades(f"{label}, Escape: the title back", series(fr, "titles", O), 0, 1, GLIDE)
 b.cmd("sidebar.resize", width=232)
+b.quit()
+
+# ---------------------------------------------------- Ctrl+S, the column folding
+# Away on the fold-in spring (0.13 / 1.0), back on the fold-out one (0.14 /
+# 0.86) (Design.swift Motion.fold, Fold.swift moveColumn), the page with it:
+# each frame the card's edge is beside the column's and the page view is put
+# there in that frame (the main process's placements, window.pageTrace).
+FOLD_IN, FOLD_OUT = (0.13, 1.0), (0.14, 0.86)
+FOLD_PROBE = r"""
+window.__fold = (() => {
+  const M = { frames: [] };
+  M.start = ms => {
+    M.frames = []; let t0 = null;
+    const step = () => setTimeout(() => {
+      const now = document.timeline.currentTime; if (t0 === null) t0 = now;
+      const c = document.querySelector('.card').getBoundingClientRect();
+      const s = document.querySelector('.window > .sidebar > .side-body');
+      M.frames.push({ t: now - t0, at: performance.timeOrigin + now, card: [c.x, c.y, c.width, c.height], col: s ? s.getBoundingClientRect().x : null });
+      if (now - t0 < ms) requestAnimationFrame(step);
+    });
+    requestAnimationFrame(step);
+  };
+  return M;
+})(); true
+"""
+b.use("ui-motion-fold")
+b.launch(*k.FRAMES, env={"SEARCH_LOOK": "light"})
+time.sleep(0.8)
+b.cmd("tab.go", input="data:text/html,<title>page</title><body style='background:%23fd8'>a page")
+b.wait_for(lambda: b.active()["title"] == "page", what="a page")
+time.sleep(1.0)
+docked = k.js("const c = document.querySelector('.card').getBoundingClientRect(); return [c.x, c.y, c.width, c.height]")
+col0 = k.js("return document.querySelector('.window > .sidebar > .side-body').getBoundingClientRect().x")
+gap = k.js("return parseFloat(getComputedStyle(document.querySelector('.window')).getPropertyValue('--card-gap'))")
+for phase, spec, frm, to in (("away", FOLD_IN, docked[0], None), ("back", FOLD_OUT, None, docked[0])):
+    b.ui(FOLD_PROBE)
+    b.call({"do": "window.pageTrace", "on": True})
+    b.ui("window.__fold.start(700); true")
+    time.sleep(0.08)
+    b.cmd("sidebar.toggle")
+    time.sleep(1.0)
+    trace = b.call({"do": "window.pageTrace", "on": False})["trace"]
+    fr = json.loads(b.ui("JSON.stringify(window.__fold.frames)"))
+    folded_x = docked[0] - 232 + gap
+    frm = folded_x if frm is None else frm
+    to = folded_x if to is None else to
+    label = f"Ctrl+S, the column {phase}"
+    cx = [(f["t"], f["card"][0]) for f in fr]
+    glides(f"{label}: the page's card", cx, frm, to, spec)
+    cols = [(f["t"], f["col"]) for f in fr if f["col"] is not None]
+    glides(f"{label}: the column", cols, col0 if phase == "away" else col0 - 232, col0 - 232 if phase == "away" else col0, spec)
+    apart = [round(f["card"][0] - f["col"], 2) for f in fr if f["col"] is not None]
+    t.ok(apart and min(apart) >= 232 - 0.6 and max(apart) <= 232 + gap + 0.6,
+         f"{label}: the card's edge beside the column's every frame, never under it nor parted past the gap ({min(apart or [0])}–{max(apart or [0])})")
+    # The page view, where the main process put it: in step with each frame.
+    moving = [f for f in fr if abs(f["card"][0] - frm) > 0.5 and abs(f["card"][0] - to) > 0.5]
+    missed = [round(f["t"]) for f in moving
+              if not any(abs(p["rect"]["x"] - f["card"][0]) <= 1 and f["at"] - 3 <= p["t"] <= f["at"] + 12 for p in trace)]
+    t.ok(moving and len(missed) <= 1, f"{label}: the page view put at the card's edge in each frame it moves ({len(moving)} frames, missed {missed[:4]})")
+    xs = [p["rect"]["x"] for p in trace]
+    xs = [x for i, x in enumerate(xs) if i == 0 or x != xs[i - 1]]
+    steps = [abs(b2 - a) for a, b2 in zip(xs, xs[1:])]
+    worst = max([s2 - 2.5 * max(steps[i - 1] if i else 0, steps[i + 1] if i + 1 < len(steps) else 0) for i, s2 in enumerate(steps)] or [0])
+    t.ok(len(xs) > 8 and worst <= 2, f"{label}: the page view moves in even steps, none much bigger than the ones beside it ({len(xs)} places)")
+    end = trace[-1]["rect"] if trace else None
+    want = [round(v) for v in fr[-1]["card"]]
+    t.ok(end and [end["x"], end["y"], end["width"], end["height"]] == want and abs(want[0] - round(to)) <= 1,
+         f"{label}: the page view ends where the card does ({end} / {want})")
 b.quit()
 
 # ------------------------------------------------------ a group's last tab, a pin

@@ -68,6 +68,8 @@ export class WindowController {
   private flushTimer: NodeJS.Timeout | null = null
   private overlayRect: Rect | null = null
   overlayLayer: OverlayLayer = { kind: 'none' }
+  /** Tests only (window.pageTrace): each page placed, when and where. */
+  pageTrace: { t: number; id: ID; rect: Rect }[] | null = null
   private room: { side: 'left' | 'right'; width: number; place: (rect: Rect | null) => void; insets?: Slot['insets'] } | null = null
 
   constructor(readonly record: WindowRecord, readonly pageSession: Session) {
@@ -290,6 +292,7 @@ export class WindowController {
     if (!rt?.view || !rect) return
     rt.view.setBounds(rect)
     rt.view.setBorderRadius(Math.round(this.slots.get(id)?.radius ?? 0))
+    this.pageTrace?.push({ t: performance.timeOrigin + performance.now(), id, rect })
   }
 
   /** Room beside the page for another view (the extensions' side panel,
