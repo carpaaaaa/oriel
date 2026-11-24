@@ -16,7 +16,7 @@ import { ButtonsPicture, CardPicture, LayoutPicture, LookPicture } from './pictu
 import { PermissionSites, PopupSites } from './PermissionSites'
 import { searchSiteList } from '../../shared/modules/field'
 import { MENU_DEFAULT, MENU_KEY } from '../../shared/modules/translate'
-import { TranslateLanguages } from '../translate/Languages'
+import { TranslateAdd, TranslateChosen } from '../translate/Languages'
 import './settings.css'
 
 type Prefs = Record<string, unknown>
@@ -269,7 +269,7 @@ function control(i: Item): JSX.Element {
     )
     case 'float.style': return <Segmented value={p<string>('float.style') ?? 'search'} set={v => void set('float.style', v)} options={[['search', "Oriel's window"], ['system', 'Picture in picture']]} />
     case 'float.own': return <Segmented wide max={340} value={merged<string>('float.own')} set={v => void set('float.own', v)} options={[['never', 'Never'], ['tabs', 'Switching tabs'], ['tabsOrApps', 'Tabs or apps']]} />
-    case 'translate.target': return <TranslateLanguages value={p<string[]>(MENU_KEY) ?? MENU_DEFAULT} set={v => void set(MENU_KEY, v)} />
+    case 'translate.target': return <TranslateAdd value={p<string[]>(MENU_KEY) ?? MENU_DEFAULT} set={v => void set(MENU_KEY, v)} />
     case 'pageZoom': return <Steps stops={zooms} value={Number(p('pageZoom') ?? 1)} home={1} label={v => `${Math.round(v * 100)}%`} set={v => void set('pageZoom', v)} />
     // Spaces & Pins
     case 'arc.setup': return facts()?.arcUndoable ? <Pill title="Undo" act={() => void act('arc.undo')} />
@@ -358,6 +358,7 @@ function after(i: Item, searched: boolean): JSX.Element {
     case 'search.keywords': return <><SiteSwitches /><KeywordEditor /></>
     case 'privacy.forget': return <Show when={!searched}><div class="st-under"><PermissionSites seen={permissionsSeen()} notificationsOn={p('notifications.ask') !== false} /><PopupSites sites={p<string[]>('privacy.popupSites') ?? []} remove={s => void set('privacy.popupSites', (p<string[]>('privacy.popupSites') ?? []).filter(x => x !== s))} /></div></Show>
     case 'passkeys': return <Show when={!searched}><NeverAsked /></Show>
+    case 'translate.target': return <TranslateChosen value={p<string[]>(MENU_KEY) ?? MENU_DEFAULT} set={v => void set(MENU_KEY, v)} />
     default: return null
   }
 }

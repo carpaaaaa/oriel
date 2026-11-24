@@ -148,10 +148,9 @@ const overrides: Record<string, Partial<Item>> = {
   // the Mac has one.
   'translate.target': {
     title: 'Translation languages',
-    detail: 'Pages are translated on this PC. Right-click a page to translate it into the ones ticked',
+    detail: 'Pages are translated on this PC. Right-click a page to translate it into one of these',
     more: 'Each language is downloaded from Mozilla once, the first time a page is translated into or out of it, and kept on this PC. Nothing of the page is sent anywhere.',
     keys: ['translate.languages'],
-    kind: 'wide',
   },
   'passwords.open': { detail: 'Kept by Windows, shown with Windows Hello' },
   'passwords.fill.prove': {

@@ -31,7 +31,3 @@
 .tr-foot { padding: 8px 16px; font-size: 10.5px; color: var(--muted); }
 
 /* Settings: the languages, three to a line under the row's words. */
-.tr-langs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 14px; padding: 2px 0 4px; font-size: 12.5px; }
-.tr-lang { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ink); }
-.tr-lang span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tr-lang input { margin: 0; flex: none; }

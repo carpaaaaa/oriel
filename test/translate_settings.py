@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Settings › Browsing › Pages › Translation languages (studio/06 row 84;
-translate.target on the Mac, one language there): a tick for each language
-Mozilla's models translate into, English alone to begin with, the last one
-can't be unticked; what is ticked is what translate.menuLanguages gives the
-right-click menu, and the window's state too; kept after a restart. The
-find field finds the row."""
+translate.target on the Mac, one language there): the row's pop-up button
+(Add Language…) offers every language Mozilla's models translate into that
+isn't chosen yet; each chosen one is a line under the row with Remove,
+English alone to begin with, the last one can't be removed (the user's wish,
+24 Nov 2026: clean, not a grid of 58 ticks); what is chosen is what
+translate.menuLanguages gives the right-click menu, and the window's state
+too; kept after a restart. The find field finds the row."""
 import sys
 import time
 from pathlib import Path
@@ -34,35 +36,61 @@ t.ok(slice_menu() == ["en"], "the window's state says the same")
 
 sid = b.cmd("internal.open", url="oriel://settings/browsing")
 b.wait_for(lambda: b.ev(sid, "!!document.querySelector('[data-row=\"translate.target\"]')"), within=10, what="the row")
+ROW = '[data-row="translate.target"]'
+chosen = lambda: b.ev(sid, "[...document.querySelectorAll('.tr-chosen [data-lang]')].map(e => e.dataset.lang)")
 row = b.ev(sid, """(() => { const r = document.querySelector('[data-row="translate.target"]');
   return { title: r.querySelector('.sr-title').innerText.trim(), detail: r.querySelector('.sr-detail').innerText.trim(),
-           langs: [...r.querySelectorAll('[data-lang]')].map(l => l.dataset.lang),
-           names: [...r.querySelectorAll('[data-lang] span')].map(s => s.innerText),
-           ticked: [...r.querySelectorAll('[data-lang] input:checked')].map(i => i.closest('[data-lang]').dataset.lang),
-           locked: r.querySelector('[data-lang="en"] input').disabled } })()""")
+           button: r.querySelector('.tr-add .dd-value')?.innerText, ticks: document.querySelectorAll('.tr-chosen input, [data-row="translate.target"] input[type=checkbox]').length,
+           remove: [...document.querySelectorAll('.tr-chosen [data-lang] button')].map(x => ({ text: x.innerText.trim(), disabled: x.disabled })) } })()""")
 t.ok(row["title"] == "Translation languages", f"the row is back, as Translation languages: {row['title']!r}")
 t.ok("this PC" in row["detail"] and "Mac" not in row["detail"] and "—" not in row["detail"], f"its words name the PC: {row['detail']!r}")
-t.ok(len(row["langs"]) == 58 and row["langs"][0] == "en", f"every language Mozilla translates into, English first: {len(row['langs'])}")
-t.ok("French" in row["names"] and "German" in row["names"] and "Japanese" in row["names"], "named in English")
-t.ok(row["ticked"] == ["en"], "English ticked")
-t.ok(row["locked"], "the last one ticked can't be unticked")
-b.ev(sid, "document.querySelector('[data-row=\"translate.target\"]').scrollIntoView({ block: 'center' })")
+t.ok(row["button"] == "Add Language…" and row["ticks"] == 0, f"clean: a pop-up button, no ticks ({row['button']!r}, {row['ticks']} ticks)")
+t.ok(chosen() == ["en"], f"English alone to begin with: {chosen()}")
+t.ok(row["remove"] == [{"text": "Remove", "disabled": True}], f"the last one can't be removed: {row['remove']}")
+
+
+def open_add():
+    b.ev(sid, f"(() => {{ const e = document.querySelector('{ROW} .tr-add'); e.scrollIntoView({{block: 'center'}}); e.dispatchEvent(new PointerEvent('pointerdown', {{button: 0, bubbles: true}})) }})()")
+    b.wait_for(lambda: b.ev(sid, "!!document.querySelector('.dd-list.placed')"), within=5, what="the list")
+    time.sleep(0.4)  # a press needs 300 ms after opening
+
+
+def offered():
+    return b.ev(sid, "[...document.querySelectorAll('.dd-list .dd-row .dd-label')].map(e => e.textContent)")
+
+
+def pick(name):
+    open_add()
+    b.ev(sid, f"[...document.querySelectorAll('.dd-list .dd-row')].find(r => r.querySelector('.dd-label').textContent === {name!r}).dispatchEvent(new PointerEvent('pointerup', {{button: 0, bubbles: true}}))")
+
+
+open_add()
+names = offered()
+t.ok(names[0] == "Add Language…" and len(names) == 58 and "English" not in names and "French" in names and "Japanese" in names,
+     f"Add Language… offers the other 57, named in English ({len(names) - 1})")
+b.ev(sid, "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
+b.ev(sid, f"document.querySelector('{ROW}').scrollIntoView({{ block: 'center' }})")
 time.sleep(0.4)
 b.shot(SHOTS / "settings-row.png")
 
-# French and German ticked: the menu offers them, in the list's order.
-b.ev(sid, "document.querySelector('[data-lang=\"fr\"] input').click()")
+# French and German added: lines under the row, the menu offers them, in the list's order.
+pick("French")
 b.wait_for(lambda: menu() == ["en", "fr"], within=5, what="French in the menu")
-b.ev(sid, "document.querySelector('[data-lang=\"de\"] input').click()")
+pick("German")
 b.wait_for(lambda: menu() == ["en", "fr", "de"], within=5, what="German in the menu")
-t.ok(menu() == ["en", "fr", "de"], f"ticked French and German: the menu offers them: {menu()}")
+t.ok(chosen() == ["en", "fr", "de"], f"added French and German: a line each under the row ({chosen()})")
+t.ok(menu() == ["en", "fr", "de"], f"…and the menu offers them: {menu()}")
 names = [l["name"] for l in b.cmd("translate.menuLanguages")["languages"]]
 t.ok(names == ["English", "French", "German"], f"with their names: {names}")
 t.ok(b.wait_for(lambda: slice_menu() == ["en", "fr", "de"], within=3, what="slice"), "the window's state follows")
-t.ok(not b.ev(sid, "document.querySelector('[data-lang=\"en\"] input').disabled"), "English can be unticked now")
-b.ev(sid, "document.querySelector('[data-lang=\"en\"] input').click()")
+open_add()
+t.ok("French" not in offered() and "German" not in offered(), "Add Language… no longer offers them")
+b.ev(sid, "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
+time.sleep(0.3)
+t.ok(not b.ev(sid, "document.querySelector('.tr-chosen [data-lang=\"en\"] button').disabled"), "English can be removed now")
+b.ev(sid, "document.querySelector('.tr-chosen [data-lang=\"en\"] button').click()")
 b.wait_for(lambda: menu() == ["fr", "de"], within=5, what="English out")
-t.ok(menu() == ["fr", "de"], "unticked English: gone from the menu")
+t.ok(menu() == ["fr", "de"] and chosen() == ["fr", "de"], "removed English: gone from the lines and the menu")
 
 # The find field finds it.
 found = b.ev(sid, "(async () => { const f = document.querySelector('.st-hunt input, input[placeholder^=\"Find\"]'); f.focus(); f.value = 'translation'; f.dispatchEvent(new Event('input', { bubbles: true })); await new Promise(r => setTimeout(r, 300)); return [...document.querySelectorAll('[data-row]')].map(r => r.dataset.row) })()")
