@@ -12,6 +12,7 @@ import { CaptionButtons, buttonStyle } from './Buttons'
 import { EDGES, gripDown, wireFrame } from './frame'
 import { Panes } from './Split'
 import { foldSlide } from './slide'
+import { capBand, cornerRight } from '../data/where'
 
 export function ChromeRoot() {
   let slot!: HTMLDivElement
@@ -114,7 +115,10 @@ export function ChromeRoot() {
         '--grip-out': `${state.frame?.grip.outside ?? 8}px`, '--grip-in': `${state.frame?.grip.inside ?? 4}px`,
         '--grip-corner': `${state.frame?.grip.corner ?? 20}px`,
       }}>
-      <div class="window on-frame" classList={{ windows: state.chrome === 'windows', blurred: !state.focused, top: strip(), 'col-right': onRight(), compact: pref('tabs.compact'), 'btn-inline': ownButtons() && buttonStyle() === 'inline', [`room-${state.room?.side}`]: !!state.room }}
+      {/* The window's own buttons don't keep the keys after a click, as
+          the Mac's don't: the + kept them, and the next key (Escape, Tab)
+          drew a focus ring around it beside the tab. */}
+      <div class="window on-frame" onMouseDown={e => { const btn = (e.target as HTMLElement).closest('button'); if (btn && btn.closest('.tabbar, .sidebar, .caption-buttons')) e.preventDefault() }} classList={{ windows: state.chrome === 'windows', blurred: !state.focused, top: strip(), 'col-right': onRight(), compact: pref('tabs.compact'), 'btn-inline': ownButtons() && buttonStyle() === 'inline', [`room-${state.room?.side}`]: !!state.room }}
         style={{ '--side': `${side()}px`, '--fold-shift': columnShift(), '--top': strip() ? (pref('tabs.compact') ? 'var(--strip-compact)' : 'var(--strip)') : undefined, '--room': `${state.room?.width ?? 0}px` }}>
         <Show when={!state.sidebar.folded || slide.out() !== null}>
           <Sidebar />
@@ -141,6 +145,13 @@ export function ChromeRoot() {
         </Show>
         <Show when={loadingLine()}>
           <div class="loading-line" data-window-ui="loading-line"><span /></div>
+        </Show>
+        {/* Beside the window's buttons, up in the band above the page: the
+            bookmark button (data/where.ts), 12 left of them. */}
+        <Show when={capBand()}>
+          <div class="chrome-end" style={{ right: `${cornerRight()}px` }}>
+            <For each={outlet('chrome.end')}>{C => <C />}</For>
+          </div>
         </Show>
         <Show when={ownButtons()}>
           <CaptionButtons />

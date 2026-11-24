@@ -181,7 +181,17 @@ t.ok(pv["extensions"] == ["cjpalhdlnbpafiamejdnhcphjbkeiagm", "nngceckbapebfimnl
 time.sleep(0.3)
 t.ok("2 found: installed fresh from the Chrome Web Store, you say yes to each one" in b.ui("document.body.innerText", root="overlay"), "the extensions line")
 said = texts(bring("Chrome", passwords=False, bookmarks=False, history=False, extensions=True))
-t.ok(said == ["2 extensions to confirm"], f"handed to the extensions module ({said})")
+t.ok(said[0] == "2 extensions to confirm", f"handed to the extensions module ({said})")
+asked = b.call({"do": "ext.broughtOver"})["ids"]
+t.ok(asked[-2:] == ["cjpalhdlnbpafiamejdnhcphjbkeiagm", "nngceckbapebfimnlniiiahkandclblb"], f"and the extensions module asks for them, one by one (the hook was never filled: {asked})")
+t.ok(said[1:] == ["Not in the Chrome Web Store, look for it there by name: From Edge"], f"another store's own, said by name ({said[1:]})")
+
+# Opera: its own add-ons aren't in the Chrome Web Store; what it took from there is (the user's 24 Nov 2026 report).
+b.cmd("import.pick", source="Opera GX")
+b.cmd("import.profile", source="Opera GX", profile=".")
+pv = counted("Opera GX")
+t.ok(pv["extensions"] == ["ghbmnnjooekpmoecnnnilnnbdlolhkhi"] and pv.get("extensionsElsewhere") == ["Opera Add-on"],
+     f"Opera GX: from the Chrome Web Store by the manifest on disk, its own store's by name, not the built-in ({pv['extensions']}, {pv.get('extensionsElsewhere')})")
 
 # All profiles.
 b.cmd("import.profile", source="Chrome", profile="")

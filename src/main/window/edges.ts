@@ -94,6 +94,13 @@ function comeOut(c: WindowController, w: Watch, v: Rect): void {
 function tickOne(c: WindowController, now: number): void {
   const w = watching.get(c) ?? { left: null, arrived: null, going: null }
   watching.set(c, w)
+  // A video alone on the screen (a page's own full screen): nothing comes
+  // over it, neither the strip with the buttons nor the column or the tabs.
+  if (c.isFilling()) {
+    if (revealed(c) || peeking(c) || leavingOut(c)) c.sendOverlay({ kind: 'none' })
+    w.left = w.arrived = null
+    return
+  }
   const p = pointer()
   const v = c.frame.visual()
   // full screen: the strip with the buttons

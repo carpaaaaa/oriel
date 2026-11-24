@@ -339,6 +339,18 @@ window.addEventListener('resize', moved)
 document.addEventListener('focusin', () => caret(), true)
 document.addEventListener('focusout', () => setTimeout(() => caret(), 0), true)
 document.addEventListener('mouseup', () => setTimeout(() => caret(), 0), true)
+// The box can go without a focusout: a sign-in that moves on to its next
+// step, or goes back, takes it out of the page (Chromium says nothing when
+// a focused element is removed), and the list stayed over whatever came
+// next. Looked at again whenever the page changes while the list is up.
+window.addEventListener('popstate', () => caret(), true)
+window.addEventListener('hashchange', () => caret(), true)
+window.addEventListener('pagehide', () => tell({ kind: 'focus', rect: null, name: false, wide: true }), true)
+if (!framed) {
+  const watch = () => new MutationObserver(() => { if (listUp.up) moved() }).observe(document.documentElement, { childList: true, subtree: true })
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch)
+  else watch()
+}
 
 // the account list's keys, while it hangs from a box here
 

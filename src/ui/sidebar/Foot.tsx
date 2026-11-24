@@ -15,21 +15,25 @@ import { tint, tintAlpha } from './look'
 import { openMenu } from '../menus/open'
 import { spaceMenu } from '../menus/build'
 import { reducedMotion } from './motion'
+import { bookmarkInColumnBand, bookmarkPlace, CORNER_GAP } from '../data/where'
 
 /** The doors that always show, each 26 and 2 apart (Side.swift keptWidth,
  * 1768-1777): downloads counted whether running or not, so one starting
- * doesn't send them down; the puzzle (with extensions), the bookmark button,
- * the space's icon or a button per space. Pinned extensions aren't: up in
- * the band they give way, from the last, to what fits (upRoom). */
+ * doesn't send them down; the puzzle (with extensions), the bookmark button
+ * when it is the foot's (data/where.ts), the space's icon or a button per
+ * space. Pinned extensions aren't: up in the band they give way, from the
+ * last, to what fits (upRoom). */
 export function footDoors(): number {
   const ext = (state.ext?.list.length ?? 0) > 0
-  return 1 + (ext && !state.prefs?.['foot.extensions.hidden'] ? 1 : 0) + (state.prefs?.['foot.bookmarks.hidden'] ? 0 : 1)
+  return 1 + (ext && !state.prefs?.['foot.extensions.hidden'] ? 1 : 0) + (state.prefs?.['foot.bookmarks.hidden'] || bookmarkPlace() !== 'foot' ? 0 : 1)
     + (P.spaces() && !P.spaceButtons() ? 1 : 0) + (P.spaceButtons() ? state.spaces.length : 0)
 }
 
-/** On the right, the window's buttons are at the band's far end on Windows:
- * the doors stop short of them (studio/01 §5.8 point 6). */
-export const capRoom = () => (state.chrome === 'windows' && state.sidebar.side === 'right' ? state.controlsWidth : 0)
+/** On the right, the window's buttons are at the band's far end on Windows,
+ * the bookmark button 12 before them: the doors stop short of both (studio/01
+ * §5.8 point 6). */
+export const capRoom = () => (state.chrome === 'windows' && state.sidebar.side === 'right'
+  ? state.controlsWidth + (bookmarkInColumnBand() ? CORNER_GAP + 26 : 0) : 0)
 
 /** What the band has right of back, forward and reload (Side.swift beyondHelm):
  * the column less its margins, the helm, the sidebar button, 12 of air, and

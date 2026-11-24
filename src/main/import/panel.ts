@@ -132,6 +132,11 @@ export async function run(c: WindowController): Promise<ImportSaid[]> {
       importHooks.installExtensions(p.extensions)
       said.push({ ok: true, text: p.extensions.length === 1 ? '1 extension to confirm' : `${p.extensions.length} extensions to confirm` })
     }
+    // Another store's own (Opera's add-ons): not in the Chrome Web Store by that id.
+    const elsewhere = p.extensionsElsewhere ?? []
+    if (s.wants.extensions && elsewhere.length) {
+      said.push({ ok: false, text: `Not in the Chrome Web Store, look for ${elsewhere.length === 1 ? 'it' : 'them'} there by name: ${elsewhere.join(', ')}` })
+    }
   } finally {
     s.bringing = false
   }

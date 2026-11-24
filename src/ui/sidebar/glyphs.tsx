@@ -23,7 +23,35 @@ function glyph(d: () => JSX.Element, fill = false) {
   }
 }
 
+/** speaker.wave.2.fill and speaker.slash.fill (Side.swift Speaker), measured
+ * on the Mac's own at 8 points: boxes of their own, 11 × 8 and 9 × 10, not
+ * the square of the others (the speaker was squeezed into 8.8 × 8.8, its
+ * waves thick and against the cone); thin waves apart from the cone, the
+ * slash with its gap through the speaker. pt scales them as it does the rest. */
+function speakerGlyph(slash: boolean) {
+  return (p: GlyphProps) => {
+    const k = p.pt / 8
+    const w = +((slash ? 9 : 11) * k).toFixed(2), h = +((slash ? 10 : 8) * k).toFixed(2)
+    const id = slash ? `speaker-gap-${++gaps}` : ''
+    return slash ? (
+      <svg class={p.class} style={p.style} width={w} height={h} viewBox="0 0 18 20" aria-hidden="true">
+        <mask id={id}><rect width="18" height="20" fill="#fff" /><path d="M1.75 3.5 16 16.5" stroke="#000" stroke-width="3.4" stroke-linecap="round" /></mask>
+        <path d="M3.3 7.6H7.6l4.8-3.9v12.6L7.6 12.4H3.3z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round" mask={`url(#${id})`} />
+        <path d="M1.75 3.5 16 16.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+      </svg>
+    ) : (
+      <svg class={p.class} style={p.style} width={w} height={h} viewBox="0 0 22 16" aria-hidden="true">
+        <path d="M2.5 5.6H6.6L11 2.4v11.3L6.6 10.4H2.5z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round" />
+        <path d="M14.95 5.5a4.9 4.9 0 0 1 0 5M17.6 3.7a6.4 6.4 0 0 1 0 8.7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+      </svg>
+    )
+  }
+}
+let gaps = 0
+
 export const G = {
+  speaker: speakerGlyph(false),
+  speakerSlash: speakerGlyph(true),
   chevronLeft: glyph(() => <path d="M10.2 2.6 4.8 8l5.4 5.4" />),
   chevronRight: glyph(() => <path d="M5.8 2.6 11.2 8l-5.4 5.4" />),
   chevronDown: glyph(() => <path d="M2.6 5.6 8 11l5.4-5.4" />),
@@ -33,8 +61,6 @@ export const G = {
   plus: glyph(() => <path d="M8 2.2v11.6M2.2 8h11.6" />),
   arrowDown: glyph(() => <><path d="M8 2v12" /><path d="m3 9 5 5 5-5" /></>),
   checkmark: glyph(() => <path d="m2.6 8.6 3.4 3.6 7.4-8.6" />),
-  speaker: glyph(() => <><path d="M1.6 5.6h2.6L7.8 2.6v10.8L4.2 10.4H1.6z" /><path d="M10 5.4a3.2 3.2 0 0 1 0 5.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><path d="M12 3.4a6 6 0 0 1 0 9.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></>, true),
-  speakerSlash: glyph(() => <><path d="M1.6 5.6h2.6L7.8 2.6v10.8L4.2 10.4H1.6z" /><path d="m10 5.6 4.6 4.8m0-4.8L10 10.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></>, true),
   folder: glyph(() => <path d="M1.8 4.4c0-.8.6-1.4 1.4-1.4h3l1.6 1.6h5c.8 0 1.4.6 1.4 1.4v6.2c0 .8-.6 1.4-1.4 1.4H3.2c-.8 0-1.4-.6-1.4-1.4z" />),
   folderFill: glyph(() => <path d="M1.4 4.4c0-1 .8-1.8 1.8-1.8h3.1l1.6 1.6h4.9c1 0 1.8.8 1.8 1.8v6.2c0 1-.8 1.8-1.8 1.8H3.2c-1 0-1.8-.8-1.8-1.8z" />, true),
   radio: glyph(() => <><circle cx="8" cy="9.4" r="1.3" /><path d="M5.2 6.6a4 4 0 0 0 0 5.6M10.8 6.6a4 4 0 0 1 0 5.6M3 4.4a7 7 0 0 0 0 10M13 4.4a7 7 0 0 1 0 10" /></>),

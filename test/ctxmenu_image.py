@@ -24,7 +24,7 @@ SRC = k.url("/pic.png")
 page = k.page("/ctx")
 at = k.right_click(page, "#img")
 WANT = ["Open Image in New Tab", "Open Image in Split View", "—", "Save Image As…", "Copy Image", "Copy Image Address", "—",
-        "Search Image with Google", "—", "Inspect"]
+        "Search Image with Google", "—", "Hide Element", "—", "Inspect"]
 t.ok(k.labels() == WANT, f"a picture: open it, save it, copy it, search with it ({k.labels()})")
 t.ok(k.last()["menu"]["context"] == ["image"], "its context is the image")
 k.near_click(t, at)

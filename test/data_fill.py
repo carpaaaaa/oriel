@@ -189,6 +189,23 @@ t.ok(b.cmd("fill.pick", index=0) is True, "a pick fills")
 t.ok(b.ev(tab, "document.getElementById('u').value + '|' + document.getElementById('p').value") == "alice|right", "name and password put in the page")
 t.ok(b.active()["title"] == "Sign in", "and nothing sent: never on its own")
 
+# The list goes with its box: a sign-in moving on to its next step takes the
+# box out of the page (no focusout), or changes its own address; the list
+# stayed over whatever came next (the user's 24 Nov 2026 report, YouTube under it).
+for how, js in (("the box taken out of the page", "document.getElementById('p').remove()"),
+                ("the page changing its own address", "history.pushState({}, '', '/step-two')"),
+                ("going to another page", "location.href = '/home'")):
+    tab = open_page("/login", "Sign in")
+    b.ev(tab, "document.getElementById('p').focus()")
+    b.wait_for(lambda: forms()["fill"], what="the list")
+    time.sleep(0.3)
+    b.ev(tab, js)
+    try:
+        gone = b.wait_for(lambda: forms()["fill"] is None and (forms()["overlay"] or {}).get("kind") == "none", within=3, what=how)
+    except AssertionError:
+        gone = False
+    t.ok(gone, f"{how}: the list goes ({forms()['overlay']})")
+
 # Arrows and Enter, from the page: a real click into the name box first.
 tab = open_page("/login", "Sign in")
 card = json.loads(b.ui("JSON.stringify(document.querySelector('.card').getBoundingClientRect())"))

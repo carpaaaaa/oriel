@@ -1,7 +1,7 @@
 // The data module's places: the accounts under a sign-in box, the question
 // after a sign-in, Bring Things Over (studio/05 §1.12, §2.3, §2.4) in the
-// overlay; the bookmark button in the column's foot or at the end of the tab
-// strip, and its list or card in the overlay (studio/05 §3.2).
+// overlay; the bookmark button up beside the window's buttons (where.ts), and
+// its list, its right-click menu or its card in the overlay (studio/05 §3.2).
 // Owned by the data module.
 
 import { registerOutlet, registerPage, registerPanel } from '../lib/registry'
@@ -23,6 +23,7 @@ for (const [name, component] of Object.entries(mine)) registerPanel(name, compon
 
 registerOutlet('sidebar.foot', () => <BookmarkDoor where="foot" />)
 registerOutlet('strip.end', () => <BookmarkDoor where="strip" />)
+registerOutlet('chrome.end', () => <BookmarkDoor where="corner" />)
 
 // oriel://history
 registerPage('history', HistoryPage)

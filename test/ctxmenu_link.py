@@ -27,7 +27,7 @@ OPENED = (LINK, k.url("/target?utm_source=news&id=7#top"))
 page = k.page("/ctx")
 at = k.right_click(page, "#link")
 WANT = ["Open Link in New Tab", "Open Link in New Window", "Open Link in Private Window", "Open Link in Split View", "—",
-        "Download Linked File", "—", "Copy Link", "Copy Clean Link", "—", "Inspect"]
+        "Download Linked File", "—", "Copy Link", "Copy Clean Link", "—", "Hide Element", "—", "Inspect"]
 t.ok(k.labels() == WANT, f"a link: open it four ways, download it, copy it two ways ({k.labels()})")
 t.ok(k.dom_items() == WANT, "…drawn as built")
 t.ok(k.last()["menu"]["context"] == ["link"], "its context is the link")
@@ -118,7 +118,7 @@ t.ok(got and "target" in got[0].name, f"Download Linked File saves the link's fi
 
 # an email link
 k.right_click(page, "#mail")
-t.ok(k.labels() == ["Copy Email Address", "—", "Inspect"], f"an email link: Copy Email Address ({k.labels()})")
+t.ok(k.labels() == ["Copy Email Address", "—", "Hide Element", "—", "Inspect"], f"an email link: Copy Email Address ({k.labels()})")
 k.pick("Copy Email Address")
 t.ok(k.clipboard()["text"] == "hello@example.com", f"…the address alone: {k.clipboard()['text']}")
 

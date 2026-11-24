@@ -11,9 +11,11 @@ import { allControllers } from '../views/window'
 
 const holderOf = (wc: WebContents) => allControllers().find(c => c.base.contentView.children.some(v => (v as Electron.WebContentsView).webContents === wc))
 
+// The page covers the whole window at once (WindowController.fillWith); the
+// window then covers the screen.
 app.on('web-contents-created', (_e, wc) => {
-  wc.on('enter-html-full-screen', () => { holderOf(wc)?.frame.note('enter-html-full-screen'); setImmediate(() => holderOf(wc)?.frame.pageFull(true)) })
-  wc.on('leave-html-full-screen', () => { holderOf(wc)?.frame.note('leave-html-full-screen'); setImmediate(() => holderOf(wc)?.frame.pageFull(false)) })
+  wc.on('enter-html-full-screen', () => { const c = holderOf(wc); c?.frame.note('enter-html-full-screen'); c?.fillWith(wc, true); setImmediate(() => holderOf(wc)?.frame.pageFull(true)) })
+  wc.on('leave-html-full-screen', () => { const c = holderOf(wc); c?.frame.note('leave-html-full-screen'); c?.fillWith(wc, false); setImmediate(() => holderOf(wc)?.frame.pageFull(false)) })
 })
 
 // The page's own word (src/preload/page/pages.ts): Electron's events above
@@ -22,5 +24,6 @@ ipcMain.on('pages:fullscreen', (e, on: unknown) => {
   const c = holderOf(e.sender)
   if (!c) return
   c.frame.note(`page says full ${!!on}`)
+  c.fillWith(e.sender, !!on)
   setImmediate(() => c.frame.pageFull(!!on))
 })

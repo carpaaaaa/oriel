@@ -1,24 +1,30 @@
 // The bookmark button and what hangs off it (BookmarkDoor, BookmarksDropdown,
 // BookmarkCard; Bookmarks.swift:1130-1420, studio/05 §3.2, studio/01 §4.3,
 // §5.9). The button: a door of 26, the ribbon at 11 medium, filled on a page
-// that is kept; at the end of the tab strip, in the column's foot, or up
-// beside back, forward and reload; gone with Settings › Appearance › Tabs ›
-// Buttons under the column › Bookmarks unticked (foot.bookmarks.hidden).
+// that is kept; up beside the window's buttons, the strip's last door with
+// the tabs across the top (where.ts); gone with Settings › Appearance › Tabs
+// › Buttons under the column › Bookmarks unticked (foot.bookmarks.hidden).
 // A click opens the list: the tree (a folder opens in place, a site opens,
 // a middle click opens it behind), then Add This Page or Edit This
-// Bookmark…. ⇧⌘B and those rows open the card: the name, kept as typed, the
+// Bookmark…. A right click on a row, its menu (BookmarkOutline.Row: Open,
+// Rename…, New Folder Inside…, Move to, Remove), its questions in the list's
+// place. ⇧⌘B and those rows open the card: the name, kept as typed, the
 // folder, Remove, Done. Owned by the data module.
 
 import { createSignal, For, onMount, Show } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import { Bookmark, BookmarkFill } from '../lib/icons'
 import { G } from '../sidebar/glyphs'
-import type { BookmarkCardView, BookmarkLine } from '../../shared/modules/data'
+import { Menu } from '../menus/Menu'
+import type { Entry } from '../menus/bridge'
+import type { Command } from '../../shared/commands'
+import type { BookmarkAskView, BookmarkCardView, BookmarkLine } from '../../shared/modules/data'
+import { bookmarkPlace, type DoorPlace } from './where'
 
 const rectOf = (el: Element) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height } }
 
-export function BookmarkDoor(p: { where: 'foot' | 'strip' }) {
-  const here = () => (p.where === 'foot' ? state.sidebar.layout !== 'top' : state.sidebar.layout === 'top')
+export function BookmarkDoor(p: { where: DoorPlace }) {
+  const here = () => bookmarkPlace() === p.where
   const kept = () => !!state.data?.bookmarked
   return (
     <Show when={here() && !state.prefs?.['foot.bookmarks.hidden']}>
@@ -30,32 +36,116 @@ export function BookmarkDoor(p: { where: 'foot' | 'strip' }) {
   )
 }
 
+type Folder = { id: string; title: string; depth: number }
+type Menued = { line: BookmarkLine; at: { x: number; y: number }; folders: Folder[] }
+
 /** The popover, in the overlay: the card and its arrow, `room` in from the
  * overlay's edges. A click beside it or Escape closes it; a press elsewhere
- * in the window, or the window losing the keys, too (main/data/door.ts). */
+ * in the window, or the window losing the keys, too (main/data/door.ts).
+ * A row's right-click menu over it, the overlay grown on to the window's
+ * edges for it first; a press beside the menu or Escape puts only it away. */
 export function BookmarksPopover() {
   const pop = () => state.data?.popover ?? null
   const close = () => void cmd({ do: 'bookmark.popoverClose' })
+  const [menued, setMenued] = createSignal<Menued | null>(null)
   let region: HTMLDivElement | undefined
+  let picking = false
   onMount(() => region?.focus())
+
+  const openMenu = async (line: BookmarkLine, at: { x: number; y: number }) => {
+    if (line.empty) return
+    setMenued(null)
+    const r = await cmd({ do: 'bookmark.menu', open: true }) as { folders: Folder[] } | null
+    if (r) setMenued({ line, at, folders: r.folders })
+  }
+  const closeMenu = async () => {
+    if (!menued()) return
+    setMenued(null)
+    region?.focus()
+    await cmd({ do: 'bookmark.menu', open: false })
+  }
+  // The pick blinks once, then the menu goes and the command runs, as the
+  // tabs' menus do (menus/host.tsx).
+  const pick = (e: Entry) => {
+    if (picking || !e.act || !('cmd' in e.act)) return
+    picking = true
+    const command = e.act.cmd
+    setTimeout(() => {
+      void closeMenu().then(() => cmd(command)).catch(error => console.warn('[bookmarks]', error)).finally(() => { picking = false })
+    }, 70)
+  }
+  /** A right press beside the menu: on a row, that row's menu; else none. */
+  const elsewhere = (x: number, y: number) => {
+    const row = document.elementsFromPoint(x, y).find(el => el instanceof HTMLElement && el.matches('.bm-row[data-bookmark]')) as HTMLElement | undefined
+    const line = row && pop()?.lines.find(l => l.id === row.dataset.bookmark && !l.empty)
+    if (line) void openMenu(line, { x, y }); else void closeMenu()
+  }
+
   return (
     <div ref={region} class="bm-region" tabindex={-1} onPointerDown={e => { if (e.target === e.currentTarget) close() }}
-      onKeyDown={e => { if (e.key === 'Escape') close() }}>
+      onContextMenu={e => e.preventDefault()}
+      onKeyDown={e => { if (e.key === 'Escape' && !menued()) close() }}>
       <Show when={pop()}>
         {v => (
           <>
             <Arrow side={v().arrow.side} at={v().arrow.at} card={v().rect} room={v().room} />
             <div class="bm-card" classList={{ 'bm-is-card': !!v().card }} data-bookmarks-popover
               style={{ left: `${v().room}px`, top: `${v().room}px`, width: `${v().rect.width}px`, height: `${v().rect.height}px` }}>
-              <Show when={v().card} fallback={<List lines={v().lines} height={v().listHeight} kept={v().kept} keepable={v().keepable} />}>
+              <Show when={v().card} fallback={
+                <Show when={v().ask} fallback={<List lines={v().lines} height={v().listHeight} kept={v().kept} keepable={v().keepable}
+                  menued={menued()?.line.id ?? null} menu={openMenu} />}>
+                  {a => <Ask ask={a()} />}
+                </Show>
+              }>
                 {c => <Card card={c()} />}
               </Show>
             </div>
+            <Show when={v().menu && menued()} keyed>
+              {m => (
+                <div class="menu-host bm-menu-host" data-bookmark-menu={m.line.id}>
+                  <div class="menu-scrim" onPointerDown={e => { if (e.button !== 2) void closeMenu() }}
+                    onContextMenu={e => { e.preventDefault(); elsewhere(e.clientX, e.clientY) }} />
+                  {/* The overlay starts `room` left of the card: a menu flipped left
+                      stops at the card's edge, its shadow whole. */}
+                  <Menu entries={entriesFor(m.line, m.folders)} at={m.at} room={{ w: window.innerWidth, h: window.innerHeight }}
+                    edge={v().room + 4} pick={pick} close={() => void closeMenu()} />
+                </div>
+              )}
+            </Show>
           </>
         )}
       </Show>
     </div>
   )
+}
+
+/** BookmarkOutline.Row's menu: Open for a site, Rename…, New Folder Inside…
+ * for a folder, Move to (Top Level, then the folders it may go in, indented
+ * by depth), Remove. */
+function entriesFor(l: BookmarkLine, folders: Folder[]): Entry[] {
+  const run = (c: Command): Entry['act'] => ({ cmd: c })
+  // Not into itself nor anything inside it (Bookmarks.holds).
+  const at = folders.findIndex(f => f.id === l.id)
+  const inside = new Set<string>()
+  if (at >= 0) {
+    inside.add(l.id)
+    for (let i = at + 1; i < folders.length && folders[i].depth > folders[at].depth; i++) inside.add(folders[i].id)
+  }
+  const targets = folders.filter(f => !inside.has(f.id))
+  const out: Entry[] = []
+  if (!l.folder && l.url) out.push({ label: 'Open', act: run({ do: 'bookmark.pick', url: l.url }) }, { separator: true })
+  out.push({ label: 'Rename…', act: run({ do: 'bookmark.ask', id: l.id, kind: 'rename' }) })
+  if (l.folder) out.push({ label: 'New Folder Inside…', act: run({ do: 'bookmark.ask', id: l.id, kind: 'folder' }) })
+  out.push({
+    label: 'Move to',
+    submenu: [
+      { label: 'Top Level', act: run({ do: 'bookmark.moveTo', id: l.id, folder: null }) },
+      ...(targets.length ? [{ separator: true }] : []),
+      ...targets.map(f => ({ label: '\u00a0\u00a0\u00a0'.repeat(f.depth) + f.title, act: run({ do: 'bookmark.moveTo', id: l.id, folder: f.id }) })),
+    ],
+  })
+  out.push({ separator: true }, { label: 'Remove', act: run({ do: 'bookmark.ask', id: l.id, kind: 'remove' }) })
+  return out
 }
 
 function Arrow(p: { side: 'top' | 'bottom' | 'left' | 'right'; at: number; card: { x: number; y: number; width: number; height: number }; room: number }) {
@@ -73,13 +163,13 @@ function Arrow(p: { side: 'top' | 'bottom' | 'left' | 'right'; at: number; card:
 }
 
 /** BookmarksDropdown: the tree as tall as its rows up to 360, then the foot. */
-function List(p: { lines: BookmarkLine[]; height: number; kept: boolean; keepable: boolean }) {
+function List(p: { lines: BookmarkLine[]; height: number; kept: boolean; keepable: boolean; menued: string | null; menu: (l: BookmarkLine, at: { x: number; y: number }) => void }) {
   const arrows = () => p.lines.some(l => l.folder && l.depth === 0)
   return (
     <div class="bm-list">
       <Show when={p.lines.length} fallback={<p class="bm-none">No bookmarks yet</p>}>
         <div class="bm-rows" style={{ height: `${p.height}px` }}>
-          <For each={p.lines}>{l => <Line line={l} arrows={arrows()} />}</For>
+          <For each={p.lines}>{l => <Line line={l} arrows={arrows()} menued={p.menued === l.id && !l.empty} menu={p.menu} />}</For>
         </div>
       </Show>
       <div class="bm-rule" />
@@ -93,13 +183,14 @@ function List(p: { lines: BookmarkLine[]; height: number; kept: boolean; keepabl
   )
 }
 
-function Line(p: { line: BookmarkLine; arrows: boolean }) {
+function Line(p: { line: BookmarkLine; arrows: boolean; menued: boolean; menu: (l: BookmarkLine, at: { x: number; y: number }) => void }) {
   const l = () => p.line
   const [broken, setBroken] = createSignal(false)
   return (
     <Show when={!l().empty} fallback={<div class="bm-empty" style={{ 'padding-left': `${l().depth * 18 + 26}px` }}>Empty</div>}>
-      <div class="bm-row" data-bookmark={l().id} data-folder={l().folder ? '1' : undefined} title={l().url ?? undefined}
+      <div class="bm-row" classList={{ menued: p.menued }} data-bookmark={l().id} data-folder={l().folder ? '1' : undefined} title={l().url ?? undefined}
         style={{ 'padding-left': `${l().depth * 18 + 10}px` }}
+        onContextMenu={e => { e.preventDefault(); e.stopPropagation(); p.menu(l(), { x: e.clientX, y: e.clientY }) }}
         onClick={() => void (l().folder ? cmd({ do: 'bookmark.popoverFold', id: l().id }) : l().url && cmd({ do: 'bookmark.pick', url: l().url! }))}
         onMouseDown={e => { if (e.button === 1) e.preventDefault() }}
         onAuxClick={e => { if (e.button === 1 && l().url) void cmd({ do: 'bookmark.pick', url: l().url!, newTab: true }) }}>
@@ -119,6 +210,51 @@ function Line(p: { line: BookmarkLine; arrows: boolean }) {
         <Show when={l().folder && l().count}><span class="bm-count">{l().count}</span></Show>
       </div>
     </Show>
+  )
+}
+
+/** A question in the list's place (Ask.name, Ask.sure as Bookmarks asks
+ * them): Rename Bookmark (the name it has; empty, its address reads in the
+ * list), Rename Folder, New Folder (inside the one clicked), Remove “…”? for
+ * a folder with something in it. Return answers, Escape and Cancel go back
+ * to the list. */
+function Ask(p: { ask: BookmarkAskView }) {
+  let field: HTMLInputElement | undefined
+  let box!: HTMLDivElement
+  const a = () => p.ask
+  // The keys in the field; for Remove on the question itself, so Return is
+  // its answer without a ring round the button.
+  onMount(() => {
+    if (field) { field.value = a().kind === 'rename' ? a().title : ''; queueMicrotask(() => { field!.focus(); field!.select() }) }
+    else queueMicrotask(() => box.focus())
+  })
+  const heading = () => a().kind === 'remove' ? `Remove “${a().title}”?` : a().kind === 'folder' ? 'New Folder' : a().folder ? 'Rename Folder' : 'Rename Bookmark'
+  const detail = () => {
+    if (a().kind === 'rename') return a().folder ? null : 'Without a name, the bookmarks bar shows its icon alone.'
+    if (a().kind !== 'remove') return null
+    return a().count === 0 ? 'The empty folders in it go too.' : a().count === 1 ? 'The bookmark in it goes too.' : `The ${a().count} bookmarks in it go too.`
+  }
+  const answer = () => void cmd({ do: 'bookmark.answer', title: field?.value })
+  const back = () => void cmd({ do: 'bookmark.askClose' })
+  return (
+    <div ref={box} class="bm-bookmarked bm-ask" data-bookmark-ask={a().kind} tabindex={-1}
+      onKeyDown={e => {
+        if (e.key === 'Escape') { e.stopPropagation(); back() }
+        else if (e.key === 'Enter' && e.target === e.currentTarget) answer()
+      }}>
+      <div class="bm-heading bm-ask-heading">{heading()}</div>
+      <Show when={detail()}>{d => <p class="bm-detail">{d()}</p>}</Show>
+      <Show when={a().kind !== 'remove'}>
+        <input ref={field} class="bm-field" data-bookmark-ask-field placeholder={a().placeholder} spellcheck={false}
+          onKeyDown={e => { if (e.key === 'Enter') answer() }} />
+      </Show>
+      <div class="bm-buttons">
+        <button class="bm-cancel" data-bookmark-ask-cancel onClick={back}>Cancel</button>
+        <button class="bm-done" classList={{ 'bm-destructive': a().kind === 'remove' }} data-bookmark-ask-yes onClick={answer}>
+          {a().kind === 'remove' ? 'Remove' : a().kind === 'folder' ? 'Make' : 'Rename'}
+        </button>
+      </div>
+    </div>
   )
 }
 

@@ -54,6 +54,15 @@ jobs:
       - name: Data, passwords in pages
         if: always()
         run: python test/data_fill.py
+      - name: Data, the bookmark button beside the window's buttons, removing bookmarks
+        if: always()
+        run: python test/data_bookmarks_door.py
+      - name: Data, the bookmark button while the column slides away
+        if: always()
+        run: python test/data_bookmarks_fold.py
+      - name: Hide elements on sites, kept for each site (Ctrl+Shift+H, Ctrl+Shift+U, right click)
+        if: always()
+        run: python test/pages_hide.py
       - name: Everything kept for the next launch (quit, session end, monitors, full screen, Snap)
         if: always()
         run: python test/persist_all.py
@@ -149,7 +158,12 @@ jobs:
           # screen over everything: close it.
           Get-Process | Where-Object { $_.MainWindowTitle } | Format-Table Id, Name, MainWindowTitle
           Get-Process WWAHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+      - name: A video's own full screen, the page over the whole screen (real input)
+        env:
+          SHOTS_DIR: shots
+        run: python test/video_fullscreen.py
       - name: Every resize of the window, full screen in and out every way (real input)
+        if: always()
         run: python test/window_resize_all.py
       - name: Frame (bench)
         if: always()

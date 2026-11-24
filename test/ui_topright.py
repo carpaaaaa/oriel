@@ -6,7 +6,9 @@ Extensions.swift:2506-2560, Fetching.swift:658-773; studio/01 §4.3, §5.8,
 before Windows' buttons (downloads, the puzzle, back, forward and reload
 when they are on the right, the bookmark button), each a door of 26, 2
 apart, the last 12 before Windows' buttons; with the column, in its foot,
-or up beside back, forward and reload with Buttons at the top. Each one is
+or up beside back, forward and reload with Buttons at the top, but the
+bookmark button always up, 12 before Windows' buttons (carpa on 0.1.4,
+test/data_bookmarks_door.py measures every layout). Each one is
 there, drawn, uncovered, inside the window, off the page and clear of the
 window's buttons, in each layout, free and maximized (and in full screen
 on Windows, where the strip with the window's buttons still comes down).
@@ -68,8 +70,9 @@ KINDS = {"downloads": ".fetch-door", "puzzle": ".ext-puzzle:not(.hidden)", "book
 
 
 def doors(where):
-    """`where`: the strip's far end, the column's foot, or the foot up in the band."""
-    box = {"strip": ".tabbar .strip-far", "foot": ".sidebar > .foot", "up": ".sidebar .band > .foot.up"}[where]
+    """`where`: the strip's far end, the column's foot, the foot up in the band,
+    or the corner beside the window's buttons."""
+    box = {"strip": ".tabbar .strip-far", "foot": ".sidebar > .foot", "up": ".sidebar .band > .foot.up", "corner": ".window > .chrome-end"}[where]
     d = json.loads(b.ui("JSON.stringify((() => { " + SEEN + f"""
       const W = document.querySelector('.window').getBoundingClientRect()
       const box = document.querySelector({json.dumps(box)})
@@ -357,46 +360,50 @@ if IS_WIN:
     b.call({"do": "window.pointer", "x": None})
     time.sleep(0.5)
 
-# ---- 2. The column: in its foot, toward the page --------------------------
+# ---- 2. The column: in its foot, toward the page; the bookmark button up ---
 b.cmd("settings.set", id="tabs.layout", value="left")
 settle(lambda: b.ui("!!document.querySelector('.sidebar > .foot')"), "the column")
 time.sleep(0.6)
 b.cmd("prefs.set", key="downloads.button", value=True)
 time.sleep(0.4)
-d = check("foot", "the column, at its foot", ["puzzle", "bookmarks", "downloads"])
-t.ok(all(d["column"]["x"] <= d[k][0]["x"] and d[k][0]["right"] <= d["column"]["right"] for k in ("puzzle", "bookmarks", "downloads")), "inside the column")
-t.ok(gaps(d, ["puzzle", "bookmarks", "downloads"]) == [2.0, 2.0], f"2 apart ({gaps(d, ['puzzle', 'bookmarks', 'downloads'])})")
-x, y, r = centre(".sidebar > .foot .bookmark-door")
+d = check("foot", "the column, at its foot", ["puzzle", "downloads"])
+t.ok(all(d["column"]["x"] <= d[k][0]["x"] and d[k][0]["right"] <= d["column"]["right"] for k in ("puzzle", "downloads")), "inside the column")
+t.ok(gaps(d, ["puzzle", "downloads"]) == [2.0], f"2 apart ({gaps(d, ['puzzle', 'downloads'])})")
+t.ok(not d["bookmarks"], "the bookmark button not in the foot")
+c = check("corner", "the column: the bookmark button up beside the window's buttons", ["bookmarks"])
+bm = c["bookmarks"][0]
+t.ok(bm["capsLeft"] is not None and abs(bm["capsLeft"] - bm["right"] - 12) <= 0.6, f"12 before the window's buttons ({bm['capsLeft']} - {bm['right']})")
+x, y, r = centre(".window > .chrome-end .bookmark-door")
 b.mouse(x, y)
-settle(lambda: overlay_name() == "data.bookmarks" and popover(), "the list from the foot")
+settle(lambda: overlay_name() == "data.bookmarks" and popover(), "the list from the top")
 p = popover()
-t.ok(p and p["arrow"]["side"] == "left" and p["rect"]["x"] >= r["x"] + r["width"], f"from the foot it opens toward the page ({p and p['arrow']})")
+t.ok(p and p["arrow"]["side"] == "top" and p["rect"]["y"] >= r["y"] + r["height"], f"from up there it hangs under the button ({p and p['arrow']})")
 close_overlay()
 
 # Buttons at the top: up beside back, forward and reload, at the band's far
-# end: downloads, the bookmark button, the puzzle last.
+# end: downloads, the puzzle last; the bookmark button still beside the
+# window's buttons.
 b.cmd("sidebar.resize", width=320)
 b.cmd("prefs.set", key="sidebar.doorsUp", value=True)
 settle(lambda: b.ui("!!document.querySelector('.sidebar .band > .foot.up')"), "the doors up", within=3)
 time.sleep(0.5)
-d = check("up", "Buttons at the top", ["downloads", "bookmarks", "puzzle"])
-last = max((d[k][0] for k in ("downloads", "bookmarks", "puzzle")), key=lambda x: x["x"])
+d = check("up", "Buttons at the top", ["downloads", "puzzle"])
+last = max((d[k][0] for k in ("downloads", "puzzle")), key=lambda x: x["x"])
 t.ok(abs(d["column"]["right"] - last["right"] - 10) <= 0.6, f"at the column's far end, 10 in ({d['column']['right']} - {last['right']})")
 t.ok(not b.ui("!!document.querySelector('.sidebar > .foot')"), "and the foot goes")
-x, y, r = centre(".sidebar .band .bookmark-door")
-b.mouse(x, y)
-settle(lambda: overlay_name() == "data.bookmarks" and popover(), "the list from the top")
-p = popover()
-t.ok(p and p["arrow"]["side"] == "top" and p["rect"]["y"] >= r["y"] + r["height"], f"up there it hangs under the button ({p and p['arrow']})")
-close_overlay()
+check("corner", "Buttons at the top: the bookmark button beside the window's buttons", ["bookmarks"])
 
-# The column on the right: the doors up there stop short of the window's buttons.
+# The column on the right: the doors up there stop short of the bookmark
+# button, which stops short of the window's buttons.
 b.cmd("settings.set", id="tabs.layout", value="right")
 time.sleep(0.6)
 if b.ui("!!document.querySelector('.sidebar .band > .foot.up')"):
-    check("up", "the column on the right, Buttons at the top", ["downloads", "bookmarks", "puzzle"])
+    d = check("up", "the column on the right, Buttons at the top", ["downloads", "puzzle"])
+    c = check("corner", "the column on the right: the bookmark button beside the window's buttons", ["bookmarks"])
+    last = max((d[k][0] for k in ("downloads", "puzzle")), key=lambda x: x["x"])
+    t.ok(c["bookmarks"][0]["x"] - last["right"] >= 2 - 0.6, f"the doors up stop short of it ({last['right']} - {c['bookmarks'][0]['x']})")
 else:
-    d = check("foot", "the column on the right (no room up beside the window's buttons)", ["puzzle", "bookmarks", "downloads"])
+    d = check("foot", "the column on the right (no room up beside the window's buttons)", ["puzzle", "downloads"])
 b.cmd("settings.set", id="tabs.layout", value="left")
 b.cmd("prefs.set", key="sidebar.doorsUp", value=False)
 b.cmd("prefs.set", key="downloads.button", value=False)

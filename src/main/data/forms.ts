@@ -62,6 +62,9 @@ function wire(wc: WebContents, id: ID): void {
   // A form on its way out that the page's listeners didn't hear.
   wc.on('will-navigate', () => void call(wc, 'sent'))
   wc.on('did-navigate', () => hideList(id))
+  // Going elsewhere, or to another step of a page that changes its own address.
+  wc.on('did-start-navigation', (e: { isMainFrame?: boolean; isSameDocument?: boolean }) => { if (e?.isMainFrame !== false && !e?.isSameDocument) hideList(id) })
+  wc.on('did-navigate-in-page', (_e, _url, isMainFrame) => { if (isMainFrame) hideList(id) })
   wc.on('destroyed', () => { tabs.delete(id); hideList(id) })
 }
 

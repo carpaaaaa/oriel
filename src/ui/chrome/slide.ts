@@ -25,12 +25,19 @@ function bezier(x1: number, y1: number, x2: number, y2: number, x: number): numb
   return at(y1, y2, t)
 }
 
+/** The window's slide, for what must stay clear of the column while it is
+ * drawn, folded or not (the bookmark button, data/where.ts). A window that
+ * draws no frames holds it at its start, the column still there. */
+const [sliding, setSliding] = createSignal<number | null>(null)
+export const columnSliding = sliding
+
 /** How far out the column is, 0 (away) to 1 (beside the page), while it
  * slides; null at rest. `frame` is called each frame once it is applied. */
 export function foldSlide(frame: () => void): { out: () => number | null } {
-  const [out, setOut] = createSignal<number | null>(null)
-  let raf = 0
-  const stop = () => { if (raf) cancelAnimationFrame(raf); raf = 0 }
+  const [out, setOwn] = createSignal<number | null>(null)
+  const setOut = (v: number | null) => { setOwn(v); setSliding(v) }
+  let raf = 0, guard = 0
+  const stop = () => { if (raf) cancelAnimationFrame(raf); raf = 0; clearTimeout(guard) }
   onCleanup(stop)
   // Before the interface is drawn for the change (a computed, not an
   // effect): the column stays for the frame the fold lands in.
@@ -61,6 +68,10 @@ export function foldSlide(frame: () => void): { out: () => number | null } {
       raf = done ? 0 : requestAnimationFrame(step)
     }
     raf = requestAnimationFrame(step)
+    // A window drawing no frames (covered, the display asleep) would hold
+    // the column at its start: past its time it is simply where it goes,
+    // as the zoom's announcement is (chrome/register.tsx).
+    guard = window.setTimeout(() => { if (raf) { stop(); setOut(null); frame() } }, (length + 0.1) * 1000)
   }))
   return { out }
 }

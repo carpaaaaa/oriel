@@ -76,11 +76,30 @@ export function places(source: ChromiumSource, only: string | null, limit = 3000
 /** Thirty-two letters from a to p: a store extension's id. */
 const storeID = (id: string) => /^[a-p]{32}$/.test(id)
 
+/** An installed extension's own manifest, its newest version on disk. */
+function installedManifest(dir: string, id: string, root: string): Record<string, any> | null {
+  let versions: string[] = []
+  try { versions = readdirSync(path.join(dir, 'Extensions', id)) } catch { return null }
+  const newest = versions.filter(v => !v.startsWith('.')).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).pop()
+  return newest ? readJSONIn<Record<string, any>>(path.join(dir, 'Extensions', id, newest, 'manifest.json'), root) : null
+}
+
+const fromGoogle = (url: unknown) => {
+  if (typeof url !== 'string') return false
+  try { const host = new URL(url).hostname.toLowerCase(); return host === 'google.com' || host.endsWith('.google.com') } catch { return false }
+}
+
 /** The extensions a profile has from the Chrome Web Store, to be installed
  * fresh from the store, never copied: only those the person added, not built
- * in, not by policy, not themes, not from another store (05 §1.3). */
-export function extensions(source: ChromiumSource, only: string | null): string[] {
-  const out: string[] = []
+ * in, not by policy, not themes, not from another store (05 §1.3). Judged by
+ * the manifest on disk too: Chromium no longer keeps it in Preferences, and
+ * Opera's own add-ons (their update address at opera.com) were offered and
+ * then not found in the Chrome Web Store. Those come back in `elsewhere`, by
+ * name, to be looked for there by hand. */
+export function extensions(source: ChromiumSource, only: string | null): string[] { return extensionsOf(source, only).store }
+
+export function extensionsOf(source: ChromiumSource, only: string | null): { store: string[]; elsewhere: string[] } {
+  const out: string[] = [], elsewhere: string[] = []
   for (const p of profilesFor(source, only)) {
     const settings: Record<string, Record<string, any>> = {}
     for (const name of ['Preferences', 'Secure Preferences']) {
@@ -91,27 +110,31 @@ export function extensions(source: ChromiumSource, only: string | null): string[
         if (entry && typeof entry === 'object') settings[id] = { ...entry, ...(settings[id] ?? {}) }
       }
     }
-    let ids: string[]
-    if (!Object.keys(settings).length) {
-      ids = []
-      try { ids = readdirSync(path.join(p.dir, 'Extensions')) } catch {}
-    } else {
-      ids = Object.entries(settings).filter(([, e]) => {
-        if (!(e.location === 1 || e.from_webstore === true)) return false
-        if (e.was_installed_by_default === true || e.was_installed_by_oem === true) return false
-        const manifest = e.manifest ?? {}
-        if (manifest.theme != null) return false
-        if (typeof manifest.update_url === 'string') {
-          let host = ''
-          try { host = new URL(manifest.update_url).hostname.toLowerCase() } catch {}
-          if (!(host === 'google.com' || host.endsWith('.google.com'))) return false
-        }
-        return true
-      }).map(([id]) => id)
+    let ids: string[] = []
+    try { ids = readdirSync(path.join(p.dir, 'Extensions')) } catch {}
+    if (Object.keys(settings).length) ids = [...new Set([...ids, ...Object.keys(settings)])]
+    for (const id of ids.sort()) {
+      if (!storeID(id) || out.includes(id)) continue
+      const e = settings[id]
+      const disk = installedManifest(p.dir, id, p.root)
+      const manifest = { ...(e?.manifest ?? {}), ...(disk ?? {}) }
+      if (e) {
+        if (e.was_installed_by_default === true || e.was_installed_by_oem === true) continue
+        // Built in (component, external component), by policy or the system: not the person's.
+        if (typeof e.location === 'number' && e.location !== 1 && e.location !== 4 && e.from_webstore !== true) continue
+      } else if (!disk) continue
+      if (manifest.theme != null) continue
+      if (typeof manifest.update_url === 'string' && !fromGoogle(manifest.update_url)) {
+        const name = typeof manifest.name === 'string' && !manifest.name.startsWith('__MSG_') ? manifest.name : (e?.manifest?.name ?? id)
+        if (!elsewhere.includes(name)) elsewhere.push(name)
+        continue
+      }
+      // Unpacked ones (location 4) have no store to come from.
+      if (e?.location === 4) continue
+      out.push(id)
     }
-    for (const id of ids.sort()) if (storeID(id) && !out.includes(id)) out.push(id)
   }
-  return out
+  return { store: out, elsewhere }
 }
 
 /** Every profile's passwords files: Chrome signed in without sync keeps a
@@ -167,7 +190,7 @@ export function preview(source: ChromiumSource, only: string | null, limit = 300
     passwords,
     passwordsReadable: readable,
     passwordsLocked: locked,
-    extensions: extensions(source, only),
+    ...(() => { const x = extensionsOf(source, only); return { extensions: x.store, extensionsElsewhere: x.elsewhere } })(),
   }
 }
 

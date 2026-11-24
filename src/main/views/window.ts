@@ -55,6 +55,29 @@ export function focusedController(): WindowController | undefined {
   return allControllers().find(c => c.base.isFocused()) ?? allControllers()[0]
 }
 
+/** What the floating region is placed against: the window's content, and
+ * the part of it that is seen (a free window's shadow is around it; a
+ * maximized one reaches past the screen). */
+export interface Laid { width: number; height: number; seen: Rect }
+
+/** A floating region kept where it belongs when the window changes size or
+ * its shadow comes and goes: what spanned the window still spans it, what
+ * sat toward the right or the bottom of what is seen keeps its distance
+ * from that edge, a centred one stays centred, and none is left outside. */
+export function follow(r: Rect, from: Laid, to: Laid): Rect {
+  const axis = (pos: number, size: number, was: number, now: number, wasAt: number, wasSeen: number, nowAt: number, nowSeen: number): [number, number] => {
+    if (pos <= 1 && size >= was - 1) return [0, now]
+    const rel = pos - wasAt, mid = rel + size / 2
+    const p = nowAt + (Math.abs(mid - wasSeen / 2) <= 2 ? (nowSeen - size) / 2 : mid > wasSeen / 2 ? rel + nowSeen - wasSeen : rel)
+    const s = Math.min(size, now)
+    const lo = s <= nowSeen ? nowAt : 0, hi = s <= nowSeen ? nowAt + nowSeen - s : now - s
+    return [Math.round(Math.max(lo, Math.min(p, hi))), s]
+  }
+  const [x, width] = axis(r.x, r.width, from.width, to.width, from.seen.x, from.seen.width, to.seen.x, to.seen.width)
+  const [y, height] = axis(r.y, r.height, from.height, to.height, from.seen.y, from.seen.height, to.seen.y, to.seen.height)
+  return { x, y, width, height }
+}
+
 export class WindowController {
   readonly base: BaseWindow
   readonly ui: WebContentsView
@@ -216,9 +239,30 @@ export class WindowController {
     const { width, height } = this.base.getContentBounds()
     this.ui.setBounds({ x: 0, y: 0, width, height })
     for (const id of this.shown) this.placeOne(id)
+    // What floats over the page was placed for the window's size before:
+    // into full screen, a maximize or a restore, it stayed where it was, and
+    // the password question went off the screen's left or out of the window.
+    this.refollow()
     if (this.overlayRect) this.overlay.setBounds(this.overlayRect)
     const room = this.roomRect()
     if (room) this.room!.place(room)
+  }
+
+  /** What the floating region was last placed for. */
+  private laid: Laid | null = null
+
+  private laidNow(): Laid {
+    const cb = this.base.getContentBounds(), v = this.frame.visual()
+    return { width: cb.width, height: cb.height, seen: { x: v.x - cb.x, y: v.y - cb.y, width: v.width, height: v.height } }
+  }
+
+  /** The floating region moved with the window, if the window changed since it was placed. */
+  refollow(): void {
+    const was = this.laid, now = this.laidNow()
+    this.laid = now
+    if (!this.overlayRect || !was) return
+    const same = was.width === now.width && was.height === now.height && was.seen.x === now.seen.x && was.seen.y === now.seen.y && was.seen.width === now.seen.width && was.seen.height === now.seen.height
+    if (!same) { this.overlayRect = follow(this.overlayRect, was, now); this.overlay.setBounds(this.overlayRect) }
   }
 
   /** The interface measured where pages go. */
@@ -238,6 +282,8 @@ export class WindowController {
    * before the interface measures it again. */
   shiftSlots(by: Insets): void {
     if (!by.top && !by.right && !by.bottom && !by.left) return
+    // The shadow came or went: what floats moves with what is seen.
+    setImmediate(() => { if (!this.base.isDestroyed()) this.refollow() })
     for (const slot of [...this.slots.values(), ...(this.room?.insets ? [{ insets: this.room.insets }] : [])]) {
       Object.assign(slot.insets, { top: slot.insets.top + by.top, right: slot.insets.right + by.right, bottom: slot.insets.bottom + by.bottom, left: slot.insets.left + by.left })
     }
@@ -247,6 +293,7 @@ export class WindowController {
     const slot = this.slots.get(id)
     if (!slot) return null
     const { width, height } = this.base.getContentBounds()
+    if (this.filling === id) return { x: 0, y: 0, width, height }
     const { left, top, right, bottom } = slot.insets
     return { x: Math.round(left), y: Math.round(top), width: Math.max(0, Math.round(width - left - right)), height: Math.max(0, Math.round(height - top - bottom)) }
   }
@@ -264,6 +311,7 @@ export class WindowController {
       const rt = runtimes.get(id)
       if (rt?.view) this.base.contentView.removeChildView(rt.view)
       this.shown.delete(id)
+      if (this.filling === id) this.filling = null
     }
     for (const id of want) {
       const rt = runtimeFor(id, this.pageSession)
@@ -291,9 +339,36 @@ export class WindowController {
     const rect = this.rectFor(id)
     if (!rt?.view || !rect) return
     rt.view.setBounds(rect)
-    rt.view.setBorderRadius(Math.round(this.slots.get(id)?.radius ?? 0))
+    rt.view.setBorderRadius(this.filling === id ? 0 : Math.round(this.slots.get(id)?.radius ?? 0))
     this.pageTrace?.push({ t: performance.timeOrigin + performance.now(), id, rect })
   }
+
+  /** The page in its own full screen (a video's: window/pagefull.ts). It
+   * covers the whole window, square, above the other pages, as Chrome's and
+   * Search's WebKit put a video alone on the screen: the card, the column
+   * and the strip of tabs stayed around it, the video in the card's place. */
+  private filling: ID | null = null
+
+  /** A page entered (on) or left its own full screen. */
+  fillWith(wc: Electron.WebContents, on: boolean): void {
+    const id = [...this.shown].find(i => runtimes.get(i)?.view?.webContents === wc) ?? null
+    if (on) {
+      if (!id || this.filling === id) return
+      this.filling = id
+      // Over a split's other page, under the overlay; nothing floating left over the video.
+      const view = runtimes.get(id)!.view!
+      this.base.contentView.addChildView(view, this.base.contentView.children.indexOf(this.overlay))
+      if (this.overlayLayer.kind !== 'none') this.sendOverlay({ kind: 'none' })
+    } else {
+      if (!this.filling || (id && id !== this.filling)) return
+      this.filling = null
+    }
+    this.placePages()
+    this.mark('window')
+  }
+
+  /** A page is in its own full screen in this window. */
+  isFilling(): boolean { return !!this.filling }
 
   /** Room beside the page for another view (the extensions' side panel,
    * studio/02 §4.1): the card gets narrower on that side and `place` is
@@ -333,6 +408,8 @@ export class WindowController {
 
   setOverlayRegion(rect: Rect | null, focus = false): void {
     this.overlayRect = rect && rect.width > 0 && rect.height > 0 ? rect : null
+    // Placed for the window as it is now.
+    this.laid = this.laidNow()
     this.overlay.setBounds(this.overlayRect ?? { x: 0, y: 0, width: 0, height: 0 })
     if (this.overlayRect && focus) this.overlay.webContents.focus()
   }

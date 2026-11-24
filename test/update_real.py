@@ -260,6 +260,19 @@ foreach ($w in $A::RootElement.FindAll([System.Windows.Automation.TreeScope]::Ch
 """
 
 
+def all_named(name):
+    """Every element named so on Oriel's windows, as rectangles."""
+    script = (UIA % (INSTALL, name.replace("'", "''"))).replace(
+        "$e = $w.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)\n    if ($e) { $r = $e.Current.BoundingRectangle; '{0},{1},{2},{3}' -f $r.X, $r.Y, $r.Width, $r.Height; break }",
+        "foreach ($e in $w.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) { $r = $e.Current.BoundingRectangle; '{0},{1},{2},{3}' -f $r.X, $r.Y, $r.Width, $r.Height }")
+    r = subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True, text=True)
+    out = []
+    for line in r.stdout.split():
+        if line.count(",") == 3:
+            out.append([float(x) for x in line.split(",")])
+    return out
+
+
 def find(name):
     """Where something named so is on the screen (physical pixels), or None."""
     r = subprocess.run(["powershell", "-NoProfile", "-Command", UIA % (INSTALL, name.replace("'", "''"))], capture_output=True, text=True)
@@ -281,6 +294,27 @@ try:
         got = wait(lambda: (lambda p: p if any(TO in n for n in p) and "update-info.json" in p else None)(pending()), 300, 2)
         t.ok(got, f"…finds {TO} and downloads it")
         clear_screen()
+        # A fresh install's first launch offers to be the default browser (from
+        # 0.1.4); the update's popup waits for it to be put away, as it should.
+        offer = wait(lambda: find("Links from other apps."), 15, 1)
+        if offer:
+            # Its X is named Close, as the window's own button is: a click on
+            # the plate's words, then Escape, which puts it away.
+            # The plate's X, at its top right (22 in from the side, 30 down).
+            plates = [r for r in all_named("Links from other apps.") if r[2] > 300]
+            p = plates[0] if plates else offer
+            print(f"  the offer at {p}")
+            click(p[0] + p[2] - 34, p[1] + 30)
+            gone = wait(lambda: not find("Links from other apps."), 6, 1)
+            if not gone:
+                click(p[0] + 40, p[1] + p[3] / 2)
+                time.sleep(0.3)
+                user32.keybd_event(0x1B, 0, 0, 0)
+                time.sleep(0.05)
+                user32.keybd_event(0x1B, 0, 2, 0)
+                gone = wait(lambda: not find("Links from other apps."), 6, 1)
+            grab("3a-offer")
+            print(f"  the first launch's default-browser offer put away first ({'gone' if gone else 'still there'})")
         title = wait(lambda: find(f"Oriel {TO} is ready"), 60, 2)
         go = wait(lambda: find("Update and Restart"), 30, 1)
         t.ok(title and go, f"the popup over the window: Oriel {TO} is ready, Update and Restart ({title}, {go})")

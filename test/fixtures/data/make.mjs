@@ -174,6 +174,16 @@ localState(gx, operaKey)
 bookmarks(path.join(gx, 'Bookmarks'), [{ name: 'GX Corner', url: 'https://gx.opera.example/' }])
 history(path.join(gx, 'History'), [{ url: 'https://gx.opera.example/', title: 'GX Corner', count: 5 }])
 logins(path.join(gx, 'Login Data'), [{ origin: 'https://game.example/', user: 'player1', blob: v10(operaKey, 'gx-pass', true) }])
+// Its extensions: one from Opera's own add-ons store (its update address at
+// opera.com), one Opera took from the Chrome Web Store, both known only by
+// the manifest on disk, as Chromium keeps none in Preferences now; a built-in.
+json(path.join(gx, 'Preferences'), { extensions: { settings: {
+  dddddddddddddddddddddddddddddddd: { location: 1 },
+  ghbmnnjooekpmoecnnnilnnbdlolhkhi: { location: 1, from_webstore: true },
+  eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee: { location: 5 },
+} } })
+json(path.join(dir(gx, 'Extensions', 'dddddddddddddddddddddddddddddddd', '1.2.0_0'), 'manifest.json'), { name: 'Opera Add-on', version: '1.2.0', update_url: 'https://extension-updates.opera.com/api/omaha/update/' })
+json(path.join(dir(gx, 'Extensions', 'ghbmnnjooekpmoecnnnilnnbdlolhkhi', '1.0.2_0'), 'manifest.json'), { name: 'Google Docs Offline', version: '1.0.2', update_url: 'https://clients2.google.com/service/update2/crx' })
 const side = dir(gx, '_side_profiles', 'a1b2c3')
 bookmarks(path.join(side, 'Bookmarks'), [{ name: 'Side', url: 'https://side.opera.example/' }])
 
