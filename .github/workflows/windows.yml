@@ -54,6 +54,9 @@ jobs:
       - name: Data, passwords in pages
         if: always()
         run: python test/data_fill.py
+      - name: Data, the bookmark button beside the window's buttons, removing bookmarks
+        if: always()
+        run: python test/data_bookmarks_door.py
       - name: Everything kept for the next launch (quit, session end, monitors, full screen, Snap)
         if: always()
         run: python test/persist_all.py

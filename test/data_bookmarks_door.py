@@ -103,6 +103,8 @@ def where(name, strip=False, column=False):
     above = not m["card"] or d["bottom"] <= m["card"]["y"] + 0.5
     clear = not any(overlap(d, c) for c in m["caps"] + m["others"])
     want = "strip" if strip else "corner"
+    if not clear:
+        print(f"       the button {d}, over: {[c for c in m['caps'] + m['others'] if overlap(d, c)]}")
     t.ok(m["count"] == 1 and m["where"] == want and not m["inFoot"] and m["top"] and round(d["w"]) == 26 and round(d["h"]) == 26
          and abs(gap - 12) <= 0.6 and level and above and d["y"] < 60 and clear,
          f"{name}: one button, up {'at the strip' + chr(39) + 's end' if strip else 'in the band'}, 12 left of {'the column' if column else 'Minimize'} ({gap:.1f}), "
