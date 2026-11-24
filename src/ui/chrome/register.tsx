@@ -28,4 +28,13 @@ createRoot(() => createEffect(() => {
   root.motion = p['motion.instant'] ? 'instant' : p['motion.light'] && state.power?.saving ? 'light' : ''
   // Tabs give when pressed (tabs.give, Design.swift Motion.give)
   if (p['tabs.give']) root.give = '1'; else delete root.give
+  // The overlay knows the window's clear margin too: its veils cover the
+  // window drawn by Oriel, never the margin round it (app.css).
+  if (window.search?.root === 'overlay') {
+    const m = state.frame?.margin ?? { top: 0, right: 0, bottom: 0, left: 0 }
+    const s = document.documentElement.style
+    for (const side of ['top', 'right', 'bottom', 'left'] as const) s.setProperty(`--m-${side}`, `${m[side]}px`)
+    root.frame = state.frame?.kind ?? 'drawn'
+    root.state = state.frame?.state ?? 'free'
+  }
 }))

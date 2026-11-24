@@ -16,9 +16,17 @@ import { openMenu } from '../menus/open'
 import { spaceMenu } from '../menus/build'
 import { reducedMotion } from './motion'
 
-export function Foot(p: { vertical?: boolean }) {
+/** How many doors the foot holds, each 26 and 2 apart (Side.swift keptWidth:
+ * the downloads door always counted, so one starting doesn't send them down). */
+export function footDoors(): number {
+  const ext = (state.ext?.list.length ?? 0) > 0
+  const pinned = ext ? (state.ext?.list ?? []).filter(e => e.enabled && e.pinned && e.action).slice(0, 3).length : 0
+  return 1 + (ext && !state.prefs?.['foot.extensions.hidden'] ? 1 : 0) + pinned + (P.spaces() && !P.spaceButtons() ? 1 : 0) + (P.spaceButtons() ? state.spaces.length : 0)
+}
+
+export function Foot(p: { vertical?: boolean; up?: boolean }) {
   return (
-    <div class="foot" classList={{ vertical: !!p.vertical, centred: P.spaceButtons() }}>
+    <div class="foot" classList={{ vertical: !!p.vertical, centred: P.spaceButtons() && !p.up, up: !!p.up }}>
       <Show when={P.spaces() && !P.spaceButtons()}><SpaceDot /></Show>
       <For each={outlet('sidebar.foot')}>{c => <Dynamic component={c} />}</For>
       <Show when={P.spaceButtons()}><SpaceButtons vertical={p.vertical} /></Show>

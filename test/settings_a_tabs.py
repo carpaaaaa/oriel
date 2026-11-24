@@ -125,5 +125,60 @@ k.fake({**s, "ext": ext, "prefs": {"foot.extensions.hidden": True}}, look="light
 time.sleep(0.3)
 got = puzzle()
 t.ok(got and got[0] == 0 and got[1] == "0" and got[2], f"unticked: the puzzle 0 wide and clear, still there to hang popups from; the pinned button stays ({got})")
+# Buttons at the top (sidebar.doorsUp): the foot's doors beside back, forward and reload, when they fit.
+sp = k.fixture("spaces")
+k.fake({**sp, "prefs": {**sp["prefs"], "sidebar.doorsUp": False}}, look="light")
+time.sleep(0.3)
+where = lambda: k.js("const d = document.querySelector('.sidebar .space-dot'); if (!d) return null; return [d.closest('.band') ? 'band' : 'foot', !!document.querySelector('.sidebar > .foot'), Math.round(rel(d.getBoundingClientRect()).y + 13)]")
+t.ok(where() and where()[0] == "foot", f"off (the default): the space's door at the foot ({where()})")
+k.fake({**sp, "prefs": {**sp["prefs"], "sidebar.doorsUp": True}}, look="light")
+time.sleep(0.3)
+got = where()
+t.ok(got and got[0] == "band" and not got[1] and got[2] == 26, f"on: up in the band, on the helm's middle, the foot gone ({got})")
+many_ext = {**ext, "list": [{**ext["list"][0], "id": f"e{i}", "name": f"E{i}"} for i in range(3)]}
+k.fake({**sp, "ext": many_ext, "prefs": {**sp["prefs"], "sidebar.doorsUp": True}}, look="light")
+time.sleep(0.3)
+t.ok(where() and where()[0] == "foot", f"too many to fit beside the helm: they stay at the foot ({where()})")
+
+# What's playing in other tabs (sidebar.player): the newest tab making a sound out of sight, at the foot.
+pl = json.loads(json.dumps(s))
+loose = [x for x in pl["tabs"] if not x.get("pinID") and x["id"] != pl["activeID"]]
+loose[0]["audible"] = True
+row = lambda: k.js("const e = document.querySelector('.sidebar .player'); return e && [e.querySelector('.player-title').textContent, e.querySelector('.player-button').title, e.dataset.tab]")
+k.fake({**pl, "prefs": {}}, look="light")
+time.sleep(0.3)
+t.ok(row() is None, "off (the default): no player")
+k.fake({**pl, "prefs": {"sidebar.player": True}}, look="light")
+time.sleep(0.3)
+got = row()
+sounding = [x["id"] for x in pl["tabs"] if x.get("audible") and x["id"] != pl["activeID"]]
+t.ok(got and got[2] in sounding and got[1] == "Pause", f"on: a tab playing out of sight, its title and its pause ({got})")
+front = json.loads(json.dumps(pl))
+for x in front["tabs"]:
+    x["audible"] = x["id"] == front["activeID"]
+k.fake({**front, "prefs": {"sidebar.player": True}}, look="light")
+time.sleep(0.3)
+t.ok(row() is None, "the tab on screen playing: nothing to show")
 k.thaw()
+
+# Its pause and play reach the page: what plays is paused, remembered, played again.
+time.sleep(0.3)
+song = b.cmd("tab.new", url="data:text/html,<title>song</title><body>song", background=True)
+b.wait_for(lambda: any(x.get("title") == "song" for x in b.window()["tabs"]), what="song")
+time.sleep(0.4)
+started = b.ev(song, "(() => { const a = document.createElement('audio'); a.loop = true; const r = 8000, n = r; const buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);"
+                    " const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));"
+                    " w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);"
+                    " v.setUint32(24, r, true); v.setUint32(28, r * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);"
+                    " for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.sin(i / 8) * 3000, true);"
+                    " a.src = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })); document.body.appendChild(a); window.__a = a; return a.play().then(() => true, () => false) })()")
+if started:
+    paused = b.cmd("tab.media", id=song, play=False)
+    t.ok(paused == 1 and b.ev(song, "window.__a.paused"), f"Pause: what played is paused ({paused})")
+    again = b.cmd("tab.media", id=song, play=True)
+    time.sleep(0.3)
+    t.ok(again == 1 and not b.ev(song, "window.__a.paused"), "Play: it plays again")
+    b.cmd("tab.media", id=song, play=False)
+else:
+    print("  (this machine plays no sound: pause and play not followed)")
 t.done()

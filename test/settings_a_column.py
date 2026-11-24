@@ -220,6 +220,17 @@ time.sleep(0.8)
 t.ok(line() is None, "with the column out, no line")
 setting("fold.loadingLine", False)
 
+# The overlay's veils cover the window, never the clear margin round it (the switcher's here).
+b.cmd("tab.new", url="data:text/html,<title>other</title>other")
+time.sleep(0.5)
+b.cmd("tab.switch", by=1)
+veil = settle(lambda: k.js("const e = document.querySelector('.switcher'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, radius: getComputedStyle(e).borderTopLeftRadius }", root="overlay"), "the switcher", within=3)
+f = frame()
+m, vis = f["margin"], f["visual"]
+t.ok(veil and k.near(veil["x"], m["left"]) and k.near(veil["y"], m["top"]) and k.near(veil["w"], vis["width"]) and k.near(veil["h"], vis["height"]) and veil["radius"] == "17.5px",
+     f"the switcher's veil over the window drawn by Oriel, its corners, not the margin ({veil}, margin {m})")
+b.cmd("tab.switchEnd", cancel=True)
+
 pointer(None)
 srv.shutdown()
 t.done()

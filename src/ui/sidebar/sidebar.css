@@ -182,6 +182,15 @@
 /* the foot: doors of 26, 2 apart, 10 above the bottom */
 .foot { flex: none; height: 36px; padding: 0 10px 10px; display: flex; align-items: center; gap: 2px; position: relative; z-index: 2; }
 .foot.centred { justify-content: center; }
+/* Buttons at the top: the foot's doors in the band, at its far end */
+.band .foot.up { height: auto; padding: 0 10px 0 0; margin-left: auto; z-index: auto; }
+/* the player, above the foot: a row high, a card's hairline (Player.swift) */
+.player { flex: none; height: var(--row-h); margin: 0 10px 6px; padding: 0 7px 0 10px; display: flex; align-items: center; gap: 8px;
+  border-radius: 9px; box-shadow: inset 0 0 0 1px var(--hairline); }
+.player-title { flex: 1; min-width: 0; font-size: var(--title); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player:hover .player-title { color: var(--ink-hover-text); }
+.player-button { flex: none; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); }
+.player-button:hover { background: var(--g-hover); color: var(--ink); }
 .foot.vertical { height: auto; flex-direction: column; padding: 0 0 8px; }
 .space-dot { position: relative; }
 .space-dot .dot-clip { position: absolute; inset: 0; overflow: hidden; display: grid; border-radius: var(--door-radius); }

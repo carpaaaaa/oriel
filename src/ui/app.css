@@ -113,6 +113,13 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .blurred .caption-buttons.classic button:not(:hover) { color: var(--caption-rest); }
 /* With Inline the band above the page is the column's (52), so the doors sit in its middle. */
 .window.windows.btn-inline { --top: var(--strip); }
+/* The overlay's veils over the whole window (the switcher's, an extension's
+   card's, Bring Things Over's) cover the window drawn by Oriel, with its
+   corners, never the clear margin round it. */
+:root[data-root="overlay"] :is(.switcher, .ext-veil, .bt-veil) {
+  inset: var(--m-top, 0px) var(--m-right, 0px) var(--m-bottom, 0px) var(--m-left, 0px); border-radius: var(--window-radius); }
+:root[data-root="overlay"]:not([data-frame="drawn"]) :is(.switcher, .ext-veil, .bt-veil),
+:root[data-root="overlay"]:not([data-state="free"]) :is(.switcher, .ext-veil, .bt-veil) { border-radius: 0; }
 /* Full screen: the strip with the buttons that comes down from the top
    (chrome/register.tsx), in the overlay over the page: 52 with Inline (the
    doors on its middle), 40 with Classic. */

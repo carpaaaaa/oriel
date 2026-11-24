@@ -65,6 +65,9 @@ declare module '../commands' {
     'space.colour': { id: ID; colour: number }
     'space.order': { id: ID; by: 1 | -1 }
     'space.delete': { id: ID }
+    /** The player at the column's foot (Player.swift): pause what plays in a
+     * tab out of sight, remembered, or play again what it paused. */
+    'tab.media': { id: ID; play: boolean }
     // drawn menus (studio/02 §4.6; studio/01 §4.35-§4.37, §6.25, §7.12)
     /** A drawn menu (`entries`) or popover (`panel`) over the page: the main
      * process raises the overlay over the window with the keys, as the

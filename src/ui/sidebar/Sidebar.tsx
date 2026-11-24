@@ -16,7 +16,8 @@ import { layout, pinCells, type Item } from './layout'
 import { Row } from './Row'
 import { GroupHeading, FolderHeading, KeepLine, NewTabRow, RowGhost, openColumnMenu } from './Lines'
 import { PinGrid } from './Pins'
-import { Foot, spaceStep } from './Foot'
+import { Foot, footDoors, spaceStep } from './Foot'
+import { PlayerRow } from './Player'
 import { Tiles } from './Tiles'
 import { wash, grain } from './look'
 import { Chase, Springs, leave, arrive, swipe, reducedMotion, type Box } from './motion'
@@ -260,6 +261,41 @@ export function Column() {
 
   const rowsHeight = () => L().height
 
+  // Buttons at the top (sidebar.doorsUp; Side.swift:196-203): up only if they
+  // fit beside the helm, keptWidth ≤ beyondHelm (width − 20 − the helm − the
+  // sidebar button); never with icons only.
+  const doorsUp = () => {
+    if (!pref('sidebar.doorsUp', false) || icons()) return false
+    const helm = ['back', 'forward', 'reload'].filter(d => !pref(`helm.${d}.hidden`, false)).length
+    const beyond = width() - 20 - (helm * 26 + Math.max(0, helm - 1) * 4) - (P.foldButton() ? 30 : 0) - 12
+    return footDoors() * 28 - 2 <= beyond
+  }
+
+  // What's playing in other tabs (sidebar.player; Player.swift): the newest
+  // tab to make a sound that is out of sight, its pause; paused from here it
+  // stays, with its play, until it plays again or goes.
+  const [order, setOrder] = createSignal<string[]>([])
+  const [stilled, setStilled] = createSignal<Set<string>>(new Set())
+  createEffect(() => {
+    const sounding = state.tabs.filter(t => t.audible).map(t => t.id)
+    setOrder(o => [...o.filter(id => sounding.includes(id)), ...sounding.filter(id => !o.includes(id))])
+    setStilled(s => { const n = new Set([...s].filter(id => state.tabs.some(t => t.id === id && !t.asleep && !t.audible))); return n.size === s.size ? s : n })
+  })
+  const shownIDs = () => new Set([state.activeID, ...(state.splits.find(s => s.tabs.includes(state.activeID ?? ''))?.tabs ?? [])])
+  const player = () => {
+    if (!pref('sidebar.player', false) || icons()) return null
+    const ids = [...order(), ...stilled()]
+    for (const id of ids.reverse()) {
+      const t = state.tabs.find(x => x.id === id)
+      if (t && !shownIDs().has(id)) return t
+    }
+    return null
+  }
+  const playOrPause = (id: string, play: boolean) => {
+    void cmd({ do: 'tab.media', id, play })
+    setStilled(s => { const n = new Set(s); if (play) n.delete(id); else n.add(id); return n })
+  }
+
   return (
     <aside class="sidebar on-frame" data-tabs-ui="column" classList={{ icons: icons(), right: state.sidebar.side === 'right' }}
       style={{ width: `${width()}px` }}
@@ -268,6 +304,8 @@ export function Column() {
       <div class="band drag">
         <Show when={!icons()}><Helm /></Show>
         <For each={outlet('sidebar.top')}>{c => <Dynamic component={c} />}</For>
+        {/* Buttons at the top (sidebar.doorsUp): the foot's doors beside the helm, when they fit */}
+        <Show when={doorsUp()}><Foot up /></Show>
       </div>
       <Show when={icons()}>
         <Show when={!pref('sidebar.narrowed', false) || state.sidebar.icons}><Helm vertical /></Show>
@@ -294,7 +332,8 @@ export function Column() {
         </Show>
         <div class="void" onDblClick={() => void cmd({ do: 'tab.new' })} onPointerDown={voidDown} />
       </div>
-      <Foot vertical={icons()} />
+      <Show when={player()}>{t => <PlayerRow tab={t()} stilled={stilled().has(t().id)} still={playOrPause} />}</Show>
+      <Show when={!doorsUp()}><Foot vertical={icons()} /></Show>
       <div class="grip" classList={{ held: gripping() }} onPointerDown={startResize}
         onDblClick={() => { void cmd({ do: 'prefs.set', key: 'sidebar.narrowed', value: false }); void cmd({ do: 'sidebar.resize', width: 232 }) }}>
         <span class="grip-pill" />
