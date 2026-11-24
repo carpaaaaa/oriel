@@ -7,14 +7,15 @@ import { model, type WindowRecord } from '../model/model'
 import type { WindowController } from '../views/window'
 import { controllerFor } from '../views/window'
 import { runtimeFor } from '../views/tabs'
-import { addressURL, fileURL, reachable, shownAddress } from '../address'
+import { addressURL, fileURL, identity, pretty, reachable, shownAddress } from '../address'
 import type { Suggestion } from '../../shared/state'
 import type { FieldMode, SiteView } from '../../shared/modules/field'
 import { need } from '../context'
 import { destination, engineURL, shiftTemplate, siteMatch, siteURL, type SearchSite } from './engines'
 import {
-  EngineSuggester, engineQuestion, openPages, placeOffers, SUGGEST_MOST, suggestionRow, switcherFallback,
+  EngineSuggester, engineQuestion, openPages, placeOffers, recentPlaces, SUGGEST_MOST, suggestionRow, switcherFallback, tabOffers,
 } from './suggest'
+import { cancelTabEdit, tabEditing } from './tabedit'
 
 /** What a window's field holds besides what it shows (Browser's fields). */
 interface Memory {
@@ -22,8 +23,18 @@ interface Memory {
   offers: Suggestion[]
   ending: string | null
   picked: number | null
+  /** The row was picked by what was typed (⌘T finds your open tabs), not by
+   * the arrow keys: the field keeps what was typed (FieldState.pickedByTyping). */
+  pickedByTyping: boolean
   editing: boolean
   summoning: boolean
+  /** ⌘T's floating field is up over a page for a tab that doesn't exist yet
+   * (Browser.launching, studio/01 §3.5): Return opens a new tab. */
+  launching: boolean
+  /** What ⌘T's field was put away with, for the next ⌘T (Browser.launchDraft). */
+  launchDraft: string
+  /** Raised by New Tab in Group: the tab Return makes goes to its end. */
+  launchGroup: string | null
   /** ⌘K raised with Ctrl still down: Ctrl let go of takes the row walked to. */
   summonHeld: boolean
   cycling: boolean
@@ -53,7 +64,8 @@ export function mem(c: WindowController): Memory {
   let m = memories.get(c.record)
   if (!m) {
     m = {
-      typed: '', offers: [], ending: null, picked: null, editing: false, summoning: false, summonHeld: false, cycling: false,
+      typed: '', offers: [], ending: null, picked: null, pickedByTyping: false, editing: false, summoning: false, summonHeld: false, cycling: false,
+      launching: false, launchDraft: '', launchGroup: null,
       chip: null, offer: null, refusals: 0, sync: 0, focus: 0, selectFrom: null, shown: '', serial: 0, pending: Promise.resolve(),
       engineWords: { asked: '', words: [] }, suggester: new EngineSuggester(), drafts: new Map(),
       lastActive: c.record.active[c.record.space] ?? null, focusAsked: null, held: [],
@@ -75,6 +87,7 @@ export function fieldShowing(c: WindowController): boolean {
 
 function mode(c: WindowController, m: Memory): FieldMode {
   if (m.summoning) return 'switcher'
+  if (m.launching) return 'newTab'
   if (m.editing && !blankInFront(c)) return 'thisTab'
   return 'blank'
 }
@@ -93,10 +106,23 @@ function siteView(s: SearchSite | null): SiteView | null {
   return s ? { name: s.name, host: s.host } : null
 }
 
-/** Typed plus whatever the field is quietly finishing; a row walked to shows itself. */
+/** Typed plus whatever the field is quietly finishing; a row walked to shows
+ * itself, one picked by typing leaves what was typed (Browser.completed). */
 function completed(m: Memory): string {
-  if (m.picked != null && m.offers[m.picked]) return m.offers[m.picked].title
+  if (m.picked != null && m.offers[m.picked] && !m.pickedByTyping) return m.offers[m.picked].title
   return m.typed + (m.ending ?? '')
+}
+
+/** Walked to, or let go of: the field shows the row again (Browser.picked). */
+function pick(m: Memory, n: number | null): void {
+  m.pickedByTyping = false
+  m.picked = n
+}
+
+/** The field over a page centred on the whole window, higher up (Settings ›
+ * The field in the middle of the window, Browser.fieldOnWindow). */
+function onWindow(c: WindowController, m: Memory): boolean {
+  return !!model.pref<boolean>('field.window') && m.editing && !blankInFront(c)
 }
 
 /** ⌘K's quiet line when it has no page to offer. */
@@ -134,6 +160,7 @@ function publish(c: WindowController, rewrite = false, selectFrom?: number | nul
     note: note(m),
     placeholder: m.chip ? `Search ${m.chip.name}` : placeholders[md],
     label: labels[md],
+    high: onWindow(c, m),
   }
   model.touch(c.record, ['field'])
 }
@@ -157,13 +184,13 @@ function guess(c: WindowController, deleting = false): Promise<void> {
       if (fallback) m.offers.push(fallback)
       m.ending = null
       m.offer = null
-      m.picked = m.offers.length ? 0 : null
+      pick(m, m.offers.length ? 0 : null)
       return
     }
     if (m.chip) {
       m.offer = null
       m.ending = null
-      m.picked = null
+      pick(m, null)
       const words = m.typed.trim()
       const url = siteURL(m.chip, words)
       m.offers = url ? [{ kind: 'search', how: 'search', title: words, detail: m.chip.name, url }] : []
@@ -171,9 +198,10 @@ function guess(c: WindowController, deleting = false): Promise<void> {
       return
     }
     if (!m.typed.trim()) {
-      m.offers = []
+      // ⌘T's field before anything is typed: the last few places, none picked.
+      m.offers = m.launching && model.pref<boolean>('newtab.recent') ? recentPlaces(c.record, !!activeOf(c)?.shy || c.record.shy) : []
       m.ending = null
-      m.picked = null
+      pick(m, null)
       m.offer = null
       return
     }
@@ -184,11 +212,29 @@ function guess(c: WindowController, deleting = false): Promise<void> {
     m.offer = offer
     m.offers = offers
     m.ending = deleting ? null : ending
-    m.picked = null
+    pick(m, null)
+    if (m.launching && model.pref<boolean>('newtab.arc')) offerTabs(c, m, deleting)
     askEngine(c)
   })()
   m.pending = work.catch(e => console.warn('[field] guess', e))
   return m.pending
+}
+
+/** ⌘T finds your open tabs (Browser.offerTabs, Browser.swift:7863-7880): the
+ * open tabs and pins that answer go above the places, and the first is
+ * picked as you type, so Return goes to it; the rest of its address follows
+ * in grey when what was typed starts it. */
+function offerTabs(c: WindowController, m: Memory, deleting: boolean): void {
+  const found = tabOffers(c.record, m.typed)
+  if (!found.length) return
+  const shown = new Set(found.map(o => identity(o.url)))
+  m.offers = [...found, ...m.offers.filter(o => !shown.has(identity(o.url)))]
+  pick(m, 0)
+  m.pickedByTyping = true
+  const words = m.typed.trim()
+  const address = pretty(found[0].url)
+  m.ending = !deleting && words && words === m.typed && address.toLowerCase().startsWith(words.toLowerCase()) && address.length > words.length
+    ? address.slice(words.length) : null
 }
 
 /** The engine's words under the field's own rows; last time's that still
@@ -225,7 +271,7 @@ function engineRows(words: string[], chip: SearchSite | null): Suggestion[] {
 function wordsToCarry(c: WindowController, m: Memory): string | null {
   const active = activeOf(c)
   const page = active && !active.empty ? shownAddress(active.url) : ''
-  if (!fieldShowing(c) || !m.typed.trim() || !(m.summoning || m.typed !== page)) return null
+  if (!fieldShowing(c) || !m.typed.trim() || !(m.summoning || m.launching || m.typed !== page)) return null
   return m.typed
 }
 
@@ -243,21 +289,29 @@ function askFocus(c: WindowController, m: Memory): void {
   }
   c.mark('field')
   setTimeout(() => {
-    if (m.editing && !blankInFront(c) && !c.base.isDestroyed()) c.sendOverlay({ kind: 'field' })
+    if (!m.editing || blankInFront(c) || c.base.isDestroyed()) return
+    c.sendOverlay({ kind: 'field' })
+    // In the middle of the window: the veil is over the column too.
+    if (onWindow(c, m)) {
+      const { width, height } = c.base.getContentBounds()
+      c.setOverlayRegion({ x: 0, y: 0, width, height }, true)
+    }
   }, 0)
 }
 
 /** ⌘L: the page's address, selected whole; pressed again, put away. */
 export function edit(c: WindowController): void {
   const m = mem(c)
-  if (m.editing && !m.summoning && !blankInFront(c)) { putAway(c); return }
+  if (m.editing && !m.summoning && !m.launching && !blankInFront(c)) { putAway(c); return }
+  // From ⌘T or ⌘K, what was typed stays, for this page now.
   const words = wordsToCarry(c, m)
   m.summoning = false
   m.cycling = false
+  m.launching = false
   const active = activeOf(c)
   m.typed = words ?? (active && !active.empty ? shownAddress(active.url) : '')
   m.editing = true
-  m.picked = null
+  pick(m, null)
   m.ending = null
   void guess(c, true).then(() => publish(c))
   askFocus(c, m)
@@ -282,6 +336,7 @@ function summon(c: WindowController, held: boolean): void {
   const m = mem(c)
   const words = wordsToCarry(c, m) ?? ''
   m.chip = null
+  m.launching = false
   m.summoning = true
   m.summonHeld = held
   m.typed = words
@@ -301,22 +356,84 @@ export function controlUp(c: WindowController): void {
   if (m.picked != null) void submit(c, {})
 }
 
-/** A blank tab made by ⌘T (the tabs module calls this): its field takes the keys. */
+/** A blank tab made by ⌘T (the tabs module calls this): its field takes the
+ * keys, empty. A blank tab reused has its draft cleared, so repeated ⌘T
+ * never leaves a row of identical empty tabs (Browser.newTab). */
 export function openField(c: WindowController, target: 'new' | 'here'): void {
   if (target === 'here') { edit(c); return }
   const m = mem(c)
   noticeActive(c)
   m.summoning = false
+  m.launching = false
   m.chip = null
   m.editing = false
+  const active = activeOf(c)
+  if (active?.empty && (m.typed || m.drafts.has(active.id))) {
+    m.typed = ''
+    m.drafts.delete(active.id)
+    m.offers = []
+    m.ending = null
+    pick(m, null)
+    m.offer = null
+    m.serial++
+    stopEngine(m)
+  }
   askFocus(c, m)
   publish(c, true, m.typed.length)
+}
+
+/** Whether ⌘T would raise the floating field over the page in front
+ * (Browser.launch's guard, Browser.swift:4846-4853): the setting on, a tab
+ * in front that isn't blank, and no peek over it. Oriel has no extension
+ * new tab pages, so the Mac's last condition never holds. */
+export function floats(c: WindowController): boolean {
+  const tab = activeOf(c)
+  const peek = c.overlayLayer.kind === 'panel' && c.overlayLayer.name === 'pages.peek'
+  return !!model.pref<boolean>('newtab.floating') && !!tab && !tab.empty && !peek
+}
+
+/** ⌘T, the + button, the column's New tab and its menu (Browser.launch,
+ * Browser.swift:4841-4872; studio/01 §3.5). With the floating field on and a
+ * page in front, the field comes up over that page and no tab is made: the
+ * tab is made by Return. Again while it is up, it is put away, as the key
+ * that raised it. False when an ordinary new tab is wanted instead.
+ * `group`: New Tab in Group, whose tab goes to that group's end. */
+export function launch(c: WindowController, group?: string): boolean {
+  const m = mem(c)
+  if (m.launching) {
+    if (group) { m.launchGroup = group; return true }
+    dismiss(c)
+    c.focusPage()
+    return true
+  }
+  if (!floats(c)) return false
+  // From ⌘K or ⌘L the words typed come along; or else the words the last
+  // ⌘T was put away with, selected whole, so typing over them costs nothing.
+  const words = wordsToCarry(c, m) ?? m.launchDraft
+  m.launchDraft = ''
+  if (tabEditing(c)) cancelTabEdit(c)
+  m.summoning = false
+  m.summonHeld = false
+  m.cycling = false
+  m.chip = null
+  m.offer = null
+  m.editing = true
+  m.launching = true
+  m.launchGroup = group ?? null
+  m.typed = words
+  pick(m, null)
+  m.ending = null
+  void guess(c, true).then(() => publish(c))
+  askFocus(c, m)
+  publish(c, true, null)
+  return true
 }
 
 /** The field raised over a page, put away whichever key raised it. A blank
  * tab's field is the tab, and stays with what was typed (its draft). */
 export function putAway(c: WindowController): void {
   const m = mem(c)
+  if (m.launching) { dismiss(c); return }
   m.summoning = false
   m.cycling = false
   m.summonHeld = false
@@ -326,11 +443,13 @@ export function putAway(c: WindowController): void {
 
 function closeOver(c: WindowController, m: Memory): void {
   m.editing = false
+  m.launching = false
+  m.launchGroup = null
   m.chip = null
   m.typed = ''
   m.offers = []
   m.ending = null
-  m.picked = null
+  pick(m, null)
   m.offer = null
   m.serial++
   stopEngine(m)
@@ -341,10 +460,13 @@ function closeOver(c: WindowController, m: Memory): void {
   publish(c, true)
 }
 
-/** For tab.select and the like: the field over a page goes. */
+/** For tab.select and the like: the field over a page goes. ⌘T's floating
+ * field goes without keeping what was typed, as the Mac's editing = false
+ * (Browser.swift:393): only Escape, ⌘W, a click outside or ⌘T keep it. */
 export function closeField(c: WindowController): void {
   const m = mem(c)
   if (!m.editing && !m.summoning) return
+  if (m.launching) { closeOver(c, m); return }
   putAway(c)
 }
 
@@ -355,6 +477,13 @@ export function dismiss(c: WindowController): void {
   m.summoning = false
   m.cycling = false
   m.summonHeld = false
+  // The floating new tab was never a tab: nothing is left behind but what
+  // was typed, for the next ⌘T to carry on with (Browser.dismiss, :8270-8282).
+  if (m.launching) {
+    m.launchDraft = m.typed
+    closeOver(c, m)
+    return
+  }
   if (m.chip) { m.chip = null; void guess(c).then(() => publish(c)); publish(c, true); return }
   if (blankInFront(c)) { publish(c); return }
   closeOver(c, m)
@@ -366,10 +495,13 @@ export function dismiss(c: WindowController): void {
 export function walk(c: WindowController, step: number): void {
   const m = mem(c)
   if (!m.offers.length) return
-  if (m.picked == null) m.picked = step > 0 ? 0 : m.offers.length - 1
+  // A tab picked by what was typed, let go of: its address goes from the
+  // grey ending too, so Return opens what was typed (Browser.walk).
+  if (m.pickedByTyping && m.picked === 0 && step < 0) m.ending = null
+  if (m.picked == null) pick(m, step > 0 ? 0 : m.offers.length - 1)
   else {
     const next = m.picked + step
-    m.picked = next < 0 || next >= m.offers.length ? null : next
+    pick(m, next < 0 || next >= m.offers.length ? null : next)
   }
   publish(c, true, m.typed.length)
 }
@@ -388,7 +520,7 @@ function lockSiteOffer(c: WindowController): boolean {
   m.offer = null
   m.typed = ''
   m.ending = null
-  m.picked = null
+  pick(m, null)
   stopEngine(m)
   void guess(c)
   publish(c, true, 0)
@@ -407,7 +539,7 @@ export async function submit(c: WindowController, o: Submit): Promise<void> {
   if (o.text != null && o.text !== m.shown) {
     // A key went in before its answer: what the field shows is what counts.
     m.typed = o.text
-    m.picked = null
+    pick(m, null)
     await guess(c, true)
   }
   const aside = !!o.newTab
@@ -436,7 +568,11 @@ export async function submit(c: WindowController, o: Submit): Promise<void> {
     publish(c)
     return
   }
-  go(c, reachable(target), aside || fromSwitcher ? { newTab: true, front: fromSwitcher && !aside ? true : !!o.front } : {})
+  // The floating new tab: what was typed gets a tab of its own, and the page
+  // the field was raised over stays as it was; the same for ⌘K's words
+  // (Browser.submit, :8398-8402). Alt+Return is ⌘Return: behind, as a link.
+  if ((m.launching || fromSwitcher) && !aside) go(c, reachable(target), { loose: true })
+  else go(c, reachable(target), aside ? { newTab: true, front: !!o.front } : {})
 }
 
 /** Shift-Return (Browser.submitToShiftEngine, studio/03 §1.4): exactly what
@@ -460,8 +596,9 @@ export async function shiftSubmit(c: WindowController, text?: string): Promise<v
   m.summoning = false
   m.summonHeld = false
   m.chip = null
-  m.picked = null
-  go(c, url, {})
+  pick(m, null)
+  // The floating new tab, as Return: a tab of its own.
+  go(c, url, m.launching ? { loose: true } : {})
 }
 
 /** A row clicked: taken as it is, never through the keyboard's pick. */
@@ -479,14 +616,24 @@ async function take(c: WindowController, index: number): Promise<void> {
     c.focusPage()
     return
   }
-  go(c, reachable(offer.url), aside ? { newTab: true, front: true } : {})
+  go(c, reachable(offer.url), m.launching || aside ? { loose: true } : {})
 }
 
-function go(c: WindowController, url: string, o: { newTab?: boolean; front?: boolean }): void {
+/** Where Return sends it. `loose`: the floating new tab's or ⌘K's, which is
+ * ⌘T's tab and came from no page: in front, in no group, beside the page
+ * (Browser.open's `loose`); raised by New Tab in Group, at that group's end. */
+function go(c: WindowController, url: string, o: { newTab?: boolean; front?: boolean; loose?: boolean }): void {
   const m = mem(c)
   const active = activeOf(c)
+  const group = o.loose && m.launching ? m.launchGroup : null
   if (active?.empty) m.drafts.delete(active.id)
   closeOver(c, m)
+  if (o.loose) {
+    void run({ do: 'tab.open', url, foreground: true, from: active?.id, loose: true } as never, { window: c })
+      .then(id => { if (group && typeof id === 'string') intoGroup(c, id, group); c.placePages(); c.focusPage() })
+      .catch(e => console.warn('[field] tab.open', e))
+    return
+  }
   if (o.newTab || !active) {
     void run({ do: 'tab.new', url, background: !o.front, after: active?.id } as never, { window: c })
       .then(() => { c.placePages(); if (o.front) c.focusPage() })
@@ -498,6 +645,28 @@ function go(c: WindowController, url: string, o: { newTab?: boolean; front?: boo
   c.focusPage()
 }
 
+/** The tab Return made, to the end of the group New Tab in Group named,
+ * which opens (Browser.open's `into`, :6568-6573). Never a private tab. */
+function intoGroup(c: WindowController, id: string, group: string): void {
+  const win = c.record
+  const t = model.tabs.get(id)
+  const g = t && (win.groupsBy[t.space] ?? []).find(x => x.id === group)
+  if (!t || !g || t.shy || t.bench || t.pinID) return
+  const row = model.spaceTabs(win, t.space)
+  const from = row.indexOf(id)
+  if (from < 0) return
+  row.splice(from, 1)
+  let last = -1
+  row.forEach((x, i) => { const o = model.tabs.get(x); if (o && !o.pinID && o.groupID === group) last = i })
+  const firstLoose = row.findIndex(x => !model.tabs.get(x)?.pinID)
+  row.splice(last >= 0 ? last + 1 : firstLoose >= 0 ? firstLoose : row.length, 0, id)
+  t.groupID = group
+  g.folded = false
+  model.arrangeGroups(win, t.space)
+  model.touch(win, ['tabs', 'groups'])
+  model.sessionNow(win, t.space)
+}
+
 // Escape (App.swift take, the field's part of the chain)
 
 /** One step at a time: the row, then the blank tab's words, then the blank
@@ -506,10 +675,10 @@ export function escape(c: WindowController): boolean {
   const m = mem(c)
   const active = activeOf(c)
   if (!fieldShowing(c)) return false
-  if (m.picked != null) { m.picked = null; publish(c, true, m.typed.length); return true }
+  if (m.picked != null) { pick(m, null); publish(c, true, m.typed.length); return true }
   if (active?.empty && (m.typed || m.chip)) {
     m.chip = null
-    m.picked = null
+    pick(m, null)
     m.typed = ''
     m.drafts.delete(active.id)
     void guess(c).then(() => publish(c))
@@ -550,8 +719,11 @@ function noticeActive(c: WindowController): void {
   m.summonHeld = false
   m.cycling = false
   m.editing = false
+  // Another tab in front puts ⌘T's field away, keeping nothing (Browser.select).
+  m.launching = false
+  m.launchGroup = null
   m.chip = null
-  m.picked = null
+  pick(m, null)
   m.typed = tab?.empty ? m.drafts.get(tab.id) ?? '' : ''
   if (c.overlayLayer.kind === 'field') { c.sendOverlay({ kind: 'none' }); afterField(c) }
   void guess(c, true).then(() => publish(c))
@@ -641,7 +813,7 @@ handle('field.type', async ({ text, deleting }, ctx) => {
   const c = need(ctx)
   const m = mem(c)
   m.typed = text
-  m.picked = null
+  pick(m, null)
   if (deleting) m.ending = null
   m.shown = text
   const work = guess(c, !!deleting)
@@ -655,7 +827,7 @@ handle('field.input', async ({ text }, ctx) => {
   const c = need(ctx)
   const m = mem(c)
   m.typed = text
-  m.picked = null
+  pick(m, null)
   await guess(c)
   publish(c)
 })
@@ -667,11 +839,11 @@ handle('field.commit', async ({ index, text, newTab }, ctx) => {
   await m.pending
   if (text != null && index == null) {
     m.typed = text
-    m.picked = null
+    pick(m, null)
     await guess(c, true)
     publish(c)
   } else if (index != null) {
-    m.picked = index
+    pick(m, index)
   }
   await submit(c, { newTab })
 })

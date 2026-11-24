@@ -81,6 +81,9 @@
 @keyframes field-veil-in { from { opacity: 0; } }
 .field-veil .field-wrap { animation: field-in var(--dur-settle) var(--ease-settle); }
 @keyframes field-in { from { opacity: 0; transform: scale(.97); } }
+/* The field in the middle of the window: the veil covers the column too and
+   the field's top is 24% down the window, nothing under it (Omnibox.swift:68-71) */
+.field-veil.high { align-items: start; padding-bottom: 0; padding-top: 24vh; }
 
 /* Find on Page: a capsule 12 from the top and 14 from the right, padding
    16 / 8 / 8 (10 / 6 narrow), ground and hairline (red 35% with no match),

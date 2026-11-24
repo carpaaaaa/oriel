@@ -161,6 +161,58 @@ export function openPages(win: WindowRecord, typed: string): Suggestion[] {
     .map(t => row('open', 'tab', tabLabel(t), pretty(t.url), t.url, { tabID: t.id, favicon: t.favicon, pinned: !!t.pinID }))
 }
 
+// ⌘T's floating field (Settings › Tabs › Opening, studio/01 §3.5)
+
+/** Recent places in the new tab (Browser.recentPlaces, Browser.swift:8150-8158):
+ * before anything is typed, the last three places from history that aren't
+ * open in this window (⌘K is for those), the newest eight looked at as the
+ * Mac's History.recent keeps them. Nothing from a private tab. */
+export function recentPlaces(win: WindowRecord, shy: boolean): Suggestion[] {
+  if (shy) return []
+  const open = new Set(model.spaceTabs(win).map(id => model.tabs.get(id)).filter(t => t && !t.empty).map(t => identity(t!.url)))
+  let traces: { url: string; title: string }[] = []
+  try { traces = data.everything('', 8) ?? [] } catch (e) { console.warn('[field] data.everything', e) }
+  return traces
+    .filter(v => v && typeof v.url === 'string' && !open.has(identity(v.url)))
+    .slice(0, 3)
+    .map(v => row('visited', 'history', editable(v.url), v.title && v.title !== v.url ? v.title : '', v.url, { favicon: data.icon(v.url) }))
+}
+
+/** How well what is typed names a tab (Browser.relevance, :7911-7920): 3 when
+ * its name or address starts with it, 2 when every word starts a word of
+ * them, 1 when every word is somewhere in them (two letters at least). */
+function relevance(t: { name?: string; title: string; url: string }, words: string[], whole: string): number {
+  const name = tabLabel(t).toLowerCase()
+  const address = pretty(t.url).toLowerCase()
+  if (name.startsWith(whole) || address.startsWith(whole)) return 3
+  const text = name + ' ' + address
+  const parts = text.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
+  if (words.every(w => parts.some(p => p.startsWith(w)))) return 2
+  if ([...whole].length >= 2 && words.every(w => text.includes(w))) return 1
+  return 0
+}
+
+/** ⌘T finds your open tabs (Browser.tabOffers, :7884-7905): the open tabs,
+ * then the pins, that answer to what is typed, best first and between
+ * equals the one looked at last; three and two at most. Not the tab the
+ * field is over. */
+export function tabOffers(win: WindowRecord, typed: string): Suggestion[] {
+  const whole = typed.trim().toLowerCase()
+  const words = whole.split(/\s+/).filter(Boolean)
+  if (!words.length) return []
+  const front = win.active[win.space]
+  const ranked = model.spaceTabs(win)
+    .map(id => model.tabs.get(id)!)
+    .filter(t => t && t.id !== front && !t.empty && !t.bench)
+    .map(t => ({ t, score: relevance(t, words, whole) }))
+    .filter(x => x.score > 0)
+    .sort((a, b) => (b.score - a.score) || ((b.t.touched ?? 0) - (a.t.touched ?? 0)))
+    .map(x => x.t)
+  const open = ranked.filter(t => !t.pinID).slice(0, 3)
+  const pins = ranked.filter(t => t.pinID).slice(0, 2)
+  return [...open, ...pins].map(t => row('open', 'tab', tabLabel(t), pretty(t.url), t.url, { tabID: t.id, favicon: t.favicon, pinned: !!t.pinID }))
+}
+
 /** ⌘K's last row: where words no open page answers go. */
 export function switcherFallback(typed: string, blankInFront: boolean): Suggestion | null {
   const words = typed.trim()

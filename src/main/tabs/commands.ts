@@ -7,7 +7,7 @@ import { model, spaceIcons, internalKind, type TabRecord } from '../model/model'
 import { runtimeFor, runtimes } from '../views/tabs'
 import { resolveInput } from '../address'
 import { need, tabRuntime } from '../context'
-import { closeField, openField } from '../field/commands'
+import { closeField, fieldShowing, launch, openField, putAway } from '../field/commands'
 import type { WindowController } from '../views/window'
 import { putToSleep } from './sleep'
 
@@ -25,11 +25,12 @@ handle('tab.select', ({ id }, ctx) => {
 
 handle('tab.close', ({ id }, ctx) => model.closeTab(win(need(ctx)), id))
 
-/** ⌘W (Browser.closeFront, §3.10): the field raised over a page first. */
+/** ⌘W (Browser.closeFront, §3.10): the field raised over a page first; ⌘T's
+ * floating field keeps what was typed for the next ⌘T (§3.5). */
 handle('tab.closeFront', (_a, ctx) => {
   const c = need(ctx)
   const active = model.activeTab(win(c))
-  if (c.overlayLayer.kind === 'field' && active && !active.empty) { closeField(c); c.focusPage(); return }
+  if (fieldShowing(c) && active && !active.empty) { putAway(c); c.focusPage(); return }
   model.closeFront(win(c))
 })
 
@@ -55,8 +56,10 @@ handle('tab.new', ({ url, background, after }, ctx) => {
   return model.open(w, address, { foreground: !background }).id
 })
 
+/** The + button, the column's New tab and its menu: ⌘T's (Browser.launch). */
 handle('tab.blank', (_a, ctx) => {
   const c = need(ctx)
+  if (launch(c)) return null
   const tab = model.newTab(win(c))
   openField(c, 'new')
   return tab.id
@@ -163,6 +166,9 @@ handle('group.ungroup', ({ id }, ctx) => model.ungroup(win(need(ctx)), id))
 handle('group.close', ({ id }, ctx) => model.closeGroup(win(need(ctx)), id))
 handle('group.newTab', ({ id }, ctx) => {
   const c = need(ctx)
+  // Floating: the field comes up, and Return's tab goes to the group's end
+  // (Browser.newTab(inGroup:), studio/01 §6.45). Never from a private tab.
+  if (win(c).groups.some(g => g.id === id) && !model.activeTab(win(c))?.shy && launch(c, id)) return null
   const tab = model.newTabInGroup(win(c), id)
   if (tab) openField(c, 'new')
   return tab?.id
