@@ -2,9 +2,92 @@
 // with SwiftUI's maths, in CSS (linear()) for what CSS carries and per
 // frame for what follows a moving target (the grey that glides, §5.12).
 
+import { createMemo, createSignal, untrack } from 'solid-js'
 import { Springs, springCSS, reducedMotion, lightMotion, type SpringSpec } from '../../shared/spring'
+import { state } from '../lib/store'
 
 export { Springs, reducedMotion }
+
+/** A keyed list that keeps what leaves for a moment, at the place it had in
+ * the list, so it can go where it stood while the rest close up, as SwiftUI
+ * draws a removed view through its transition (Side.swift:2290,
+ * TabBar.swift:1081). The same element stays on screen from live to leaving:
+ * nothing is built again mid-motion. `quiet()` true lands a change at once
+ * (another space's tabs, Reduce animations). Keys new in the latest change
+ * are `fresh`, for their arrival. `done(key)` lets a leaving one go. */
+export function keepLeaving<T>(list: () => T[], keyOf: (t: T) => string, quiet: () => boolean) {
+  const [tick, setTick] = createSignal(0)
+  const finished = new Set<string>()
+  const items = new Map<string, T>()
+  const ghosts = new Set<string>()
+  let fresh = new Set<string>()
+  let prev: string[] | null = null
+  let wasLive = new Set<string>()
+  const keys = createMemo(() => {
+    const now = list()
+    tick()
+    const hush = untrack(quiet)
+    const nowKeys = now.map(keyOf)
+    const live = new Set(nowKeys)
+    for (const k of finished) ghosts.delete(k)
+    finished.clear()
+    const before = prev ?? []
+    fresh = new Set(prev && !hush ? nowKeys.filter(k => !wasLive.has(k) && !ghosts.has(k)) : [])
+    if (hush) ghosts.clear()
+    else for (const k of wasLive) if (!live.has(k)) ghosts.add(k)
+    for (const k of [...ghosts]) if (live.has(k)) ghosts.delete(k)
+    wasLive = live
+    for (const t of now) items.set(keyOf(t), t)
+    // Each leaving key right after the one it followed.
+    const out = [...nowKeys]
+    for (let i = 0; i < before.length; i++) {
+      const g = before[i]
+      if (!ghosts.has(g)) continue
+      let at = 0
+      for (let j = i - 1; j >= 0; j--) { const x = out.indexOf(before[j]); if (x >= 0) { at = x + 1; break } }
+      out.splice(at, 0, g)
+    }
+    const shown = new Set(out)
+    for (const k of [...items.keys()]) if (!shown.has(k)) items.delete(k)
+    prev = out
+    return out
+  })
+  return {
+    keys,
+    item: (k: string) => { keys(); return items.get(k) },
+    leaving: (k: string) => { keys(); return ghosts.has(k) },
+    fresh: (k: string) => fresh.has(k),
+    done: (k: string) => { if (ghosts.has(k) && !finished.has(k)) { finished.add(k); setTick(n => n + 1) } },
+  }
+}
+
+/** What faded out for a tab's address fading back in on glide as the field
+ * goes (Side.swift:2283, TabBar.swift:1072). */
+export function fadeBack(host: Element, selector: string): void {
+  const { duration, easing } = curve(Springs.glide)
+  if (!duration) return
+  for (const e of host.querySelectorAll(selector)) e.animate([{ opacity: 0 }, { opacity: 1 }], { duration, easing })
+}
+
+/** Something that was leaving came back before it went: drawn as it was.
+ * Only what was started here goes; the element's CSS transitions (its place,
+ * its width) carry on. */
+export function stay(el: Element): void {
+  for (const a of el.getAnimations()) if (!(a instanceof CSSTransition) && !(a instanceof CSSAnimation)) a.cancel()
+}
+
+/** For keepLeaving: quiet when the space changed since it last asked (the
+ * Mac's `.transaction(value: browser.spaceID)`: another space's rows come in
+ * at once), with Reduce animations, or when `also()` says so. */
+export function quietOn(also: () => boolean = () => false): () => boolean {
+  let space = untrack(() => state.space)
+  return () => {
+    const now = state.space
+    const switched = now !== space
+    space = now
+    return switched || also() || reducedMotion()
+  }
+}
 
 const curves = new Map<SpringSpec, { duration: number; easing: string }>()
 /** A spring as WAAPI timing: { duration, easing: linear(...) }. */
@@ -87,6 +170,7 @@ export function arrive(el: Element, scale: number, origin = 'left center'): void
 /** Leave: the same, backwards. */
 export function leave(el: Element, scale: number, then: () => void, origin = 'left center'): void {
   if (reducedMotion()) { then(); return }
+  stay(el)
   const { duration, easing } = curve(Springs.settle)
   ;(el as HTMLElement).style.transformOrigin = origin
   const a = el.animate([{ opacity: 1, scale: '1' }, { opacity: 0, scale: String(scale) }], { duration, easing, fill: 'forwards' })

@@ -4,7 +4,7 @@
 // 9/34, letter 12/34 medium, icon 16/34, ring 11/34. Resting on `tile`,
 // live on `pinLive`, darker than a live row's grey.
 
-import { createMemo, For, onMount, Show } from 'solid-js'
+import { createEffect, createMemo, For, on, onMount, Show, untrack } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import type { TabView } from '../../shared/state'
 import { Ring } from './glyphs'
@@ -15,7 +15,7 @@ import { editing, setEditing, carry, squareGhost } from './ui'
 import { openMenu } from '../menus/open'
 import { tabMenu } from '../menus/build'
 import { press } from './drag'
-import { arrive } from './motion'
+import { arrive, leave, stay, keepLeaving, quietOn } from './motion'
 
 /** A page's unread count as a pin shows it, read off the front of its title
  * ("(3) WhatsApp", "(12+) …"); nothing while it sleeps (UnreadBadge.swift). */
@@ -43,11 +43,24 @@ export function PinGrid(p: { squares: TabView[]; width: number; still: boolean; 
   })
   const cells = () => pinCells(order().length, p.width)
   const height = () => { const c = cells(); return c.length ? Math.max(...c.map(x => x.y + x.h)) : 0 }
-  const cellOf = (id: string) => cells()[order().indexOf(id)]
+  // A square going stays in its cell, the same element, scaling to 0.8 as
+  // it fades (Side.swift:2008); the grid's height follows on settle
+  // (Side.swift:426), the rows under it with it.
+  const roster = keepLeaving(() => p.squares, t => t.id, quietOn(() => p.still))
+  const lastCell = new Map<string, { x: number; y: number; w: number; h: number }>()
+  const cellOf = (id: string) => {
+    const i = order().indexOf(id)
+    const c = i >= 0 ? cells()[i] : undefined
+    if (c) lastCell.set(id, c)
+    return c ?? lastCell.get(id)
+  }
   const ghostTab = () => { const g = ghost(); return g && !p.squares.some(t => t.id === g.tab) ? state.tabs.find(t => t.id === g.tab) : undefined }
   return (
     <div class="pins" style={{ height: `${height()}px`, 'margin-bottom': height() ? '10px' : '0' }} classList={{ still: p.still }}>
-      <For each={p.squares}>{t => <Square tab={t} cell={cellOf(t.id) ?? cells()[0]} still={p.still} gliding={p.glidingTo === t.id} />}</For>
+      <For each={roster.keys()}>{k => (
+        <Show when={roster.item(k)}>{t => <Square tab={t()} cell={cellOf(k) ?? cells()[0]} still={p.still} gliding={p.glidingTo === k}
+          fresh={roster.fresh(k)} leaving={roster.leaving(k)} done={() => { lastCell.delete(k); roster.done(k) }} />}</Show>
+      )}</For>
       <Show when={ghostTab()}>{t => {
         const c = () => cellOf(t().id)
         return (
@@ -62,7 +75,7 @@ export function PinGrid(p: { squares: TabView[]; width: number; still: boolean; 
   )
 }
 
-function Square(p: { tab: TabView; cell: { x: number; y: number; w: number; h: number }; still: boolean; gliding: boolean }) {
+function Square(p: { tab: TabView; cell: { x: number; y: number; w: number; h: number }; still: boolean; gliding: boolean; fresh?: boolean; leaving?: boolean; done?: () => void }) {
   let el!: HTMLDivElement
   const t = () => p.tab
   const live = () => t().id === state.activeID
@@ -70,20 +83,22 @@ function Square(p: { tab: TabView; cell: { x: number; y: number; w: number; h: n
   const pin = () => pinOf(t())
   const lettering = () => editing()?.kind === 'letter' && editing()?.id === t().id
   const carried = () => carry()?.key === `t:${t().id}`
-  onMount(() => { if (!p.still) arrive(el, 0.8, 'center') })
+  onMount(() => { if (p.fresh && !untrack(() => !!carry())) arrive(el, 0.8, 'center') })
+  createEffect(on(() => !!p.leaving, (l, was) => { if (l === !!was) return; if (l) leave(el, 0.8, () => p.done?.(), 'center'); else stay(el) }))
   const letter = () => pin()?.letter || monogram({ ...t(), label: label(t()) })
   let wasLive = false
 
   const pos = () => {
     const c = carry()
-    if (carried() && c) return `translate(${c.x}px, ${c.y}px)`
-    return `translate(${p.cell.x}px, ${p.cell.y}px)`
+    if (carried() && c) return `${c.x}px ${c.y}px`
+    return `${p.cell.x}px ${p.cell.y}px`
   }
 
   return (
-    <div ref={el} class="square" data-tab={t().id} data-pin={t().pinID}
-      classList={{ live: live(), picked: picked(t().id), asleep: t().asleep, carried: carried(), faded: carried() && !!carry()?.faded, gliding: p.gliding }}
-      style={{ transform: pos(), width: `${p.cell.w}px`, height: `${p.cell.h}px`, '--r': `${scale() * 9 / 34}px` }}
+    <div ref={el} class="square" data-tab={p.leaving ? undefined : t().id} data-pin={t().pinID}
+      classList={{ live: live(), picked: picked(t().id), asleep: t().asleep, carried: carried(), faded: carried() && !!carry()?.faded, gliding: p.gliding, leaving: !!p.leaving }}
+      // `translate`, so the scale of coming and going stays in its cell.
+      style={{ translate: pos(), width: `${p.cell.w}px`, height: `${p.cell.h}px`, '--r': `${scale() * 9 / 34}px` }}
       title={label(t())}
       onPointerDown={e => {
         if (e.button !== 0 || lettering()) return

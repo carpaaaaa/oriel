@@ -39,10 +39,13 @@
 .live-pill.on-square { background: var(--g-pin-live); }
 
 /* the pinned squares */
-.pins { position: relative; flex: none; z-index: 1; }
+.pins { position: relative; flex: none; z-index: 1;
+  transition: height var(--dur-settle) var(--ease-settle), margin-bottom var(--dur-settle) var(--ease-settle); }
+.pins.still { transition: none; }
+.square.leaving { pointer-events: none; }
 .square {
   position: absolute; left: 0; top: 0; display: grid; place-items: center;
-  transition: transform var(--dur-settle) var(--ease-settle), width var(--dur-settle) var(--ease-settle), height var(--dur-settle) var(--ease-settle);
+  transition: translate var(--dur-settle) var(--ease-settle), width var(--dur-settle) var(--ease-settle), height var(--dur-settle) var(--ease-settle);
 }
 .pins.still .square, .square.carried { transition: none; }
 .square .ground { position: absolute; inset: 0; border-radius: var(--r); background: var(--g-tile); }
@@ -68,8 +71,16 @@
 .rows { position: relative; z-index: 1; flex: 0 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
 .rows::-webkit-scrollbar { display: none; }
 .rows-content { position: relative; }
-.line { position: absolute; top: 0; transition: transform var(--dur-settle) var(--ease-settle); z-index: 1; }
-.rows-content.still .line { transition: none; }
+.rows-content.shrinking { transition: height var(--dur-settle) var(--ease-settle); }
+/* A line's whole frame moves on settle, as SwiftUI's rows do: its place, its
+   height (a group's wash growing or shrinking with its rows), its insets. */
+.line { position: absolute; top: 0; z-index: 2;
+  transition: translate var(--dur-settle) var(--ease-settle), height var(--dur-settle) var(--ease-settle),
+    left var(--dur-settle) var(--ease-settle), right var(--dur-settle) var(--ease-settle); }
+.rows-content.still .line, .rows-content.still { transition: none; }
+/* Leaving, under the lines closing up over it, as a removed row is drawn at
+   its place in the stack; above the washes. */
+.line.leaving { z-index: 1; }
 .line.wash { z-index: 0; pointer-events: none; }
 .line.carried { transition: none; z-index: 5; filter: drop-shadow(0 3px 10px rgba(0, 0, 0, .16)); }
 .line.faded { opacity: .4; }
@@ -188,7 +199,7 @@
 .row-ghost { height: 100%; display: flex; align-items: center; gap: 8px; padding-left: 10px; border-radius: var(--row-radius);
   background: var(--g-hover); box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / .16); opacity: .6; }
 .row-ghost .title { color: var(--muted); font-size: var(--title); white-space: nowrap; overflow: hidden; }
-.ghost-line { left: 0; right: 0; z-index: 2; }
+.ghost-line { left: 0; right: 0; z-index: 3; }
 
 /* the foot: doors of 26, 2 apart, 10 above the bottom */
 .foot { flex: none; height: 36px; padding: 0 10px 10px; display: flex; align-items: center; gap: 2px; position: relative; z-index: 2; }
@@ -279,3 +290,10 @@
 .foot.up > .ext-slot { order: 5; }
 .foot.vertical > .fetch-door { order: 0; }
 .foot.vertical > .space-dot { order: 6; }
+
+/* Its address typed in the row (Side.swift:2283): the mark and the title fade
+   where they stood, out of the way, as the field fades in over them. */
+.row.addressing .body > .mark, .row.addressing .body > .titles {
+  position: absolute; opacity: 0; pointer-events: none; transition: opacity var(--dur-glide) var(--ease-glide); }
+.row.addressing .body > .mark { left: 10px; }
+.row.addressing .body > .titles { right: 10px; }

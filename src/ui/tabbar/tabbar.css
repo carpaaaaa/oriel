@@ -111,3 +111,14 @@
 .strip-far > .bookmark-door { order: 4; }
 .strip-far > .space-buttons { order: 5; }
 .strip-far:has(> .bookmark-door) > .strip-helm { margin-right: 8px; }
+
+/* Coming and going (TabBar.tsx StripMotion): nothing to press while it goes. */
+.strip-tab.leaving, .strip-pin.leaving, .strip-group.leaving { pointer-events: none; }
+/* Its address typed in it (TabBar.swift:1072, :1212): the mark and the title
+   fade where they stood, out of the way, as the field fades in over them;
+   11 at the end, as at the start. */
+.strip-tab.addressing { padding-right: 11px; }
+.strip-tab.addressing > .mark, .strip-tab.addressing > .strip-title {
+  position: absolute; opacity: 0; pointer-events: none; transition: opacity var(--dur-glide) var(--ease-glide); }
+.strip-tab.addressing > .mark { left: 11px; }
+.strip-tab.addressing > .strip-title { left: 32px; right: 11px; margin-right: 0; }

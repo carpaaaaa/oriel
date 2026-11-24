@@ -73,6 +73,7 @@ def run(host, live_sel, label):
     v = b.ui(f"document.querySelector('{live_sel} .field-tab-input').value")
     t.ok(v == "github.com", f"{label}: the grey ending as in the field: {v!r}")
     b.wait_for(lambda: b.call({"do": "field.views"})["layer"] == "tabOffers", what="the list")
+    time.sleep(0.3)  # its arrival (scale .98, quick) over
     views = b.call({"do": "field.views"})
     row = rect(live_sel)
     lst = rect(".field-taboffers", root="overlay")
@@ -116,6 +117,7 @@ if b.ui("!!document.querySelector('.strip-tab')"):
     w = rect(".strip-tab.live")
     click(".strip-tab.live")
     b.wait_for(lambda: editing(), what="edit on top")
+    time.sleep(0.7)  # it widens on glide (TabBar.swift:337)
     t.ok(rect(".strip-tab.live")["w"] >= 339, "tabs on top: the tab widens to 340 while its address is typed")
     key("Escape")
 else:

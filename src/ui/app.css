@@ -8,8 +8,15 @@
 :root[data-motion="instant"] .ring { animation-duration: var(--dur-ring) !important; }
 /* Tabs give when pressed (tabs.give; Motion.give 0.97, TabBar.swift:2208):
    down on quick, back on settle; scale, so a square's place stays its own. */
-:root[data-give] :is(.row, .square, .tile, .strip-tab, .strip-pin) { transition: scale var(--dur-settle) var(--ease-settle); }
+:root[data-give] :is(.row, .tile, .strip-pin) { transition: scale var(--dur-settle) var(--ease-settle); }
+/* ...keeping what else moves on settle: a square's cell, a tab's width. */
+:root[data-give] .square { transition: scale var(--dur-settle) var(--ease-settle), translate var(--dur-settle) var(--ease-settle), width var(--dur-settle) var(--ease-settle), height var(--dur-settle) var(--ease-settle); }
+:root[data-give] :is(.pins.still .square, .square.carried) { transition: scale var(--dur-settle) var(--ease-settle); }
 :root[data-give] :is(.row, .square, .tile, .strip-tab, .strip-pin):active { scale: .97; transition: scale var(--dur-quick) var(--ease-quick); }
+/* A tab across the top widens and narrows on settle as tabs come and go
+   (TabBar.swift:338); with the window resizing, at once. */
+:root .tabbar .strip-tab { transition: width var(--dur-settle) var(--ease-settle), scale var(--dur-settle) var(--ease-settle); }
+:root .tabbar.resizing .strip-tab { transition: none !important; }
 :root[data-motion="light"] { --dur-glide: 160ms; --ease-glide: var(--ease-quick); --dur-settle: 160ms; --ease-settle: var(--ease-quick); }
 html, body, #root { height: 100%; overflow: hidden; }
 html { font-family: var(--font-ui); letter-spacing: var(--tracking-ui); font-size: var(--fs-body); color: var(--ink); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; user-select: none; cursor: default; }

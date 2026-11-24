@@ -2,6 +2,7 @@
 // main process's patches. Each top-level key is reconciled on its own, keyed
 // by id, so a tab that didn't change keeps its DOM.
 
+import { batch } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
 import type { WindowPatch, WindowState } from '../../shared/state'
 
@@ -18,10 +19,15 @@ export const [state, setState] = createStore<WindowState>(empty)
 
 export function apply(patch: WindowPatch): void {
   if (patch.rev <= state.rev && patch.rev !== 0) return
-  for (const [key, value] of Object.entries(patch.set)) {
-    setState(key as keyof WindowState, reconcile(value as never, { key: 'id', merge: false }) as never)
-  }
-  setState('rev', patch.rev)
+  // One update for the whole patch: the tabs, the tab in front and the space
+  // change together, so what moves sees them as one change (a closed tab's
+  // row leaving while the grey goes to its neighbour), never half of it.
+  batch(() => {
+    for (const [key, value] of Object.entries(patch.set)) {
+      setState(key as keyof WindowState, reconcile(value as never, { key: 'id', merge: false }) as never)
+    }
+    setState('rev', patch.rev)
+  })
   document.documentElement.dataset.look = state.look
   document.documentElement.dataset.chrome = state.chrome
   document.documentElement.dataset.maximized = String(state.maximized || state.fullScreen)
