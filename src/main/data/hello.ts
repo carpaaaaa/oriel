@@ -26,6 +26,10 @@ export interface HelloTrace {
   result?: number
   password?: number
   verdict: 'verified' | 'refused' | 'unavailable' | 'error' | 'timeout'
+  /** Milliseconds from the start at which each step was written. */
+  at?: number[]
+  /** The longest the main process went without a turn, and after which step. */
+  stall?: { ms: number; after: string }
 }
 
 const IID = {
@@ -239,10 +243,21 @@ async function windowsPassword(a: NonNullable<typeof api>, reason: string, hwnd:
     const late = new Promise<'late'>(done => { timer = setTimeout(() => done('late'), within) })
     let code = await Promise.race([asked, late])
     if (code === 'late') {
-      const shut = closeDialogs(hwnd ? [a.address(hwnd)] : [], hwnd ? [a.address(hwnd)] : [], false, before)
-      trace.steps.push(`password dialog timed out, closed ${JSON.stringify(shut.closed)} of ${JSON.stringify(shut.seen)}`)
+      // On a slow machine the broker can bring its dialog up after the time:
+      // keep closing what came up since we asked until the call comes back.
+      const owners = hwnd ? [a.address(hwnd)] : []
+      const closed = new Set<string>()
+      let seen: string[] = []
+      const end = Date.now() + 20_000
+      for (;;) {
+        const shut = closeDialogs(owners, owners, false, before)
+        for (const c of shut.closed) closed.add(c)
+        seen = shut.seen
+        code = await Promise.race([asked, sleep(250).then(() => 'late' as const)])
+        if (code !== 'late' || Date.now() > end) break
+      }
+      trace.steps.push(`password dialog timed out, closed ${JSON.stringify([...closed])} of ${JSON.stringify(seen)}`)
       trace.verdict = 'timeout'
-      code = await Promise.race([asked, new Promise<'late'>(done => setTimeout(() => done('late'), 5000))])
       if (code === 'late') { trace.steps.push('password dialog never came back'); return false }
     } else clearTimeout(timer)
     trace.password = code
@@ -275,8 +290,18 @@ export let current: HelloTrace | null = null
 
 /** Proof by Windows Hello, else the Windows password, over `win`. */
 export async function windowsProof(reason: string, win: BaseWindow | null, caption: string, options: { within?: number } = {}): Promise<HelloTrace> {
-  const trace: HelloTrace = { steps: [], verdict: 'error' }
+  const trace: HelloTrace = { steps: [], verdict: 'error', at: [] }
   current = trace
+  // When each step came, and the longest the main process was held (a
+  // synchronous call into Windows), for the tests and the log.
+  const t0 = Date.now()
+  trace.steps.push = (...items: string[]) => { for (const _ of items) trace.at!.push(Date.now() - t0); return Array.prototype.push.apply(trace.steps, items) }
+  let tick = Date.now()
+  const watch = setInterval(() => {
+    const now = Date.now(), gap = now - tick - 100
+    if (gap > (trace.stall?.ms ?? 0)) trace.stall = { ms: gap, after: trace.steps.at(-1) ?? 'start' }
+    tick = now
+  }, 100)
   try {
     const a = (api ??= load())
     const hwnd = win ? a.koffi.decode(win.getNativeWindowHandle(), 'void *') : null
@@ -290,7 +315,7 @@ export async function windowsProof(reason: string, win: BaseWindow | null, capti
   } catch (e) {
     trace.steps.push(`error ${String((e as Error)?.message ?? e)}`)
     trace.verdict = 'error'
-  }
+  } finally { clearInterval(watch) }
   return trace
 }
 

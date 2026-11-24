@@ -59,7 +59,9 @@ t.ok(b.ev(tab, "window.blockR") is False and b.active()["title"] == "keys", "Ctr
 b.cmd("tab.go", input="data:text/html,<title>second</title><body style='height:3000px'><input id=g>")
 b.wait_for(lambda: b.active()["title"] == "second", what="second page")
 b.ev(tab, "scrollTo(0, 1234); document.getElementById('g').value='typed'")
-time.sleep(1.5)
+# The page tells Chromium its scroll and fields on a timer (1 s, later on a
+# busy machine): what the history keeps when the tab sleeps.
+time.sleep(3.0)
 # Sleep happens to tabs behind: go to another one first.
 other = b.cmd("tab.new", url="https://example.com")
 time.sleep(1.0)
