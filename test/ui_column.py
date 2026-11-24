@@ -110,6 +110,11 @@ t.ok(mask, "under the pointer the title fades under the cross: 16 of gradient, 2
 x = k.js("return [...document.styleSheets].flatMap(s => { try { return [...s.cssRules] } catch { return [] } }).find(r => r.selectorText === '.row .x')?.cssText")
 t.ok(x and "width: 30px" in x and "right: -0.5px" in x, "the cross's reach 30 wide, its disc 7 from the end")
 
+cal = k.js("const e = document.querySelector('.row .title'); const s = document.createElement('span'); s.style.cssText = 'position:absolute;white-space:nowrap';"
+           " const c = getComputedStyle(e); for (const k of ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'fontFeatureSettings']) s.style[k] = c[k]; document.body.appendChild(s);"
+           " const w = ['Rec…', 'Wea…'].map(t => { s.textContent = t; return s.getBoundingClientRect().width }); s.remove(); return w")
+t.ok(k.near(cal[0], 32, 0.7) and k.near(cal[1], 35, 0.7), f"titles as wide as SF Pro's: 'Rec…' 32, 'Wea…' 35 at 12.5 (Design.swift:224): {cal}")
+
 # dark
 k.fake(s, look="dark")
 time.sleep(0.4)

@@ -91,7 +91,7 @@
   mask-image: linear-gradient(to right, #000 calc(100% - 42px), transparent calc(100% - 26px));
 }
 .titles { flex: 1; min-width: 0; display: grid; line-height: 1.2; }
-.title, .rest { grid-area: 1 / 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--title); letter-spacing: -0.003em; }
+.title, .rest { grid-area: 1 / 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--title); }
 .title { color: var(--g-muted); }
 .row:hover .title { color: var(--ink-hover-text); }
 .row.live .title, .sidebar.contrast .title { color: var(--ink); }
