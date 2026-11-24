@@ -65,7 +65,9 @@ def launch(*args, chrome="windows", env=None, wait=30):
         pass
     electron = ROOT / "node_modules" / ".bin" / ("electron.cmd" if IS_WIN else "electron")
     e = dict(os.environ, SEARCH_PROBE=WORLD, SEARCH_CHROME=chrome, **(env or {}))
-    PROC = subprocess.Popen([str(electron), str(ROOT), *args], env=e, cwd=ROOT,
+    # Frames even with the display asleep (night runs): no vsync, no frame cap.
+    flags = ["--disable-gpu-vsync", "--disable-frame-rate-limit"]
+    PROC = subprocess.Popen([str(electron), *flags, str(ROOT), *args], env=e, cwd=ROOT,
                             stdout=open(ROOT / "out" / f"bench-{WORLD}.log", "w"), stderr=subprocess.STDOUT,
                             shell=IS_WIN)
     end = time.time() + wait
