@@ -15,7 +15,7 @@ that version afterwards.
    Oriel closes, installs and opens again as the newer version.
 
 Windows only. SHOTS_DIR=<folder> for the pictures."""
-import ctypes, os, platform, shutil, struct, subprocess, sys, time, urllib.request, zlib
+import ctypes, json, os, platform, shutil, struct, subprocess, sys, time, urllib.request, zlib
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bench as b
@@ -269,7 +269,13 @@ def find(name):
 
 try:
     if install(FROM):
-        shutil.rmtree(Path(os.environ["APPDATA"]) / "Oriel", ignore_errors=True)
+        data = Path(os.environ["APPDATA"]) / "Oriel"
+        shutil.rmtree(data, ignore_errors=True)
+        # From 0.1.4 a first launch offers to be the default browser on the
+        # plate the update's popup uses, and the popup waits behind it: the
+        # offer counted as made (browser.offered, settings/browser.ts).
+        data.mkdir(parents=True, exist_ok=True)
+        (data / "prefs.json").write_text(json.dumps({"browser.offered": True}))
         subprocess.Popen([str(EXE)], env=clean_env(), cwd=str(INSTALL))
         t.ok(wait(lambda: oriels(), 30), f"Oriel {FROM} opens again")
         got = wait(lambda: (lambda p: p if any(TO in n for n in p) and "update-info.json" in p else None)(pending()), 300, 2)
