@@ -15,8 +15,6 @@ addDefaults({
   'search.shiftCustom': '',
   'search.keywords': [],
   'search.suggest': false,
-  // Sites searched with Tab, each off until turned on (not the Mac's default).
-  'search.sites': [],
   commandbar: false,
   'newtab.floating': false,
   'field.window': false,
@@ -163,6 +161,19 @@ export function keywordProblem(word: string, template: string, list = keywords()
   return null
 }
 
+/** Once, after prefs.json is read: the ready-made sites an earlier Oriel let
+ * you turn on (`search.sites`) are dropped, and a shortcut its Settings saved
+ * without https:// (never followed by the field) gets it, so every shortcut
+ * made before keeps working (studio/03 §1.10). */
+function tidyOldPrefs(): void {
+  if (model.prefs['search.sites'] !== undefined) model.setPref('search.sites', undefined)
+  const mended = (k: Keyword) => !keywordAccepts(k.template) && keywordAccepts(written(k.template))
+  const list = keywords()
+  if (list.some(mended)) model.setPref('search.keywords', list.map(k => (mended(k) ? { ...k, template: written(k.template) } : k)))
+}
+// After the model has read prefs.json (index.ts loads it in its own whenReady).
+app.whenReady().then(() => setImmediate(tidyOldPrefs))
+
 // searching a site (SiteSearch.swift)
 
 export interface SearchSite { name: string; host: string; template: string; aliases?: string[] }
@@ -185,7 +196,8 @@ function amazonHost(): string {
 }
 
 let made: SearchSite[] | null = null
-/** Built in, as on the Mac (SiteSearch.swift:34-55). */
+/** Built in, as on the Mac (SiteSearch.swift:34-55). Never offered in the
+ * field for now; only read to show a history page as the search it was. */
 export function builtInSites(): SearchSite[] {
   if (made) return made
   const amazon = amazonHost()
@@ -210,18 +222,11 @@ export function builtInSites(): SearchSite[] {
   return made
 }
 
-/** The built-in sites turned on in Settings › Browsing › Site shortcuts.
- * Unlike the Mac (always on), none is until the user turns it on: typing a
- * site's name offers nothing special before then (the user's decision). */
-export function enabledSites(): SearchSite[] {
-  const on = model.pref<unknown>('search.sites')
-  const names = new Set(Array.isArray(on) ? on.filter((n): n is string => typeof n === 'string') : [])
-  return builtInSites().filter(s => names.has(s.name))
-}
-
-/** The site the words begin the name of (SiteSearch.match), among the sites
- * turned on and the site shortcuts. Learned sites (OpenSearch) are P1 and
- * not here yet; `visits` weighs a tie. */
+/** The site the words begin the name of (SiteSearch.match), among the
+ * user's own site shortcuts only: no ready-made site is offered for now (the
+ * owner's decision; the Mac's built-in ones stay out, and Oriel's old
+ * `search.sites` is dropped by tidyOldPrefs). Learned sites (OpenSearch) are P1
+ * and not here yet; `visits` weighs a tie. */
 export function siteMatch(typed: string, visits: (sites: SearchSite[]) => Record<string, number> = () => ({}), list = keywords()): SearchSite | null {
   const word = typed.toLowerCase().split(/\s+/).filter(Boolean).join(' ')
   if (word.length < 2 || word.includes('/')) return null
@@ -238,7 +243,6 @@ export function siteMatch(typed: string, visits: (sites: SearchSite[]) => Record
     if (!fits.length) return
     found.push({ site, length: Math.min(...fits.map(f => f.length)), whole: fits.includes(word), builtIn: true })
   }
-  enabledSites().forEach(consider)
   for (const k of list) {
     if (!keywordAccepts(k.template)) continue
     const key = k.keyword.trim().toLowerCase()

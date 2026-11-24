@@ -78,6 +78,9 @@ export const removed: Record<string, string> = {
   'extensions.safariApps': 'Safari apps are the Mac\'s',
   'extensions.sites': 'Chromium in Electron runs content scripts as the manifest says, with no site access to change at runtime yet',
   'inlinePredictions': 'Chromium has no inline predictions',
+  // The field module: Tab searches only the user's own site shortcuts, no
+  // ready-made site for now, so "type red, then Tab" isn't so.
+  'note.sitesearch': 'no ready-made sites for now (the owner\'s decision)',
   // The pages module (studio/08 area C):
   'swipe.history': 'Windows tells an app no start or end of a touchpad swipe',
   'agents': 'no bridge for coding agents yet (studio/03 §8.2): back with it',
@@ -136,13 +139,6 @@ const overrides: Record<string, Partial<Item>> = {
   'spaces': { more: 'Each space can be signed in where the others are or start afresh.' },
   'spaces.commandNumbers': { more: "The two sets of keys swap places. A space's key you changed in Keyboard & Mouse › Shortcuts stays as you set it." },
   'field.window': { more: 'As Arc and Zen place it: the column is dimmed with the page. Off, the field is centred on the page beside the column.' },
-  // Searching a site with Tab: each site off until turned on here (the
-  // user's choice for Oriel; on the Mac it is always on). Field module.
-  'search.keywords': {
-    detail: 'Turn a site on, then type its name and press Tab to search it. Or a word of your own: "yt cats"',
-    more: 'Until a site is on, typing its name offers nothing more than any other words. Hover the site in the field to take it out, or press Backspace there.',
-  },
-  'note.sitesearch': { detail: 'One site at a time, as you turn them on in Site shortcuts: type red, then Tab, and search Reddit' },
   // Translate Page on Windows: Bergamot and Mozilla's models, on the PC
   // (translate module). Several languages for the right-click menu where
   // the Mac has one.
@@ -186,7 +182,7 @@ export const items: Item[] = (raw.items as Item[])
     const o = overrides[i.id] ?? {}
     const adapted: Item = {
       ...i,
-      title: o.title ?? (i.id === 'search.engine' || i.id === 'note.sitesearch' ? keep(i.title) : windowsText(i.title)),
+      title: o.title ?? (i.id === 'search.engine' ? keep(i.title) : windowsText(i.title)),
       detail: o.detail ?? windowsText(i.detail),
       ...(i.more || o.more ? { more: o.more ?? windowsText(i.more!) } : {}),
       ...(o.keys ? { keys: o.keys } : {}),
