@@ -136,7 +136,13 @@ time.sleep(0.3)
 got = where()
 t.ok(got and got[0] == "band" and not got[1] and got[2] == 26, f"on: up in the band, on the helm's middle, the foot gone ({got})")
 many_ext = {**ext, "list": [{**ext["list"][0], "id": f"e{i}", "name": f"E{i}"} for i in range(3)]}
+# Pinned extensions give way up there (SideFoot.room) and don't keep the doors
+# down (keptWidth, Side.swift:1768-1777); a column too narrow for the doors that stay does.
 k.fake({**sp, "ext": many_ext, "prefs": {**sp["prefs"], "sidebar.doorsUp": True}}, look="light")
+time.sleep(0.3)
+t.ok(where() and where()[0] == "band" and k.js("return document.querySelectorAll('.sidebar .band .ext-button').length") == 0,
+     f"pinned extensions don't keep them down: up, the pinned ones giving way ({where()})")
+k.fake({**sp, "sidebar": {**sp["sidebar"], "width": 200}, "ext": many_ext, "prefs": {**sp["prefs"], "sidebar.doorsUp": True}}, look="light")
 time.sleep(0.3)
 t.ok(where() and where()[0] == "foot", f"too many to fit beside the helm: they stay at the foot ({where()})")
 

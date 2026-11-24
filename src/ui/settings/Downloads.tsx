@@ -150,9 +150,14 @@ export function DownloadsFloat() {
   )
 }
 
-/** The button at the column's foot: a ring that fills while files come in,
- * swelling as one starts (Fetching.swift FetchDoor). */
-export function DownloadsDoor() {
+/** The downloads button (Fetching.swift:658-773 FetchDoor): at the column's
+ * foot, or at the end of the tab strip before the extensions. There while a
+ * file comes in and 5 s after the last is in, while one stopped or failed is
+ * listed, with Always show the downloads button, or while its list hangs.
+ * At rest arrow.down.circle (12 medium); coming in, a ring of 12 (1.5, the
+ * track at 30%) that fills, or turns while no size is known; everything in,
+ * arrow.down (10 semibold) until it goes. It swells as a download starts. */
+export function DownloadsDoor(p: { where?: 'foot' | 'strip' }) {
   const s = () => state.settings
   const [swell, setSwell] = createSignal(false)
   createEffect(on(() => s()?.downloadsStarted ?? 0, (n, prior) => {
@@ -160,17 +165,20 @@ export function DownloadsDoor() {
     setSwell(false); requestAnimationFrame(() => setSwell(true)); setTimeout(() => setSwell(false), 450)
   }))
   const progress = () => s()?.downloadsProgress ?? -1
+  const done = () => !!s()?.downloadsDone
+  const R = 5.25, C = 2 * Math.PI * R
   return (
     <Show when={s()?.downloadsButton}>
-      <button class="door fetch-door" classList={{ swell: swell() }} title="Downloads   Ctrl+J" aria-label="Downloads"
+      <button class="door fetch-door" classList={{ swell: swell(), done: done(), coming: progress() !== -1 }} title="Downloads   Ctrl+J" aria-label="Downloads" data-where={p.where}
         onClick={e => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); void cmd({ do: 'downloads.show', toggle: true, anchor: { x: r.left + r.width / 2, y: r.top } }) }}>
-        <Show when={progress() !== -1} fallback={<Symbol name="arrow.down.circle" size={12} weight="medium" />}>
-          <svg class="fetch-ring" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
-            <circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="1.5" />
-            <circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" transform="rotate(-90 8 8)"
-              stroke-dasharray={`${(progress() ?? 0.25) * 40.2} 40.2`} class={progress() === null ? 'spin' : undefined} />
-            <path d="M8 5.2v5M6 8.4l2 2 2-2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
+        <Show when={!done()} fallback={<span class="fetch-done"><Symbol name="arrow.down" size={10} weight="semibold" /></span>}>
+          <Show when={progress() !== -1} fallback={<Symbol name="arrow.down.circle" size={12} weight="medium" />}>
+            <svg class="fetch-ring" classList={{ spin: progress() === null }} width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+              <circle cx="6" cy="6" r={R} fill="none" stroke="currentColor" stroke-opacity=".3" stroke-width="1.5" />
+              <circle class="fetch-fill" cx="6" cy="6" r={R} fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" transform="rotate(-90 6 6)"
+                stroke-dasharray={`${(progress() === null ? 0.78 : Math.max(0.02, progress()!)) * C} ${C}`} />
+            </svg>
+          </Show>
         </Show>
       </button>
     </Show>

@@ -30,7 +30,7 @@ Elenco generato il 24 novembre 2026: chiavi delle Impostazioni (`src/ui/settings
 | tablook | `helm.forward.hidden` | Back, forward and reload | fatto (come sopra) |
 | tablook | `helm.reload.hidden` | Back, forward and reload | fatto (come sopra) |
 | tablook | `foot.extensions.hidden` | Buttons under the column | fatto: il puzzle diventa largo 0 e trasparente, resta l'aggancio dei popup, i fissati restano; prova settings_a_tabs.py |
-| tablook | `foot.bookmarks.hidden` | Buttons under the column | da fare: non c'è ancora il pulsante dei preferiti nel piede |
+| tablook | `foot.bookmarks.hidden` | Buttons under the column | fatto: il pulsante dei preferiti (piede, in alto accanto alle porte, fondo della striscia) sparisce; prova ui_topright.py |
 | tablook | `foot.profile.hidden` | Buttons under the column | da fare: non ci sono ancora i profili |
 | tablook | `sidebar.player` | What's playing in other tabs | fatto: la scheda più recente che suona fuori vista, con pausa e riprendi (Player.swift); prova settings_a_tabs.py |
 | tablook | `tabs.pinCounts` | Show counts on pins | fatto: il numero in testa al titolo, rosso sull'angolo dell'icona, niente se dorme; prova settings_a_tabs.py |

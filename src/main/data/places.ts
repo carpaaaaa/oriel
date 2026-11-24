@@ -73,7 +73,7 @@ provideData({
 // bookmark commands (05 §3.2)
 
 const lastFolderKey = 'bookmarks.lastFolder.bookmarks.json'
-function lastFolder(): string | null {
+export function lastFolder(): string | null {
   const id = getMeta<string>(lastFolderKey)
   return id && bookmarks().bookmark(id) && isFolder(bookmarks().bookmark(id)!) ? id : null
 }

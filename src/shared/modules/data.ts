@@ -2,7 +2,7 @@
 // history, passwords, bringing things over from another browser (studio/05).
 // Owned by the data module.
 
-import type { ID } from '../state'
+import type { ID, Rect } from '../state'
 
 /** The app's name where the interface says it. TODO(brand): brand.name from
  * src/shared/brand.ts once main is merged. */
@@ -105,12 +105,60 @@ export interface ImportPanelState {
   clearFile?: string | null
 }
 
+/** One line of the bookmark button's list (BookmarkOutline.Shown): a site or
+ * a folder at its depth, or the "Empty" under an open folder holding nothing. */
+export interface BookmarkLine {
+  id: string
+  depth: number
+  title: string
+  url?: string
+  folder: boolean
+  open: boolean
+  /** Sites in a folder, folders inside counted through. */
+  count: number
+  /** The site's icon (a data: URL), or null for its letter. */
+  icon: string | null
+  letter: string
+  /** No name: it reads as its address, a shade lighter. */
+  unnamed: boolean
+  empty?: boolean
+}
+
+/** The card for one bookmark, as ⇧⌘B opens it off the button (BookmarkCard). */
+export interface BookmarkCardView {
+  id: string
+  title: string
+  /** What the lists read when the name is emptied: its address. */
+  placeholder: string
+  folder: string | null
+  folderName: string
+  folders: { id: string; title: string; depth: number }[]
+}
+
+/** What hangs off the bookmark button (BookmarkDoor's popover): the list, or
+ * the card. `rect` and `arrow` in window coordinates; the overlay is the
+ * card's rect grown by `room` on every side. */
+export interface BookmarksPopover {
+  rect: Rect
+  arrow: { side: 'top' | 'bottom' | 'left' | 'right'; at: number }
+  room: number
+  lines: BookmarkLine[]
+  listHeight: number
+  /** The page in front is kept: Edit This Bookmark… instead of Add This Page. */
+  kept: boolean
+  /** The page in front can be kept (a web page). */
+  keepable: boolean
+  card: BookmarkCardView | null
+}
+
 export interface DataState {
   /** The page in front is one of the bookmarks. */
   bookmarked: boolean
   fill: FillList | null
   save: SaveQuestion | null
   import: ImportPanelState | null
+  /** The bookmark button's list or card, open in this window. */
+  popover?: BookmarksPopover | null
 }
 
 declare module '../commands' {
@@ -126,6 +174,18 @@ declare module '../commands' {
     'bookmark.rename': { id: ID; title: string }
     'bookmark.folder': { title: string; parent?: ID | null }
     'bookmark.list': { query?: string }
+    /** The bookmark button (BookmarkDoor, Browser.toggleBookmarks): its
+     * list, opened or closed; `anchor` is the button in window coordinates. */
+    'bookmark.popover': { anchor: Rect }
+    'bookmark.popoverClose': None
+    /** A folder opened or closed in the button's list. */
+    'bookmark.popoverFold': { id: ID }
+    /** A bookmark picked in the list (Browser.pickBookmark): in the empty tab
+     * in front or a new one in front; `newTab` behind, the list staying. */
+    'bookmark.pick': { url: string; newTab?: boolean }
+    /** ⇧⌘B, Add This Page, Edit This Bookmark… (Browser.bookmarkCurrent):
+     * the page kept and the card off the button, or its card if kept. */
+    'bookmarks.add': None
     // history (studio/05 §3.5)
     'history.list': { query?: string }
     'history.forget': { url: string }

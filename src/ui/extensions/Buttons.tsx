@@ -8,11 +8,13 @@ import { For, Show } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import { Puzzle } from '../lib/icons'
 import { ExtIcon, Badge, rectOf } from './parts'
+import { doorsUp, upRoom } from '../sidebar/Foot'
 
 export function Buttons(p: { where: 'foot' | 'strip' }) {
   const ext = () => state.ext
   const here = () => (p.where === 'foot' ? state.sidebar.layout !== 'top' : state.sidebar.layout === 'top')
-  const room = () => (p.where === 'foot' ? (state.sidebar.icons ? 0 : 3) : 8)
+  // Up beside back, forward and reload, only as many as fit (SideFoot.room).
+  const room = () => (p.where === 'foot' ? (state.sidebar.icons ? 0 : doorsUp() ? Math.min(3, upRoom()) : 3) : 8)
   const pinned = () => (ext()?.list ?? []).filter(e => e.enabled && e.pinned && e.action).slice(0, room())
   let puzzle!: HTMLButtonElement
   return (
