@@ -30,7 +30,10 @@ jobs:
     steps:
       # The runners' winget is old (1.11 on x64, none on ARM) and doesn't know
       # the manifest schema winget-pkgs uses now: the latest one, as people have.
+      # On Windows Server (x64) the update can fail; 1.11 then reads the
+      # manifests with a warning about the schema and installs from them.
       - name: WinGet, latest
+        continue-on-error: true
         shell: pwsh
         run: |
           Install-PSResource -Name Microsoft.WinGet.Client -TrustRepository -Quiet
@@ -46,18 +49,54 @@ jobs:
         run: |
           New-Item -ItemType Directory manifests | Out-Null
           foreach ($f in 'CharStudio.Oriel.yaml', 'CharStudio.Oriel.installer.yaml', 'CharStudio.Oriel.locale.en-US.yaml') {
-            Invoke-WebRequest "https://raw.githubusercontent.com/carpaaaaa/winget-pkgs/${{ inputs.branch }}/manifests/c/CharStudio/Oriel/${{ inputs.version }}/$f" -OutFile "manifests/$f"
+            Invoke-WebRequest "https://raw.githubusercontent.com/carpaaaaa/winget-pkgs/${{ inputs.branch }}/manifests/c/CharStudio/Oriel/${{ inputs.version }}/$f" -OutFile "manifests/$f" -MaximumRetryCount 5 -RetryIntervalSec 5
           }
       - name: Validate
-        run: winget validate --manifest manifests
+        shell: pwsh
+        run: |
+          $out = winget validate --manifest manifests | Out-String
+          $out
+          if ($out -notmatch 'Manifest validation succeeded') { exit 1 }
+          exit 0
+      # On this test machine only. The installer isn't code-signed, so
+      # SmartScreen holds it at "Windows protected your PC" (More info, Run
+      # anyway), which on a runner nobody can click: winget sat at "Starting
+      # package install..." with CHXSmartScreen open. People installing with
+      # winget see the same question as from the website, until Oriel is signed.
+      # Then, with SmartScreen off, winget's own window "Open File - Security
+      # Warning" (unknown publisher), because winget marks the file as
+      # downloaded: the Attachment Manager is told not to keep that mark here.
+      - name: SmartScreen and the download mark off (test machine only)
+        shell: pwsh
+        run: |
+          New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' -Force | Out-Null
+          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' -Name EnableSmartScreen -Value 0 -Type DWord
+          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer' -Name SmartScreenEnabled -Value 'Off'
+          New-Item -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments' -Force | Out-Null
+          Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments' -Name SaveZoneInformation -Value 1 -Type DWord
+          New-Item -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Associations' -Force | Out-Null
+          Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Associations' -Name LowRiskFileTypes -Value '.exe'
       - name: Install
-        run: winget install --manifest manifests --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+        timeout-minutes: 8
+        shell: pwsh
+        run: |
+          $p = Start-Process winget -ArgumentList 'install', '--manifest', 'manifests', '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity', '--verbose-logs' -PassThru -NoNewWindow
+          if (-not $p.WaitForExit(240000)) {
+            'Still installing after 4 minutes. Windows open:'
+            Get-Process | Where-Object { $_.MainWindowTitle } | Format-Table ProcessName, Id, MainWindowTitle -AutoSize
+            Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'Oriel|Setup|winget|^ns|Un_' } | Format-Table Name, ProcessId, ParentProcessId, CommandLine -AutoSize -Wrap
+            exit 1
+          }
+          exit $p.ExitCode
       - name: What the installer wrote
         shell: pwsh
         run: |
           Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
             Where-Object { $_.DisplayName -like 'Oriel*' } |
             Select-Object PSChildName, DisplayName, DisplayVersion, Publisher, InstallLocation, QuietUninstallString | Format-List
+          'Offered to Windows as a browser:'
+          Get-ItemProperty 'HKCU:\Software\RegisteredApplications' -ErrorAction SilentlyContinue | Select-Object Oriel | Format-List
+          Get-ItemProperty 'HKCU:\Software\Clients\StartMenuInternet\Oriel\Capabilities\URLAssociations' -ErrorAction SilentlyContinue | Select-Object http, https, mailto | Format-List
           $exe = Join-Path $env:LOCALAPPDATA 'Programs\Oriel\Oriel.exe'
           if (-not (Test-Path $exe)) { throw "Oriel.exe isn't at $exe" }
           (Get-Item $exe).VersionInfo | Format-List FileVersion, ProductVersion, CompanyName, ProductName
@@ -69,7 +108,21 @@ jobs:
       - name: Gone
         shell: pwsh
         run: |
+          # NSIS's uninstaller runs from a copy in Temp (Un_A.exe) and goes on
+          # after winget has its answer: wait for it to finish first.
+          Wait-Process -Name Un_A -Timeout 120 -ErrorAction SilentlyContinue
           if (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\Oriel\Oriel.exe')) { throw 'Oriel.exe is still there' }
           $left = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Oriel*' }
           if ($left) { throw 'The Apps & features entry is still there' }
           'Uninstalled cleanly'
+      - name: What was running, if it stalled
+        if: failure() || cancelled()
+        shell: pwsh
+        run: Get-Process | Where-Object { $_.ProcessName -match 'Oriel|winget|AppInstaller|Setup|Un_A|nsis|smartscreen|consent' } | Format-Table ProcessName, Id, StartTime, Path -AutoSize
+      - name: winget's logs
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: winget-logs-${{ matrix.os }}
+          path: ~\AppData\Local\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\DiagOutputDir\
+          if-no-files-found: ignore
