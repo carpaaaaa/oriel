@@ -1,0 +1,37 @@
+/* The sign and its menu (studio/03 §6.3, Translate.swift TranslateSign,
+   TranslateMenu): the sign at the size of the helm's doors, muted at 75%,
+   40% while working; the menu 270 wide, heading 11 medium muted, rows 12.5
+   on a wash that rounds 8, a hairline, then the 10.5 line in faint. */
+
+.tr-sign { color: var(--muted); opacity: .75; }
+.tr-sign.working { opacity: .4; }
+.tr-sign.failed { opacity: .9; }
+.tr-sign:hover { opacity: 1; color: var(--ink); }
+.tr-sign.strip { -webkit-app-region: no-drag; }
+
+.tr-region { position: fixed; inset: 0; outline: none; }
+.tr-card {
+  position: absolute; left: 14px; top: 14px; width: 270px; box-sizing: border-box; outline: none;
+  background: var(--ground); border-radius: var(--menu-radius);
+  box-shadow: 0 0 0 .5px var(--card-edge), var(--list-shadow);
+  font-family: var(--font-ui); animation: tr-in var(--dur-quick) var(--ease-quick);
+}
+@keyframes tr-in { from { opacity: 0; transform: translateY(-3px); } }
+.tr-heading { padding: 11px 16px 3px; font-size: 11px; font-weight: 500; color: var(--muted); line-height: 1.35; }
+.tr-heading.alone { padding-bottom: 11px; }
+.tr-items { padding: 6px; display: flex; flex-direction: column; gap: 1px; }
+.tr-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 10px; border-radius: 8px;
+  font: inherit; font-size: 12.5px; color: var(--ink); text-align: left;
+  transition: background-color var(--dur-quick) var(--ease-quick);
+}
+.tr-item svg { color: var(--muted); flex: none; }
+.tr-item:hover { background: var(--wash); }
+.tr-rule { height: 1px; background: var(--hairline); }
+.tr-foot { padding: 8px 16px; font-size: 10.5px; color: var(--muted); }
+
+/* Settings: the languages, three to a line under the row's words. */
+.tr-langs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 14px; padding: 2px 0 4px; font-size: 12.5px; }
+.tr-lang { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ink); }
+.tr-lang span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-lang input { margin: 0; flex: none; }
