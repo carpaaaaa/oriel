@@ -1,0 +1,75 @@
+name: winget
+
+# Tries Oriel's winget package on real Windows (x64 and ARM) before it goes to
+# microsoft/winget-pkgs: validates the manifests, installs from them silently,
+# shows what the installer wrote in the registry (where the ProductCode and the
+# Apps & features entry come from), then uninstalls. The manifests are read
+# from a branch of carpaaaaa/winget-pkgs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch of carpaaaaa/winget-pkgs with the manifests
+        required: true
+      version:
+        description: Oriel version in the manifests
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  manifest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      # The runners' winget is old (1.11 on x64, none on ARM) and doesn't know
+      # the manifest schema winget-pkgs uses now: the latest one, as people have.
+      - name: WinGet, latest
+        shell: pwsh
+        run: |
+          Install-PSResource -Name Microsoft.WinGet.Client -TrustRepository -Quiet
+          Import-Module Microsoft.WinGet.Client
+          Repair-WinGetPackageManager -AllUsers -Latest -Force
+      - name: WinGet, ready
+        shell: pwsh
+        run: |
+          winget --version
+          winget settings --enable LocalManifestFiles
+      - name: Manifests
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory manifests | Out-Null
+          foreach ($f in 'CharStudio.Oriel.yaml', 'CharStudio.Oriel.installer.yaml', 'CharStudio.Oriel.locale.en-US.yaml') {
+            Invoke-WebRequest "https://raw.githubusercontent.com/carpaaaaa/winget-pkgs/${{ inputs.branch }}/manifests/c/CharStudio/Oriel/${{ inputs.version }}/$f" -OutFile "manifests/$f"
+          }
+      - name: Validate
+        run: winget validate --manifest manifests
+      - name: Install
+        run: winget install --manifest manifests --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+      - name: What the installer wrote
+        shell: pwsh
+        run: |
+          Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like 'Oriel*' } |
+            Select-Object PSChildName, DisplayName, DisplayVersion, Publisher, InstallLocation, QuietUninstallString | Format-List
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Oriel\Oriel.exe'
+          if (-not (Test-Path $exe)) { throw "Oriel.exe isn't at $exe" }
+          (Get-Item $exe).VersionInfo | Format-List FileVersion, ProductVersion, CompanyName, ProductName
+      - name: What winget lists
+        continue-on-error: true
+        run: winget list --name Oriel --accept-source-agreements --disable-interactivity
+      - name: Uninstall
+        run: winget uninstall --manifest manifests --silent --disable-interactivity
+      - name: Gone
+        shell: pwsh
+        run: |
+          if (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\Oriel\Oriel.exe')) { throw 'Oriel.exe is still there' }
+          $left = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Oriel*' }
+          if ($left) { throw 'The Apps & features entry is still there' }
+          'Uninstalled cleanly'
