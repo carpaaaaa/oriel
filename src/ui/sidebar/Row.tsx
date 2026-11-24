@@ -72,7 +72,7 @@ function RestLine(p: { tab: TabView }) {
     <Show when={rest()}>{r => (
       <span class="rest">
         <Show when={r().kind === 'notSecure'}><span class="rest-dim">Not secure  </span></Show>
-        <Show when={r().lead}><span class="rest-lead">{r().lead}</span></Show>
+        <Show when={r().lead}><span class="rest-lead"><bdi>{r().lead}</bdi></span></Show>
         <span class="rest-name" classList={{ plain: r().kind === 'file' || r().kind === 'other' }}>{r().name}</span>
         <Show when={r().tail}><span class="rest-dim">{r().tail}</span></Show>
       </span>
