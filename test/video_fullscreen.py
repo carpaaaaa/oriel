@@ -366,6 +366,34 @@ try:
                 b.cmd("window.maximize", window=WID)  # the button again: restore
                 settle(lambda: frame()["state"] == "free", 4)
 
+    # What floats over the page (the password question at the page's top
+    # right) follows the window into a maximize and full screen and back:
+    # it went off the screen's left, or out of the window.
+    answer({"do": "window.place", "visual": True, "window": WID, **P})
+    time.sleep(0.4)
+    focus()
+    f = frame()
+    W, H = f["bounds"]["width"], f["bounds"]["height"]
+    q = {"x": W - 12 - 300, "y": 12, "width": 300, "height": 90}
+    b.cmd("overlay.region", window=WID, rect=q, focus=False)
+    for how in ("maximized", "fullScreen", "free"):
+        if how == "maximized":
+            b.cmd("window.maximize", window=WID)
+        elif how == "fullScreen":
+            b.cmd("window.fullScreen", window=WID, on=True)
+        else:
+            b.cmd("window.fullScreen", window=WID, on=False)
+            settle(lambda: frame()["state"] == "maximized", 4)
+            b.cmd("window.maximize", window=WID)
+        settle(lambda: frame()["state"] == how, 5)
+        time.sleep(0.6)
+        g = frame()
+        r = answer({"do": "window.edges", "window": WID})["region"]
+        w2 = g["bounds"]["width"]
+        t.ok(r and abs((w2 - r["x"] - r["width"]) - 12) <= 2 and abs(r["y"] - 12) <= 2 and r["x"] >= 0,
+             f"{how}: the question keeps its place at the top right ({r}, window {w2} wide)")
+    b.cmd("overlay.region", window=WID, rect=None, focus=False)
+
     # YouTube itself, to look at: f for full screen, Escape out.
     try:
         setting("tabs.layout", "top")

@@ -3,7 +3,8 @@
 // Mac's, with this PC, Windows and the app's name where the Mac says this
 // Mac, macOS or the keychain.
 
-import { For, Show } from 'solid-js'
+import { G } from '../sidebar/glyphs'
+import { For, Show, onCleanup, onMount } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import { Dropdown } from '../lib/Dropdown'
 import { appName, type ImportPanelState, type ImportPreview, type ImportSourceView } from '../../shared/modules/data'
@@ -161,6 +162,10 @@ function Options(props: { s: ImportPanelState; v: ImportSourceView }) {
 
 export function ImportPanel() {
   const s = () => state.data?.import ?? null
+  // Escape is Done, as on the Mac's plate ("Done   esc"); a list open in it takes its own first.
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented && s()) { e.preventDefault(); void cmd({ do: 'import.close' }) } }
+  onMount(() => window.addEventListener('keydown', onKey))
+  onCleanup(() => window.removeEventListener('keydown', onKey))
   const picked = () => s()?.sources.find(v => v.id === s()?.pick) ?? null
   const canBring = () => {
     const panel = s(), v = picked()
@@ -177,7 +182,7 @@ export function ImportPanel() {
           <div class="bt-plate bt-import" role="dialog" aria-label="Bring things over">
             <div class="bt-plate-head">
               <div class="bt-plate-title">Bring things over</div>
-              <button class="bt-plate-close" aria-label="Close" onClick={() => void cmd({ do: 'import.close' })}>×</button>
+              <button class="bt-plate-close" title="Done   Esc" aria-label="Close" onClick={() => void cmd({ do: 'import.close' })}><G.xmark pt={11} weight="medium" /></button>
             </div>
             <div class="bt-plate-body">
               <p class="bt-muted">Nothing in the other browser changes. Passwords go into {appName}, sealed by Windows.</p>
