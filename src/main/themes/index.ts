@@ -80,10 +80,11 @@ function choosePicked(source: string | null): { path: string } | null {
 
 handle('themes.choose', async (_a, ctx) => choosePicked(await chooseFile(ctx)))
 
+// Remove: the copy goes and the Image theme goes back to its starting
+// picture (on the Mac, with no starting picture, the wall went Off).
 handle('themes.forget', () => {
   forget(pref<string>('home.theme.image'))
   setKey('home.theme.image', '')
-  if (pref<string>('home.theme') === 'custom') setKey('home.theme', 'off')
   return null
 })
 

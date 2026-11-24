@@ -41,3 +41,7 @@ The full list of what ships inside the app, with each license, is in `THIRD_PART
 ## Data
 
 The Public Suffix List, by Mozilla and contributors, through tldts (MPL-2.0).
+
+## Pictures
+
+The Image theme's starting picture (`src/ui/themes/assets/default-image.jpg`, the blue silhouette) is the project's own: generated with AI, with a glass filter by the author of this port. It ships with Oriel under the project's license.

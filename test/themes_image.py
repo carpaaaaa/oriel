@@ -3,8 +3,10 @@
 forget, choose; ThemesPage.swift image): a picture chosen (the Open dialog's
 answer given by the bench, never a dialog on screen) is copied into Oriel's
 Theme folder, one at a time, fills the blank tab's card as the Mac's aspect
-fill does, stays after a restart, blends with Intensity; Remove deletes the
-copy and gives the plain tab back; a picture that can't be read is Off."""
+fill does, stays after a restart, blends with Intensity. Until one is
+chosen the Image theme shows its starting picture (the project's own,
+CREDITS.md), and Remove deletes the copy and goes back to it; a chosen
+picture that can't be read is Off, as on the Mac."""
 import json
 import sys
 import time
@@ -25,17 +27,31 @@ k.look("light")
 prefs = lambda: b.state()["prefs"]
 tuning = lambda: json.loads(prefs().get("home.tuning") or "{}")
 
-# 1. The family with no picture yet: on show, not on the wall.
+START = [2560, 1657]
+PICTURE = """(() => { const w = document.querySelector('.empty-page > .blank-wall'); const c = w && w.querySelector('canvas.picture');
+  return w ? [w.dataset.picture, c ? c.width : 0, c ? c.height : 0] : null })()"""
+
+# 1. The family with no picture chosen: the starting picture, at once.
 tab = k.open_themes()
 k.family(tab, "Image")
-time.sleep(0.4)
-t.ok(prefs().get("home.theme", "off") == "off", "Image with no picture leaves the wall as it was (Off)")
-none = k.ev(tab, "(() => { const f = document.querySelector('.th-image-frame'); const r = f.getBoundingClientRect(); return [r.width, r.height, getComputedStyle(f).borderTopLeftRadius, !!f.querySelector('.th-image-none svg')] })()")
-t.ok(none == [176, 114, "8px", True], f"176 × 114 at radius 8, the photo on wash ({none})")
+b.wait_for(lambda: prefs().get("home.theme") == "custom", what="custom")
+t.ok(not prefs().get("home.theme.image"), "Image with no picture chosen puts the starting one on the wall")
+frame = b.wait_for(lambda: k.ev(tab, "(() => { const f = document.querySelector('.th-image-frame'); const c = f.querySelector('canvas.picture'); const r = f.getBoundingClientRect(); return c ? [r.width, r.height, getComputedStyle(f).borderTopLeftRadius, c.width, c.height] : null })()"), what="starting thumbnail")
+t.ok(frame == [176, 114, "8px", *START], f"its thumbnail 176 × 114 at radius 8 shows it ({frame})")
 pills = k.ev(tab, "[...document.querySelectorAll('.th-image-side .pill-st')].map(p => p.textContent)")
-t.ok(pills == ["Choose Image…"], f"only Choose Image… ({pills})")
+t.ok(pills == ["Choose Image…"], f"Choose Image… to change it, nothing to remove ({pills})")
 t.ok(k.ev(tab, "document.querySelector('.th-image-side .th-small').textContent") == "A copy is kept inside Oriel.", "A copy is kept inside Oriel.")
-t.ok(not k.ev(tab, "!!document.querySelector('.th-sliders')"), "no sliders until there is a picture")
+t.ok(k.ev(tab, "[...document.querySelectorAll('.th-slider-title')].map(s => s.textContent)") == ["Intensity"], "Intensity, as for any picture")
+k.blank_tab()
+pic = b.wait_for(lambda: b.ui(PICTURE) if (b.ui(PICTURE) or [None, 0])[1] else None, what="starting picture on the blank tab")
+w = k.wall()
+t.ok(pic == ["default", *START] and w["shown"] == "custom" and w["fit"] == "cover" and w["breath"] == "none",
+     f"the blank tab shows the starting picture, filling the card, no breath ({pic}, {w['shown']}, {w['breath']})")
+k.shot("image-start-light")
+k.look("dark")
+k.shot("image-start-dark")
+k.look("light")
+tab = k.open_themes()
 
 # 2. Choose Image…: the dialog's answer is copied into the Theme folder.
 b.call({"do": "themes.answer", "file": str(first)})
@@ -53,8 +69,8 @@ t.ok(k.ev(tab, "[...document.querySelectorAll('.th-slider-title')].map(s => s.te
 k.blank_tab()
 w = b.wait_for(lambda: (lambda w: w if w["shown"] == "custom" else None)(k.wall()), what="picture on the blank tab")
 t.ok(w["breath"] == "none" and w["fit"] == "cover", f"the picture fills the card, no breath ({w})")
-pic = b.ui("(() => { const c = document.querySelector('.blank-wall canvas.picture'); return [c.width, c.height] })()")
-t.ok(pic == [300, 200], f"decoded at its own size ({pic})")
+pic = b.wait_for(lambda: (lambda p: p if p and p[0] == "chosen" and p[1] == 300 else None)(b.ui(PICTURE)), what="the chosen picture")
+t.ok(pic == ["chosen", 300, 200], f"the chosen picture, not the starting one, decoded at its own size ({pic})")
 px = k.canvas_pixels([[0.25, 0.5], [0.75, 0.5]], ".blank-wall canvas.picture")
 t.ok(k.near(px[0], RED, 1) and k.near(px[1], BLUE, 1), f"its pixels as they are ({px})")
 card = b.ui("(() => { const r = document.querySelector('.card').getBoundingClientRect(); return [r.left, r.top, r.width, r.height] })()")
@@ -100,17 +116,27 @@ t.ok(prefs().get("home.theme.image") == kept and b.ui("document.querySelector('.
 Path(kept).rename(kept + ".gone")
 b.cmd("settings.set", id="home.theme.image", value=kept + ".missing")
 w = b.wait_for(lambda: (lambda w: w if w["shown"] == "off" else None)(k.wall()), what="unreadable is off")
-t.ok(w["breath"] != "none", f"an unreadable picture shows as Off, the breath back ({w})")
+t.ok(w["breath"] not in ("none", "gone"), f"an unreadable picture shows as Off, the breath back ({w})")
 Path(kept + ".gone").rename(kept)
 b.cmd("settings.set", id="home.theme.image", value=kept)
 b.wait_for(lambda: k.wall()["shown"] == "custom", what="readable again")
 
-# 8. Remove: the copy goes, and the wall with it.
+# 8. Remove: the copy goes, and the starting picture comes back.
 tab = k.open_themes()
 k.ev(tab, "[...document.querySelectorAll('.th-image-side .pill-st')].find(p => p.textContent === 'Remove').click()")
-b.wait_for(lambda: prefs().get("home.theme", "off") == "off" and not prefs().get("home.theme.image"), what="removed")
+b.wait_for(lambda: not prefs().get("home.theme.image"), what="removed")
 t.ok(not Path(kept).exists() and b.call({"do": "themes.folder"})["files"] == [], "Remove deletes the kept copy")
+t.ok(prefs().get("home.theme") == "custom", "the Image theme stays")
+t.ok(k.ev(tab, "[...document.querySelectorAll('.th-image-side .pill-st')].map(p => p.textContent)") == ["Choose Image…"], "nothing left to remove")
+k.blank_tab()
+pic = b.wait_for(lambda: (lambda p: p if p and p[0] == "default" and p[1] else None)(b.ui(PICTURE)), what="starting picture again")
+t.ok(pic == ["default", *START], f"the blank tab shows the starting picture again ({pic})")
+
+# 9. Off: the plain tab and its breath back.
+tab = k.open_themes()
+k.family(tab, "Off")
+b.wait_for(lambda: prefs().get("home.theme", "off") == "off", what="off")
 k.blank_tab()
 w = b.wait_for(lambda: (lambda w: w if w["shown"] == "none" else None)(k.wall()), what="plain")
-t.ok(w["breath"] != "none", "and the blank tab is plain again, breathing")
+t.ok(w["breath"] not in ("none", "gone"), "Off: the blank tab is plain again, breathing")
 t.done()

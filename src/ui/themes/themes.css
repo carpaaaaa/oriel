@@ -10,7 +10,7 @@
 /* on the blank tab: the card's own corners; the breath stops over a theme
    (Omnibox.swift UnlessThemed: "the wall moves the eye already") */
 .empty-page:has(> .blank-wall) { border-radius: inherit; }
-.empty-page:has(> .blank-wall:not([data-shown="off"])) .field .breath { display: none; }
+.empty-page:has(> .blank-wall:not([data-shown="off"])) .field-breath { display: none; }
 
 /* the door to Settings: the column's door (26, radius 8, muted, ink 70% on
    the hover grey), 14 in from the card's bottom right corner */
