@@ -18,6 +18,7 @@ interface PagePrefs {
   standIn: string
   gpc: boolean
   mediaClick: boolean
+  escapeTwice: boolean
   autoscroll: boolean
   optionSplit: boolean
   /** off | shift | optionShift | optionCommand */
@@ -51,6 +52,42 @@ function start(first: PagePrefs): void {
         } catch {}
       },
       args: [first.gpc],
+    })
+  } catch {}
+
+  // Videos wait for a click: a page's own play() is refused without one,
+  // as WebKit refuses it (NotAllowedError), from this page's start.
+  if (first.mediaClick) {
+    try {
+      contextBridge.executeInMainWorld({
+        func: () => {
+          const play = HTMLMediaElement.prototype.play
+          const freed = new WeakSet<HTMLMediaElement>()
+          Object.defineProperty(HTMLMediaElement.prototype, 'play', {
+            value: ({ play(this: HTMLMediaElement) {
+              if (freed.has(this) || navigator.userActivation?.isActive) { freed.add(this); return Reflect.apply(play, this, []) }
+              return Promise.reject(new DOMException('play() can only be initiated by a user gesture.', 'NotAllowedError'))
+            } }).play,
+            writable: true, enumerable: true, configurable: true,
+          })
+        },
+      })
+    } catch {}
+  }
+  // A page leaving full screen by its own hand says so first (Esc twice
+  // puts back only what an Escape took).
+  try {
+    contextBridge.executeInMainWorld({
+      func: () => {
+        for (const name of ['exitFullscreen', 'webkitExitFullscreen', 'webkitCancelFullScreen'] as const) {
+          const f = (Document.prototype as unknown as Record<string, unknown>)[name]
+          if (typeof f !== 'function') continue
+          Object.defineProperty(Document.prototype, name, {
+            value: { [name](this: Document, ...a: unknown[]) { document.dispatchEvent(new Event('__oriel_fs_own')); return Reflect.apply(f, this, a) } }[name],
+            writable: true, enumerable: true, configurable: true,
+          })
+        }
+      },
     })
   } catch {}
 
@@ -138,6 +175,16 @@ function start(first: PagePrefs): void {
   }, true)
 
   autoScroll(() => now.autoscroll)
+
+  // The element that filled the screen, to put back after an Escape.
+  let full: WeakRef<Element> | null = null
+  document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement) full = new WeakRef(document.fullscreenElement) }, true)
+  document.addEventListener('__oriel_fs_own', () => { if (now.escapeTwice) { try { ipcRenderer.sendSync('pages:fs-own') } catch {} } }, true)
+  ;(globalThis as unknown as { __orielFullAgain: () => Promise<boolean> | boolean }).__orielFullAgain = () => {
+    const el = full?.deref()
+    if (!el || !el.isConnected) return false
+    return el.requestFullscreen().then(() => true, () => false)
+  }
 
   // Esc's reminder over a full screen (FullScreenEscape.ReminderView).
   let pill: HTMLElement | null = null

@@ -18,6 +18,7 @@ export interface PagePrefs {
   standIn: string
   gpc: boolean
   mediaClick: boolean
+  escapeTwice: boolean
   autoscroll: boolean
   optionSplit: boolean
   peek: string
@@ -37,6 +38,7 @@ export function pagePrefs(wc: WebContents, address: string): PagePrefs | null {
     standIn: standInPattern,
     gpc: gpcFor(wc),
     mediaClick: !!pref<boolean>('media.click'),
+    escapeTwice: !!pref<boolean>('fullscreen.escapeTwice'),
     autoscroll: !!pref<boolean>('autoscroll'),
     optionSplit: !!pref<boolean>('links.optionSplit'),
     peek: peekChoice(),
@@ -69,7 +71,7 @@ export function retell(): void {
   }
 }
 
-const watched = ['shield', 'shield.paused', 'media.click', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'pages.bounce', 'sites.styles', 'privacy.gpc']
+const watched = ['shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'pages.bounce', 'sites.styles', 'privacy.gpc']
 let last = ''
 let timer: NodeJS.Timeout | null = null
 model.on('window-changed', (_id: string, slices: string[]) => {
