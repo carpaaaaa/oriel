@@ -6,7 +6,7 @@
 // gradient washes the chrome.
 
 import './sidebar.css'
-import { batch, createEffect, createMemo, createSignal, For, Match, on, onCleanup, onMount, Show, Switch, untrack } from 'solid-js'
+import { createEffect, createMemo, createSignal, For, Match, on, onCleanup, onMount, Show, Switch, untrack } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import { outlet } from '../lib/registry'
 import { Dynamic } from 'solid-js/web'
@@ -20,7 +20,7 @@ import { Foot, footDoors, spaceStep } from './Foot'
 import { PlayerRow } from './Player'
 import { Tiles } from './Tiles'
 import { wash, grain } from './look'
-import { Chase, Springs, leave, arrive, swipe, reducedMotion, type Box } from './motion'
+import { Chase, Springs, leave, stay, arrive, swipe, reducedMotion, keepLeaving, quietOn, type Box } from './motion'
 import { carry, shifted, dropMark, rowGhost, wireMenuPicks, activeTab } from './ui'
 import { setColumn } from './drag'
 import { TabBar } from '../tabbar/TabBar'
@@ -106,38 +106,35 @@ export function Column() {
   const L = createMemo(() => layout())
   const byKey = createMemo(() => new Map(L().items.map(i => [i.key, i])))
 
-  // lines going: kept a moment where they were, fading (settle)
-  const [ghosts, setGhosts] = createSignal<Map<string, Item>>(new Map())
+  // Lines going stay where they were, the same element, fading on settle
+  // under the lines closing up (Side.swift:2290, :425); lines coming scale in.
+  // Another space's lines come in at once, with the slide (Side.swift:412).
   const [arrivals, setArrivals] = createSignal(false)
   const [still, setStill] = createSignal(true)
   let seenSpace = state.space
-  let lastKeys = new Set<string>()
-  let lastItems = new Map<string, Item>()
+  const roster = keepLeaving(() => L().items, i => i.key, quietOn(() => !arrivals()))
 
-  createEffect(on(L, l => {
-    const keys = new Set(l.items.map(i => i.key))
-    const items = new Map(l.items.map(i => [i.key, i]))
+  createEffect(on(L, () => {
     queueMicrotask(() => {
       const switched = state.space !== seenSpace
       seenSpace = state.space
       if (switched) {
-        batch(() => { setGhosts(new Map()); setStill(true) })
+        setStill(true)
         requestAnimationFrame(() => requestAnimationFrame(() => setStill(false)))
         slideIn()
-      } else if (arrivals()) {
-        const gone = [...lastKeys].filter(k => !keys.has(k) && lastItems.get(k)?.kind !== 'wash')
-        if (gone.length) setGhosts(g => { const m = new Map(g); for (const k of gone) m.set(k, lastItems.get(k)!); return m })
-        const back = [...ghosts().keys()].filter(k => keys.has(k))
-        if (back.length) setGhosts(g => { const m = new Map(g); for (const k of back) m.delete(k); return m })
       }
-      lastKeys = keys
-      lastItems = items
     })
   }))
   onMount(() => { requestAnimationFrame(() => { setStill(false); setArrivals(true) }) })
 
-  const keys = createMemo(() => [...L().items.map(i => i.key), ...[...ghosts().keys()].filter(k => !byKey().has(k))])
-  const itemOf = (key: string) => byKey().get(key) ?? ghosts().get(key)
+  const keys = roster.keys
+  const itemOf = (key: string) => roster.item(key)
+
+  // The rows' height going down follows the lines up on settle, so the last
+  // ones aren't cut off by the scroller shrinking at once; going up it is
+  // there at once, for what comes in below.
+  let lastHeight = 0
+  const shrinking = createMemo(() => { const h = L().height; const s = h < lastHeight; lastHeight = h; return s })
 
   // the space's rows sliding in, the way the spaces went (§7.18, §7.21)
   let stopSlide = () => {}
@@ -320,12 +317,12 @@ export function Column() {
         <For each={outlet('sidebar.afterPins')}>{c => <Dynamic component={c} />}</For>
         <Show when={!icons()}>
           <div class="rows" ref={scroller} onDblClick={e => { if (e.target === scroller) void cmd({ do: 'tab.new' }) }}>
-            <div class="rows-content" ref={content} classList={{ still: still() }} style={{ height: `${rowsHeight()}px` }}>
-              <For each={keys()}>{key => <Line key={key} item={itemOf(key)} leaving={!byKey().has(key)} arrivals={arrivals()} gliding={gliding()}
-                done={() => setGhosts(g => { const m = new Map(g); m.delete(key); return m })} />}</For>
+            <div class="rows-content" ref={content} classList={{ still: still(), shrinking: shrinking() }} style={{ height: `${rowsHeight()}px` }}>
+              <For each={keys()}>{key => <Line key={key} item={itemOf(key)} leaving={roster.leaving(key)} fresh={roster.fresh(key)} gliding={gliding()}
+                done={() => roster.done(key)} />}</For>
               <Show when={rowGhost()}>{g => {
                 const t = () => state.tabs.find(x => x.id === g().tab)
-                return <Show when={t()}><div class="line ghost-line" style={{ transform: `translateY(${g().block}px)`, height: `${L().items[0]?.h ?? 28}px` }}><RowGhost tab={t()!} /></div></Show>
+                return <Show when={t()}><div class="line ghost-line" style={{ translate: `0 ${g().block}px`, height: `${L().items[0]?.h ?? 28}px` }}><RowGhost tab={t()!} /></div></Show>
               }}</Show>
             </div>
           </div>
@@ -343,7 +340,7 @@ export function Column() {
 }
 
 /** One line of the rows, at its place. */
-function Line(p: { key: string; item: Item | undefined; leaving: boolean; arrivals: boolean; gliding: string | null; done: () => void }) {
+function Line(p: { key: string; item: Item | undefined; leaving: boolean; fresh: boolean; gliding: string | null; done: () => void }) {
   let el!: HTMLDivElement
   const c = () => carry()
   const carried = () => c()?.key === p.key
@@ -352,18 +349,25 @@ function Line(p: { key: string; item: Item | undefined; leaving: boolean; arriva
     const s = shifted()[p.key]
     return s ?? p.item?.y ?? 0
   }
+  // A row or a folder scales from 0.94 at its leading edge as it fades
+  // (Side.swift:2290); a group's heading and wash, the keep line, only fade
+  // (their stacks carry SwiftUI's default opacity transition, Side.swift:1344).
+  const scale = () => (p.item?.kind === 'row' || p.item?.kind === 'folder' ? 0.94 : 1)
   onMount(() => {
-    const it = p.item
-    queueMicrotask(() => { if (p.arrivals && !p.leaving && it && it.kind !== 'wash' && untrack(() => !carry())) arrive(el, it.kind === 'row' ? 0.94 : 0.94) })
+    if (!p.fresh || p.leaving || untrack(() => !!carry())) return
+    const s = scale()
+    queueMicrotask(() => arrive(el, s))
   })
-  createEffect(on(() => p.leaving, l => { if (l) leave(el, 0.94, p.done) }))
+  createEffect(on(() => !!p.leaving, (l, was) => { if (l === !!was) return; if (l) leave(el, scale(), p.done); else stay(el) }))
   const mark = () => dropMark()?.key === p.key ? dropMark() : null
   return (
     <Show when={p.item}>{it => (
       <div ref={el} class="line" data-key={p.key} data-kind={it().kind}
         data-ghost-tab={p.leaving && it().kind === 'row' ? (it() as Extract<Item, { kind: 'row' }>).tab.id : undefined}
         classList={{ carried: carried(), faded: carried() && !!c()?.faded, leaving: p.leaving, wash: it().kind === 'wash', gliding: it().kind === 'row' && p.gliding === (it() as Extract<Item, { kind: 'row' }>).tab.id }}
-        style={{ transform: `translateY(${y()}px)`, height: `${it().h}px`, left: `${it().x}px`, right: `${it().r}px` }}>
+        // Placed by `translate`, not `transform`: `scale` (coming, going) is
+        // applied inside it, so it shrinks the line where it stands.
+        style={{ translate: `0 ${y()}px`, height: `${it().h}px`, left: `${it().x}px`, right: `${it().r}px` }}>
         <Switch>
           <Match when={it().kind === 'row' && (it() as Extract<Item, { kind: 'row' }>)}>{r => <Row tab={r().tab} grouped={!!r().group} pinned={!!r().pinned} />}</Match>
           <Match when={it().kind === 'group' && (it() as Extract<Item, { kind: 'group' }>)}>{g => <GroupHeading group={g().group} />}</Match>

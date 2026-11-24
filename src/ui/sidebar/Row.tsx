@@ -13,6 +13,7 @@ import { editing, setEditing, reading } from './ui'
 import { openMenu } from '../menus/open'
 import { tabMenu } from '../menus/build'
 import { press } from './drag'
+import { fadeBack } from './motion'
 import { TabField } from '../field/TabField'
 
 /** Icons asked of the data module, once per address. */
@@ -95,7 +96,8 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
   const isEditing = () => editing()?.kind === 'tab' && editing()?.id === t().id
   // Its address typed in the row itself (the field module's TabField).
   const addressing = () => state.tabEdit?.id === t().id
-  const rest = () => (live() && !isEditing() && !addressing() ? restOf(t()) : null)
+  // Kept while the address is typed: the title fades as it was (below).
+  const rest = () => (live() && !isEditing() ? restOf(t()) : null)
   let wasLive = false
 
   // The site comes in over the title as the tab becomes the one you're on.
@@ -136,11 +138,16 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
 
   const close = () => { if (closable()) void cmd({ do: 'tab.close', id: t().id }) }
 
+  // The address coming in on glide (Side.swift:2283): the mark and the title
+  // fade where they stood as the field fades in over them; given back, they
+  // fade in again.
+  createEffect(on(addressing, (a, was) => { if (!a && was) fadeBack(el, '.body > .mark, .body > .titles') }))
+
   return (
     <div ref={el} class="row" data-tab={t().id}
       classList={{
         live: live(), picked: picked(t().id), status: status() && !addressing(), closable: closable() && !isEditing() && !addressing(),
-        dim: dim(), 'put-away': putAway(), editing: isEditing() || addressing(), 'at-rest': !!rest(), empty: t().empty,
+        dim: dim(), 'put-away': putAway(), editing: isEditing() || addressing(), addressing: addressing(), 'at-rest': !!rest(), empty: t().empty,
       }}
       onPointerDown={onDown}
       onClick={onClick}
@@ -153,17 +160,16 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
         </Show>
       </div>
       <div class="body">
-        <Show when={!t().empty && !addressing()}><Mark tab={{ ...t(), label: label(t()) }} size={markSize()} dim={putAway() || dim()} /></Show>
+        <Show when={!t().empty}><Mark tab={{ ...t(), label: label(t()) }} size={markSize()} dim={putAway() || dim()} /></Show>
         <Show when={t().shy}><G.eyeSlash pt={9} class="sign" /></Show>
         <Show when={t().capturing}><G.record pt={10} class="sign rec" /></Show>
-        <Show when={isEditing()} fallback={
-          <Show when={addressing()} fallback={
-            <span class="titles">
-              <span class="title">{label(t())}</span>
-              <Show when={rest()}><RestLine tab={t()} /></Show>
-            </span>
-          }><TabField /></Show>
-        }>
+        <Show when={isEditing()} fallback={<>
+          <span class="titles" style={addressing() ? { left: `${18 + markSize()}px` } : undefined}>
+            <span class="title">{label(t())}</span>
+            <Show when={rest()}><RestLine tab={t()} /></Show>
+          </span>
+          <Show when={addressing()}><TabField /></Show>
+        </>}>
           <RenameField initial={t().name || label(t())} done={name => { if (name !== null) void cmd({ do: 'tab.rename', id: t().id, name: name || null }); setEditing(null) }} />
         </Show>
         {/* Ctrl held: the number Ctrl+1-9 gives it (Side.swift:2181), 28 from the end */}

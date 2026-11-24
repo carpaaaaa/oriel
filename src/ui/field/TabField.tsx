@@ -7,6 +7,7 @@
 import { createEffect, For, on, onCleanup, onMount } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import { OfferRow, shake } from './Field'
+import { curve, Springs } from '../sidebar/motion'
 
 export function TabField() {
   let input!: HTMLInputElement
@@ -22,6 +23,9 @@ export function TabField() {
   }
 
   onMount(() => {
+    // In over the tab's title, on glide (TabBar.swift:1072, Side.swift:2283).
+    const { duration, easing } = curve(Springs.glide)
+    if (duration) input.animate([{ opacity: 0 }, { opacity: 1 }], { duration, easing })
     input.value = e()?.shown ?? ''
     input.focus()
     input.select()

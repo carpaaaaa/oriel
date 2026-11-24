@@ -8,7 +8,7 @@
 // back, forward and reload. The live tab's grey glides.
 
 import './tabbar.css'
-import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js'
+import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show, untrack } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
 import { state, cmd } from '../lib/store'
 import { outlet } from '../lib/registry'
@@ -18,13 +18,85 @@ import { P, label, monogram, pinOf, picked, pref, restOf } from '../sidebar/deri
 import { Mark } from '../sidebar/Row'
 import { SpaceDot, SpaceButtons } from '../sidebar/Foot'
 import { Wash, groupColour } from '../sidebar/Sidebar'
-import { Chase, Springs, type Box } from '../sidebar/motion'
+import { Chase, Springs, curve, keepLeaving, quietOn, stay, fadeBack, type Box } from '../sidebar/motion'
 import { openMenu } from '../menus/open'
 import { tabMenu, groupMenu } from '../menus/build'
 import { activeTab } from '../sidebar/ui'
 import { TabField } from '../field/TabField'
 
 const TAB = 186, MIN = 36, TITLED = 104, PIN = 30, PLUS = 30, HOLD = 40, GAP = 2
+
+/** What comes into the strip or goes from it, started together once the row
+ * has its new widths (TabBar.swift:1081, :338): a tab scales from 0.9 at its
+ * leading edge as it fades, where it stands, while the rest move and widen
+ * on settle. The row is laid out by flex, so the room a tab takes or gives
+ * back is its right margin, eased on the same curve as the widths: every
+ * edge in the row then moves on settle. A tab coming or going is held where
+ * it is drawn at the end (coming) or at the start (going) against the tabs
+ * before it moving, as SwiftUI draws an inserted or removed view at its own
+ * frame. */
+class StripMotion {
+  row: HTMLElement | null = null
+  private queued = false
+  private jobs = new Map<HTMLElement, { kind: 'enter' | 'leave'; scale: number; done?: () => void }>()
+
+  add(el: HTMLElement, kind: 'enter' | 'leave', scale: number, done?: () => void): void {
+    this.jobs.set(el, { kind, scale, done })
+    if (!this.queued) { this.queued = true; queueMicrotask(() => this.run()) }
+  }
+
+  private run(): void {
+    this.queued = false
+    const jobs = this.jobs
+    this.jobs = new Map()
+    // The tokens' settle, the very curve the widths take in CSS (app.css), so
+    // margins and widths add up to the same edge every frame.
+    const root = getComputedStyle(document.documentElement)
+    const ms = root.getPropertyValue('--dur-settle').trim()
+    const duration = ms.endsWith('ms') ? parseFloat(ms) : parseFloat(ms) * 1000 || 0
+    const easing = root.getPropertyValue('--ease-settle').trim() || curve(Springs.settle).easing
+    const row = this.row
+    if (!row || !duration) { for (const j of jobs.values()) j.done?.(); return }
+    const gap = parseFloat(getComputedStyle(row).columnGap) || GAP
+    const els = [...row.querySelectorAll<HTMLElement>('.strip-pin, .strip-tab, .strip-group')]
+    // How much room each one takes in the row changes from now to the end.
+    const change = new Map<HTMLElement, number>()
+    const plan = new Map<HTMLElement, { m0: number; m1: number }>()
+    for (const el of els) {
+      const cs = getComputedStyle(el)
+      const w = parseFloat(cs.width) || 0, m = parseFloat(cs.marginRight) || 0
+      const job = jobs.get(el)
+      if (job?.kind === 'leave') { const m1 = -(w + gap); plan.set(el, { m0: m, m1 }); change.set(el, m1 - m) }
+      else if (job?.kind === 'enter') { const m0 = m - (w + gap); plan.set(el, { m0, m1: m }); change.set(el, m - m0) }
+      else {
+        // A width on its way (its transition has only begun), a margin on its way.
+        let d = !el.classList.contains('strip-group') && el.style.width ? parseFloat(el.style.width) - w : 0
+        if (el.dataset.marginTo) d += parseFloat(el.dataset.marginTo) - m
+        change.set(el, d)
+      }
+    }
+    for (const [el, job] of jobs) {
+      const p = plan.get(el)
+      if (!p) { job.done?.(); continue }
+      let shift = 0
+      for (const o of els) {
+        if (o === el) break
+        if (!o.contains(el)) shift += change.get(o) ?? 0
+      }
+      el.style.transformOrigin = 'left center'
+      el.dataset.marginTo = String(p.m1)
+      const scale = String(job.scale)
+      const a = job.kind === 'leave'
+        ? el.animate([{ marginRight: `${p.m0}px`, translate: '0px', scale: '1', opacity: 1 },
+          { marginRight: `${p.m1}px`, translate: `${-shift}px`, scale, opacity: 0 }], { duration, easing, fill: 'forwards' })
+        : el.animate([{ marginRight: `${p.m0}px`, translate: `${shift}px`, scale, opacity: 0 },
+          { marginRight: `${p.m1}px`, translate: '0px', scale: '1', opacity: 1 }], { duration, easing })
+      const end = () => { delete el.dataset.marginTo; job.done?.() }
+      a.onfinish = end
+      a.oncancel = end
+    }
+  }
+}
 
 /** A group's name, measured as 12.5 medium (GroupHeading.width). */
 const measure = (() => {
@@ -50,6 +122,7 @@ export function TabBar() {
   const [farW, setFarW] = createSignal(0)
   const [nearW, setNearW] = createSignal(0)
   const [inside, setInside] = createSignal(false)
+  const motion = new StripMotion()
   // Back, forward and reload on the left (toolbar.left, on by default here;
   // studio/01 §4.3, §4.4): after the room of the window's buttons (12 on
   // Windows, theirs is at the far end), before the tabs; off, at the far end.
@@ -59,7 +132,14 @@ export function TabBar() {
   onMount(() => {
     // The strip's own width: the window drawn by Oriel is narrower than the
     // view by its clear margin (window/frame.ts ROOM).
-    const read = () => { setWidth(bar.clientWidth); setFarW(far.offsetWidth); nearNow() }
+    // The window resized: the tabs follow it at once, not on settle.
+    let resting = 0
+    const read = () => {
+      bar.classList.add('resizing')
+      clearTimeout(resting)
+      resting = window.setTimeout(() => bar.classList.remove('resizing'), 200)
+      setWidth(bar.clientWidth); setFarW(far.offsetWidth); nearNow()
+    }
     const ro = new ResizeObserver(read)
     ro.observe(bar)
     ro.observe(far)
@@ -67,7 +147,7 @@ export function TabBar() {
     // delivers no ResizeObserver, and the tabs were sized for the view.
     read()
     createEffect(on(onLeft, () => queueMicrotask(() => { if (near?.isConnected) ro.observe(near); read() })))
-    onCleanup(() => ro.disconnect())
+    onCleanup(() => { ro.disconnect(); clearTimeout(resting) })
   })
 
   const pins = () => state.tabs.filter(t => t.pinID)
@@ -89,12 +169,42 @@ export function TabBar() {
     return Math.max(MIN, Math.min(TAB, (room - spend) / Math.max(1, shown)))
   })
   const titled = () => each() >= TITLED
+  // The room a tab's address may take (TabBar.swift:468: strip − lights − leading − 12).
+  const fieldRoom = () => width() - controls() - lights() - (onLeft() ? nearW() : 0) - 12
+
+  // The tab whose address is typed in it kept in sight as it widens: the run
+  // follows its far edge frame by frame rather than leaving it cut off past
+  // the strip's end when the tabs fill the row (TabBar.swift reveal).
+  createEffect(on(() => state.tabEdit?.id, id => {
+    if (!id) return
+    queueMicrotask(() => {
+      const el = row?.querySelector<HTMLElement>(`.strip-tab[data-tab="${id}"]`)
+      if (!el) return
+      const until = performance.now() + curve(Springs.glide).duration + 150
+      const follow = () => {
+        if (!el.isConnected || state.tabEdit?.id !== id) return
+        const r = el.getBoundingClientRect(), v = row.getBoundingClientRect()
+        if (r.right > v.right + 0.5) row.scrollLeft += r.right - v.right
+        else if (r.left < v.left - 0.5) row.scrollLeft -= v.left - r.left
+        if (performance.now() < until) requestAnimationFrame(follow)
+      }
+      requestAnimationFrame(follow)
+    })
+  }, { defer: true }))
+
+  // Tabs, pins and groups that come and go (TabBar.swift:1081): kept where
+  // they were while they go; another space's come in at once (:331).
+  let ready = false
+  onMount(() => requestAnimationFrame(() => { ready = true }))
+  const pinRoster = keepLeaving(pins, t => t.id, quietOn(() => !ready))
+  const groupRoster = keepLeaving(groups, x => x.g.id, quietOn(() => !ready))
+  const looseRoster = keepLeaving(loose, t => t.id, quietOn(() => !ready))
 
   // the grey that glides between tabs (§4.9)
   const [gliding, setGliding] = createSignal<string | null>(null)
   let chase: Chase | null = null
   const rectOf = (id: string): Box | null => {
-    const el = row?.querySelector<HTMLElement>(`[data-tab="${id}"]`)
+    const el = row?.querySelector<HTMLElement>(`[data-tab="${id}"]`) ?? row?.querySelector<HTMLElement>(`[data-ghost-tab="${id}"]`)
     if (!el) return null
     const b = row.getBoundingClientRect(), r = el.getBoundingClientRect()
     return { x: r.left - b.left + row.scrollLeft, y: r.top - b.top, w: r.width, h: r.height }
@@ -144,12 +254,21 @@ export function TabBar() {
         <div class="strip-lights" style={{ width: `${lights()}px` }} />
         <Show when={onLeft()}><div ref={near} class="strip-near"><Helm /></div></Show>
         <Show when={dot()}><SpaceDot /></Show>
-        <div ref={row} class="strip-row">
+        <div ref={el => { row = el; motion.row = el }} class="strip-row">
           <div ref={pillEl} class="strip-pill" classList={{ on: !!gliding() }} />
-          <For each={pins()}>{t => <StripPin tab={t} gliding={gliding() === t.id} />}</For>
+          <For each={pinRoster.keys()}>{k => (
+            <Show when={pinRoster.item(k)}>{t => <StripPin tab={t()} gliding={gliding() === k} motion={motion}
+              fresh={pinRoster.fresh(k)} leaving={pinRoster.leaving(k)} done={() => pinRoster.done(k)} />}</Show>
+          )}</For>
           <Show when={pins().length && (groups().length || loose().length)}><span class="pin-line" /></Show>
-          <For each={groups()}>{x => <StripGroup group={x.g} tabs={x.tabs} each={each()} titled={titled()} gliding={gliding()} />}</For>
-          <For each={loose()}>{t => <StripTab tab={t} width={each()} titled={titled()} gliding={gliding() === t.id} />}</For>
+          <For each={groupRoster.keys()}>{k => (
+            <Show when={groupRoster.item(k)}>{x => <StripGroup group={x().g} tabs={x().tabs} each={each()} titled={titled()} gliding={gliding()} motion={motion} room={fieldRoom()}
+              fresh={groupRoster.fresh(k)} leaving={groupRoster.leaving(k)} done={() => groupRoster.done(k)} />}</Show>
+          )}</For>
+          <For each={looseRoster.keys()}>{k => (
+            <Show when={looseRoster.item(k)}>{t => <StripTab tab={t()} width={each()} titled={titled()} gliding={gliding() === k} motion={motion} room={fieldRoom()}
+              fresh={looseRoster.fresh(k)} leaving={looseRoster.leaving(k)} done={() => looseRoster.done(k)} />}</Show>
+          )}</For>
           <button class="strip-plus" classList={{ shown: inside() }} title="New Tab   Ctrl+T" onClick={() => void cmd({ do: 'tab.blank' })}>
             <G.plus pt={10} weight="medium" />
           </button>
@@ -179,29 +298,59 @@ function press(t: TabView) {
   }
 }
 
-function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: boolean; grouped?: boolean }) {
+interface Coming { motion?: StripMotion; fresh?: boolean; leaving?: boolean; done?: () => void }
+
+/** Its arrival on mount, its leaving when it starts (StripMotion). */
+function comeAndGo(el: () => HTMLElement, p: Coming, scale: number): void {
+  onMount(() => { if (p.fresh && p.motion) p.motion.add(el(), 'enter', scale) })
+  createEffect(on(() => !!p.leaving, (l, was) => {
+    if (l === !!was) return
+    if (!l) { stay(el()); return }
+    if (p.motion) p.motion.add(el(), 'leave', scale, p.done); else p.done?.()
+  }))
+}
+
+/** A value held as it was once leaving: a tab going keeps its width. */
+function held<T>(leaving: () => boolean, value: () => T): () => T {
+  return createMemo<T | undefined>(prev => (leaving() && prev !== undefined ? prev : value()), undefined) as () => T
+}
+
+function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: boolean; grouped?: boolean; room?: number } & Coming) {
+  let el!: HTMLDivElement
   const t = () => p.tab
   const live = () => t().id === state.activeID
   const rest = () => (live() ? restOf(t()) : null)
   const speaker = () => !t().loading && (t().audible || t().muted)
-  // Its address typed in the tab itself, which widens to 340 (TabBar.swift:643).
+  // Its address typed in the tab itself, which widens to 340 but never past
+  // the strip's room (TabBar.swift:991 `min(340, room)`), on glide (:337,
+  // :1072): the rest move aside on it rather than jump; its mark and title
+  // fade where they stood as the field fades in.
   const addressing = () => state.tabEdit?.id === t().id
+  const width = held(() => !!p.leaving, () => (addressing() ? Math.min(340, p.room ?? 340) : p.width))
+  const titled = held(() => !!p.leaving, () => p.titled)
+  let wasAddressing = untrack(addressing)
+  const glides = createMemo(() => { void p.width; const a = addressing(); const g = a !== wasAddressing; wasAddressing = a; return g })
+  comeAndGo(() => el, p, 0.9)
+  createEffect(on(addressing, (a, was) => { if (!a && was) fadeBack(el, ':scope > .mark, :scope > .strip-title') }))
   return (
-    <div class="strip-tab" data-tab={t().id} style={{ width: `${addressing() ? Math.max(p.width, 340) : p.width}px` }}
-      classList={{ live: live(), titled: p.titled, picked: picked(t().id), gliding: p.gliding, 'put-away': !!p.grouped && t().asleep && !live(), loading: t().loading }}
-      title={p.titled ? undefined : label(t())}
+    <div ref={el} class="strip-tab" data-tab={p.leaving ? undefined : t().id} data-ghost-tab={p.leaving ? t().id : undefined}
+      style={{ width: `${width()}px`, transition: glides() ? 'width var(--dur-glide) var(--ease-glide)' : undefined }}
+      classList={{ live: live() && !p.leaving, titled: titled() || addressing(), addressing: addressing(), picked: picked(t().id), gliding: p.gliding, 'put-away': !!p.grouped && t().asleep && !live(), loading: t().loading, leaving: !!p.leaving }}
+      title={titled() ? undefined : label(t())}
       onPointerDown={press(t())}
       onAuxClick={e => { if (e.button === 1) void cmd({ do: 'tab.close', id: t().id }) }}
       onMouseDown={e => { if (e.button === 1) e.preventDefault() }}
       onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(tabMenu(t()), { x: e.clientX, y: e.clientY }, `tab:${t().id}`) }}>
       <div class="ground" />
-      <Show when={!t().empty && !addressing()}><Mark tab={{ ...t(), label: label(t()) }} size={15} /></Show>
+      <Show when={!t().empty}><Mark tab={{ ...t(), label: label(t()) }} size={15} /></Show>
       <Show when={addressing()}><TabField /></Show>
-      <Show when={p.titled && !addressing()}>
+      <Show when={titled()}>
         <span class="strip-title">
           <span class="title">{label(t())}</span>
           <Show when={rest()}>{r => <span class="rest"><span class="rest-name">{r().name}</span></span>}</Show>
         </span>
+      </Show>
+      <Show when={titled() && !addressing()}>
         <Show when={speaker()}>
           <button class="speaker" title={t().muted ? 'Unmute Tab' : 'Mute Tab'} onClick={e => { e.stopPropagation(); void cmd({ do: 'tab.mute', id: t().id, muted: !t().muted }) }}>
             {t().muted ? <G.speakerSlash pt={8} /> : <G.speaker pt={8} />}
@@ -209,7 +358,7 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
         </Show>
         <span class="strip-slot"><Show when={t().loading}><Ring /></Show></span>
       </Show>
-      <Show when={(p.titled || live()) && !addressing()}>
+      <Show when={(titled() || live()) && !addressing()}>
         <button class="strip-x" title={p.grouped && !t().asleep ? 'Put Away' : 'Close Tab'} onPointerDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); void cmd({ do: 'tab.close', id: t().id }) }}>
           <span class="disc">{p.grouped ? <G.minus pt={8} weight="semibold" /> : <G.xmark pt={8} weight="semibold" />}</span>
@@ -219,11 +368,14 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
   )
 }
 
-function StripPin(p: { tab: TabView; gliding: boolean }) {
+function StripPin(p: { tab: TabView; gliding: boolean } & Coming) {
+  let el!: HTMLDivElement
   const t = () => p.tab
   const pin = () => pinOf(t())
+  comeAndGo(() => el, p, 0.9)
   return (
-    <div class="strip-pin" data-tab={t().id} classList={{ live: t().id === state.activeID, asleep: t().asleep, gliding: p.gliding, picked: picked(t().id) }}
+    <div ref={el} class="strip-pin" data-tab={p.leaving ? undefined : t().id} data-ghost-tab={p.leaving ? t().id : undefined}
+      classList={{ live: t().id === state.activeID && !p.leaving, asleep: t().asleep, gliding: p.gliding, picked: picked(t().id), leaving: !!p.leaving }}
       title={label(t())} onPointerDown={press(t())}
       onDblClick={() => { if (t().id === state.activeID && pin()) void cmd({ do: 'pin.home', id: pin()!.id }) }}
       onAuxClick={e => { if (e.button === 1) void cmd({ do: 'tab.close', id: t().id }) }}
@@ -240,16 +392,25 @@ function StripPin(p: { tab: TabView; gliding: boolean }) {
 
 /** A group across the top (GroupBand, §6.49): its name, then a band of its
  * colour (or the pins' grey) from the name to its last tab; 10 after it. */
-function StripGroup(p: { group: GroupView; tabs: TabView[]; each: number; titled: boolean; gliding: string | null }) {
+function StripGroup(p: { group: GroupView; tabs: TabView[]; each: number; titled: boolean; gliding: string | null; room?: number } & Coming) {
+  let el!: HTMLDivElement
   const shown = () => (p.group.folded ? p.tabs.filter(t => t.id === state.activeID) : p.tabs)
+  const each = held(() => !!p.leaving, () => p.each)
+  const titled = held(() => !!p.leaving, () => p.titled)
+  // A group comes and goes as a whole on SwiftUI's default, a fade (TabGroups.swift:323).
+  comeAndGo(() => el, p, 1)
+  const tabs = keepLeaving(shown, t => t.id, quietOn(() => !!p.leaving))
   return (
-    <div class="strip-group" classList={{ open: !p.group.folded }} style={{ '--band': p.group.colour ? groupColour(p.group.colour) : 'var(--g-tile)' }}>
+    <div ref={el} class="strip-group" classList={{ open: !p.group.folded, leaving: !!p.leaving }} style={{ '--band': p.group.colour ? groupColour(p.group.colour) : 'var(--g-tile)' }}>
       <div class="strip-group-name" style={{ width: `${measure(p.group.name) + 20}px` }}
         onClick={() => void cmd({ do: 'group.fold', id: p.group.id })}
         onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(groupMenu(p.group.id), { x: e.clientX, y: e.clientY }, `group:${p.group.id}`) }}>
         {p.group.name}
       </div>
-      <For each={shown()}>{t => <StripTab tab={t} width={p.each} titled={p.titled} gliding={p.gliding === t.id} grouped />}</For>
+      <For each={tabs.keys()}>{k => (
+        <Show when={tabs.item(k)}>{t => <StripTab tab={t()} width={each()} titled={titled()} gliding={p.gliding === k} grouped motion={p.motion} room={p.room}
+          fresh={tabs.fresh(k)} leaving={tabs.leaving(k)} done={() => tabs.done(k)} />}</Show>
+      )}</For>
     </div>
   )
 }
