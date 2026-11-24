@@ -10,6 +10,8 @@ import bench as b
 b.use("field-suggest")
 b.launch()
 t = b.T()
+# Sites searched with Tab are off until turned on (Oriel, not the Mac): on, for these checks.
+b.cmd("prefs.set", key="search.sites", value=["Google", "Reddit", "YouTube", "X", "ChatGPT", "Claude", "Perplexity", "Wikipedia", "GitHub", "Stack Overflow", "MDN", "Amazon", "Google Maps", "IMDb", "Spotify", "Figma Community"])
 
 H, BM, KNOWN = "history", "bookmark", "url"
 b.call({"do": "field.fake", "places": [

@@ -16,6 +16,7 @@ import { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import { installChromeWebStore } from 'electron-chrome-web-store'
 import path from 'node:path'
 import { model } from '../model/model'
+import { onFlush } from '../model/persist'
 import { controllerFor, focusedController } from '../views/window'
 import { runtimeFor, runtimes, hooks } from '../views/tabs'
 import { net } from '../net'
@@ -65,7 +66,8 @@ onExtensionCall('ui.close', (_id, _args, sender) => {
   if (s) { closePanel(s.c); return true }
   return false
 })
-app.on('before-quit', () => dnr.flush())
+// Quitting, or ended from outside (index.ts, persistence/): rules waiting to be written.
+onFlush(() => dnr.flush())
 
 export async function setupExtensions(profile: Session): Promise<void> {
   profileSession = profile

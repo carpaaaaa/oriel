@@ -54,6 +54,9 @@ jobs:
       - name: Data, passwords in pages
         if: always()
         run: python test/data_fill.py
+      - name: Everything kept for the next launch (quit, session end, monitors, full screen, Snap)
+        if: always()
+        run: python test/persist_all.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -109,6 +112,9 @@ jobs:
       - name: Page zoom (bench)
         if: always()
         run: python test/window_zoom.py
+      - name: States in a row, the buttons and doors always there (bench)
+        if: always()
+        run: python test/window_states.py
       - name: Real input, frame as shipped
         if: always()
         env:

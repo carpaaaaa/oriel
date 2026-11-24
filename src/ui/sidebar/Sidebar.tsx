@@ -74,12 +74,19 @@ function Helm(p: { vertical?: boolean }) {
           <G.sidebarLeft pt={11} weight="medium" />
         </button>
       </Show>
-      <button class="door" disabled={!back()} title="Back   Alt+Left" onClick={() => void cmd({ do: 'tab.back' })}><G.chevronLeft pt={11} weight="medium" /></button>
-      <button class="door" disabled={!forward()} title="Forward   Alt+Right" onClick={() => void cmd({ do: 'tab.forward' })}><G.chevronRight pt={11} weight="medium" /></button>
-      <button class="door" disabled={!web()} title={tab()?.loading ? 'Stop   Esc' : 'Reload   Ctrl+R'}
-        onClick={() => void cmd({ do: tab()?.loading ? 'tab.stop' : 'tab.reload' })}>
-        {tab()?.loading ? <G.xmark pt={11} weight="medium" /> : <G.reload pt={11} weight="medium" />}
-      </button>
+      {/* Only what Settings › Appearance › Tabs › Back, forward and reload leaves ticked (studio/01 §5.6). */}
+      <Show when={!pref('helm.back.hidden', false)}>
+        <button class="door" disabled={!back()} title="Back   Alt+Left" onClick={() => void cmd({ do: 'tab.back' })}><G.chevronLeft pt={11} weight="medium" /></button>
+      </Show>
+      <Show when={!pref('helm.forward.hidden', false)}>
+        <button class="door" disabled={!forward()} title="Forward   Alt+Right" onClick={() => void cmd({ do: 'tab.forward' })}><G.chevronRight pt={11} weight="medium" /></button>
+      </Show>
+      <Show when={!pref('helm.reload.hidden', false)}>
+        <button class="door" disabled={!web()} title={tab()?.loading ? 'Stop   Esc' : 'Reload   Ctrl+R'}
+          onClick={() => void cmd({ do: tab()?.loading ? 'tab.stop' : 'tab.reload' })}>
+          {tab()?.loading ? <G.xmark pt={11} weight="medium" /> : <G.reload pt={11} weight="medium" />}
+        </button>
+      </Show>
       <Show when={!p.vertical}>
         <For each={outlet('sidebar.helm')}>{c => <Dynamic component={c} />}</For>
       </Show>
@@ -236,7 +243,9 @@ export function Column() {
   // the void under the rows: a new tab on a double click, the column's menu
   // on a right click; dragged, the window (asked of the window module).
   const voidDown = (e: PointerEvent) => {
-    if (e.button !== 0) return
+    // The window drawn by Oriel moves itself from here (chrome/frame.ts):
+    // a second window.startDrag would start Windows' move loop twice.
+    if (e.button !== 0 || state.frame?.kind === 'drawn') return
     const x0 = e.screenX, y0 = e.screenY
     const move = (m: PointerEvent) => {
       if (Math.abs(m.screenX - x0) + Math.abs(m.screenY - y0) > 3) {

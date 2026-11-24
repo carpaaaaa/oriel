@@ -190,6 +190,17 @@ handle('permission.answer', ({ answer }, ctx) => {
   return { taken: true }
 })
 
+// Leaving the tab refuses its question, and the page must hear it before it
+// goes off screen: Chromium stops a hidden page's geolocation, dropping an
+// answer that comes later and asking again once the page is back. The window
+// detaches the page on this same change, so this listener goes first.
+model.prependListener('window-changed', (winID: ID, slices: string[]) => {
+  if (!slices.includes('activeID') && !slices.includes('space')) return
+  const p = shown.get(winID)
+  const win = p && model.windowOf(p.ask.tab)
+  if (p && win && win.active[win.space] !== p.ask.tab) settle(winID, false, 'left')
+})
+
 // Going to a tab shows what it held; leaving the tab refuses its question.
 model.on('selected', (win: { id: ID }, id: ID) => {
   const p = shown.get(win.id)

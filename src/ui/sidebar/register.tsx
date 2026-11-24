@@ -6,10 +6,10 @@
 
 import { render } from 'solid-js/web'
 import { reconcile } from 'solid-js/store'
-import { registerLayer } from '../lib/registry'
+import { registerLayer, registerPanel } from '../lib/registry'
 import { setState, state } from '../lib/store'
 import type { WindowState } from '../../shared/state'
-import { MenuHost, MainMenuLayer } from '../menus/host'
+import { MenuHost, MainMenuLayer, MENU } from '../menus/host'
 import { Switcher } from '../switcher/Switcher'
 import { FoldLayer } from './Fold'
 import { sayRoom } from '../menus/open'
@@ -18,6 +18,8 @@ import { createEffect, createRoot } from 'solid-js'
 
 registerLayer('menu', MainMenuLayer)
 registerLayer('fold', FoldLayer)
+// menu.open's layer: MenuHost draws it, in a root of its own beside the overlay's.
+registerPanel(MENU, () => null)
 
 if (window.search?.root === 'overlay') {
   const host = document.createElement('div')

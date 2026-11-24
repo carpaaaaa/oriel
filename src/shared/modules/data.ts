@@ -115,6 +115,9 @@ export interface DataState {
 
 declare module '../commands' {
   interface Commands {
+    /** The icon kept for a page's site (a data: URL), or null: what a tab
+     * shows before its page says its own (studio/01 §2.12). */
+    'data.icon': { url: string; shy?: boolean }
     // bookmarks (studio/05 §3.2)
     'bookmark.add': { url?: string; title?: string; folder?: ID | null }
     'bookmark.toggle': { id?: ID }

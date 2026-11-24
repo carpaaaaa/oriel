@@ -38,7 +38,7 @@ export const defaults = {
   'fold.loadingLine': false,
   'layout.cards': true,
   'layout.cardsFullScreen': false,
-  'toolbar.left': false,
+  'toolbar.left': true,
   'tabs.compact': false,
   'window.glass': false,
   'window.glass.clear': 0.5,
@@ -149,6 +149,12 @@ export const defaults = {
   'launcher.little': false,
   // About
   'update.install': true,
+  /** ms of the last check for updates (Updater.swift lastChecked). */
+  'update.checked': 0,
+  /** The version whose update popup was put away with its X. */
+  'updates.dismissed': '',
+  /** The version whose What's New was shown (WhatsNew.swift seenKey). */
+  'whatsnew.seen': '',
   'bench': false,
   'agents': false,
   // hidden (studio/06 §1.15)

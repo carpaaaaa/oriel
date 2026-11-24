@@ -13,19 +13,52 @@ import { editing, setEditing, reading } from './ui'
 import { openMenu } from '../menus/open'
 import { tabMenu } from '../menus/build'
 import { press } from './drag'
+import { TabField } from '../field/TabField'
+
+/** Icons asked of the data module, once per address. */
+const asked = new Map<string, Promise<string | null>>()
+function keptIcon(url: string, shy: boolean): Promise<string | null> {
+  const key = `${shy ? 'shy:' : ''}${url}`
+  let got = asked.get(key)
+  if (!got) {
+    got = Promise.resolve(cmd({ do: 'data.icon', url, shy })).then(v => (typeof v === 'string' ? v : null)).catch(() => null)
+    asked.set(key, got)
+    // Learnt later (the page loads, its icon is kept): ask again next time.
+    void got.then(v => { if (!v) setTimeout(() => asked.delete(key), 5000) })
+  }
+  return got
+}
 
 /** The site's mark (Icons.swift `Mark` 752-794): its icon with a radius of
  * 22%, or its letter at 56% on ink at 6%. */
-export function Mark(p: { tab: { url: string; favicon?: string; internal?: string; label?: string; title?: string }; size: number; dim?: boolean; icon?: boolean }) {
+export function Mark(p: { tab: { url: string; favicon?: string; internal?: string; label?: string; title?: string; empty?: boolean; shy?: boolean }; size: number; dim?: boolean; icon?: boolean }) {
   const [broken, setBroken] = createSignal(false)
-  createEffect(on(() => p.tab.favicon, () => setBroken(false)))
-  const icon = () => (p.icon ?? P.icons()) && !!p.tab.favicon && !broken()
+  // Before the page says its own, or when its own doesn't load (a site's
+  // /favicon.ico that isn't there): the icon kept for its site (data.icon).
+  const [ownFailed, setOwnFailed] = createSignal(false)
+  const [kept, setKept] = createSignal<string | null>(null)
+  const ask = (url: string) => {
+    if (!url || p.tab.internal || p.tab.empty || !(p.icon ?? P.icons())) return
+    void keptIcon(url, !!p.tab.shy).then(i => { if (p.tab.url === url) setKept(i) })
+  }
+  createEffect(on(() => [p.tab.favicon, p.tab.url] as const, ([own, url]) => {
+    setBroken(false)
+    setOwnFailed(false)
+    setKept(null)
+    if (!own) ask(url)
+  }))
+  const src = () => (p.tab.favicon && !ownFailed() ? p.tab.favicon : kept()) || undefined
+  const icon = () => (p.icon ?? P.icons()) && !!src() && !broken()
+  const failed = () => {
+    if (p.tab.favicon && !ownFailed()) { setOwnFailed(true); if (!kept()) ask(p.tab.url) }
+    else setBroken(true)
+  }
   return (
     <span class="mark" classList={{ dim: !!p.dim }} style={{ width: `${p.size}px`, height: `${p.size}px`, 'border-radius': `${p.size * 0.22}px` }}>
       <Show when={icon()} fallback={
         <span class="letter" style={{ 'font-size': `${+(p.size * 0.56).toFixed(2)}px` }}>{monogram(p.tab)}</span>
       }>
-        <img src={p.tab.favicon} width={p.size} height={p.size} draggable={false} onError={() => setBroken(true)} />
+        <img src={src()} width={p.size} height={p.size} draggable={false} onError={failed} />
       </Show>
     </span>
   )
@@ -60,7 +93,9 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
   const putAway = () => !!p.grouped && t().asleep && !live()
   const dim = () => P.dimSleeping() && t().asleep && !live() && !putAway()
   const isEditing = () => editing()?.kind === 'tab' && editing()?.id === t().id
-  const rest = () => (live() && !isEditing() ? restOf(t()) : null)
+  // Its address typed in the row itself (the field module's TabField).
+  const addressing = () => state.tabEdit?.id === t().id
+  const rest = () => (live() && !isEditing() && !addressing() ? restOf(t()) : null)
   let wasLive = false
 
   // The site comes in over the title as the tab becomes the one you're on.
@@ -69,7 +104,7 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
   }))
 
   const onDown = (e: PointerEvent) => {
-    if (e.button !== 0 || isEditing()) return
+    if (e.button !== 0 || isEditing() || addressing()) return
     if ((e.target as HTMLElement).closest('.x, .speaker')) return
     wasLive = live()
     const mods = e.ctrlKey || e.shiftKey || (window.search.platform === 'darwin' && e.metaKey) || e.altKey
@@ -83,7 +118,7 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
   }
 
   const onClick = (e: MouseEvent) => {
-    if (isEditing() || (e.target as HTMLElement).closest('.x, .speaker')) return
+    if (isEditing() || addressing() || (e.target as HTMLElement).closest('.x, .speaker')) return
     const ctrl = e.ctrlKey || (window.search.platform === 'darwin' && e.metaKey)
     if (ctrl || e.shiftKey) {
       void cmd({ do: 'tab.pick', id: t().id, mode: ctrl && e.shiftKey ? 'addRange' : ctrl ? 'toggle' : 'range' })
@@ -94,8 +129,8 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
       void cmd({ do: 'tab.select', id: t().id })
       return
     }
-    // A click on the tab you're on edits its address (§5.18, §3.48).
-    if (wasLive) void cmd({ do: 'field.open', target: 'here' })
+    // A click on the tab you're on edits its address, in the row (§5.18, §3.48).
+    if (wasLive) void cmd({ do: 'field.editTab', id: t().id })
   }
 
   const close = () => { if (closable()) void cmd({ do: 'tab.close', id: t().id }) }
@@ -103,8 +138,8 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
   return (
     <div ref={el} class="row" data-tab={t().id}
       classList={{
-        live: live(), picked: picked(t().id), status: status(), closable: closable() && !isEditing(),
-        dim: dim(), 'put-away': putAway(), editing: isEditing(), 'at-rest': !!rest(), empty: t().empty,
+        live: live(), picked: picked(t().id), status: status() && !addressing(), closable: closable() && !isEditing() && !addressing(),
+        dim: dim(), 'put-away': putAway(), editing: isEditing() || addressing(), 'at-rest': !!rest(), empty: t().empty,
       }}
       onPointerDown={onDown}
       onClick={onClick}
@@ -117,18 +152,20 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
         </Show>
       </div>
       <div class="body">
-        <Show when={!t().empty}><Mark tab={{ ...t(), label: label(t()) }} size={markSize()} dim={putAway() || dim()} /></Show>
+        <Show when={!t().empty && !addressing()}><Mark tab={{ ...t(), label: label(t()) }} size={markSize()} dim={putAway() || dim()} /></Show>
         <Show when={t().shy}><G.eyeSlash pt={9} class="sign" /></Show>
         <Show when={t().capturing}><G.record pt={10} class="sign rec" /></Show>
         <Show when={isEditing()} fallback={
-          <span class="titles">
-            <span class="title">{label(t())}</span>
-            <Show when={rest()}><RestLine tab={t()} /></Show>
-          </span>
+          <Show when={addressing()} fallback={
+            <span class="titles">
+              <span class="title">{label(t())}</span>
+              <Show when={rest()}><RestLine tab={t()} /></Show>
+            </span>
+          }><TabField /></Show>
         }>
           <RenameField initial={t().name || label(t())} done={name => { if (name !== null) void cmd({ do: 'tab.rename', id: t().id, name: name || null }); setEditing(null) }} />
         </Show>
-        <Show when={status()}>
+        <Show when={status() && !addressing()}>
           <span class="state">
             <Show when={loading()} fallback={
               <button class="speaker" title={t().muted ? 'Unmute Tab' : 'Mute Tab'}
@@ -139,7 +176,7 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
           </span>
         </Show>
       </div>
-      <Show when={closable() && !isEditing()}>
+      <Show when={closable() && !isEditing() && !addressing()}>
         <button class="x" title={p.pinned || (putsAway() && !t().asleep) ? (p.pinned ? 'Put Down' : 'Put Away') : 'Close Tab'}
           onPointerDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); close() }}>

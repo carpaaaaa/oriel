@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulsanti della finestra</title>
+<style>
+/* Valori dai token di Oriel (src/shared/tokens.css): fondo frame, grigi sul frame,
+   porte di 26 con raggio 8, simboli della colonna a 11 punti, carattere dell'app. */
+.t-light {
+  --frame: #F4F4F4; --ground: #FFFFFF; --ink: #171717; --ink-rgb: 23 23 23; --muted: #8C8C8C;
+  --g-hover: rgba(0,0,0,.0419); --g-faint: rgba(0,0,0,.1309); --g-wash: rgba(0,0,0,.0628);
+  --hover-text: rgb(23 23 23 / .70); --card-edge: rgba(0,0,0,.08); --caption-rest: rgba(0,0,0,.3608);
+  --close: #C42B1C; --close-soft: rgba(196, 43, 28, .12); --close-ink: #C42B1C;
+  --seg-on: #FFFFFF; --seg-shadow: 0 1px 4px rgba(0,0,0,.10);
+  --desk: #DCD8D0; --label: #7C776E; --text: #23211D;
+}
+.t-dark {
+  --frame: #131313; --ground: #1C1C1C; --ink: #EDEDED; --ink-rgb: 237 237 237; --muted: #949494;
+  --g-hover: rgba(255,255,255,.0595); --g-faint: rgba(255,255,255,.2649); --g-wash: rgba(255,255,255,.0865);
+  --hover-text: rgb(237 237 237 / .70); --card-edge: rgba(255,255,255,.08); --caption-rest: rgba(255,255,255,.3647);
+  --close: #C42B1C; --close-soft: rgba(232, 72, 56, .20); --close-ink: #FF6B5A;
+  --seg-on: rgba(255,255,255,.12); --seg-shadow: 0 1px 4px rgba(0,0,0,.35);
+  --desk: #2A2825; --label: #9B968D; --text: #ECEAE6;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #EEEBE5; }
+body {
+  font-family: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  color: #23211D; -webkit-font-smoothing: antialiased; padding: 36px 32px 64px;
+}
+header { max-width: 1340px; margin: 0 auto 28px; }
+h1 { margin: 0 0 8px; font-size: 22px; font-weight: 600; letter-spacing: -0.012em; }
+header p { margin: 0; font-size: 13.5px; line-height: 1.5; color: #7C776E; max-width: 760px; }
+
+.strada { max-width: 1340px; margin: 0 auto 52px; }
+.strada h2 { margin: 0 0 4px; font-size: 16px; font-weight: 600; letter-spacing: -0.006em; }
+.strada .what { margin: 0 0 16px; font-size: 13px; color: #7C776E; }
+.pair { display: flex; flex-wrap: wrap; gap: 24px; }
+.side { padding: 16px; border-radius: 16px; background: var(--desk); }
+.side .row { display: grid; grid-template-columns: 120px 640px; align-items: center; gap: 12px; }
+.side .row + .row { margin-top: 12px; }
+.side .lab { font-size: 12px; font-weight: 500; color: var(--label); }
+.desc { margin-top: 14px; max-width: 1310px; font-size: 13px; line-height: 1.5; }
+.desc p { margin: 0 0 3px; }
+.desc b { font-weight: 600; }
+.desc .gain { color: #23211D; }
+.desc .loss { color: #7C776E; }
+
+/* ---------- la fascia in alto della finestra, a misura vera ---------- */
+.win {
+  position: relative; width: 640px; height: 64px; overflow: hidden;
+  background: var(--frame); border-radius: 17.5px 17.5px 0 0;
+  -webkit-mask-image: linear-gradient(#000 82%, transparent);
+}
+.col { position: absolute; left: 0; top: 0; width: 232px; height: 52px; display: flex; align-items: center; gap: 4px; padding-left: 10px; }
+.door {
+  width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+  color: var(--muted); flex: none;
+}
+.door.off { opacity: .3; }
+.door svg, .p svg { display: block; overflow: visible; }
+.card {
+  position: absolute; left: 232px; right: 8px; top: 40px; height: 40px;
+  background: var(--ground); border-radius: 10px; box-shadow: 0 0 0 1px var(--card-edge);
+}
+.card i { position: absolute; left: 24px; top: 12px; width: 180px; height: 7px; border-radius: 3.5px; background: rgb(var(--ink-rgb) / .08); }
+.inactive .door { color: var(--muted); opacity: .55; }
+.inactive .door.off { opacity: .18; }
+
+/* il puntatore finto, solo nella riga "al passaggio" */
+.ptr { position: absolute; left: 0; top: 0; width: 13px; height: 19px; pointer-events: none; z-index: 9; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+
+/* tempi del passaggio: riduci, ingrandisci, chiudi, poi via; lento e in loop */
+.anim .p, .anim .p .hl, .anim .ptr { animation-duration: 7s; animation-iteration-count: infinite; animation-timing-function: cubic-bezier(.4, 0, .2, 1); }
+@keyframes on-1 { 0%, 11% { --on: 0; } 13%, 29% { --on: 1; } 31%, 100% { --on: 0; } }
+@keyframes on-2 { 0%, 35% { --on: 0; } 37%, 53% { --on: 1; } 55%, 100% { --on: 0; } }
+@keyframes on-3 { 0%, 59% { --on: 0; } 61%, 79% { --on: 1; } 81%, 100% { --on: 0; } }
+@property --on { syntax: '<number>'; inherits: true; initial-value: 0; }
+.anim .p:nth-child(1) { animation-name: on-1; }
+.anim .p:nth-child(2) { animation-name: on-2; }
+.anim .p:nth-child(3) { animation-name: on-3; }
+.anim .ptr { animation-name: walk; }
+@keyframes walk {
+  0%, 6% { transform: translate(var(--x0), 58px); }
+  13%, 29% { transform: translate(var(--x1), var(--py)); }
+  37%, 53% { transform: translate(var(--x2), var(--py)); }
+  61%, 79% { transform: translate(var(--x3), var(--py)); }
+  88%, 100% { transform: translate(var(--x4), 70px); }
+}
+
+/* ---------- strada 1: Rifinito ---------- */
+.s1 .caps { position: absolute; right: 0; top: 0; display: flex; }
+.s1 .p { position: relative; width: 46px; height: 40px; display: grid; place-items: center; color: var(--muted); }
+.s1 .p .hl { position: absolute; inset: 4px; border-radius: 8px; background: transparent; }
+/* nell'angolo della finestra il fondo segue l'angolo: 17,5 − 4 = 13,5 */
+.s1 .p.x .hl { border-top-right-radius: 13.5px; }
+.s1 .p svg { position: relative; }
+.s1 .anim { --x0: 470px; --x1: 525px; --x2: 571px; --x3: 617px; --x4: 646px; --py: 22px; }
+.s1 .anim .p { color: color-mix(in srgb, var(--hover-text) calc(var(--on) * 100%), var(--muted)); }
+.s1 .anim .p .hl { background: rgb(from var(--g-hover) r g b / calc(alpha * var(--on))); }
+.s1 .anim .p.x { color: color-mix(in srgb, #FFFFFF calc(var(--on) * 100%), var(--muted)); }
+.s1 .anim .p.x .hl { background: rgb(from var(--close) r g b / calc(var(--on))); }
+.s1 .inactive .p { color: var(--caption-rest); }
+
+/* ---------- strada 2: Porte ---------- */
+.s2 .caps { position: absolute; right: 10px; top: 13px; display: flex; gap: 4px; }
+.s2 .p .hl, .s3 .p .hl { display: none; }
+.s2 .p { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); }
+.s2 .anim { --x0: 486px; --x1: 557px; --x2: 587px; --x3: 617px; --x4: 646px; --py: 24px; }
+.s2 .anim .p { color: color-mix(in srgb, var(--hover-text) calc(var(--on) * 100%), var(--muted)); background: rgb(from var(--g-hover) r g b / calc(alpha * var(--on))); }
+.s2 .anim .p.x { color: color-mix(in srgb, var(--close-ink) calc(var(--on) * 100%), var(--muted)); background: rgb(from var(--close-soft) r g b / calc(alpha * var(--on))); }
+.s2 .inactive .p { opacity: .55; }
+
+/* ---------- strada 3: Gruppo ---------- */
+/* un solo pezzo, come i controlli a segmenti delle Impostazioni: 28 alto,
+   raggio 10, segmenti di 34 con raggio 8 (10 − 2) */
+.s3 .caps { position: absolute; right: 10px; top: 12px; height: 28px; padding: 2px; display: flex; border-radius: 10px; background: transparent; }
+.s3 .p { width: 34px; height: 24px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); }
+.s3 .anim .caps { animation: group 7s infinite cubic-bezier(.4, 0, .2, 1); }
+@keyframes group { 0%, 8% { background: transparent; } 12%, 82% { background: var(--g-hover); } 88%, 100% { background: transparent; } }
+.s3 .anim { --x0: 470px; --x1: 545px; --x2: 579px; --x3: 613px; --x4: 646px; --py: 22px; }
+.s3 .anim .p { color: color-mix(in srgb, var(--ink) calc(var(--on) * 100%), var(--muted)); background: rgb(from var(--seg-on) r g b / calc(alpha * var(--on))); box-shadow: 0 1px 4px rgb(0 0 0 / calc(.10 * var(--on))); }
+.s3 .anim .p.x { color: color-mix(in srgb, var(--close-ink) calc(var(--on) * 100%), var(--muted)); background: rgb(from var(--close-soft) r g b / calc(alpha * var(--on))); box-shadow: none; }
+.s3 .inactive .p { color: var(--g-faint); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- i simboli della colonna (glyphs.tsx), 11 punti medium: scatola 12,1, tratto 1,45 su 16 -->
+    <symbol id="g-back" viewBox="0 0 16 16"><path d="M10.2 2.6 4.8 8l5.4 5.4" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="g-fwd" viewBox="0 0 16 16"><path d="M5.8 2.6 11.2 8l-5.4 5.4" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="g-reload" viewBox="0 0 16 16"><path d="M13.2 8.4A5.2 5.2 0 1 1 11.5 4" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/><path d="M12.2 1.6v3.1H9.1" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <!-- 1 · i glifi di Windows ripuliti: 10, tratto 1,1, estremi tondi -->
+    <symbol id="r-min" viewBox="0 0 10 10"><path d="M.8 5h8.4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></symbol>
+    <symbol id="r-max" viewBox="0 0 10 10"><rect x=".8" y=".8" width="8.4" height="8.4" rx="2" fill="none" stroke="currentColor" stroke-width="1.1"/></symbol>
+    <symbol id="r-close" viewBox="0 0 10 10"><path d="m1 1 8 8m0-8-8 8" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></symbol>
+    <!-- 2 e 3 · alla maniera dei simboli della colonna, 11 punti medium -->
+    <symbol id="d-min" viewBox="0 0 16 16"><path d="M2.6 8h10.8" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/></symbol>
+    <symbol id="d-max" viewBox="0 0 16 16"><rect x="2.8" y="2.8" width="10.4" height="10.4" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.45"/></symbol>
+    <symbol id="d-close" viewBox="0 0 16 16"><path d="m3.2 3.2 9.6 9.6m0-9.6-9.6 9.6" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/></symbol>
+    <!-- il puntatore -->
+    <symbol id="ptr" viewBox="0 0 13 19"><path d="M1 1v14.5l3.6-3.4 2.4 5.6 2.3-1-2.4-5.5h5.1Z" fill="#fff" stroke="#000" stroke-width="1" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<header>
+  <h1>Pulsanti della finestra: tre strade</h1>
+  <p>La fascia in alto della finestra di Oriel a misura vera, con le porte della colonna a sinistra per confronto. Per ogni strada: a riposo, al passaggio (il puntatore passa lento su riduci, ingrandisci, chiudi) e con la finestra non attiva, in chiaro e in scuro.</p>
+</header>
+
+<template id="strip">
+  <div class="win">
+    <div class="col">
+      <span class="door"><svg width="12.1" height="12.1"><use href="#g-back"/></svg></span>
+      <span class="door off"><svg width="12.1" height="12.1"><use href="#g-fwd"/></svg></span>
+      <span class="door"><svg width="12.1" height="12.1"><use href="#g-reload"/></svg></span>
+    </div>
+    <div class="card"><i></i></div>
+    <div class="caps"></div>
+    <svg class="ptr"><use href="#ptr"/></svg>
+  </div>
+</template>
+
+<section class="strada s1" data-glyph="r" data-size="10">
+  <h2>1 · Rifinito</h2>
+  <p class="what">I glifi di Windows ripuliti: grigio delle porte, tratto ed estremi tondi come i simboli dell'app; area 46 × 40 invariata, al passaggio un fondo arrotondato (raggio 8, nell'angolo 13,5) invece del rettangolo; chiudi resta rosso.</p>
+  <div class="pair"></div>
+  <div class="desc">
+    <p class="gain"><b>Si guadagna:</b> resta riconoscibile come Windows, area grande e chiudi nell'angolo (si prende lanciando il puntatore in alto a destra), il grigio non grida più accanto alle porte.</p>
+    <p class="loss"><b>Si perde:</b> poco: il fondo arrotondato non è quello di Windows 11, e il rosso pieno di chiudi resta l'unico colore forte della fascia.</p>
+  </div>
+</section>
+
+<section class="strada s2" data-glyph="d" data-size="12.1">
+  <h2>2 · Porte</h2>
+  <p class="what">Tre porte vere come quelle della colonna: 26 × 26, raggio 8, simbolo 11, 4 di distanza, all'altezza di Indietro e Avanti e 10 dal bordo come loro; chiudi al passaggio diventa rosso tenue.</p>
+  <div class="pair"></div>
+  <div class="desc">
+    <p class="gain"><b>Si guadagna:</b> la fascia parla una lingua sola, porte a sinistra e porte a destra in specchio; il rosso compare solo come tinta, mai come blocco.</p>
+    <p class="loss"><b>Si perde:</b> l'area cliccabile scende da 46 × 40 a 26 × 26 e chiudi non è più nell'angolo (lanciando il puntatore in alto a destra non lo si prende); lontano dalle abitudini di Windows.</p>
+  </div>
+</section>
+
+<section class="strada s3" data-glyph="d" data-size="12.1">
+  <h2>3 · Gruppo</h2>
+  <p class="what">Un solo pezzo, come i controlli a segmenti delle Impostazioni: a riposo tre simboli soli; avvicinandosi compare il fondo comune (28 alto, raggio 10) e il segmento sotto il puntatore si accende (raggio 8, concentrico); chiudi si tinge di rosso.</p>
+  <div class="pair"></div>
+  <div class="desc">
+    <p class="gain"><b>Si guadagna:</b> la fascia più quieta delle tre, un oggetto solo invece di tre; lo stesso disegno dei controlli che l'app ha già.</p>
+    <p class="loss"><b>Si perde:</b> segmenti di 34 × 24, più piccoli; chiudi non è nell'angolo; il meno "Windows" dei tre, da imparare la prima volta.</p>
+  </div>
+</section>
+
+<script>
+const tpl = document.getElementById('strip')
+const glyph = (set, size, name) => `<svg width="${size}" height="${size}"><use href="#${set}-${name}"/></svg>`
+for (const s of document.querySelectorAll('.strada')) {
+  const set = s.dataset.glyph, size = s.dataset.size
+  const pair = s.querySelector('.pair')
+  for (const theme of ['light', 'dark']) {
+    const side = document.createElement('div')
+    side.className = `side t-${theme}`
+    for (const [state, label] of [['rest', theme === 'light' ? 'Chiaro, a riposo' : 'Scuro, a riposo'], ['anim', 'Al passaggio'], ['inactive', 'Non attiva']]) {
+      const row = document.createElement('div')
+      row.className = 'row'
+      const lab = document.createElement('span')
+      lab.className = 'lab'
+      lab.textContent = label
+      const holder = document.createElement('div')
+      holder.className = state
+      holder.appendChild(tpl.content.cloneNode(true))
+      const caps = holder.querySelector('.caps')
+      caps.innerHTML = ['min', 'max', 'close'].map(n => `<span class="p ${n === 'close' ? 'x' : ''}"><span class="hl"></span>${glyph(set, size, n)}</span>`).join('')
+      if (state !== 'anim') holder.querySelector('.ptr').remove()
+      row.append(lab, holder)
+      side.appendChild(row)
+    }
+    pair.appendChild(side)
+  }
+}
+</script>
+</body>
+</html>

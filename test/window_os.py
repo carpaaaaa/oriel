@@ -240,21 +240,32 @@ try:
     # 1. The clear margin: hovering it makes the window let go of the mouse, and
     #    a click there reaches the window behind.
     mx, my = px(v["x"] + v["width"] + 26), px(v["y"] + v["height"] / 2)
+    # What the interface hears of the pointer, for the log when this fails.
+    b.ui("window.__moves = []; document.querySelector('.frame').addEventListener('pointermove', e => { if (__moves.length < 20) __moves.push([Math.round(e.clientX), Math.round(e.clientY), e.target.className]) }); 1")
     move_to(mx - 4, my)
     time.sleep(0.1)
     move_to(mx, my)
     hollow = settle(lambda: frame()["hollow"], 2)
-    t.ok(hollow, "the pointer over the margin makes it clear")
+
+    def why(what):
+        f_ = frame()
+        heard = b.ui("JSON.stringify(window.__moves)")
+        print(f"       {what}: state {f_['state']}, hollow {f_['hollow']}, focused {b.window().get('focused')}, foreground {user32.GetForegroundWindow() == hwnd},"
+              f" root at {root_at(mx, my)} (ours {hwnd}), clicks behind {len(backdrop_clicks())}, the interface heard {heard}")
+    if not t.ok(hollow, "the pointer over the margin makes it clear"):
+        why("margin")
     t.ok(root_at(mx, my) != hwnd, "Windows sees the window behind at the margin")
     before = len(backdrop_clicks())
     click(mx, my, 0.4)
-    t.ok(len(backdrop_clicks()) > before, "a click on the margin reaches the window behind")
+    if not t.ok(len(backdrop_clicks()) > before, "a click on the margin reaches the window behind"):
+        why("click")
     time.sleep(0.3)
     gx, gy = px(v["x"] + v["width"] + 3), px(v["y"] + v["height"] / 2)
     move_to(gx, gy)
     time.sleep(0.4)
     t.ok(not frame()["hollow"], "the grip just outside the edge is the window's again")
-    t.ok(root_at(gx, gy) == hwnd, "Windows sees our window at the grip")
+    if not t.ok(root_at(gx, gy) == hwnd, "Windows sees our window at the grip"):
+        print(f"       grip: root at {root_at(gx, gy)} (ours {hwnd}), hollow {frame()['hollow']}")
 
     # 2. Moving from the strip with Windows' own loop.
     click(*strip(v), 0.4)

@@ -32,13 +32,26 @@ def thaw():
     b.ui("window.__tabsUI.thaw(); true")
 
 
+# The window drawn by Oriel lies inside a clear margin for its shadow
+# (window/frame.ts ROOM): `rel(r)` in js() and wrect() measure from the
+# window's corner, as the Mac's numbers are.
+WINDOW = ("const W0 = (document.querySelector('.window') || document.documentElement).getBoundingClientRect();"
+          " const rel = r => ({ x: r.x - W0.x, y: r.y - W0.y, width: r.width, height: r.height, right: r.right - W0.x, bottom: r.bottom - W0.y });")
+
+
 def js(expr, root="chrome"):
-    v = b.ui(f"JSON.stringify((() => {{ {expr} }})())", root=root)
+    v = b.ui(f"JSON.stringify((() => {{ {WINDOW} {expr} }})())", root=root)
     return json.loads(v) if v else None
 
 
 def rect(sel, root="chrome"):
     return js(f"const e = document.querySelector({json.dumps(sel)}); if (!e) return null; const r = e.getBoundingClientRect();"
+              " return { x: r.x, y: r.y, w: r.width, h: r.height }", root)
+
+
+def wrect(sel, root="chrome"):
+    """rect() from the window's corner."""
+    return js(f"const e = document.querySelector({json.dumps(sel)}); if (!e) return null; const r = rel(e.getBoundingClientRect());"
               " return { x: r.x, y: r.y, w: r.width, h: r.height }", root)
 
 

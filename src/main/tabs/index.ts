@@ -4,3 +4,4 @@
 import './commands'
 import './wiring'
 import './bench'
+import './menus'
