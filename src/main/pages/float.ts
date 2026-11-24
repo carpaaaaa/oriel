@@ -16,6 +16,7 @@
 // floats any playing video by hand, or lands it.
 
 import { BaseWindow, WebContentsView, screen, type WebContents } from 'electron'
+import { iconOption } from '../win/icon'
 import type { ID, Rect } from '../../shared/state'
 import { model, type WindowRecord } from '../model/model'
 import { handle } from '../router'
@@ -162,7 +163,7 @@ function openWindow(tab: ID, win: ID, view: WebContentsView, away: boolean): Flo
   const spot = firstSpot()
   const base = new BaseWindow({
     ...spot, frame: false, show: false, alwaysOnTop: true, skipTaskbar: true, resizable: true, minimizable: false, maximizable: false,
-    fullscreenable: false, minWidth: 260, minHeight: 146, backgroundColor: '#000000', title: 'Floating video', hasShadow: true,
+    fullscreenable: false, minWidth: 260, minHeight: 146, backgroundColor: '#000000', title: 'Floating video', hasShadow: true, ...iconOption(),
     ...(process.platform === 'darwin' ? { visibleOnAllWorkspaces: true } : {}),
   } as Electron.BaseWindowConstructorOptions)
   base.setAlwaysOnTop(true, 'floating')

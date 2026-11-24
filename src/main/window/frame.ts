@@ -17,6 +17,7 @@ import { screen, type BaseWindowConstructorOptions, type Rectangle } from 'elect
 import type { Edge, FrameView, Insets } from '../../shared/modules/window'
 import { model } from '../model/model'
 import { DWMWA, WS, win32, type Placement } from '../win/user32'
+import { appIcon, iconOption } from '../win/icon'
 import type { WindowController } from '../views/window'
 import { testEnv } from '../testhooks'
 
@@ -73,7 +74,7 @@ export function frameColour(dark: boolean): string { return dark ? '#131313' : '
 export function windowOptions(kind: FrameKind, dark: boolean): BaseWindowConstructorOptions {
   const frame = frameColour(dark)
   // The window's title is what Windows shows in the taskbar and Alt+Tab.
-  const common = { title: 'Oriel', show: false, minimizable: true, maximizable: true, fullscreenable: true }
+  const common = { title: 'Oriel', show: false, minimizable: true, maximizable: true, fullscreenable: true, ...iconOption() }
   if (kind === 'drawn') {
     return {
       ...common,
@@ -579,6 +580,7 @@ export class Frame {
     out.zoom = wc && !wc.isDestroyed() ? wc.getZoomFactor() : null
     out.pointer = screen.getCursorScreenPoint()
     out.minimized = this.c.base.isMinimized()
+    out.icon = appIcon() ?? null
     out.workArea = screen.getDisplayMatching(this.c.base.getBounds()).workArea
     out.display = screen.getDisplayMatching(this.c.base.getBounds()).bounds
     out.scale = screen.getDisplayMatching(this.c.base.getBounds()).scaleFactor

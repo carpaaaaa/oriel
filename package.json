@@ -98,6 +98,10 @@
       {
         "from": "CREDITS.md",
         "to": "CREDITS.md"
+      },
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
       }
     ],
     "icon": "build/icon.png",

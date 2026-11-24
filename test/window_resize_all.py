@@ -326,6 +326,11 @@ try:
     work = f0["workArea"]
     P = {"x": work["x"] + 120, "y": work["y"] + 90, "width": min(900, work["width"] - 300), "height": min(560, work["height"] - 220)}
     print(f"screen {f0['display']}, work area {work}, scale {S}, the window at {P}")
+    # Oriel's own icon on its windows (the taskbar's previews showed Electron's).
+    user32.SendMessageW.restype = ctypes.c_void_p
+    user32.SendMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p]
+    small = user32.SendMessageW(ctypes.c_void_p(f0["hwnd"]), 0x007F, ctypes.c_void_p(2), None)  # WM_GETICON, ICON_SMALL2
+    t.ok(f0.get("icon") and f0["icon"].lower().endswith("icon.ico") and small, f"the window carries Oriel's icon ({f0.get('icon')}, small icon {bool(small)})")
     chord("esc", wait=0.4)  # a Start menu left open (the ARM images start with it)
     place()
     click(px(P["x"] + P["width"] / 2), px(P["y"] + P["height"] / 2), 0.4)

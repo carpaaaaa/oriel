@@ -9,6 +9,7 @@
 // (`little.frame`); each new one a step down and right of the last one up.
 
 import { BaseWindow, WebContentsView, nativeTheme, screen } from 'electron'
+import { iconOption } from '../win/icon'
 import { brand } from '../../shared/brand'
 import { model, newID, type TabRecord, type WindowRecord } from '../model/model'
 import { frameString, parseFrame } from '../model/formats'
@@ -88,7 +89,7 @@ export function openLittle(url: string, space?: string): Little {
   const windows = process.platform !== 'darwin'
   const dark = nativeTheme.shouldUseDarkColors
   const base = new BaseWindow({
-    ...where(), minWidth: MIN.width, minHeight: MIN.height, show: false, title: '',
+    ...where(), minWidth: MIN.width, minHeight: MIN.height, show: false, title: '', ...iconOption(),
     backgroundColor: dark ? '#1c1c1c' : '#ffffff', titleBarStyle: 'hidden',
     ...(process.platform === 'darwin'
       ? { trafficLightPosition: { x: 12, y: 10 } }

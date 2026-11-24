@@ -48,6 +48,9 @@ app.on('child-process-gone', (_e, d) => { if (d.reason !== 'clean-exit') lost(`$
 app.on('render-process-gone', (_e, wc, d) => { if (wc.getType() !== 'webview' && /[?&]root=/.test(wc.getURL())) lost(`interface ${wc.getURL().split('root=')[1]} ${d.reason} (${d.exitCode})`) })
 // Test worlds on a Mac: no Dock icon, never the active app (see context.ts).
 if (process.platform === 'darwin' && testEnv('SEARCH_PROBE') && testEnv('SEARCH_SHOW') !== '1') app.setActivationPolicy('accessory')
+// Installed: Oriel's own name with Windows, the one its shortcuts carry (package.json
+// build.appId), so the taskbar groups its windows under Oriel's icon, not Electron's.
+if (process.platform === 'win32' && app.isPackaged) app.setAppUserModelId('app.oriel.browser')
 // Windows 11's thin scrollbars that fade in, as Chrome has them.
 if (process.platform === 'win32') app.commandLine.appendSwitch('enable-features', 'FluentScrollbar,FluentOverlayScrollbar')
 
