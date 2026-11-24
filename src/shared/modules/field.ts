@@ -64,6 +64,9 @@ declare module '../state' {
     note?: string | null
     placeholder?: string
     label?: string
+    /** Over a page, centred on the whole window and 24% down (Settings ›
+     * The field in the middle of the window, Omnibox.swift:68-71). */
+    high?: boolean
   }
   interface WindowState {
     /** Sent by the field module (registerSlice), so optional here. */

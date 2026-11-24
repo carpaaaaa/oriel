@@ -24,7 +24,7 @@ import type { Command } from '../shared/commands'
 import type { WindowController } from './views/window'
 import { model } from './model/model'
 import { addDefaults } from '../shared/prefs'
-import { controlUp, edit, escape as fieldEscape, fieldShowing, holdKey, mem, putAway, searchTabsKey } from './field/commands'
+import { controlUp, edit, escape as fieldEscape, fieldShowing, holdKey, launch, mem, putAway, searchTabsKey } from './field/commands'
 import { closeFind, findIsOpen, openFind, step as findStep } from './field/find'
 import { cancelTabEdit, tabEditing } from './field/tabedit'
 
@@ -117,7 +117,8 @@ export const bindings: Binding[] = [
   b('app.quit', 'Quit Oriel', 'Search', '⌘Q', ['Ctrl+Shift+Q'], first({ ...later('app.quit'), fixed: true })),
   // File
   b('file.newWindow', 'New Window', 'File', '⌘N', ['Ctrl+N'], first({ action: () => ({ do: 'window.new' }) })),
-  b('file.newTab', 'New Tab', 'File', '⌘T', ['Ctrl+T'], first({ once: true, action: () => ({ do: 'tab.new' }) })),
+  // With New tab in a floating field on, over a page: the field, no tab yet (studio/01 §3.5).
+  b('file.newTab', 'New Tab', 'File', '⌘T', ['Ctrl+T'], first({ once: true, action: c => (launch(c) ? true : { do: 'tab.new' }) })),
   // A private tab until the tabs module has one; a private window meanwhile.
   b('file.newPrivateTab', 'New Private Tab', 'File', '⇧⌘N', ['Ctrl+Shift+N'], first({ action: () => (handled().includes('tab.newPrivate' as never) ? { do: 'tab.newPrivate' } as never : { do: 'window.new', shy: true }) })),
   b('file.reopen', 'Reopen Closed Tab', 'File', '⇧⌘T', ['Ctrl+Shift+T'], first({ action: () => ({ do: 'tab.reopen' }) })),
