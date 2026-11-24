@@ -16,11 +16,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bench as b
 
 ROOT = Path(__file__).resolve().parent.parent
+WIN = int(sys.platform == "win32")  # one more password there: sealed by DPAPI itself
 b.use("data-import")
 folder = b.folder()
 home = folder / "Import"
 home.mkdir(parents=True, exist_ok=True)
-subprocess.run(["node", str(ROOT / "test/fixtures/data/make.mjs"), str(home)], check=True, capture_output=True)
+subprocess.run(["node", str(ROOT / "test/fixtures/data/make.mjs"), str(home)], check=True, stdout=subprocess.DEVNULL)
 b.launch()
 t = b.T()
 SHOTS = os.environ.get("SHOTS_DIR")
@@ -60,7 +61,7 @@ def texts(said):
 
 def saved_marks():
     req("data.flush")
-    return json.loads((folder / "bookmarks.json").read_text())
+    return json.loads((folder / "bookmarks.json").read_text(encoding="utf-8"))
 
 
 # What is found, from the files alone.
@@ -72,7 +73,7 @@ t.ok(chrome["usual"] == "Profile 1", "the profile used last comes first (last_us
 pv = chrome["preview"]
 t.ok(pv["bookmarks"] == 4, f"bookmarks counted: bar, Other, Mobile; no bookmarklet ({pv['bookmarks']})")
 t.ok(pv["places"] == 2, f"places: not hidden, not chrome://, visited ({pv['places']})")
-t.ok(pv["passwords"] == 7 and pv["passwordsLocked"] == 2 and pv["passwordsReadable"] == 5,
+t.ok(pv["passwords"] == 7 + WIN and pv["passwordsLocked"] == 2 and pv["passwordsReadable"] == 5 + WIN,
      f"passwords counted from both files, v20 apart, nothing decrypted ({pv['passwords']}, {pv['passwordsReadable']}, {pv['passwordsLocked']})")
 t.ok(chrome["canBring"] == "Bookmarks, history and passwords", f"what it can bring ({chrome['canBring']})")
 gx = found["Opera GX"]
@@ -92,7 +93,7 @@ t.ok(p["pick"] == "Chrome", "the first browser is picked")
 counted("Chrome")
 time.sleep(0.4)
 text = b.ui("document.body.innerText", root="overlay")
-for want in ["Bring things over", "Nothing in the other browser changes.", "On this PC", "Chrome", "2 profiles · 4 bookmarks · 2 places · 7 passwords",
+for want in ["Bring things over", "Nothing in the other browser changes.", "On this PC", "Chrome", f"2 profiles · 4 bookmarks · 2 places · {7 + WIN} passwords",
              "In a “Chrome” folder, or at the top if you have none yet", "The last 2 places", "Bring them in", "File…"]:
     t.ok(want in text, f"the panel says {want!r}")
 t.ok("Most recent: Work" in b.ui("document.querySelector('.bt-profile').innerText", root="overlay"), "Profile: Most recent: Work")
@@ -111,6 +112,9 @@ t.ok(h.get("https://wiki.work.example/", {}).get("count") == 30, "history with i
 t.ok("https://hidden.work.example/" not in h and not any(k.startswith("chrome:") for k in h), "hidden and chrome:// pages left out")
 offers = [o["url"] for o in req("data.suggest", text="wiki")["offers"]]
 t.ok("https://wiki.work.example/" in offers, "the field knows it at once")
+icon = req("data.icon", url="https://wiki.work.example/some/page")["value"]
+t.ok(bool(icon) and icon.startswith("data:image/png;base64,"), "its icons come from Favicons, a site's until a page says otherwise (05 §1.3)")
+t.ok(req("data.icon", url="https://ci.work.example/")["value"] is None, "only where Chrome had one")
 rec = req("data.records")["records"]["Chrome"]
 t.ok(rec["bookmarks"] == 4 and rec["places"] == 2 and len(rec["bookmarkIDs"]) == 7, f"what came from Chrome is remembered ({rec['bookmarks']}, {rec['places']}, {len(rec['bookmarkIDs'])})")
 p = panel()
@@ -142,12 +146,13 @@ t.ok(fox and [c["title"] for c in fox["children"]] == ["MDN", "Reading", "Menu S
 t.ok(not req("data.isBookmarked", url="https://tagged.example/")["value"], "Firefox's tags are not bookmarks")
 t.ok(not req("data.isBookmarked", url="https://locked.fox.example/")["value"], "only the profile in use")
 t.ok("1 places" in said, f"Firefox history ({said})")
+t.ok(bool(req("data.icon", url="https://developer.mozilla.org/en-US/")["value"]), "Firefox's icons from favicons.sqlite")
 
 # Replace: what came from Chrome goes, a folder you added to stays.
 tools = next(m for m in saved_marks() if m["title"] == "Tools")
 b.cmd("bookmark.add", url="https://mine.example/", title="Mine", folder=tools["id"])
 work = home / "AppData/Local/Google/Chrome/User Data/Profile 1/Bookmarks"
-data = json.loads(work.read_text())
+data = json.loads(work.read_text(encoding="utf-8"))
 data["roots"]["bookmark_bar"]["children"] = [c for c in data["roots"]["bookmark_bar"]["children"] if c.get("name") != "Work Wiki"]
 data["roots"]["bookmark_bar"]["children"].append({"id": "99", "type": "url", "name": "New Wiki", "url": "https://newwiki.work.example/"})
 work.write_text(json.dumps(data))

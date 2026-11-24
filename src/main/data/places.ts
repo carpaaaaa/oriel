@@ -2,7 +2,7 @@
 // the tabs record, the bookmark commands (studio/05 §3).
 
 import type { Suggestion } from '../../shared/state'
-import { provideData, type Bookmark, type HistoryVisit } from './api'
+import { data, provideData, type Bookmark, type HistoryVisit } from './api'
 import { handle } from '../router'
 import { need } from '../context'
 import { model } from '../model/model'
@@ -10,6 +10,7 @@ import { benchRequest } from '../bench/server'
 import { bookmarks, history, mark } from './store'
 import { getMeta, setMeta } from './meta'
 import { editable, identity } from './urls'
+import { forgetAll, forgetPage, iconFor } from './icons'
 import { isFolder } from './bookmarks'
 import type { BookmarkNode } from '../../shared/modules/data'
 
@@ -37,8 +38,24 @@ export function placeOffers(typed: string, limit = 3): Suggestion[] {
   return list
 }
 
+/** data.suggest: each kind on its own, up to `limit` of each; the field
+ * puts them in order (05 §3.5, studio/03 §1.3). */
+export function kindsFor(typed: string, limit: number): Suggestion[] {
+  const withIcon = (s: Suggestion): Suggestion => { const icon = iconFor(s.url); return icon ? { ...s, favicon: icon } : s }
+  const visited = history().suggestions(typed, limit).map((v): Suggestion =>
+    withIcon({ kind: v.kind === 'known' ? 'url' : 'history', title: v.title, detail: v.key, url: v.url }))
+  const kept = bookmarks().places(typed, limit)
+  const marks = [...kept.found, ...kept.slips].slice(0, limit).map((p): Suggestion => withIcon({ kind: 'bookmark', title: p.title, detail: p.key, url: p.url }))
+  return [...visited, ...marks]
+}
+
 provideData({
-  async suggest(text, limit) { return placeOffers(text, limit) },
+  async suggest(text, limit) { return kindsFor(text, limit) },
+  visits(sites) { return history().visitsTo(sites) },
+  icon(url, shy) { return iconFor(url, shy) },
+  everything(matching, limit = 500) {
+    return history().everything(matching).slice(0, limit).map(v => ({ url: v.url, title: v.title, lastVisit: v.last, visits: v.count }))
+  },
   recordVisit(visit: HistoryVisit) { history().record(visit.url, visit.title) },
   recordTitle(url, title) { history().retitle(url, title) },
   isBookmarked(url) { return bookmarks().contains(url) },
@@ -96,10 +113,18 @@ handle('bookmark.list', ({ query }) => query
 
 // history commands (05 §3.5)
 
-handle('history.list', ({ query }) => history().everything(query ?? '').slice(0, 500)
-  .map(v => ({ url: v.url, title: v.title, address: v.address, count: v.count, last: v.last })))
-handle('history.forget', ({ url }) => { history().forget(url) })
-handle('history.clear', () => { history().clear() })
+/** Everywhere you have been, newest first, for the History page (Recall.swift):
+ * the whole list's count, and the first 2000 rows with their icons. */
+handle('history.list', ({ query }) => {
+  const all = history().everything(query ?? '')
+  return {
+    total: all.length,
+    pages: all.slice(0, 2000).map(v => ({ url: v.url, title: v.title, address: v.address, count: v.count, last: v.last, favicon: iconFor(v.url) })),
+  }
+})
+// Forgetting a page forgets its icon too; Clear History, every icon (studio/01 §2.13).
+handle('history.forget', ({ url }) => { history().forget(url); forgetPage(url) })
+handle('history.clear', () => { history().clear(); forgetAll() })
 
 // bench (test worlds only)
 
@@ -116,6 +141,9 @@ benchRequest('data.take', req => {
   return { size: history().size }
 })
 benchRequest('data.suggest', async req => ({ offers: placeOffers(String(req.text), Number(req.limit ?? 3)) }))
+benchRequest('data.kinds', async req => ({ rows: await data.suggest(String(req.text), Number(req.limit ?? 12)) }))
+benchRequest('data.visitsTo', req => ({ counts: data.visits((req.sites ?? []) as string[]) }))
+benchRequest('data.everything', req => ({ traces: data.everything(String(req.text ?? ''), Number(req.limit ?? 50)) }))
 benchRequest('data.historyOffers', req => ({ offers: history().suggestions(String(req.text), Number(req.limit ?? 5)) }))
 benchRequest('data.history', () => ({ size: history().size, file: history().fileList() }))
 benchRequest('data.bookmarks', () => ({ roots: bookmarks().roots, count: bookmarks().count }))

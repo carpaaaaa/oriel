@@ -8,11 +8,13 @@ import { need } from '../context'
 import { addDefaults } from '../../shared/prefs'
 import { benchRequest } from '../bench/server'
 import { prove, setTestAnswer, fillProof, asked } from './proof'
+import { windowsProof, closeOwnedDialogs, factories, current as helloNow } from './hello'
+import { appName } from '../../shared/modules/data'
 import { never, vault } from './vault'
 import { siteHost } from './urls'
 import { lastSaid, pendingOffer } from './forms'
 import { windowData } from './store'
-import { focusedController } from '../views/window'
+import { allControllers, focusedController } from '../views/window'
 import { runtimes } from '../views/tabs'
 import { readFileSync, existsSync } from 'node:fs'
 import { dataFile } from '../paths'
@@ -117,4 +119,14 @@ benchRequest('data.pageKey', req => {
   wc.sendInputEvent({ type: 'keyUp', keyCode })
   return {}
 })
+// Windows Hello for real, in a test world on Windows: what each step did.
+// A runner has no face nor finger: Hello says no device, and the password
+// dialog comes, closed here as a person's Cancel would close it.
+benchRequest('data.helloTrace', async req => {
+  const c = focusedController()
+  return { trace: await windowsProof(String(req.reason ?? 'fill your password for example.com'), c?.base ?? null, appName, { within: Number(req.within ?? 15_000) }) }
+})
+benchRequest('data.helloFactories', () => factories())
+benchRequest('data.helloClose', () => closeOwnedDialogs(allControllers().map(c => c.base)))
+benchRequest('data.helloNow', () => ({ trace: helloNow }))
 benchRequest('data.vaultReload', () => { vault.reload(); return {} })

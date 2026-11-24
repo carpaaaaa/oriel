@@ -39,6 +39,21 @@ jobs:
         env:
           SHOTS_DIR: shots
         run: python test/tour.py
+      - name: Data, Windows Hello and the Windows password
+        if: always()
+        run: python test/data_windows.py
+      - name: Data, passwords from other browsers (DPAPI v10, v20, Firefox, CSV)
+        if: always()
+        run: python test/data_passwords_import.py
+      - name: Data, bringing things over
+        if: always()
+        run: python test/data_import.py
+      - name: Data, history and bookmarks
+        if: always()
+        run: python test/data_places.py
+      - name: Data, passwords in pages
+        if: always()
+        run: python test/data_fill.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
