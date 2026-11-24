@@ -29,6 +29,10 @@ import { buildMenu, contextOf, type Facts } from './build'
 import { cleanLink } from './clean'
 import { log } from './probe'
 
+/** Other modules' say in the rows: Hide Element only where something can be
+ * taken off (main/hide), asked of the page while the menu is made. */
+export const pageMenuHooks: { hideable?: (wc: WebContents, params: Electron.ContextMenuParams) => Promise<boolean> } = {}
+
 /** The menu up in each window: the page it is for and what was clicked. */
 const current = new Map<ID, { tab: ID; params: Electron.ContextMenuParams; data: PageMenuData }>()
 /** The last menu shown anywhere (the bench reads it). */
@@ -102,6 +106,10 @@ async function show(tab: TabRuntime, params: Electron.ContextMenuParams): Promis
   const wc = tab.contents
   if (!t || !c || !wc) return
   const internal = !!t.internal || /^oriel:/i.test(params.pageURL)
+  const [translate, hideable] = await Promise.all([
+    internal ? null : translateFacts(c, id),
+    internal || !pageMenuHooks.hideable ? false : pageMenuHooks.hideable(wc, params).catch(() => false),
+  ])
   const facts: Facts = {
     tab: id,
     shy: !!t.shy,
@@ -111,7 +119,8 @@ async function show(tab: TabRuntime, params: Electron.ContextMenuParams): Promis
     canForward: wc.navigationHistory.canGoForward(),
     engine: { id: engineID(), name: engineName() },
     engines: engines(),
-    translate: internal ? null : await translateFacts(c, id),
+    translate,
+    hideable,
     accel,
     extensions: internal ? [] : extensionEntries(wc, params),
   }
