@@ -109,10 +109,18 @@ time.sleep(0.4)
 t.ok(tk.tab(bb).get("name") == "Bee", "Enter names the tab")
 
 # Escape closes the menu and gives the overlay back
+front = tk.active()["id"]
+b.ev(front, "window.__keys = []; addEventListener('keydown', e => __keys.push(e.key), true); 1")
 context(f'.row[data-tab="{bb}"]')
+layer = overlay_bounds()
+t.ok(layer and layer.get("kind") == "panel" and layer.get("name") == "tabs.menu", f"the main process raised it (menu.open), a layer like the field's: {layer and layer.get('kind')} {layer and layer.get('name')}")
 k.js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); return 1", root="overlay")
 time.sleep(0.3)
 t.ok(not k.js("return !!document.querySelector('.menu')", root="overlay"), "Escape closes it")
+t.ok(overlay_bounds() == {"kind": "none"}, f"…and the main process lets the overlay go (menu.close): {overlay_bounds()}")
+b.key("k")
+time.sleep(0.3)
+t.ok(b.ev(front, "window.__keys") == ["k"], f"…the keys back to the page in front (window.focusPage): {b.ev(front, 'window.__keys')}")
 
 # Pin, then the pin's menu (§6.1-§6.11)
 context(f'.row[data-tab="{bb}"]')

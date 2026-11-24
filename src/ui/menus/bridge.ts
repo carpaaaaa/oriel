@@ -1,9 +1,10 @@
 // Menus drawn by Oriel instead of Windows' own (studio/02 §4.6, §5 M4;
 // SiteCard.swift `MenuMetrics`). A menu is built in the window's interface,
-// where the column is, and drawn in the overlay, the only view above the
-// page. Until the main process can raise a menu layer itself (asked for in
-// the tabs module's report: `menu.open`), the two roots of one window talk
-// over a BroadcastChannel: same page, same origin, one channel per window.
+// where the column is, raised by the main process (`menu.open`, a layer like
+// any other) and drawn in the overlay, the only view above the page. What
+// one root tells the other of the same window (a pick asking for an inline
+// rename, which menu is up, the window's size) goes over a BroadcastChannel:
+// same page, same origin.
 
 import type { Command } from '../../shared/commands'
 
@@ -33,8 +34,6 @@ export interface Entry {
 }
 
 export type Message =
-  | { type: 'menu'; window: string; entries: Entry[]; at: { x: number; y: number }; source: string }
-  | { type: 'panel'; window: string; panel: string; at: { x: number; y: number }; data?: unknown }
   | { type: 'close'; window: string }
   | { type: 'ui'; window: string; act: { ui: string; id?: string; data?: unknown } }
   | { type: 'shown'; window: string; source: string | null }
