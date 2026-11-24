@@ -13,6 +13,7 @@ import { setupFloat } from './float'
 import { setupCapture } from './capture'
 import { setupReader } from './reader'
 import { runScriptlets, watchPage, type Watch } from './blocker'
+import { handOn } from './blank'
 
 interface PagePrefs {
   /** Shield's hiding rules for this site, or nothing while it is off or paused. */
@@ -53,19 +54,9 @@ function start(first: PagePrefs): void {
     try { contextBridge.executeInMainWorld({ func: youtubePage, args: [first.youtube, first.standIn] }) } catch {}
     try { youtubeSkipper(first.youtube) } catch {}
   }
-  try {
-    contextBridge.executeInMainWorld({
-      func: (on: boolean) => {
-        try {
-          Object.defineProperty(Navigator.prototype, 'globalPrivacyControl', {
-            get: Object.getOwnPropertyDescriptor({ get globalPrivacyControl() { return on } }, 'globalPrivacyControl')!.get,
-            enumerable: true, configurable: true,
-          })
-        } catch {}
-      },
-      args: [first.gpc],
-    })
-  } catch {}
+  // navigator.globalPrivacyControl, here and in the frames the page makes by
+  // script, which also get its hiding rules and scriptlets (blank.ts).
+  handOn({ cosmetics: () => ({ css: now.css, scripts: now.scripts ?? [] }), noCookies: false, gpc: first.gpc })
 
   // Videos wait for a click: a page's own play() is refused without one,
   // as WebKit refuses it (NotAllowedError), from this page's start.

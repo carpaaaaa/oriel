@@ -71,7 +71,8 @@ jobs:
       - run: npm install --no-save --force @koromix/koffi-win32-x64@3.3.8 @koromix/koffi-win32-arm64@3.3.8
       # After that install, so both binaries that ship are listed.
       - run: node scripts/licenses.mjs --expect @koromix/koffi-win32-x64,@koromix/koffi-win32-arm64
-      - run: npm run build
+      # A release build stops if uBlock Origin's lists can't be bundled.
+      - run: npm run build -- --release
       # One release for every file: electron-builder's targets upload at once and
       # would each create their own release if none existed yet.
       - name: Make the release first

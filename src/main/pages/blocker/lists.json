@@ -1,5 +1,5 @@
 {
-  "note": "uBlock Origin's default lists, from their official sources (the first address), with the mirrors uBlock Origin itself falls back to. The resources (scriptlets and redirects) are uBlock Origin's, in the form @ghostery/adblocker reads.",
+  "note": "uBlock Origin's default lists, from their official sources (the first address), with the mirrors uBlock Origin itself falls back to; each is brought up to date on its own. The resources (scriptlets and redirects) are uBlock Origin's, in the form @ghostery/adblocker reads, pinned to the commit of the engine's release (v2.20.3) and checked against their SHA-256 at build time and on every update.",
   "lists": [
     {
       "id": "ublock-filters",
@@ -85,8 +85,9 @@
     "title": "uBlock Origin's scriptlets and redirect resources",
     "license": "GPL-3.0",
     "urls": [
-      "https://raw.githubusercontent.com/ghostery/adblocker/master/packages/adblocker/assets/ublock-origin/resources.json",
-      "https://cdn.jsdelivr.net/gh/ghostery/adblocker@master/packages/adblocker/assets/ublock-origin/resources.json"
-    ]
+      "https://raw.githubusercontent.com/ghostery/adblocker/6f0610bf5eec1f31c4975ce0e707cdf47023e5b5/packages/adblocker/assets/ublock-origin/resources.json",
+      "https://cdn.jsdelivr.net/gh/ghostery/adblocker@6f0610bf5eec1f31c4975ce0e707cdf47023e5b5/packages/adblocker/assets/ublock-origin/resources.json"
+    ],
+    "sha256": "5ce0ce483f0e5514308ccb0240960a9dd7bfeab417debeef96960dce2c95f690"
   }
 }

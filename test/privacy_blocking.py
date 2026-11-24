@@ -106,6 +106,22 @@ web.PAGES["/jar"] = ("<title>jar</title><script>const had = document.cookie;"
                      "const had2 = localStorage.getItem('k'); try { localStorage.setItem('k', 'v') } catch (e) {}"
                      "parent.postMessage({ had, now: document.cookie, ls: had2 }, '*')</script>")
 web.PAGES["/peek"] = ("<title>peek</title><script>parent.postMessage({ had: document.cookie, ls: localStorage.getItem('k') }, '*')</script>")
+# A site inside another trying every way round to its cookies through frames
+# it makes (Chromium runs no preload in those): each answer is what it read.
+web.PAGES["/slow"] = "<title>slow</title>"
+web.PAGES["/ways"] = (
+    "<title>ways</title><body><div id='host'></div><script>const out = {};"
+    "const way = (k, f) => { try { out[k] = String(f()) } catch (e) { out[k] = 'ERR ' + e.name } };"
+    "const last = () => window[window.length - 1];"
+    "way('index', () => { document.body.appendChild(document.createElement('iframe')); return last().document.cookie });"
+    "way('innerHTML', () => { const d = document.createElement('div'); document.body.appendChild(d); d.innerHTML = '<iframe></iframe>'; return last().document.cookie });"
+    "way('write', () => { document.write('<iframe id=w></iframe>'); return document.getElementById('w').contentWindow.document.cookie });"
+    "way('nested', () => { document.body.append(document.createElement('iframe')); const w = last(); w.document.body.appendChild(w.document.createElement('iframe')); return w[0].document.cookie });"
+    "way('loading', () => { const f = document.createElement('iframe'); f.src = '/slow'; document.body.append(f); return last().document.cookie });"
+    "way('shadow', () => { document.getElementById('host').attachShadow({ mode: 'closed' }).appendChild(document.createElement('iframe')); return last().document.cookie });"
+    "document.body.append(document.createElement('iframe'));"
+    "last().cookieStore.getAll().then(a => a.length, e => 'ERR ' + e.name).then(n => { out.cookieStore = String(n); parent.postMessage(out, '*') })"
+    "</script>")
 # The daily update's stand-ins for the lists' sources.
 web.PAGES["/lists/main.txt"] = ("! Title: main\n" + "\n".join(f"||filler{i}.example^" for i in range(30)) + "\n!#include part.txt\n", "text/plain")
 web.PAGES["/lists/part.txt"] = ("||updated.example^\n", "text/plain")
@@ -299,11 +315,21 @@ b.wait_for(lambda: ev(tab, "window.got") is not None, what="peek")
 got = ev(tab, "window.got")
 t.ok("jar=1" not in (got.get("had") or ""), f"on: a cookie a frame wrote by script on one site isn't there on another ({got})")
 t.ok(got.get("ls") is None, "a frame's storage on one site isn't there on another")
+go(S("first.example", "/frame") + "?ways", "frame", tab)
+b.wait_for(lambda: ev(tab, "window.got") is not None, what="ways")
+ways = ev(tab, "window.got")
+t.ok(all(v in ("", "0") for v in ways.values()) and len(ways) == 7,
+     f"on: no frame it makes by script reads them (index, innerHTML, write, nested, loading, shadow, cookieStore: {ways})")
 setting("sites.keep", True)
 web.clear()
 go(S("first.example", "/frame") + "?check&off", "frame", tab)
 b.wait_for(lambda: web.seen("/check", "third.example"), within=30, what="frame check, off")
 t.ok("t=1" in web.seen("/check", "third.example")[-1][3].get("Cookie", ""), "off: it gets its cookies, as in Chrome")
+go(S("first.example", "/frame") + "?ways", "frame", tab)
+b.wait_for(lambda: ev(tab, "window.got") is not None, what="ways, off")
+ways = ev(tab, "window.got")
+t.ok(all(v == "t=1" for k, v in ways.items() if k != "cookieStore") and ways.get("cookieStore") == "1",
+     f"off: each of those ways reads them, as in Chrome ({ways})")
 setting("sites.keep", False)
 
 # 11. The daily update (its sources on this computer), and the engine kept on disk.
@@ -328,6 +354,19 @@ b.quit()
 b.launch(web.rules(*NAMES, "updated.example"), "--ignore-certificate-errors", wait=40)
 st = b.call({"do": "pages.blocker"})
 t.ok(st["source"] == "downloaded", f"after a restart the kept engine is read back ({st['loadMs']} ms)")
+# The resources are pinned: a text that isn't the pinned one is refused, the engine kept.
+web.PAGES["/lists/main.txt"] = ("! Title: main\n" + "\n".join(f"||filler{i}.example^" for i in range(30)) + "\n||pinned.example^\n", "text/plain")
+pin = dict(src("resources", "/lists/resources.json"), sha256="0" * 64)
+res = b.call({"do": "pages.blockerUpdate", "lists": [src("main", "/lists/main.txt")], "resources": pin})
+t.ok(res.get("changed") is False and "SHA-256" in (res.get("error") or ""), f"resources that aren't the pinned text are refused, the engine kept ({res})")
+# A damaged engine.bin is made again at once from the lists kept, without the network.
+b.quit()
+(world / "engine.bin").write_bytes(b"\0" * 4096)
+b.launch(web.rules(*NAMES), "--ignore-certificate-errors", wait=40)
+b.wait_for(lambda: b.call({"do": "pages.blocker"})["rebuilt"] >= 1, within=30, what="rebuilt")
+st = b.call({"do": "pages.blocker"})
+head = (world / "engine.bin").read_bytes()[:14]
+t.ok(st["source"] == "downloaded" and head == b"ORIEL-BLOCKER-", f"a damaged engine is made again at once from the kept lists ({st['source']}, {head!r})")
 
 # 12. With the internet: a public test page with the real lists (optional).
 online = os.environ.get("ORIEL_OFFLINE") != "1"

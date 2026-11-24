@@ -9,9 +9,12 @@
 //    reads no cookies and writes none from script (its requests already go
 //    without them, src/main/pages/privacy.ts). Its storage is Chromium's,
 //    kept apart per site of the page.
+// The frames it makes by script (about:blank, document.write) get the same,
+// from it (blank.ts): Chromium runs no preload in them.
 
-import { contextBridge, ipcRenderer, webFrame } from 'electron'
+import { ipcRenderer, webFrame } from 'electron'
 import { runScriptlets, watchPage } from './blocker'
+import { handOn } from './blank'
 
 interface FramePrefs { css: string; scripts: string[]; extended: unknown[]; dom: boolean; gpc: boolean; noCookies: boolean }
 
@@ -19,46 +22,9 @@ let p: FramePrefs | null = null
 try { p = ipcRenderer.sendSync('pages:frame') as FramePrefs | null } catch {}
 
 if (p) {
-  if (p.noCookies) {
-    try {
-      contextBridge.executeInMainWorld({
-        func: () => {
-          try {
-            const d = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie')
-            if (d) {
-              Object.defineProperty(Document.prototype, 'cookie', {
-                get: Object.getOwnPropertyDescriptor({ get cookie() { return '' } }, 'cookie')!.get,
-                set: Object.getOwnPropertyDescriptor({ set cookie(_v: string) {} }, 'cookie')!.set,
-                enumerable: d.enumerable, configurable: true,
-              })
-            }
-          } catch {}
-          try {
-            const store = (globalThis as unknown as { CookieStore?: { prototype: Record<string, unknown> } }).CookieStore
-            if (store) {
-              const refuse = () => Promise.reject(new DOMException('Cookies are blocked in this frame.', 'SecurityError'))
-              for (const name of ['get', 'getAll', 'set', 'delete']) {
-                Object.defineProperty(store.prototype, name, { value: name === 'getAll' ? () => Promise.resolve([]) : name === 'get' ? () => Promise.resolve(null) : refuse, writable: true, configurable: true })
-              }
-            }
-          } catch {}
-        },
-      })
-    } catch {}
-  }
-  try {
-    contextBridge.executeInMainWorld({
-      func: (on: boolean) => {
-        try {
-          Object.defineProperty(Navigator.prototype, 'globalPrivacyControl', {
-            get: Object.getOwnPropertyDescriptor({ get globalPrivacyControl() { return on } }, 'globalPrivacyControl')!.get,
-            enumerable: true, configurable: true,
-          })
-        } catch {}
-      },
-      args: [p.gpc],
-    })
-  } catch {}
+  const share = p
+  // Its cookies and navigator, and the frames it makes, before its scripts.
+  handOn({ cosmetics: () => ({ css: share.css, scripts: share.scripts }), noCookies: p.noCookies, gpc: p.gpc })
   if (p.scripts.length) runScriptlets(p.scripts)
   if (p.css) { try { webFrame.insertCSS(p.css, { cssOrigin: 'user' }) } catch {} }
   if (p.css && (p.dom || p.extended.length)) watchPage(p.dom, p.extended, css => { try { webFrame.insertCSS(css, { cssOrigin: 'user' }) } catch {} })
