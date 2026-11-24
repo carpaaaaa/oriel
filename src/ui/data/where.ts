@@ -9,6 +9,7 @@
 
 import { state } from '../lib/store'
 import { P, pref } from '../sidebar/derive'
+import { columnSliding } from '../chrome/slide'
 
 /** The band above the page that the window's buttons sit in (Windows,
  * Oriel's frame or Windows' own), gone in full screen. */
@@ -25,8 +26,11 @@ export function bookmarkPlace(): DoorPlace {
 export const CORNER_GAP = 12
 
 /** The column on the right, drawn with its band: the window's buttons at the
- * band's far end, back, forward and reload at its start. */
-const columnRight = () => state.sidebar.layout === 'side' && state.sidebar.side === 'right' && !state.sidebar.folded && !P.iconColumn()
+ * band's far end, back, forward and reload at its start. Drawn too while it
+ * slides away with Ctrl+S (chrome/slide.ts), however long that takes: the
+ * button keeps clear of it until it is gone, and is clear before it comes. */
+const columnRight = () => state.sidebar.layout === 'side' && state.sidebar.side === 'right'
+  && (!state.sidebar.folded || columnSliding() !== null) && !P.iconColumn()
 
 /** There, whether the button fits between them: 2 after the helm (10 in,
  * doors of 26 and 4 between, the sidebar button's 30), 12 before Minimize.

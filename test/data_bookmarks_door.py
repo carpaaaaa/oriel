@@ -111,6 +111,15 @@ def where(name, strip=False, column=False):
     return m
 
 
+def fold(on):
+    """Ctrl+S, and the column (or the strip) gone, or back: chrome/slide.ts
+    ends the slide on time even in a window that draws no frames."""
+    b.cmd("sidebar.fold", folded=on)
+    settle(lambda: b.window()["sidebar"]["folded"] == on, "folded" if on else "unfolded", within=3)
+    settle(lambda: b.ui("!!document.querySelector('.window .sidebar, .window .tabbar')") != on, "the column gone" if on else "the column back", within=3)
+    time.sleep(0.3)
+
+
 def layout(value, settle_for=".window"):
     b.cmd("settings.set", id="tabs.layout", value=value)
     time.sleep(0.5)
@@ -145,20 +154,15 @@ for style in ("inline", "classic"):
     # Inline's buttons leave room beside the helm in a column of 232; Classic's
     # 46s don't: then up above the page, 12 before the column.
     where(f"{S}, the column on the right" + ("" if style == "inline" else ", too narrow beside the helm"), column=style == "classic")
-    b.cmd("sidebar.fold", folded=True)
-    settle(lambda: b.window()["sidebar"]["folded"], "folded", within=3)
-    time.sleep(0.6)
+    fold(True)
     where(f"{S}, the column on the right folded away (Ctrl+S)")
-    b.cmd("sidebar.fold", folded=False)
-    time.sleep(0.6)
+    fold(False)
     layout("icons")
     where(f"{S}, icons only")
     layout("left")
-    b.cmd("sidebar.fold", folded=True)
-    time.sleep(0.6)
+    fold(True)
     where(f"{S}, the column folded away (Ctrl+S)")
-    b.cmd("sidebar.fold", folded=False)
-    time.sleep(0.6)
+    fold(False)
     layout("top")
     settle(lambda: b.ui("!!document.querySelector('.tabbar .strip-far')"), "the strip")
     time.sleep(0.3)
@@ -167,11 +171,9 @@ for style in ("inline", "classic"):
     time.sleep(0.4)
     where(f"{S}, the tabs across the top, shorter", strip=True)
     b.cmd("prefs.set", key="tabs.compact", value=False)
-    b.cmd("sidebar.fold", folded=True)
-    time.sleep(0.6)
+    fold(True)
     where(f"{S}, the tabs across the top folded away")
-    b.cmd("sidebar.fold", folded=False)
-    time.sleep(0.6)
+    fold(False)
 
 b.cmd("prefs.set", key="window.buttons", value="inline")
 layout("left")
