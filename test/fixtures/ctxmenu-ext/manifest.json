@@ -1,0 +1,8 @@
+{
+  "name": "Menu test",
+  "version": "1.0",
+  "manifest_version": 3,
+  "description": "chrome.contextMenus items for test/ctxmenu_extensions.py",
+  "background": { "service_worker": "sw.js" },
+  "permissions": ["contextMenus", "storage"]
+}

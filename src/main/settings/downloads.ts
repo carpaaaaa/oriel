@@ -100,6 +100,10 @@ function windowFor(tab: ID | null): WindowController | null {
 
 // arriving
 
+/** A file already chosen for an address about to arrive: the page menu's
+ * Save Image As… asks first (contextmenu module, studio/06 §5.3). */
+export const placeFor = new Map<string, string>()
+
 async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): Promise<void> {
   const tab = tabOf(wc)
   const shy = !s.isPersistent() || !!(tab && model.tabs.get(tab)?.shy)
@@ -108,9 +112,12 @@ async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): P
   retrying.delete(url)
   const name = fileName(retried ?? item.getFilename())
   const folder = downloadsFolder()
-  const asks = !!model.pref<boolean>('downloads.ask') || !canWrite(folder)
+  const placed = placeFor.get(url)
+  placeFor.delete(url)
+  const asks = !placed && (!!model.pref<boolean>('downloads.ask') || !canWrite(folder))
   let file: string | null
-  if (asks) {
+  if (placed) file = placed
+  else if (asks) {
     if (probe) file = probeAnswers.saveAs ?? null
     else {
       // The save sheet, opened at the downloads folder (Browser.askWhere).
