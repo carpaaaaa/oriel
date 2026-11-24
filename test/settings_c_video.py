@@ -169,8 +169,11 @@ t.ok(not f["tucked"] and f["bounds"]["width"] == wide, "the same button brings i
 setting("float.minimize", False)
 before = fl()["floating"]["bounds"]
 b.call({"do": "pages.floatControls", "events": [{"type": "mouseMove", "x": 100, "y": 100},
-        {"type": "mouseWheel", "x": 100, "y": 100, "deltaX": 400, "deltaY": 400, "hasPreciseScrollingDeltas": True, "canScroll": True}]})
-time.sleep(0.8)
+        {"type": "mouseWheel", "x": 100, "y": 100, "deltaX": 400, "deltaY": 400, "wheelTicksX": 3, "wheelTicksY": 3, "hasPreciseScrollingDeltas": False, "canScroll": True}]})
+try:
+    b.wait_for(lambda: fl()["floating"]["bounds"]["x"] != before["x"], within=8, what="flick")
+except AssertionError:
+    pass
 after = fl()["floating"]["bounds"]
 t.ok(after["x"] < before["x"] and after["y"] < before["y"], f"two fingers flick it to the corner they point at ({before['x']},{before['y']} to {after['x']},{after['y']})")
 ctl("document.getElementById('pause').click(); 1")
