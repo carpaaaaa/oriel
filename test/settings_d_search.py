@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Search a site from the address field (Settings' note note.sitesearch,
-"Always there: type red, then Tab, and search Reddit"; 08 area D,
-search.sites; SiteSearch.swift, studio/06 §5.5). Unlike the Mac, sites are
-off until the user turns them on one by one (the user's decision): turned
-off, nothing is offered; turned on, the words the note gives work: red offers
-Reddit, yt YouTube, and the find field of Settings finds the note."""
+"Always there: type red, then Tab, and search Reddit"; 08 area D;
+SiteSearch.swift, studio/06 §5.5). No ready-made site for now (the owner's
+decision): red, yt and wiki offer nothing, so the note promising them is left
+out of Settings and its find field; only a site shortcut of the user's own is
+offered, by its word or the start of its site's name (SiteSearch.match with
+the keywords). Writing shortcuts in Settings: settings_shortcuts.py."""
 import sys
 import time
 from pathlib import Path
@@ -27,12 +28,12 @@ def site(text):
     return b.call({"do": "field.address", "text": text})["site"]
 
 
-t.ok(site("red") is None, f"off by default: red offers nothing ({site('red')})")
-b.cmd("prefs.set", key="search.sites", value=["Reddit", "YouTube", "Wikipedia"])
+for word in ("red", "yt", "wiki", "goo", "maps"):
+    t.ok(site(word) is None, f"no ready-made site: {word} offers nothing ({site(word)})")
+b.cmd("prefs.set", key="search.keywords", value=[{"keyword": "r", "template": "https://www.reddit.com/search/?q=%s"}])
 time.sleep(0.3)
-t.ok(site("red") == "Reddit", f"red offers Reddit ({site('red')})")
-t.ok(site("yt") == "YouTube", f"yt offers YouTube ({site('yt')})")
-t.ok(site("wiki") is not None and "Wikipedia" in site("wiki"), f"wiki offers Wikipedia ({site('wiki')})")
+t.ok(site("red") == "Reddit", f"with a shortcut of your own, red offers its site ({site('red')})")
+t.ok(site("yt") is None, "and no other")
 t.ok(site("zzzqqq") is None, "a word no site has offers none")
 
 b.cmd("settings.open", page="browsing")
@@ -42,7 +43,7 @@ b.wait_for(lambda: ev(tab, "document.querySelectorAll('.sr').length"), what="row
 b.ev(tab, "(() => { const f = document.querySelector('.st-find input'); f.value = 'search a site'; f.dispatchEvent(new Event('input', {bubbles: true})) })()")
 time.sleep(0.3)
 found = b.ev(tab, "[...document.querySelectorAll('.sr[data-row]')].map(r => r.dataset.row)")
-t.ok("note.sitesearch" in found, f"Settings finds the note ({found})")
-t.ok("type red, then Tab, and search Reddit" in b.ev(tab, "document.body.innerText"), "the note says how, one site at a time")
+t.ok("note.sitesearch" not in found, f"Settings has no note promising a ready-made site ({found})")
+t.ok("type red, then Tab, and search Reddit" not in b.ev(tab, "document.body.innerText"), "nothing says type red, then Tab")
 t.ok(not b.state().get("errors"), "no error in the main process")
 t.done()

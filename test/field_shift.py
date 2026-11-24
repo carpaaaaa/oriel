@@ -67,8 +67,8 @@ typed("yt cats")
 key("Return", "shift")
 t.ok(went("https://duckduckgo.com/?q=yt%20cats", "past the shortcut"), "a site shortcut is passed over: yt cats to DuckDuckGo")
 
-# a site in the field is passed over too
-b.cmd("prefs.set", key="search.sites", value=["Reddit"])
+# a site in the field is passed over too (a shortcut's site: no ready-made one)
+b.cmd("prefs.set", key="search.keywords", value=[{"keyword": "red", "template": "https://www.reddit.com/search/?q=%s"}])
 blank()
 typed("red")
 key("Tab")

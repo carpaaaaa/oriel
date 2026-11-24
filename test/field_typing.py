@@ -89,8 +89,15 @@ for mode in ("light", "dark"):
         if history:
             for _ in range(3):
                 b.call({"do": "data.visit", "url": "https://github.com/", "title": "GitHub"})
-        # the offer row is what broke the field: the sites typed here on
-        b.cmd("prefs.set", key="search.sites", value=["GitHub", "Reddit", "YouTube", "Amazon", "Wikipedia"])
+        # the offer row is what broke the field: the sites typed here, as site
+        # shortcuts of the user's own (no ready-made site, studio/03 §1.10)
+        b.cmd("prefs.set", key="search.keywords", value=[
+            {"keyword": "gh", "template": "https://github.com/search?q=%s"},
+            {"keyword": "red", "template": "https://www.reddit.com/search/?q=%s"},
+            {"keyword": "yt", "template": "https://www.youtube.com/results?search_query=%s"},
+            {"keyword": "ama", "template": "https://www.amazon.com/s?k=%s"},
+            {"keyword": "wiki", "template": "https://en.wikipedia.org/w/index.php?search=%s"},
+        ])
         # a blank tab, once its field is there with the keys
         b.wait_for(lambda: b.ui("document.activeElement === document.querySelector('.field input')"), what="the field has the keys")
         typing("github", "chrome", "ui", label + ", blank tab", ".com" if history else None)

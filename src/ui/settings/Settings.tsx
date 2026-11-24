@@ -14,7 +14,6 @@ import { Always, Card, GroupBlock, Hunt, Line, Menu, Nothing, Pictures, Pill, Se
 import { Symbol } from './symbols'
 import { ButtonsPicture, CardPicture, LayoutPicture, LookPicture } from './pictures'
 import { PermissionSites, PopupSites } from './PermissionSites'
-import { searchSiteList } from '../../shared/modules/field'
 import { MENU_DEFAULT, MENU_KEY } from '../../shared/modules/translate'
 import { TranslateLanguages } from '../translate/Languages'
 import './settings.css'
@@ -107,20 +106,39 @@ function bareHost(template: string): string | null {
 const engineName = (engine: string, custom: string) => (engine === 'custom' ? bareHost(custom) ?? 'Google' : engineTitles.find(([k]) => k === engine)?.[1] ?? 'Google')
 const hasSuggestions = (engine: string) => engine !== 'custom'
 
+// Site shortcuts (Keyword.swift; studio/03 §1.10, studio/06 row 73). The
+// address is taken as typed: no https:// is put in front of it, as the Mac
+// does for a custom engine but never for a shortcut (Keyword.accepts).
+
 interface Keyword { id: string; keyword: string; template: string }
+/** A shortcut being written, kept out of the prefs until it's saved. */
 const [draft, setDraft] = createSignal<Keyword | null>(null)
 const keywords = () => (p<Keyword[]>('search.keywords') ?? [])
+/** Engine.host: http or https, and the same host whatever the words. */
+function templateHost(template: string): string | null {
+  const t = template.trim()
+  if (!t.includes('%s')) return null
+  try {
+    const a = new URL(t.replaceAll('%s', 'a')), b = new URL(t.replaceAll('%s', 'b'))
+    if ((a.protocol !== 'http:' && a.protocol !== 'https:') || !a.hostname || a.hostname !== b.hostname) return null
+    return a.hostname.toLowerCase()
+  } catch { return null }
+}
+/** Keyword.name: the site's host without www., or the address itself. */
+const keywordName = (template: string) => templateHost(template)?.replace(/^www\./, '') ?? template
+/** Keyword.accepts: one site, %s once, in the path, query or fragment. */
 function keywordAccepts(template: string): boolean {
-  const t = written(template)
-  if (!bareHost(t) || t.split('%s').length !== 2) return false
+  const t = template.trim()
+  if (!templateHost(t) || t.split('%s').length !== 2) return false
   try { const u = new URL(t.replace('%s', 'SEARCHWORDSGOHERE')); return (u.pathname + u.search + u.hash).includes('SEARCHWORDSGOHERE') } catch { return false }
 }
+/** Keyword.problem, among the others (the one being changed left out). */
 function keywordProblem(d: Keyword): string | null {
   const word = d.keyword.trim()
   if (!word) return 'A word to type first, like yt'
   if (/\s/.test(word)) return 'One word, with no spaces in it'
   const taken = keywords().find(k => k.id !== d.id && k.keyword.toLowerCase() === word.toLowerCase())
-  if (taken) return `${taken.keyword} already goes to ${bareHost(taken.template) ?? taken.template}`
+  if (taken) return `${taken.keyword} already goes to ${keywordName(taken.template)}`
   if (!keywordAccepts(d.template)) return 'An http or https address with %s once, where the words go'
   return null
 }
@@ -172,7 +190,7 @@ function detail(i: Item): string {
       const d = draft()
       if (!d) return i.detail
       if (!d.keyword && !d.template) return 'Type a word, like yt, then the site\'s search address with %s where the words you type go'
-      return keywordProblem(d) ?? `${d.keyword.trim()} will search ${bareHost(d.template) ?? d.template}`
+      return keywordProblem(d) ?? `${d.keyword.trim()} will search ${keywordName(d.template)}`
     }
     case 'passwords.save': return 'Asked once per site, never again for a site you refuse'
     case 'arc.import': return f?.arcHere ? i.detail : "Arc isn't on this PC. Bring Things Over can read an export"
@@ -352,7 +370,7 @@ function after(i: Item, searched: boolean): JSX.Element {
   switch (i.id) {
     case 'search.engine': return <Show when={p('search.engine') === 'custom'}><TemplateField id="search.custom" /></Show>
     case 'search.shift': return <Show when={p('search.shift') === 'custom'}><TemplateField id="search.shiftCustom" /></Show>
-    case 'search.keywords': return <><SiteSwitches /><KeywordEditor /></>
+    case 'search.keywords': return <KeywordEditor />
     case 'privacy.forget': return <Show when={!searched}><div class="st-under"><PermissionSites seen={permissionsSeen()} notificationsOn={p('notifications.ask') !== false} /><PopupSites sites={p<string[]>('privacy.popupSites') ?? []} remove={s => void set('privacy.popupSites', (p<string[]>('privacy.popupSites') ?? []).filter(x => x !== s))} /></div></Show>
     case 'passkeys': return <Show when={!searched}><NeverAsked /></Show>
     default: return null
@@ -367,47 +385,41 @@ function TemplateField(q: { id: string }) {
   )
 }
 
-/** The sites the field searches with Tab, each with its switch, all off
- * until turned on (the field module's `search.sites`; the user's choice for
- * Oriel, where the Mac has them always on). */
-function SiteSwitches() {
-  const on = () => new Set(p<string[]>('search.sites') ?? [])
-  const turn = (name: string, v: boolean) => {
-    const now = on()
-    if (v) now.add(name); else now.delete(name)
-    void set('search.sites', searchSiteList.map(s => s.name).filter(n => now.has(n)))
-  }
-  return (
-    <For each={searchSiteList}>{s => (
-      <div class="kw kw-site-row" data-site={s.name}>
-        <span class="kw-word kw-site">{s.name}</span>
-        <span class="kw-template">{s.host}</span>
-        <Switch on={on().has(s.name)} set={v => turn(s.name, v)} label={`Search ${s.name} with Tab`} />
-      </div>
-    )}</For>
-  )
-}
-
+/** Under Site shortcuts (Settings.swift keywordEditor): the one being
+ * written, then the saved ones; a saved one clicked opens up here to be
+ * changed, its X deletes it. Nothing at all while there are none. */
 function KeywordEditor() {
   return (
     <>
       <Show when={draft()}>{d => (
         <div class="kw editing">
+          {/* Plainly examples, not an entry already there: in italics, with "e.g.". */}
           <input class="kw-word" placeholder="word" value={d().keyword} onInput={e => setDraft({ ...d(), keyword: e.currentTarget.value })} />
           <span class="kw-arrow">→</span>
           <input class="kw-template" placeholder="address with %s for the words, e.g. youtube.com/results?search_query=%s" value={d().template}
             onInput={e => setDraft({ ...d(), template: e.currentTarget.value })} onKeyDown={e => { if (e.key === 'Enter') saveDraft() }} />
         </div>
       )}</Show>
+      {/* The one being changed is up in the editor, not here as well. */}
       <For each={keywords().filter(k => k.id !== draft()?.id)}>{k => (
         <div class="kw">
           <span class="kw-change" title="Click to change" onClick={() => setDraft({ ...k })}>
-            <span class="kw-word">{k.keyword}</span><span class="kw-arrow">→</span><span class="kw-template">{k.template}</span>
+            <span class="kw-word">{k.keyword}</span><span class="kw-arrow">→</span><MiddleCut text={k.template} />
           </span>
           <button class="kw-remove" aria-label={`Remove ${k.keyword}`} onClick={() => void set('search.keywords', keywords().filter(x => x.id !== k.id))}><Symbol name="xmark.circle.fill" size={11} /></button>
         </div>
       )}</For>
     </>
+  )
+}
+
+/** One line cut in its middle when it doesn't fit, start and end kept. */
+function MiddleCut(q: { text: string }) {
+  const half = () => Math.ceil(q.text.length / 2)
+  return (
+    <span class="kw-template cut">
+      <span class="kw-head">{q.text.slice(0, half())}</span><span class="kw-tail"><bdi dir="ltr">{q.text.slice(half())}</bdi></span>
+    </span>
   )
 }
 

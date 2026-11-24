@@ -212,7 +212,7 @@ def site(name, i=None):
 
 
 WATCHED = [
-    "search.engine", "search.keywords", "search.sites", "look", "home.theme", "home.theme.image", "sidebar", "sidebar.position",
+    "search.engine", "search.keywords", "look", "home.theme", "home.theme.image", "sidebar", "sidebar.position",
     "sidebar.width", "spaces", "pins.folders", "tabs.sleep", "tabs.sleep.pace", "shortcuts", "quit.confirm",
     "sidepanel.width", "spaces.orderKept", "downloads",
 ]
@@ -284,7 +284,6 @@ for key, value in [("search.engine", "kagi"), ("look", "dark"), ("tabs.layout", 
 b.call({"do": "themes.answer", "file": str(picture)})
 b.cmd("themes.choose")
 b.cmd("prefs.set", key="search.keywords", value=[{"keyword": "yt", "template": "https://www.youtube.com/results?search_query=%s"}])
-b.cmd("prefs.set", key="search.sites", value=["Reddit", "Wikipedia"])  # sites searched from the field, turned on
 b.cmd("prefs.set", key="shortcuts", value={"tab.new": {"keys": ["Ctrl+Shift+K"]}})
 
 # extensions: one pinned and turned off; one whose side panel was made wider
@@ -413,7 +412,7 @@ t.ok(wins[1].get("maximized") is True and wins[1]["frame"].startswith("{{"), "a 
 sp = next(x for x in after["spaces"] if x[0] == STUDIO)
 t.ok('"angle": 30' in sp[4] and sp[5] == "rich", "a space's gradient and strength come through other changes to spaces.json")
 t.ok(after["windows"][0]["space"] == work_id, "the window shows the space it was left on")
-t.ok(b.call({"do": "field.address", "text": "red"})["site"] == "Reddit", "a site turned on is searched from the field again (red offers Reddit)")
+t.ok(b.call({"do": "field.address", "text": "yt"})["site"] == "Youtube", "a site shortcut is searched from the field again (yt offers its site)")
 kept_picture = Path(after["prefs"]["home.theme.image"] or "")
 t.ok(after["prefs"]["home.theme"] == "custom" and kept_picture.is_file() and kept_picture.parent.name == "Theme",
      f"the theme: its own picture, kept in the data folder ({kept_picture})")

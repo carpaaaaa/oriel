@@ -2,19 +2,6 @@
 
 import type { ID } from '../state'
 
-/** The sites the field can search with Tab (SiteSearch.swift:34-55), in the
- * Mac's order. Unlike the Mac, each is off until turned on in Settings ›
- * Browsing › Site shortcuts (the user's decision): `search.sites` lists
- * the names turned on. */
-export const searchSiteList: { name: string; host: string }[] = [
-  { name: 'Google', host: 'google.com' }, { name: 'Reddit', host: 'reddit.com' }, { name: 'YouTube', host: 'youtube.com' },
-  { name: 'X', host: 'x.com' }, { name: 'ChatGPT', host: 'chatgpt.com' }, { name: 'Claude', host: 'claude.ai' },
-  { name: 'Perplexity', host: 'perplexity.ai' }, { name: 'Wikipedia', host: 'wikipedia.org' }, { name: 'GitHub', host: 'github.com' },
-  { name: 'Stack Overflow', host: 'stackoverflow.com' }, { name: 'MDN', host: 'developer.mozilla.org' }, { name: 'Amazon', host: 'amazon' },
-  { name: 'Google Maps', host: 'google.com/maps' }, { name: 'IMDb', host: 'imdb.com' }, { name: 'Spotify', host: 'open.spotify.com' },
-  { name: 'Figma Community', host: 'figma.com/community' },
-]
-
 /** What Return in the field does, said by its placeholder (studio/03 §1.1). */
 export type FieldMode = 'blank' | 'newTab' | 'thisTab' | 'switcher'
 

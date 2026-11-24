@@ -10,8 +10,8 @@ import bench as b
 b.use("field-suggest")
 b.launch()
 t = b.T()
-# Sites searched with Tab are off until turned on (Oriel, not the Mac): on, for these checks.
-b.cmd("prefs.set", key="search.sites", value=["Google", "Reddit", "YouTube", "X", "ChatGPT", "Claude", "Perplexity", "Wikipedia", "GitHub", "Stack Overflow", "MDN", "Amazon", "Google Maps", "IMDb", "Spotify", "Figma Community"])
+# No ready-made site to search with Tab: Reddit as a site shortcut of the user's own (studio/03 §1.10).
+b.cmd("prefs.set", key="search.keywords", value=[{"keyword": "red", "template": "https://www.reddit.com/search/?q=%s"}])
 
 H, BM, KNOWN = "history", "bookmark", "url"
 b.call({"do": "field.fake", "places": [

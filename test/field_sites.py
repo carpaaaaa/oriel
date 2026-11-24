@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Searching a site with Tab, as the user wants it in Oriel (not the Mac's
-default): every site off until turned on, one by one, in Settings ›
-Browsing › Site shortcuts; until then typing its name offers nothing more.
-The chip, once there, shows an X under the pointer that takes the site out
-and keeps what was typed and the keys; Backspace on the empty field and
-Escape still take it out (studio/03 §1.4, §1.9). Real key events."""
+"""Searching a site with Tab, as the owner wants it in Oriel for now: no
+ready-made site (the Mac's built-in ones and Oriel's switches for them are
+gone), only the site shortcuts of Settings › Browsing › Site shortcuts,
+offered by their word or the start of their site's name (SiteSearch.match
+with the keywords). The chip, once there, shows an X under the pointer that
+takes the site out and keeps what was typed and the keys; Backspace on the
+empty field and Escape still take it out (studio/03 §1.4, §1.9, §1.10).
+Real key events."""
 import json, sys, time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -51,40 +53,37 @@ def clear():
         time.sleep(0.3)
 
 
-# off by default: nothing offered, Tab walks the list instead
-t.ok(b.state()["prefs"].get("search.sites") == [], "no site is on to begin with")
+# no ready-made site: nothing offered, Tab walks the list instead
+t.ok("search.sites" not in b.state()["prefs"], "no ready-made sites to turn on")
 for word in ("github", "red", "yt", "ama", "wiki"):
     typed(word)
-    t.ok(field().get("offer") is None and not ui("!!document.querySelector('.field-offer')"), f"{word!r}: nothing offered while its site is off")
+    t.ok(field().get("offer") is None and not ui("!!document.querySelector('.field-offer')"), f"{word!r}: nothing offered")
     clear()
 typed("gith")
 key("Tab")
 time.sleep(0.3)
-t.ok(field().get("chip") is None, "Tab with no site on puts nothing in the field")
+t.ok(field().get("chip") is None, "Tab with no site offered puts nothing in the field")
 clear()
 
-# Settings › Browsing › Site shortcuts: a switch for each site
+# Settings › Browsing › Site shortcuts: no switch for any site, only Add
 b.cmd("app.settings")
 b.wait_for(lambda: any(x.get("internal") == "settings" for x in b.window()["tabs"]), what="Settings tab")
 tab = next(x for x in b.window()["tabs"] if x.get("internal") == "settings")["id"]
 b.cmd("settings.open", page="browsing")
-b.wait_for(lambda: ev(tab, "document.querySelectorAll('.kw-site-row').length"), what="site switches")
-names = ev(tab, "[...document.querySelectorAll('.kw-site-row')].map(e => e.dataset.site)")
-t.ok(names[:3] == ["Google", "Reddit", "YouTube"] and len(names) == 16, f"the sixteen sites, in the Mac's order: {names}")
-t.ok(ev(tab, "[...document.querySelectorAll('.kw-site-row .st-sw')].every(s => !s.classList.contains('on'))"), "every switch off")
-ev(tab, "document.querySelector(\".kw-site-row[data-site='GitHub'] .st-sw\").click()")
-b.wait_for(lambda: b.state()["prefs"].get("search.sites") == ["GitHub"], what="GitHub on")
-t.ok(True, "a switch turns one site on")
+b.wait_for(lambda: ev(tab, "!!document.querySelector(\".sr[data-row='search.keywords'] .pill-st\")"), what="Site shortcuts")
+t.ok(ev(tab, "document.querySelectorAll('.kw-site-row, .kw').length") == 0, "no site listed under Site shortcuts")
+# a shortcut of the user's own (settings_shortcuts.py writes one in Settings)
+b.cmd("prefs.set", key="search.keywords", value=[{"keyword": "gh", "template": "https://github.com/search?q=%s"}])
 
-# back on a blank tab: GitHub is offered, Reddit still isn't
+# back on a blank tab: the shortcut's site is offered, Reddit isn't
 b.cmd("tab.new")
 time.sleep(0.5)
 typed("gith")
 f = field()
-t.ok(f.get("offer") and f["offer"]["name"] == "GitHub", "GitHub, turned on, is offered")
+t.ok(f.get("offer") and f["offer"]["name"] == "Github", "the shortcut's site is offered by the start of its name")
 clear()
 typed("red")
-t.ok(field().get("offer") is None, "Reddit, still off, is not")
+t.ok(field().get("offer") is None, "Reddit, no shortcut of yours, is not")
 clear()
 
 # the chip and its X
@@ -94,7 +93,7 @@ if not f.get("offer"):
     print("   before Tab:", {k: f.get(k) for k in ("text", "shown", "offer", "selected")}, ui("document.querySelector('.field input').value"))
 key("Tab")
 time.sleep(0.3)
-t.ok((field()["chip"] or {}).get("name") == "GitHub", "Tab puts GitHub in the field")
+t.ok((field()["chip"] or {}).get("name") == "Github", "Tab puts the site in the field")
 typed("cats")
 x = json.loads(ui("JSON.stringify(document.querySelector('.field-chip-x').getBoundingClientRect())"))
 t.ok(ui("getComputedStyle(document.querySelector('.field-chip-x')).opacity") == "0", "no X until the pointer is on the chip")
@@ -133,7 +132,7 @@ typed("gith", "overlay")
 key("Tab", "overlay")
 time.sleep(0.3)
 f = field()
-t.ok((f["chip"] or {}).get("name") == "GitHub", f"over a page too: {f['text']!r} {f.get('offer')} {ui('document.querySelector(\'.field input\')?.value', root='overlay')!r}")
+t.ok((f["chip"] or {}).get("name") == "Github", f"over a page too: {f['text']!r} {f.get('offer')} {ui('document.querySelector(\'.field input\')?.value', root='overlay')!r}")
 key("Escape", "overlay")
 time.sleep(0.3)
 t.ok(field()["chip"] is None and field()["open"], "Escape takes the site out, the field stays")

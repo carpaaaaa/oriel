@@ -101,16 +101,16 @@ same(a("yt")["destination"], "https://www.google.com/search?q=yt", "the word alo
 same(a("bad cats")["destination"], "https://www.google.com/search?q=bad%20cats", "%s in the host is never followed")
 same(a("two cats")["destination"], "https://www.google.com/search?q=two%20cats", "%s twice is never followed")
 
-# §1.9 searching a site: which one the words name
-same(a("red")["site"], None, "no site is offered while every site is off (Oriel's default)")
-b.cmd("prefs.set", key="search.sites", value=["Reddit"])
-same(a("red")["site"], "Reddit", "a site turned on is")
-same(a("gh")["site"], None, "the others stay off")
-same(a("yt")["site"], "Youtube", "a site shortcut of your own counts as turned on")
-b.cmd("prefs.set", key="search.sites", value=["Google", "Reddit", "YouTube", "X", "ChatGPT", "Claude", "Perplexity", "Wikipedia", "GitHub", "Stack Overflow", "MDN", "Amazon", "Google Maps", "IMDb", "Spotify", "Figma Community"])
-for typed, site in [("red", "Reddit"), ("yt", "YouTube"), ("you", "YouTube"), ("goo", "Google"), ("google m", "Google Maps"),
-                    ("maps", "Google Maps"), ("wiki", "Wikipedia"), ("so", "Stack Overflow"), ("gpt", "ChatGPT"),
-                    ("twitter", "X"), ("gh", "GitHub"), ("red panda", None), ("r", None), ("red/x", None)]:
+# §1.9 searching a site: no ready-made site for now, only the user's own shortcuts
+for typed in ("red", "goo", "google m", "maps", "wiki", "so", "gpt", "twitter", "gh"):
+    same(a(typed)["site"], None, f"no ready-made site for {typed!r}")
+b.cmd("prefs.set", key="search.keywords", value=[
+    {"keyword": "yt", "template": "https://www.youtube.com/results?search_query=%s"},
+    {"keyword": "ytm", "template": "https://music.youtube.com/search?q=%s"},
+    {"keyword": "bad", "template": "https://%s.example.com/"},
+])
+for typed, site in [("yt", "Youtube"), ("you", "Youtube"), ("youtube.com", "Youtube"), ("ytm", "Music"), ("mus", "Music"),
+                    ("bad", None), ("yt cats", None), ("y", None), ("yt/x", None)]:
     same(a(typed)["site"], site, f"site for {typed!r}")
 
 # §1.8 what may be sent to the engine
