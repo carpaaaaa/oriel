@@ -158,7 +158,8 @@ const overrides: Record<string, Partial<Item>> = {
   'notifications.ask': { detail: "Only a site you allow reaches Windows' notifications" },
   'links.optionSplit': { more: 'Off, Alt-click follows the link as a click does. In Chrome it downloads the link instead.' },
   'autoscroll': { detail: 'Click the wheel, then move the mouse to scroll, as in Chrome' },
-  'wheel.smooth': { more: 'A touchpad, and a mouse that scrolls smoothly on its own, are left as they are. With Ctrl or Alt held a notch goes to the page as it comes, for zooming.' },
+  // Chromium's own glide, read as each page is made (pages/smooth.ts).
+  'wheel.smooth': { more: 'New tabs follow at once, tabs already open once Oriel restarts. A touchpad is left as it is, and a page still gets each notch as it comes. With Animation effects off in Windows Settings › Accessibility › Visual effects, a notch moves the page at once, as in Chrome.' },
   // The tabs module (studio/08 area B): Oriel has no View menu, and no site card yet.
   'note.panel': { detail: 'Always there: right-click a tab › Open in Side Panel' },
   'note.awake': { detail: 'Always there: right-click a tab › Keep This Site Awake' },
