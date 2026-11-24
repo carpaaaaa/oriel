@@ -373,8 +373,9 @@ try:
     time.sleep(0.4)
     focus()
     f = frame()
-    W, H = f["bounds"]["width"], f["bounds"]["height"]
-    q = {"x": W - 12 - 300, "y": 12, "width": 300, "height": 90}
+    # Placed as the question is: 12 inside what is seen (a free window has its shadow around it).
+    v0, b0 = f["visual"], f["bounds"]
+    q = {"x": v0["x"] + v0["width"] - b0["x"] - 12 - 300, "y": v0["y"] - b0["y"] + 12, "width": 300, "height": 90}
     b.cmd("overlay.region", window=WID, rect=q, focus=False)
     for how in ("maximized", "fullScreen", "free"):
         if how == "maximized":
