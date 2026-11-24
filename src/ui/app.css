@@ -2,7 +2,7 @@
 
 * { box-sizing: border-box; margin: 0; }
 html, body, #root { height: 100%; overflow: hidden; }
-html { font-family: var(--font-ui); font-size: var(--fs-body); color: var(--ink); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; user-select: none; cursor: default; }
+html { font-family: var(--font-ui); letter-spacing: var(--tracking-ui); font-size: var(--fs-body); color: var(--ink); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; user-select: none; cursor: default; }
 html[data-root="chrome"] body { background: var(--frame); }
 html[data-root="overlay"] body { background: transparent; }
 button:focus, input:focus { outline: none; }

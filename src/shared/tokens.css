@@ -47,6 +47,9 @@
 
   /* tipografia */
   --font-ui: "Inter Variable", "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  /* Inter is a little wider than SF Pro: tracked in so a tab title takes the
+     Mac's room ("Rec…" 32 px, "Wea…" 35 px at 12.5, Design.swift:224). */
+  --tracking-ui: -0.03em;
   --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
   --fs-tab: 12.5px;
   --fs-tab-roomy: 14px;
