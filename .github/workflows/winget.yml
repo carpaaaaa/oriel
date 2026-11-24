@@ -30,7 +30,10 @@ jobs:
     steps:
       # The runners' winget is old (1.11 on x64, none on ARM) and doesn't know
       # the manifest schema winget-pkgs uses now: the latest one, as people have.
+      # On Windows Server (x64) the update can fail; 1.11 then reads the
+      # manifests with a warning about the schema and installs from them.
       - name: WinGet, latest
+        continue-on-error: true
         shell: pwsh
         run: |
           Install-PSResource -Name Microsoft.WinGet.Client -TrustRepository -Quiet
@@ -49,7 +52,12 @@ jobs:
             Invoke-WebRequest "https://raw.githubusercontent.com/carpaaaaa/winget-pkgs/${{ inputs.branch }}/manifests/c/CharStudio/Oriel/${{ inputs.version }}/$f" -OutFile "manifests/$f"
           }
       - name: Validate
-        run: winget validate --manifest manifests
+        shell: pwsh
+        run: |
+          $out = winget validate --manifest manifests | Out-String
+          $out
+          if ($out -notmatch 'Manifest validation succeeded') { exit 1 }
+          exit 0
       - name: Install
         run: winget install --manifest manifests --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
       - name: What the installer wrote
@@ -58,6 +66,9 @@ jobs:
           Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
             Where-Object { $_.DisplayName -like 'Oriel*' } |
             Select-Object PSChildName, DisplayName, DisplayVersion, Publisher, InstallLocation, QuietUninstallString | Format-List
+          'Offered to Windows as a browser:'
+          Get-ItemProperty 'HKCU:\Software\RegisteredApplications' -ErrorAction SilentlyContinue | Select-Object Oriel | Format-List
+          Get-ItemProperty 'HKCU:\Software\Clients\StartMenuInternet\Oriel\Capabilities\URLAssociations' -ErrorAction SilentlyContinue | Select-Object http, https, mailto | Format-List
           $exe = Join-Path $env:LOCALAPPDATA 'Programs\Oriel\Oriel.exe'
           if (-not (Test-Path $exe)) { throw "Oriel.exe isn't at $exe" }
           (Get-Item $exe).VersionInfo | Format-List FileVersion, ProductVersion, CompanyName, ProductName
