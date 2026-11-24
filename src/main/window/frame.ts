@@ -504,7 +504,8 @@ export class Frame {
    * screen meanwhile (Electron leaves a maximized window as it is). */
   pageFull(on: boolean): void {
     const b = this.c.base
-    if (b.isDestroyed()) return
+    // Windows only: a Mac's full screen is the system's own (a Space).
+    if (b.isDestroyed() || !this.hwnd) return
     this.note(`page full ${on}`)
     if (!on) {
       if (this.byPage) { this.byPage = false; if (this.isFullScreen()) this.setFullScreen(false) }
