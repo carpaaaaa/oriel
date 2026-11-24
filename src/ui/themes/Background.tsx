@@ -24,7 +24,8 @@ export function HomeBackground(p: {
     const t = today(p.theme, p.tuning, !!p.shuffle, !!p.thumbnail)
     return { theme: t.theme, tuning: p.thumbnail ? { ...t.tuning, intensity: 1 } : t.tuning }
   }
-  const pic = picture(() => (shown().theme === 'custom' ? p.image ?? '' : ''))
+  // The chosen picture, or with none chosen the starting one.
+  const pic = picture(() => (shown().theme === 'custom' ? p.image ?? '' : null))
 
   onMount(() => {
     const measure = () => {
@@ -66,7 +67,8 @@ export function HomeBackground(p: {
 
   return (
     <div class={`home-bg ${p.class ?? ''}`} ref={box} aria-hidden="true" data-theme={shown().theme}
-      data-shown={shown().theme === 'custom' ? (pic() ? 'custom' : 'off') : shown().theme}>
+      data-shown={shown().theme === 'custom' ? (pic() ? 'custom' : 'off') : shown().theme}
+      data-picture={shown().theme === 'custom' ? (p.image ? 'chosen' : 'default') : undefined}>
       <Show when={shown().theme !== 'off' && shown().theme !== 'custom'}>
         <canvas class="home-bg-art" ref={setArt} />
       </Show>

@@ -44,8 +44,9 @@ export function ThemesPage() {
   const choose = (next: Family) => {
     setFamily(next)
     if (next === 'off') void setTheme('off')
-    // On the wall only once there is a picture to put there.
-    else if (next === 'image') { if (pic()) void setTheme('custom') }
+    // On the wall once there is a picture to put there: the starting one
+    // until one is chosen (a chosen one that can't be read leaves it as it was).
+    else if (next === 'image') { if (!tp().image || pic()) void setTheme('custom') }
     else if (familyOf(tp().theme) !== next) void setTheme(firstOf[next])
   }
 
