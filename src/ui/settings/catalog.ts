@@ -74,6 +74,9 @@ export const removed: Record<string, string> = {
   'about.notes': 'no notes of Oriel\'s own yet',
   'extensions.safariApps': 'Safari apps are the Mac\'s',
   'inlinePredictions': 'Chromium has no inline predictions',
+  // The pages module (studio/08 area C):
+  'swipe.history': 'Windows tells an app no start or end of a touchpad swipe',
+  'agents': 'no bridge for coding agents yet (studio/03 §8.2): back with it',
 }
 
 /** The Mac's keys as Windows has them (src/main/keys.ts's table). */
