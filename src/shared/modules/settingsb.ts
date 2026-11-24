@@ -18,6 +18,13 @@ declare module '../commands' {
     'archive.reopen': { id: ID }
     'archive.remove': { id: ID }
     'archive.clear': None
+    /** A link from another app (Links.take): where the rows send it. */
+    'link.arrive': { url: string; sender?: string }
+    /** Ask which space: the space chosen, and Always for its site. */
+    'link.choose': { space: ID; always?: boolean }
+    'link.cancel': None
+    /** Always Open <site> in <space>, Stop Opening (space null). */
+    'spaces.route': { url: string; space: ID | null }
     /** Keep This Site Awake, from a tab's menu. */
     'tab.keepAwake': { id: ID; on: boolean }
   }

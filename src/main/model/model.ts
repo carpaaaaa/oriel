@@ -237,6 +237,8 @@ class Model extends EventEmitter {
     /** Where a window is now (its frame, state and monitor); null when it
      * can't say (gone, minimized): the last it said is kept. */
     frame: (_win: ID): Placement | null => null,
+    /** The space Send links to a space sends an address to, if any. */
+    route: (_url: string): ID | null => null,
   }
 
   // MARK: load
@@ -940,6 +942,17 @@ class Model extends EventEmitter {
    * clicked with a modifier (§3.30-§3.32). */
   openFromPage(win: WindowRecord, opener: ID, url: string, disposition: string): TabRecord {
     const source = this.tabs.get(opener)
+    // Send links to a space (§7.28): a site's link opened from a page of
+    // another space goes to its space, in front, in the window showing it
+    // (or this one, switched to it).
+    const routed = source && !source.shy ? this.hooks.route(url) : null
+    if (routed && routed !== source!.space) {
+      const target = [...this.windows.values()].find(w => !w.shy && w.space === routed) ?? win
+      if (target.space !== routed) this.switchSpace(target, routed)
+      const tab = this.open(target, url, { foreground: true })
+      this.emit('routed', target.id, tab.id)
+      return tab
+    }
     const behind = disposition === 'background-tab'
     if (behind) return this.open(win, url, { foreground: false, from: opener, link: true, mayWait: true })
     const beside = this.frontLinksBeside()
@@ -1044,6 +1057,19 @@ class Model extends EventEmitter {
     this.touch(win, ['tabs', 'pins', 'activeID', 'picked'])
     this.sessionNow(win, space)
     return fresh
+  }
+
+  /** A page made elsewhere (a small window's, kept with Open in Oriel,
+   * §10.31): a tab after the one on screen, in front, never among the pins;
+   * its page is given to it as it is. */
+  adoptPage(win: WindowRecord, url: string, title = ''): TabRecord {
+    const space = win.space
+    const tab = this.makeTab(win, space, { url, title, empty: false })
+    this.spaceTabs(win, space).splice(this.placeForNew(win, space), 0, tab.id)
+    this.selectTab(win, tab.id)
+    this.touch(win, ['tabs', 'activeID'])
+    this.sessionSoon(win, space)
+    return tab
   }
 
   /** A sized pop-up as a tab (tabs.popupWindows off, §3.35): in front at the

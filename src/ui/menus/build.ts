@@ -57,6 +57,20 @@ function closeItems(t: TabView): Entry[] {
   ]
 }
 
+/** Always Open <site> in <space> / Stop Opening (SpaceRoutes, §7.29). */
+function siteRoute(t: TabView): Entry | null {
+  if (!P.spaces() || !state.prefs['spaces.links'] || t.shy) return null
+  let site = ''
+  try { const u = new URL(t.url); if (!/^https?:$/.test(u.protocol)) return null; site = u.hostname.toLowerCase().replace(/^www\.(?=.*\.)/, '') } catch { return null }
+  const space = state.spaces.find(s => s.id === state.space)
+  if (!site || !space) return null
+  const rules = (state.prefs['spaces.links.rules'] as { site: string; space: string }[] | undefined) ?? []
+  const here = rules.find(r => r.site === site && r.space.toUpperCase() === space.id.toUpperCase())
+  return here
+    ? { label: `Stop Opening ${site} in ${space.name}`, act: { cmd: { do: 'spaces.route', url: t.url, space: null } as Command } }
+    : { label: `Always Open ${site} in ${space.name}`, act: { cmd: { do: 'spaces.route', url: t.url, space: space.id } as Command } }
+}
+
 /** The host Keep This Site Awake keeps: http(s) only, any port. */
 function siteOf(t: TabView): string | null {
   try { const u = new URL(t.url); return /^https?:$/.test(u.protocol) && u.hostname ? u.hostname.toLowerCase() : null } catch { return null }
@@ -101,6 +115,9 @@ export function tabMenu(t: TabView): Entry[] {
     items.push({ label: 'Unpin', act: { cmd: { do: 'tab.unpin', id: t.id } } }, { label: 'Delete', act: { cmd: { do: 'pin.remove', id: pin.id } } })
   }
   if (!pin?.everywhere) { const s = spaceItems([t.id]); if (s) items.push(s) }
+  // Send links to a space (§7.29): this tab's site, to the space it is in.
+  const routeItem = siteRoute(t)
+  if (routeItem) items.push(routeItem)
   items.push(off('Open in Split View'))
   if (!t.pinID) items.push(off('Move to New Window'))
   items.push(
