@@ -96,7 +96,7 @@ def front():
 
 # 1. The list: the menus' sections, each command with its Windows key.
 caps = ev(S, "[...document.querySelectorAll('.kbset-section .st-caption')].map(c => c.textContent)")
-ORDER = ["Oriel", "File", "Edit", "View", "Tabs", "Spaces", "Profiles", "Bookmarks", "History", "Extensions", "Always these keys"]
+ORDER = ["Oriel", "File", "Edit", "View", "Tabs", "Spaces", "Profiles", "Bookmarks", "History", "Extensions"]
 # A menu whose commands have nothing behind them on Windows yet isn't listed (Bookmarks).
 t.ok(caps[:5] == ORDER[:5] and "History" in caps and caps == [c for c in ORDER if c in caps], f"a card to a menu, in the menus' order ({caps})")
 t.ok("Spaces" not in caps and "Profiles" not in caps, "Spaces only with spaces on; no Profiles")
@@ -106,8 +106,10 @@ t.ok(ev(S, "document.querySelector(\"[data-command='file.closeTab'] .st-line-det
 t.ok(label("app.passwords") == "Alt+Shift+L", "keys as Windows writes them (Alt+Shift+L)")
 numbers = ev(S, "(() => { const l = [...document.querySelectorAll(\"[data-section='Tabs'] .st-line\")].find(l => l.querySelector('.st-line-title').textContent === 'Tab 1 to 9'); return l && [l.querySelector('.kbset-key').textContent, l.querySelector('.st-line-detail').textContent, l.querySelector('.kbset-key').tagName] })()")
 t.ok(numbers == ["Ctrl+1 to Ctrl+9", "The ninth is the last. With spaces on, they can switch spaces instead", "SPAN"], f"Tab 1 to 9 shown, not changed here ({numbers})")
-fixed = ev(S, "[...document.querySelectorAll(\"[data-section='Fixed'] .kbset-row\")].map(r => [r.querySelector('.st-line-title').textContent, r.querySelector('.kbset-key').textContent, r.querySelector('.kbset-key').tagName])")
-t.ok(fixed and all(tag == "SPAN" for _, _, tag in fixed) and ["Close Window", "Alt+F4", "SPAN"] in fixed, f"the keys that are always these, shown as fixed ({fixed})")
+listed = rows()
+t.ok(not {"app.quit", "view.fullScreen", "escape", "stop", "window.close", "pin.home", "tabs.recentBack", "tab.1"} & set(listed),
+     "fixed keys aren't listed, as the Mac's Command.all hasn't them: only Tab 1 to 9")
+t.ok(ev(S, "document.querySelectorAll('.kbset-key.fixed').length") == 1, "and Tab 1 to 9 is the one key shown fixed")
 t.ok(not ev(S, "[...document.querySelectorAll('.kbset .pill-st')].some(p => p.textContent === 'Reset All to Defaults')"), "nothing changed: no Reset All")
 t.ok(ev(S, f"document.querySelector(\"{box('file.newTab')}\").title") == "Click, then press the new shortcut", "the box says how")
 
@@ -217,6 +219,31 @@ b.wait_for(lambda: not shortcuts(), within=5, what="reset all")
 b.wait_for(lambda: label("file.newTab") == "Ctrl+T" and label("file.newWindow") == "Ctrl+N", within=5, what="labels back")
 t.ok(True, "Reset All to Defaults: every key as it was")
 t.ok(not ev(S, "[...document.querySelectorAll('.kbset .pill-st')].some(p => p.textContent === 'Reset All to Defaults')"), "and the pill goes")
+
+# Windows' other keys stay beside a new one: Close Tab keeps Ctrl+F4.
+click("file.closeTab")
+press("K", "control", "shift")
+b.wait_for(lambda: label("file.closeTab") == "Ctrl+Shift+K", within=5, what="close tab key")
+t.ok(shortcuts() == {"file.closeTab": {"keys": ["Ctrl+Shift+K", "Ctrl+F4"]}}, f"a new key for Close Tab keeps Ctrl+F4 ({shortcuts()})")
+t.ok(ev(S, "document.querySelector(\"[data-command='file.closeTab'] .st-line-detail\")?.textContent") == "Also Ctrl+F4", "and still says Also Ctrl+F4")
+b.cmd("tab.new", url=SITE + "/to-close")
+b.wait_for(lambda: (b.active() or {}).get("url", "").endswith("/to-close") and b.active()["title"] == "a page", what="tab to close")
+n = tabs()
+press("W", "control", to="ui")
+time.sleep(0.8)
+t.ok(tabs() == n, "Ctrl+W, moved away, closes nothing")
+press("F4", "control", to="ui")
+b.wait_for(lambda: tabs() == n - 1, within=5, what="ctrl+f4")
+t.ok(True, "Ctrl+F4 still closes the tab")
+front()
+# Zoom In's other keys are the same + key spelled otherwise (KeyCombo): a new key takes their place.
+if label("view.zoomIn"):
+    click("view.zoomIn")
+    press("Z", "alt", "shift")
+    b.wait_for(lambda: label("view.zoomIn") == "Alt+Shift+Z", within=5, what="zoom key")
+    t.ok(shortcuts().get("view.zoomIn") == {"keys": ["Shift+Alt+Z"]}, f"Zoom In: the new key alone, as the Mac's + key ({shortcuts().get('view.zoomIn')})")
+ev(S, "[...document.querySelectorAll('.kbset .pill-st')].find(p => p.textContent === 'Reset All to Defaults').click()")
+b.wait_for(lambda: not shortcuts(), within=5, what="reset all again")
 
 # 8. An extension's command: listed under Extensions, its key changed and reset.
 ext = b.call({"do": "extensions.loadUnpacked", "path": str(FIXTURE)})
