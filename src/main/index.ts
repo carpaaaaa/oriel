@@ -99,6 +99,11 @@ app.on('second-instance', (_e, argv) => {
 
 app.on('window-all-closed', () => app.quit())
 app.on('before-quit', () => flushJSON())
+// Ended from outside (Ctrl+C in a terminal, Task Manager, Windows logging
+// off): write what's pending first, so no change is lost.
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+  process.on(signal, () => { try { flushJSON() } finally { app.exit(0) } })
+}
 
 app.whenReady().then(async () => {
   const look = process.env.SEARCH_LOOK

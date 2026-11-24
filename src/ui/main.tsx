@@ -1,5 +1,5 @@
 import { render } from 'solid-js/web'
-import '@fontsource-variable/inter'
+import '@fontsource-variable/plus-jakarta-sans'
 import '../shared/tokens.css'
 import './app.css'
 import { connect } from './lib/store'

@@ -26,7 +26,7 @@ Windows builds and tests run on GitHub Actions (x64 and ARM).
 
 ## Credits
 
-Oriel is built on [Search](https://github.com/driceroland/Search) by Office Commun, and on Electron, electron-chrome-extensions, Solid, koffi, tldts and the Inter typeface, among others. Who made what, and under which license: [CREDITS.md](CREDITS.md). Every package inside the app, with its license text: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+Oriel is built on [Search](https://github.com/driceroland/Search) by Office Commun, and on Electron, electron-chrome-extensions, Solid, koffi, tldts and the Plus Jakarta Sans typeface, among others. Who made what, and under which license: [CREDITS.md](CREDITS.md). Every package inside the app, with its license text: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
 ## License
 
