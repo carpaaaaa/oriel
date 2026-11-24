@@ -16,7 +16,7 @@ import { need } from '../context'
 import { editable, fileURL, reachable } from '../address'
 import { destination } from './engines'
 import { placeOffers } from './suggest'
-import { closeField } from './commands'
+import { closeField, stayUp } from './commands'
 
 interface Edit {
   id: string
@@ -74,6 +74,9 @@ function changed(c: WindowController): void {
 export function beginTabEdit(c: WindowController, id: string): void {
   const tab = model.tabs.get(id)
   if (!tab || tab.empty || !tab.url || c.record.active[c.record.space] !== id) return
+  // ⌘T's floating field stays up over the page: the Mac leaves it, and the
+  // address in the tab would need the overlay it is in, so the keys stay there.
+  if (stayUp(c)) return
   closeField(c)
   const before = edits.get(c.record)
   if (before?.finishing) clearTimeout(before.finishing)

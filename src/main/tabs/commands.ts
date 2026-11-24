@@ -7,7 +7,7 @@ import { model, spaceIcons, internalKind, type TabRecord } from '../model/model'
 import { runtimeFor, runtimes } from '../views/tabs'
 import { resolveInput } from '../address'
 import { need, tabRuntime } from '../context'
-import { closeField, fieldShowing, launch, openField, putAway } from '../field/commands'
+import { closeField, fieldShowing, launch, openField, putAway, stayUp } from '../field/commands'
 import type { WindowController } from '../views/window'
 import { putToSleep } from './sleep'
 
@@ -18,7 +18,10 @@ const resolve = (input: string) => (internalKind(input.trim()) ? input.trim() : 
 
 handle('tab.select', ({ id }, ctx) => {
   const c = need(ctx)
+  const same = model.activeTab(win(c))?.id === id
   model.selectTab(win(c), id)
+  // The tab already in front: ⌘T's floating field stays (Browser.select, §3.5).
+  if (same && stayUp(c)) return
   closeField(c)
   c.focusPage()
 })
