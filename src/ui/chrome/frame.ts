@@ -11,8 +11,10 @@
 import { state, cmd } from '../lib/store'
 import type { Edge } from '../../shared/modules/window'
 
-/** Things a click takes: never a handle for the window. */
-const TAKEN = 'button, input, textarea, select, a, [contenteditable], [data-no-drag], .row, .pin, .grip, .address-line, .caption-buttons, .card, .grips'
+/** Things a click takes: never a handle for the window. The column's and the
+ * strip's pieces are carried by the tabs module (sidebar/drag.ts, tabbar/). */
+const TAKEN = 'button, input, textarea, select, a, [contenteditable], [data-no-drag], .row, .pin, .grip, .address-line, .caption-buttons, .card, .grips, ' +
+  '.square, .tile, .group-heading, .folder-heading, .keep-line, .strip-tab, .strip-pin, .strip-group-name'
 /** Surfaces that move the window. */
 const MOVES = '.drag, .top-strip, .sidebar, .window'
 /** Surfaces where a double click maximizes, as a title bar does. */

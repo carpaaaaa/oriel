@@ -19,7 +19,9 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 
 /* the window (studio/02 §4.1, §4.7, §4.8; the frame in window/frame.ts) */
 .frame { position: absolute; inset: 0; }
-.window { position: absolute; inset: 0; background: var(--frame); border-radius: var(--window-radius); overflow: hidden; }
+/* contain: what is fixed inside (the space's wash, the column coming out)
+   is the window's size and stays inside it, never over the clear margin. */
+.window { position: absolute; inset: 0; background: var(--frame); border-radius: var(--window-radius); overflow: hidden; contain: paint; }
 :root:not([data-frame="drawn"]) .window { border-radius: 0; }
 :root[data-frame="drawn"] .window { inset: var(--m-top) var(--m-right) var(--m-bottom) var(--m-left); box-shadow: var(--window-shadow); }
 :root[data-frame="drawn"] .window.blurred { box-shadow: var(--window-shadow-rest); }
@@ -44,6 +46,12 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 :root[data-state="fullScreen"] .window.windows { --top: var(--card-gap); }
 :root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .card { top: 0; right: 0; bottom: 0; border-radius: 0; box-shadow: none; }
 :root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .window:not(:has(.sidebar)) .card { left: 0; }
+/* Tabs across the top (studio/01 §4.3, studio/02 §4.3): the strip is the
+   window's top (--top from Chrome.tsx), the page under it edge to edge with a
+   hairline, in full screen too. */
+.window.top .top-strip { display: none; }
+.window.top .card { left: 0; right: 0; bottom: 0; border-radius: 0; box-shadow: 0 -1px 0 var(--hairline); }
+:root[data-state="fullScreen"] .window.top :is(.card, .side-room) { top: var(--top); }
 
 /* Windows 11 caption buttons, drawn by Search: 46 wide, the close one red;
    with the native frame they are Windows' own (drawn here only on a Mac). */

@@ -44,12 +44,15 @@ export function TabBar() {
   let row!: HTMLDivElement
   let far!: HTMLDivElement
   let pillEl!: HTMLDivElement
+  let bar!: HTMLElement
   const [width, setWidth] = createSignal(window.innerWidth)
   const [farW, setFarW] = createSignal(0)
   const [inside, setInside] = createSignal(false)
   onMount(() => {
-    const ro = new ResizeObserver(() => { setWidth(window.innerWidth); setFarW(far.offsetWidth) })
-    ro.observe(document.documentElement)
+    // The strip's own width: the window drawn by Oriel is narrower than the
+    // view by its clear margin (window/frame.ts ROOM).
+    const ro = new ResizeObserver(() => { setWidth(bar.clientWidth); setFarW(far.offsetWidth) })
+    ro.observe(bar)
     ro.observe(far)
     onCleanup(() => ro.disconnect())
   })
@@ -102,9 +105,8 @@ export function TabBar() {
   const forward = () => !!tab() && !tab()!.empty && tab()!.canGoForward
 
   return (
-    <header class="tabbar drag" data-tabs-ui="strip" style={{ '--controls': `${controls()}px` }}
-      onPointerEnter={() => setInside(true)} onPointerLeave={() => setInside(false)}
-      onDblClick={e => { if (e.target === e.currentTarget) void cmd({ do: 'tab.new' }) }}>
+    <header ref={bar} class="tabbar drag" data-tabs-ui="strip" style={{ '--controls': `${controls()}px` }}
+      onPointerEnter={() => setInside(true)} onPointerLeave={() => setInside(false)}>
       <Wash />
       <div class="strip-band">
         <div class="strip-lights" style={{ width: `${lights()}px` }} />
@@ -119,7 +121,9 @@ export function TabBar() {
             <G.plus pt={10} weight="medium" />
           </button>
         </div>
-        <div class="strip-spring" />
+        {/* §4.20: a double click after the + opens a tab and doesn't zoom; on the
+            rest of the strip the window's frame zooms (chrome/frame.ts). */}
+        <div class="strip-spring" on:dblclick={e => { if (e.button === 0) { e.stopPropagation(); void cmd({ do: 'tab.new' }) } }} />
         <div ref={far} class="strip-far">
           <For each={outlet('strip.end')}>{c => <Dynamic component={c} />}</For>
           <div class="strip-helm">

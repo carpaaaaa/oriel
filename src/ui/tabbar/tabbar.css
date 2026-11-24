@@ -72,7 +72,4 @@
 .strip-group.open { background: var(--band); margin-right: 8px; }
 .strip-group-name { flex: none; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 500; color: var(--muted); white-space: nowrap; }
 
-/* the page under the strip, edge to edge (until the window module lays it out itself) */
-html .window:has(> .tabbar), html .window.windows:has(> .tabbar) { --side: 0px; --top: var(--strip); }
-html .window:has(> .tabbar) .card { left: 0; right: 0; bottom: 0; border-radius: 0; box-shadow: 0 -1px 0 var(--hairline); }
-.window:has(> .tabbar) .top-strip { display: none; }
+/* The page under the strip is the window's layout (app.css, .window.top). */

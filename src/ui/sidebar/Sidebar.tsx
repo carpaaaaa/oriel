@@ -236,7 +236,9 @@ export function Column() {
   // the void under the rows: a new tab on a double click, the column's menu
   // on a right click; dragged, the window (asked of the window module).
   const voidDown = (e: PointerEvent) => {
-    if (e.button !== 0) return
+    // The window drawn by Oriel moves itself from here (chrome/frame.ts):
+    // a second window.startDrag would start Windows' move loop twice.
+    if (e.button !== 0 || state.frame?.kind === 'drawn') return
     const x0 = e.screenX, y0 = e.screenY
     const move = (m: PointerEvent) => {
       if (Math.abs(m.screenX - x0) + Math.abs(m.screenY - y0) > 3) {
