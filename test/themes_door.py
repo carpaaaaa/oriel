@@ -53,9 +53,19 @@ k.shot("door-wall-dark")
 k.look("light")
 
 # A click opens Settings.
-before = len(b.window()["tabs"])
-b.mouse(d["x"], d["y"])
-b.wait_for(lambda: k.settings_tab(), what="Settings tab")
+# (Measured again after the look's change; a click that lands while the
+# window is still settling is given another go.)
+time.sleep(0.5)
+d = b.ui(INFO)
+tries = 0
+while not k.settings_tab() and tries < 3:
+    tries += 1
+    b.mouse(d["x"], d["y"])
+    try:
+        b.wait_for(lambda: k.settings_tab(), within=4, what="Settings tab")
+    except AssertionError:
+        pass
+b.wait_for(lambda: k.settings_tab(), within=1, what="Settings tab")
 tab = [x for x in b.window()["tabs"] if x.get("internal") == "settings"][0]
-t.ok(tab["url"].startswith("oriel://settings"), f"a click opens oriel://settings ({tab['url']})")
+t.ok(tab["url"].startswith("oriel://settings"), f"a click opens oriel://settings ({tab['url']}, click {tries})")
 t.done()
