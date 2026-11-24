@@ -1,0 +1,19 @@
+name: An idea
+description: Something Oriel should do, or do differently.
+labels: [idea]
+body:
+  - type: markdown
+    attributes:
+      value: "What is already being built and planned is on the [roadmap](https://oriel.charstudio.app/roadmap)."
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What you would like, and what it would help you do.
+    validations:
+      required: true
+  - type: textarea
+    id: search
+    attributes:
+      label: In Search, on the Mac
+      description: If Search already does it, how it works there.

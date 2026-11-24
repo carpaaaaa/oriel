@@ -1,0 +1,48 @@
+name: Something's wrong
+description: A bug, a crash, or something that works differently from Search on the Mac.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what Oriel did instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. Open …
+        2. Press …
+  - type: input
+    id: version
+    attributes:
+      label: Oriel version
+      description: Settings › About.
+      placeholder: "0.1.3"
+    validations:
+      required: true
+  - type: dropdown
+    id: windows
+    attributes:
+      label: Windows
+      options: [Windows 11, Windows 10]
+    validations:
+      required: true
+  - type: dropdown
+    id: pc
+    attributes:
+      label: Processor
+      options: [x64 (Intel or AMD), ARM64 (Snapdragon)]
+  - type: dropdown
+    id: build
+    attributes:
+      label: Installed or portable
+      options: [Installed, Portable]
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: A screenshot, the site where it happens, the extensions you have.
