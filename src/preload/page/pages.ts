@@ -207,6 +207,9 @@ function start(first: PagePrefs): void {
   // The element that filled the screen, to put back after an Escape.
   let full: WeakRef<Element> | null = null
   document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement) full = new WeakRef(document.fullscreenElement) }, true)
+  // The window follows the page's full screen (window/pagefull.ts): told by
+  // the page itself, since Electron stops saying so after a first time.
+  document.addEventListener('fullscreenchange', () => { try { ipcRenderer.send('pages:fullscreen', !!document.fullscreenElement) } catch {} }, true)
   document.addEventListener('__oriel_fs_own', () => { if (now.escapeTwice) { try { ipcRenderer.sendSync('pages:fs-own') } catch {} } }, true)
   ;(globalThis as unknown as { __orielFullAgain: () => Promise<boolean> | boolean }).__orielFullAgain = () => {
     const el = full?.deref()

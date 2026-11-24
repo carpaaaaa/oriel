@@ -497,7 +497,9 @@ try:
             f = frame()
             f = settle(lambda: (lambda f: f if near_rect(f["bounds"], f["display"], 1) else None)(frame()), 4) or frame()
             inside = b.ev(tab, "!!document.fullscreenElement")
-            t.ok(near_rect(f["bounds"], f["display"], 1), f"{base}, the page full screen: the window covers the screen ({f['state']}, {f['bounds']}, the page {'in' if inside else 'not in'} full screen)")
+            if not t.ok(near_rect(f["bounds"], f["display"], 1), f"{base}, the page full screen: the window covers the screen ({f['state']}, {f['bounds']}, the page {'in' if inside else 'not in'} full screen)"):
+                tr = [x for x in answer({"do": "window.trace", "window": WID, "on": True})["trace"] if not x.startswith("0x") and not x.startswith("syscommand")]
+                print("       trace: " + "\n              ".join(tr[-24:]))
             if way == "Escape":
                 chord("esc")
                 if settle(lambda: b.ev(tab, "!!document.fullscreenElement"), 0.6):

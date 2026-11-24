@@ -6,7 +6,7 @@
 // video's button). A page going full screen inside F11's leaves F11's alone.
 // Owned by the window module.
 
-import { app, type WebContents } from 'electron'
+import { app, ipcMain, type WebContents } from 'electron'
 import { allControllers } from '../views/window'
 
 const holderOf = (wc: WebContents) => allControllers().find(c => c.base.contentView.children.some(v => (v as Electron.WebContentsView).webContents === wc))
@@ -14,4 +14,13 @@ const holderOf = (wc: WebContents) => allControllers().find(c => c.base.contentV
 app.on('web-contents-created', (_e, wc) => {
   wc.on('enter-html-full-screen', () => { holderOf(wc)?.frame.note('enter-html-full-screen'); setImmediate(() => holderOf(wc)?.frame.pageFull(true)) })
   wc.on('leave-html-full-screen', () => { holderOf(wc)?.frame.note('leave-html-full-screen'); setImmediate(() => holderOf(wc)?.frame.pageFull(false)) })
+})
+
+// The page's own word (src/preload/page/pages.ts): Electron's events above
+// stop coming after a first video in a row on a maximized window.
+ipcMain.on('pages:fullscreen', (e, on: unknown) => {
+  const c = holderOf(e.sender)
+  if (!c) return
+  c.frame.note(`page says full ${!!on}`)
+  setImmediate(() => c.frame.pageFull(!!on))
 })
