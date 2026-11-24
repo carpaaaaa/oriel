@@ -28,6 +28,14 @@ type Hooks = {
 
 export const hooks: Hooks = {}
 
+/** Sized pop-ups (the tabs module's popups.ts): what to answer Chromium. */
+export const popups = {
+  open: (_opener: TabRuntime, _details: Electron.HandlerDetails): Electron.WindowOpenHandlerResponse | null => ({ action: 'allow' }),
+}
+
+/** Every key and click a page sees (the tabs module's ⌘Z listens). */
+export const pageInput: ((id: ID, kind: 'key' | 'mouse', input: Electron.Input | Electron.MouseInputEvent) => void)[] = []
+
 /** The window view holding a page, if any (set by the tabs module's wiring). */
 export const viewHost = { parentOf: (_view: WebContentsView): Electron.View | null => null }
 
@@ -320,13 +328,21 @@ export class TabRuntime {
       if (!isMainFrame || code === -3) return
       update({ error: { code, description: failure(code), url }, loading: false })
     })
+    wc.on('before-mouse-event', (_e, mouse) => { if (mouse.type === 'mouseDown') for (const f of pageInput) f(this.id, 'mouse', mouse) })
     wc.on('before-input-event', (event, input) => {
+      for (const f of pageInput) f(this.id, 'key', input)
       hooks.input?.(this, event, input)
       if (input.type === 'keyUp' && (input.key === 'Control' || input.key === 'Meta')) controlUp(this.id)
     })
     wc.on('context-menu', (_e, params) => hooks.contextMenu?.(this, params))
     wc.setWindowOpenHandler(details => {
-      if (details.disposition === 'new-window' && details.features) return { action: 'allow' } // popups (sign-in windows): their own small window
+      // A sized pop-up (a sign-in, a call): its own small window with Open
+      // sized pop-ups in small windows, a tab otherwise (§3.35). Either way
+      // its page is the one Chromium made, so the opener can talk to it.
+      if (details.disposition === 'new-window' && details.features) {
+        const popup = popups.open(this, details)
+        if (popup) return popup
+      }
       const win = model.windowOf(this.id)
       if (win) model.openFromPage(win, this.id, details.url, details.disposition)
       else hooks.open?.(this, details.url, details.disposition)

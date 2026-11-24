@@ -86,6 +86,9 @@ export class Bookmarks {
 
   flush(): void { writeJSONNow(this.fileName, this.roots.map(clean)) }
 
+  /** The whole list as Sync with your other computers merged it (Bookmarks.adopt). */
+  adopt(roots: BookmarkNode[]): void { this.set(roots.map(clean)) }
+
   get count(): number { return count(this.roots) }
 
   contains(url: string): boolean { return this.keptSet.has(parse(url)?.href ?? url) }

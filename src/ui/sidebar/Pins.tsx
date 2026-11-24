@@ -97,7 +97,9 @@ function Square(p: { tab: TabView; cell: { x: number; y: number; w: number; h: n
       }}
       onClick={e => {
         const ctrl = e.ctrlKey || (window.search.platform === 'darwin' && e.metaKey)
-        if (ctrl || e.shiftKey) void cmd({ do: 'tab.pick', id: t().id, mode: ctrl && e.shiftKey ? 'addRange' : ctrl ? 'toggle' : 'range' })
+        // A pin's Ctrl-click: a new tab with ⌘-click on a pin opens a new tab, picked otherwise (§6.13).
+        if (ctrl && !e.shiftKey) void cmd({ do: 'pin.commandClick', id: t().id })
+        else if (ctrl || e.shiftKey) void cmd({ do: 'tab.pick', id: t().id, mode: ctrl && e.shiftKey ? 'addRange' : ctrl ? 'toggle' : 'range' })
         else if (pickedAmongOthers(t().id)) { void cmd({ do: 'tab.pick', id: t().id, mode: 'clear' }); void cmd({ do: 'tab.select', id: t().id }) }
       }}
       // The live pin's double click: home, or at home its letter (§6.9).

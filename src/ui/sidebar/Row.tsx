@@ -120,6 +120,7 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
   const onClick = (e: MouseEvent) => {
     if (isEditing() || addressing() || (e.target as HTMLElement).closest('.x, .speaker')) return
     const ctrl = e.ctrlKey || (window.search.platform === 'darwin' && e.metaKey)
+    if (ctrl && !e.shiftKey && t().pinID) { void cmd({ do: 'pin.commandClick', id: t().id }); return }
     if (ctrl || e.shiftKey) {
       void cmd({ do: 'tab.pick', id: t().id, mode: ctrl && e.shiftKey ? 'addRange' : ctrl ? 'toggle' : 'range' })
       return

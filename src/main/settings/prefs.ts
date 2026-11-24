@@ -123,8 +123,13 @@ const known = (key: string) => key in defaults || defaultOf(key) !== undefined
 handle('settings.set', async ({ id, value }, ctx) => {
   if (merged[id]) { if (!merged[id](value)) throw new Error(`bad value for ${id}`); return settingsValues() }
   if (id === 'sync') {
+    // The tabs module's sync.ts turns it on and off as the key changes.
     if (!value) { setKey('sync.folder', ''); return settingsValues() }
-    const folder = await chooseFolder(need(ctx), pref<string>('sync.folder') || app.getPath('documents'))
+    const folder = await chooseFolder(need(ctx), pref<string>('sync.folder') || shareFolder(), {
+      title: 'Sync with your other computers',
+      message: `Choose a folder your computers share, in OneDrive or Dropbox for example. Turn on sync with the same folder in ${brand.name} on each one.`,
+      button: 'Sync Here',
+    })
     if (folder) setKey('sync.folder', folder)
     return settingsValues()
   }
@@ -151,6 +156,9 @@ function arcFile(): string {
   return path.join(home, 'Library', 'Application Support', 'Arc', 'StorableSidebar.json')
 }
 
+/** Facts other modules add for their rows (sync: the folder's line). */
+export const moreFacts: Record<string, () => unknown> = {}
+
 export function settingsValues() {
   return {
     prefs: allPrefs(),
@@ -167,6 +175,7 @@ export function settingsValues() {
       platform: process.platform,
       dark: nativeTheme.shouldUseDarkColors,
       update: updateFacts(),
+      ...Object.fromEntries(Object.entries(moreFacts).map(([k, f]) => [k, f()])),
     },
   }
 }
@@ -183,10 +192,22 @@ handle('settings.open', async ({ page, find }, ctx) => {
 
 // rows that are buttons
 
-async function chooseFolder(c: WindowController, from: string): Promise<string | null> {
+async function chooseFolder(c: WindowController, from: string, o: { title?: string; message?: string; button?: string } = {}): Promise<string | null> {
   if (probe) return probeAnswers.folder ?? null
-  const r = await dialog.showOpenDialog(c.base as never, { defaultPath: from, buttonLabel: 'Use this folder', properties: ['openDirectory', 'createDirectory'] })
+  const r = await dialog.showOpenDialog(c.base as never, {
+    defaultPath: from, buttonLabel: o.button ?? 'Use this folder', title: o.title, message: o.message,
+    properties: ['openDirectory', 'createDirectory'],
+  })
   return r.canceled ? null : r.filePaths[0] ?? null
+}
+
+/** Where the sync folder picker starts (Sync.choose starts in iCloud
+ * Drive): OneDrive, iCloud Drive or Dropbox when there is one, Documents
+ * otherwise. */
+function shareFolder(): string {
+  const tries = [process.env.OneDrive, process.env.OneDriveConsumer, path.join(home, 'iCloudDrive'),
+    path.join(home, 'Library', 'Mobile Documents', 'com~apple~CloudDocs'), path.join(home, 'Dropbox')]
+  return tries.find(p => p && existsSync(p)) ?? app.getPath('documents')
 }
 
 /** The page sessions of the profile and of private windows. */

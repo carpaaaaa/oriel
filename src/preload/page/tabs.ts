@@ -43,3 +43,62 @@ try {
 } catch {
   // An older Electron, or a page that won't take it: nothing said, as before.
 }
+
+// Where a link goes (Settings › Browsing › Show where links go, StatusLine.swift;
+// studio/08 B `links.show`): the address under the pointer, told only when it
+// changes, from every frame. Read here, apart from the page's scripts.
+{
+  let shown = ''
+  const linkIn = (path: EventTarget[]): string => {
+    for (const node of path) {
+      const el = node as Element
+      if (el.nodeType !== 1 || (el.localName !== 'a' && el.localName !== 'area')) continue
+      const raw = (el as HTMLAnchorElement).href as unknown
+      const href = typeof raw === 'string' ? raw : (raw as { baseVal?: string } | null)?.baseVal
+      if (!href) continue
+      try {
+        const address = new URL(href, el.baseURI).href
+        return address.startsWith('javascript:') ? '' : address.slice(0, 600)
+      } catch { return '' }
+    }
+    return ''
+  }
+  const report = (address: string, e?: MouseEvent) => {
+    if (address === shown) return
+    shown = address
+    ipcRenderer.send('search:tab-link', { url: address, x: e?.clientX ?? 0, y: e?.clientY ?? 0, w: innerWidth, h: innerHeight })
+  }
+  addEventListener('mouseover', e => report(linkIn(e.composedPath()), e), { passive: true, capture: true })
+  addEventListener('mouseout', e => { if (!e.relatedTarget) report('') }, { passive: true, capture: true })
+  addEventListener('pagehide', () => report(''))
+}
+
+// A swipe back or forward with two fingers on a precision touchpad, as a
+// horizontal wheel the page doesn't scroll with (studio/01 §7.36-§7.38; the
+// tabs module needs it for Swipe back closes a tab a link opened). Windows
+// gives no start or end of the gesture: a run of wheel events across, then
+// a quiet moment, is one.
+{
+  let run = 0
+  let quiet: ReturnType<typeof setTimeout> | null = null
+  const scrolls = (el: Element, dx: number) => (dx < 0 ? el.scrollLeft > 0 : el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+  const scrollsAcross = (target: EventTarget | null, dx: number): boolean => {
+    for (let el = target as Element | null; el && el.nodeType === 1; el = el.parentElement) {
+      if (/(auto|scroll)/.test(getComputedStyle(el).overflowX) && scrolls(el, dx)) return true
+    }
+    const root = document.scrollingElement
+    return !!root && scrolls(root, dx)
+  }
+  addEventListener('wheel', e => {
+    if (!e.isTrusted || window !== window.top || e.ctrlKey) return
+    if (Math.abs(e.deltaX) < Math.abs(e.deltaY) * 2 || scrollsAcross(e.target, e.deltaX)) { run = 0; return }
+    run += e.deltaX
+    if (quiet) clearTimeout(quiet)
+    quiet = setTimeout(() => {
+      quiet = null
+      const total = run
+      run = 0
+      if (Math.abs(total) >= 120) ipcRenderer.send('search:tab-swipe', total < 0 ? 'back' : 'forward')
+    }, 160)
+  }, { passive: true, capture: true })
+}

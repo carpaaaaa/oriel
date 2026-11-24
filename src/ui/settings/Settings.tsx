@@ -23,7 +23,7 @@ type Prefs = Record<string, unknown>
 type Stage = { kind: 'none' } | { kind: 'fetching' | 'ready' | 'waiting'; version: string; notes?: string }
 interface Pending { version: string; notes?: string; ready: boolean; fetching: boolean }
 interface UpdateFacts { stage: Stage; checking: boolean; checked: number | null; active: boolean; pending: Pending | null }
-interface Facts { downloadsFolder: string; downloadsFolderName: string; isDefault: boolean; mailDefault: boolean; arcHere: boolean; arcUndoable: boolean; version: string; name: string; platform: string; update?: UpdateFacts }
+interface Facts { downloadsFolder: string; downloadsFolderName: string; isDefault: boolean; mailDefault: boolean; arcHere: boolean; arcUndoable: boolean; version: string; name: string; platform: string; update?: UpdateFacts; sync?: string }
 interface Values { prefs: Prefs; merged: Record<string, unknown>; facts: Facts }
 
 const [values, setValues] = createSignal<Values | null>(null)
@@ -151,7 +151,7 @@ function detail(i: Item): string {
     case 'general.default': return f?.isDefault ? 'Oriel is the default browser on this PC' : i.detail
     case 'mail.default': return f?.mailDefault ? 'Email links from other apps open here' : i.detail
     case 'downloads.folder': return f?.downloadsFolder ?? ''
-    case 'sync': return p<string>('sync.folder') ? p<string>('sync.folder') : i.detail
+    case 'sync': return p<string>('sync.folder') ? f?.sync || p<string>('sync.folder') : i.detail
     case 'search.engine': {
       if (p('search.engine') !== 'custom') return "Where words that aren't an address go"
       if (!bareHost(p<string>('search.custom') ?? '')) return 'An http or https address with %s where the words go. Until then, Google'
@@ -443,6 +443,8 @@ export function SettingsPage() {
     const off1 = onUpdate('prefs', v => setValues(old => (old ? { ...old, prefs: v as Prefs, merged: mergedFrom(v as Prefs) } : old)))
     const off3 = onUpdate('update', v => setValues(old => (old ? { ...old, facts: { ...old.facts, update: v as UpdateFacts } } : old)))
     onCleanup(off3)
+    const off4 = onUpdate('sync', v => setValues(old => (old ? { ...old, facts: { ...old.facts, sync: String(v) } } : old)))
+    onCleanup(off4)
     const off2 = onUpdate('go', v => {
       const url = new URL(String(v))
       const n = url.pathname.replace(/^\//, '').split('/')[0] ?? ''

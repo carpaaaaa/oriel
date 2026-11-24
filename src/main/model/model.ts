@@ -54,6 +54,8 @@ export interface TabRecord extends TabView {
   /** What was typed in an empty tab and not sent (§2.41). */
   draft?: string
   downloads?: number
+  /** Its identity in every window, with Same tabs in every window (Twins.swift). */
+  twinID?: ID
 }
 
 export interface Ghost {
@@ -237,6 +239,8 @@ class Model extends EventEmitter {
     /** Where a window is now (its frame, state and monitor); null when it
      * can't say (gone, minimized): the last it said is kept. */
     frame: (_win: ID): Placement | null => null,
+    /** The space Send links to a space sends an address to, if any. */
+    route: (_url: string): ID | null => null,
   }
 
   // MARK: load
@@ -611,6 +615,7 @@ class Model extends EventEmitter {
         groupID: !pin && e.groupID && groups.some(g => g.id === e.groupID) ? e.groupID : undefined,
         touched: e.touched !== undefined ? Math.min(fromAppleDate(e.touched), now) : undefined,
         letGo: !pin && e.letGo !== undefined ? Math.min(fromAppleDate(e.letGo), now) : undefined,
+        twinID: !pin ? e.twinID : undefined,
       })
       const keep = keeps?.[i]
       if (keep) this.keeps.set(tab.id, keep)
@@ -715,7 +720,7 @@ class Model extends EventEmitter {
         id: t.id, url: t.url, title: t.title, label: this.label(t), loading: t.loading, audible: t.audible, muted: t.muted,
         asleep: t.asleep, empty: t.empty, canGoBack: t.canGoBack, canGoForward: t.canGoForward,
       }
-      for (const k of ['name', 'favicon', 'crashed', 'error', 'pinID', 'listed', 'groupID', 'shy', 'internal', 'capturing', 'resting', 'opener'] as const) {
+      for (const k of ['name', 'favicon', 'crashed', 'error', 'pinID', 'listed', 'groupID', 'shy', 'internal', 'capturing', 'resting', 'opener', 'awake'] as const) {
         if (t[k] !== undefined && t[k] !== false) (view as any)[k] = t[k]
       }
       return [view]
@@ -940,6 +945,17 @@ class Model extends EventEmitter {
    * clicked with a modifier (§3.30-§3.32). */
   openFromPage(win: WindowRecord, opener: ID, url: string, disposition: string): TabRecord {
     const source = this.tabs.get(opener)
+    // Send links to a space (§7.28): a site's link opened from a page of
+    // another space goes to its space, in front, in the window showing it
+    // (or this one, switched to it).
+    const routed = source && !source.shy ? this.hooks.route(url) : null
+    if (routed && routed !== source!.space) {
+      const target = [...this.windows.values()].find(w => !w.shy && w.space === routed) ?? win
+      if (target.space !== routed) this.switchSpace(target, routed)
+      const tab = this.open(target, url, { foreground: true })
+      this.emit('routed', target.id, tab.id)
+      return tab
+    }
     const behind = disposition === 'background-tab'
     if (behind) return this.open(win, url, { foreground: false, from: opener, link: true, mayWait: true })
     const beside = this.frontLinksBeside()
@@ -998,6 +1014,145 @@ class Model extends EventEmitter {
     const at = after ? this.placeForLink(win, after, space) : apart ? this.placeForFront(win, space) : this.placeForNew(win, space)
     row.splice(at, 0, tab.id)
     if (!background) this.selectTab(win, tab.id)
+    this.touch(win, ['tabs', 'activeID'])
+    this.sessionSoon(win, space)
+    return tab
+  }
+
+  /** Same tabs in every window (Twins.plan, §10.35): a row made to hold the
+   * twins another window said, in its order, each once; a twin said before
+   * and missing now was closed there and goes here, in silence; the tabs
+   * only this window has (pins first, private, empty, never said) stay,
+   * after the tab they followed. Asleep, a twin goes to the page the other
+   * window took it to; awake behind and silent, it is put to rest there. */
+  applyTwins(win: WindowRecord, space: ID, defs: { id: ID; url: string; title: string; name?: string; group?: ID }[], groups: GroupView[], known: Set<ID>): void {
+    if (!win.loaded.has(space) || win.shy) return
+    const row = this.spaceTabs(win, space).map(id => this.tabs.get(id)!).filter(Boolean)
+    const said = new Set(defs.map(d => d.id))
+    const byTwin = new Map<ID, TabRecord>()
+    const gone: TabRecord[] = []
+    for (const t of row) {
+      if (!t.twinID) continue
+      if (byTwin.has(t.twinID) || (known.has(t.twinID) && !said.has(t.twinID))) gone.push(t)
+      else byTwin.set(t.twinID, t)
+    }
+    // Which twin each tab of this window's own followed.
+    const after = new Map<ID, ID | null>()
+    let last: ID | null = null
+    for (const t of row) {
+      if (t.pinID) continue
+      if (t.twinID && byTwin.get(t.twinID) === t) { last = t.twinID; continue }
+      if (!gone.includes(t)) after.set(t.id, last)
+    }
+    const twins: TabRecord[] = defs.map(d => {
+      let t = byTwin.get(d.id)
+      if (!t) t = this.makeTab(win, space, { url: d.url, title: d.title, asleep: true, empty: false, twinID: d.id })
+      if (d.name) t.name = d.name; else delete t.name
+      if (d.group) t.groupID = d.group; else delete t.groupID
+      if (t.url !== d.url) {
+        if (t.asleep) { t.url = d.url; t.title = d.title; this.keeps.delete(t.id) }
+        else if (!this.onScreen(t.id) && !t.audible) this.rest(t, d.url)
+      }
+      return t
+    })
+    const own = row.filter(t => !t.pinID && after.has(t.id))
+    const order: ID[] = []
+    for (const t of own.filter(x => after.get(x.id) === null)) order.push(t.id)
+    for (const t of twins) {
+      order.push(t.id)
+      for (const o of own.filter(x => after.get(x.id) === t.twinID)) order.push(o.id)
+    }
+    for (const o of own) if (!order.includes(o.id)) order.push(o.id)
+    const activeID = win.active[space]
+    const activeAt = row.findIndex(t => t.id === activeID)
+    win.tabs[space] = [...row.filter(t => t.pinID).map(t => t.id), ...order]
+    for (const t of gone) { this.leaveSplit(win, space, t.id); this.dropTab(t.id) }
+    // The twins' groups, folded as this window had them, then this window's own still holding tabs.
+    const mine = win.groupsBy[space] ?? []
+    const merged = groups.map(g => ({ ...g, folded: mine.find(m => m.id === g.id)?.folded ?? false }))
+    for (const g of mine) if (!merged.some(m => m.id === g.id) && this.spaceTabs(win, space).some(id => this.tabs.get(id)?.groupID === g.id)) merged.push(g)
+    win.groupsBy[space] = merged
+    this.arrangeGroups(win, space)
+    if (activeID && !this.tabs.has(activeID)) {
+      const now = this.spaceTabs(win, space)
+      const next = now[Math.min(Math.max(0, activeAt), now.length - 1)]
+      win.active[space] = next ?? null
+      if (!next && win.space === space) this.frontBlank(win, space)
+    }
+    this.touch(win, ['tabs', 'groups', 'activeID'])
+    this.sessionSoon(win, space)
+  }
+
+  /** A tab of a space not on screen closed by Oriel (Closing.closeParked):
+   * out of its row and the row written; not offered to ⇧⌘T, which would
+   * reopen it in the space on screen with that space's sign-ins. */
+  closeParked(win: WindowRecord, id: ID): void {
+    const t = this.tabs.get(id)
+    if (!t) return
+    const space = t.space
+    const row = this.spaceTabs(win, space)
+    this.removeFromRow(win, id)
+    this.dropTab(id)
+    this.removeEmptyGroup(win, space, t.groupID)
+    if (win.active[space] === id) win.active[space] = row.find(x => !this.tabs.get(x)?.pinID) ?? row[0] ?? null
+    this.sessionNow(win, space)
+  }
+
+  /** ⌘-click on a pin with pins.commandNewTab (Browser.commandClickPin,
+   * §6.13): at home, its page in a new tab behind; wandered, the wandered
+   * page kept as a loose tab and the pin a fresh tab at home. */
+  commandClickPin(win: WindowRecord, id: ID): TabRecord | null {
+    const t = this.tabs.get(id)
+    if (!t?.pinID || t.win !== win.id) return null
+    win.picked = []
+    const home = t.home ?? t.url
+    const wandered = !!t.home && !!t.url && !samePage(t.home, t.url)
+    if (!wandered) return this.open(win, home, { foreground: false, from: t.id })
+    const space = t.space
+    const row = this.spaceTabs(win, space)
+    const fresh = this.makeTab(win, space, {
+      url: home, title: t.pinTitle ?? '', empty: false, pinID: t.pinID, letter: t.letter, home, listed: t.listed,
+      everywhere: t.everywhere, pinFolder: t.pinFolder, name: t.name, pinTitle: t.pinTitle,
+    })
+    row[row.indexOf(id)] = fresh.id
+    for (const k of ['pinID', 'letter', 'home', 'listed', 'pinFolder', 'pinTitle', 'everywhere', 'name', 'resting'] as const) delete t[k]
+    t.letGo = Date.now()
+    row.splice(this.pinnedCount(win, space), 0, id)
+    this.emit('tab-go', fresh.id, home)
+    if (win.active[space] === id) this.selectTab(win, fresh.id)
+    this.reconcile(win, space)
+    this.touch(win, ['tabs', 'pins', 'activeID', 'picked'])
+    this.sessionNow(win, space)
+    return fresh
+  }
+
+  /** A page made elsewhere (a small window's, kept with Open in Oriel,
+   * §10.31): a tab after the one on screen, in front, never among the pins;
+   * its page is given to it as it is. */
+  adoptPage(win: WindowRecord, url: string, title = ''): TabRecord {
+    const space = win.space
+    const tab = this.makeTab(win, space, { url, title, empty: false })
+    this.spaceTabs(win, space).splice(this.placeForNew(win, space), 0, tab.id)
+    this.selectTab(win, tab.id)
+    this.touch(win, ['tabs', 'activeID'])
+    this.sessionSoon(win, space)
+    return tab
+  }
+
+  /** A sized pop-up as a tab (tabs.popupWindows off, §3.35): in front at the
+   * end, in its opener's group, named by its site; its page is the one
+   * Chromium made for it, so the opener can still talk to it. */
+  popupTab(win: WindowRecord, opener: ID, url: string): TabRecord {
+    const source = this.tabs.get(opener)
+    const space = source?.space ?? win.space
+    const tab = this.makeTab(win, space, {
+      url, empty: false, popup: true, opener, shy: source?.shy || undefined, store: source?.shy ? source.store : undefined,
+    })
+    const g = source && this.groupOf(win, source, space)
+    if (g) tab.groupID = g
+    const row = this.spaceTabs(win, space)
+    row.splice(g ? this.endOfGroup(win, space, g) : this.placeForFront(win, space), 0, tab.id)
+    this.selectTab(win, tab.id)
     this.touch(win, ['tabs', 'activeID'])
     this.sessionSoon(win, space)
     return tab
@@ -1167,6 +1322,35 @@ class Model extends EventEmitter {
     }
     for (const id of [...win.closedGroups.keys()]) if (!win.ghosts.some(g => g.groupID === id)) win.closedGroups.delete(id)
     this.touch(win, ['reopen'])
+    // ⌘Z's to undo while closing stays the last thing done (Browser.lastClose,
+    // §9.19): the row is read once the close is through.
+    const mark = { win: win.id, ghost: ghost.id, scene: null as string | null }
+    this.lastClose = mark
+    setImmediate(() => { if (this.lastClose === mark) mark.scene = this.scene(win) })
+  }
+
+  /** ⌘Z reopens a closed tab (tabs.undoReopens): the close still the last
+   * thing done, in any window. */
+  lastClose: { win: ID; ghost: ID; scene: string | null } | null = null
+
+  /** The tab in front and the row, to tell whether anything moved since. */
+  scene(win: WindowRecord): string {
+    return `${win.space}|${win.active[win.space] ?? ''}|${this.spaceTabs(win).join(',')}`
+  }
+
+  /** Something else done: ⌘Z undoes as before. */
+  forgetClose(): void { this.lastClose = null }
+
+  /** ⌘Z right after a close: the tab back, as ⇧⌘T would. False when it isn't
+   * the last thing done (the key then goes where it was going). */
+  undoClose(win: WindowRecord): boolean {
+    const last = this.lastClose
+    if (!this.pref<boolean>('tabs.undoReopens') || !last || last.win !== win.id) return false
+    const ghost = win.ghosts.find(g => g.id === last.ghost)
+    if (!ghost || (last.scene !== null && last.scene !== this.scene(win))) { this.lastClose = null; return false }
+    this.lastClose = null
+    this.reopenGhost(win, ghost.id)
+    return true
   }
 
   /** Tabs closed as one act: one ⇧⌘T brings them back. */
@@ -2046,6 +2230,26 @@ class Model extends EventEmitter {
     this.saveSpaces()
   }
 
+  /** A ready-made gradient (SpaceGradient.presets, §7.7), keeping the
+   * direction and grain the space's gradient had; its colour stays beside
+   * it and comes back when the gradient goes. */
+  setSpaceGradient(id: ID, preset: string): void {
+    const s = this.spaceOf(id)
+    const colours = spaceGradients[preset]
+    if (!s || !colours) return
+    s.gradient = { colours, angle: s.gradient?.angle ?? 135, ...(s.gradient && 'grain' in s.gradient ? { grain: (s.gradient as { grain?: boolean }).grain } : {}) } as SpaceRecord['gradient']
+    this.saveSpaces()
+  }
+
+  /** Subtle (written as none), Rich or Vivid (SpaceStrength). */
+  setSpaceStrength(id: ID, strength: string): void {
+    const s = this.spaceOf(id)
+    if (!s || !['subtle', 'rich', 'vivid'].includes(strength)) return
+    if (strength === 'subtle') delete s.strength
+    else s.strength = strength as 'rich' | 'vivid'
+    this.saveSpaces()
+  }
+
   /** Move Left / Move Right (§7.10). */
   orderSpace(id: ID, by: 1 | -1): void {
     const at = this.spaces.findIndex(s => s.id === id)
@@ -2234,6 +2438,7 @@ class Model extends EventEmitter {
       if (touched !== undefined) e.touched = toAppleDate(touched)
       if (!pin && t.letGo !== undefined) e.letGo = toAppleDate(t.letGo)
       if (pin && t.listed) e.listed = true
+      if (!pin && t.twinID && this.pref<boolean>('tabs.mirror')) e.twinID = t.twinID
       entries.push(e)
       if (keeps) keeps.push((this.hooks.keepsake(t.id) ?? this.keeps.get(t.id))!)
     }
@@ -2362,6 +2567,17 @@ function stripUndefined<T extends object>(o: T): Partial<T> {
   const out: Partial<T> = {}
   for (const [k, v] of Object.entries(o)) if (v !== undefined) (out as any)[k] = v
   return out
+}
+
+/** SpaceGradient.presets: the editor's swatches (OKLCH 0.70, 0.14, gamut
+ * mapped as the Mac maps them), two or three to a gradient. */
+export const spaceGradients: Record<string, string[]> = {
+  Sunrise: ['#C69612', '#E177A3'],
+  Lagoon: ['#00B7A8', '#53A3F2'],
+  Orchard: ['#8BAD42', '#00B7A8'],
+  Dusk: ['#8696F5', '#CE7CC8', '#E0843E'],
+  Glacier: ['#00B1CE', '#8696F5'],
+  Ember: ['#E97871', '#C69612'],
 }
 
 /** The icons a space can wear, in Spaces.icons' order (§7.2). */

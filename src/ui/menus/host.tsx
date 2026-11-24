@@ -148,6 +148,12 @@ function place(at: { x: number; y: number }, w: number, h: number, room: { w: nu
   return { left: `${x}px`, top: `${y}px` }
 }
 
+/** SpaceGradient.presets, as the main process keeps them (model.spaceGradients). */
+const gradients: Record<string, string[]> = {
+  Sunrise: ['#C69612', '#E177A3'], Lagoon: ['#00B7A8', '#53A3F2'], Orchard: ['#8BAD42', '#00B7A8'],
+  Dusk: ['#8696F5', '#CE7CC8', '#E0843E'], Glacier: ['#00B1CE', '#8696F5'], Ember: ['#E97871', '#C69612'],
+}
+
 /** A group's colour (ColourSwatches, §6.36): six circles of 22, 10 apart,
  * the one chosen ringed in ink at 75%, None crossed. */
 function Swatches(p: PanelProps) {
@@ -157,15 +163,33 @@ function Swatches(p: PanelProps) {
     void cmd(c)
     close(true)
   }
+  // A space also takes a ready-made gradient and a strength (SpaceLookPicker, §7.7).
+  const space = () => (p.data?.kind === 'space' ? state.spaces.find(s => s.id === p.data.id) : undefined)
+  const preset = () => { const g = space()?.gradient?.colours?.join(','); return Object.keys(gradients).find(k => gradients[k].join(',') === g) }
   return (
-    <div class="popover" style={place(p.at, 22 * 6 + 50 + 32, 54, p.room)} data-tabs-ui="swatches">
+    <div class="popover" style={place(p.at, 22 * 6 + 50 + 32, p.data?.kind === 'space' ? 150 : 54, p.room)} data-tabs-ui="swatches">
       <div class="swatches">
         <For each={spaceColours}>{(c, i) => (
-          <button class="swatch" classList={{ none: i() === 0, chosen: chosen() === i() }} title={colourNames[i()]}
+          <button class="swatch" classList={{ none: i() === 0, chosen: !preset() && chosen() === i() }} title={colourNames[i()]}
             style={{ background: i() ? `rgb(${c.map(v => Math.round(v * 255)).join(' ')})` : 'transparent' }}
             onClick={() => choose(i())} />
         )}</For>
       </div>
+      <Show when={p.data?.kind === 'space'}>
+        <div class="swatches" style={{ 'margin-top': '12px' }} data-gradients>
+          <For each={Object.keys(gradients)}>{name => (
+            <button class="swatch" classList={{ chosen: preset() === name }} title={name} data-gradient={name}
+              style={{ background: `linear-gradient(135deg, ${gradients[name].join(', ')})` }}
+              onClick={() => { void cmd({ do: 'space.gradient', id: p.data.id, preset: name }); close(true) }} />
+          )}</For>
+        </div>
+        <div class="segmented" style={{ 'margin-top': '12px', display: 'flex', gap: '4px' }} data-strength>
+          <For each={['subtle', 'rich', 'vivid'] as const}>{st => (
+            <button class="pill" classList={{ chosen: (space()?.strength ?? 'subtle') === st }} data-strength-choice={st}
+              onClick={() => void cmd({ do: 'space.strength', id: p.data.id, strength: st })}>{st[0].toUpperCase() + st.slice(1)}</button>
+          )}</For>
+        </div>
+      </Show>
     </div>
   )
 }
