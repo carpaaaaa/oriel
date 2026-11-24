@@ -265,7 +265,7 @@ export function Column() {
       </Show>
       <div class="side-body" ref={body}>
         <div class="pill-layer" aria-hidden="true">
-          <div ref={pillEl} class="pill" classList={{ on: !!gliding() }} />
+          <div ref={pillEl} class="live-pill" classList={{ on: !!gliding() }} />
         </div>
         <Show when={!icons()} fallback={<Tiles still={still()} glidingTo={gliding()} />}>
           <PinGrid squares={L().squares} width={width()} still={still()} glidingTo={gliding()} />

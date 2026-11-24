@@ -33,10 +33,10 @@
 /* the body: the squares, the rows, the void under them */
 .side-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 10px; }
 .pill-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
-.pill { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: var(--row-radius); background: var(--g-wash); opacity: 0;
+.live-pill { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: var(--row-radius); background: var(--g-wash); opacity: 0;
   transition: background-color var(--dur-quick) var(--ease-quick); }
-.pill.on { opacity: 1; }
-.pill.on-square { background: var(--g-pin-live); }
+.live-pill.on { opacity: 1; }
+.live-pill.on-square { background: var(--g-pin-live); }
 
 /* the pinned squares */
 .pins { position: relative; flex: none; z-index: 1; }

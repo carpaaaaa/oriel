@@ -88,7 +88,7 @@ function Panel() {
         <div class="switcher-grid" style={{ height: `${rows() * cardH() + (rows() - 1) * 8}px` }}>
           <div ref={hi} class="switcher-chosen" />
           <For each={cards()}>{(t, i) => (
-            <div class="card" style={{ transform: `translate(${pos(i()).x}px, ${pos(i()).y}px)`, width: `${cardW()}px`, height: `${cardH()}px` }}
+            <div class="sw-card" style={{ transform: `translate(${pos(i()).x}px, ${pos(i()).y}px)`, width: `${cardW()}px`, height: `${cardH()}px` }}
               data-card={t.id} classList={{ chosen: i() === index() }}
               onPointerMove={e => hover(e, i())} onClick={() => choose(i())}>
               <div class="picture" style={{ height: `${picH()}px` }}>

@@ -159,7 +159,7 @@ tk.cmd("tab.switch", by=1)
 time.sleep(0.05)
 t.ok(not k.js("return !!document.querySelector('.switcher')", root="overlay"), "not up before Ctrl has been held 0.15 s")
 time.sleep(0.4)
-sw = k.js("const p = document.querySelector('.switcher-panel'); if (!p) return null; const cards = [...p.querySelectorAll('.card')];"
+sw = k.js("const p = document.querySelector('.switcher-panel'); if (!p) return null; const cards = [...p.querySelectorAll('.sw-card')];"
           " return { cards: cards.length, w: cards[0].getBoundingClientRect().width, pic: cards[0].querySelector('.picture').getBoundingClientRect().height,"
           " radius: getComputedStyle(p).borderTopLeftRadius, pad: getComputedStyle(p).paddingTop, veil: getComputedStyle(document.querySelector('.switcher')).backgroundColor,"
           " keys: document.querySelector('.switcher-keys').textContent, chosen: getComputedStyle(document.querySelector('.switcher-chosen')).borderTopLeftRadius }", root="overlay")

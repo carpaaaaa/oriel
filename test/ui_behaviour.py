@@ -38,7 +38,7 @@ def pointer(kind, x, y, target=None, button=0, buttons=1, **extra):
 
 # the grey that glides (LivePill): from c's row to a's on glide (0.34 / 0.82)
 ra, rc = row(a), row(c)
-k.js("window.__pill = []; const p = document.querySelector('.pill'); const start = performance.now(); let last = 0;"
+k.js("window.__pill = []; const p = document.querySelector('.live-pill'); const start = performance.now(); let last = 0;"
      " const f = (now) => { if (p.classList.contains('on') && now - last >= 8) { last = now; window.__pill.push([now, new DOMMatrix(getComputedStyle(p).transform).f]) }"
      " if (now - start < 1200) requestAnimationFrame(f) }; requestAnimationFrame(f); return 1")
 tk.cmd("tab.select", id=a)
@@ -54,7 +54,7 @@ if ys:
     dur = samples[-1][0] - samples[0][0]
     t.ok(300 < dur < 650, f"settled in about 0.47 s: {dur:.0f} ms")
 live = k.js(f"return getComputedStyle(document.querySelector('.row[data-tab=\"{a}\"] .ground')).backgroundColor")
-t.ok(k.same_colour(live, "rgba(0, 0, 0, 0.0628)") and not k.js("return document.querySelector('.pill').classList.contains('on')"), "landed: the row wears its grey again")
+t.ok(k.same_colour(live, "rgba(0, 0, 0, 0.0628)") and not k.js("return document.querySelector('.live-pill').classList.contains('on')"), "landed: the row wears its grey again")
 
 # a new tab arrives (scale 0.94 from the leading edge, settle); one closed goes
 n0 = len(k.js("return [...document.querySelectorAll('.row')].map(e => e.dataset.tab)"))
