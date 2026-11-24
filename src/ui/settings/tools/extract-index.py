@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DEFAULT = Path("/Users/carpa/Desktop/Cartella/Applicazioni/SearchWindows/ref/search-mac/Sources/Search/SettingsIndex.swift")
+DEFAULT = Path(__file__).resolve().parents[4] / "ref/search-mac/Sources/Search/SettingsIndex.swift"
 SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT
 text = SRC.read_text()
 
