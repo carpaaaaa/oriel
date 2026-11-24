@@ -7,9 +7,9 @@ import { Symbol } from './symbols'
 /** On or off, in ink rather than in blue: 30 × 18 (Settings.swift:1598). */
 export function Switch(p: { on: boolean; set: (on: boolean) => void; disabled?: boolean; label?: string }) {
   return (
-    <button class="sw" classList={{ on: p.on }} role="switch" aria-checked={p.on} aria-label={p.label} disabled={p.disabled}
+    <button class="st-sw" classList={{ on: p.on }} role="switch" aria-checked={p.on} aria-label={p.label} disabled={p.disabled}
       onClick={() => p.set(!p.on)}>
-      <span class="sw-knob" />
+      <span class="st-sw-knob" />
     </button>
   )
 }
@@ -36,10 +36,10 @@ export function Segmented<T extends string | boolean>(p: { options: [T, string][
   onMount(() => { place(); new ResizeObserver(place).observe(track); requestAnimationFrame(() => setMoved(true)) })
   createEffect(() => { void p.value; place() })
   return (
-    <div class="seg" classList={{ wide: p.wide }} ref={track} style={p.max ? { 'max-width': `${p.max}px` } : undefined} role="radiogroup">
-      <span class="seg-knob" classList={{ moved: moved() }} style={knob() ? { transform: `translateX(${knob()!.x - 2}px)`, width: `${knob()!.w}px` } : { opacity: 0 }} />
+    <div class="st-seg" classList={{ wide: p.wide }} ref={track} style={p.max ? { 'max-width': `${p.max}px` } : undefined} role="radiogroup">
+      <span class="st-seg-knob" classList={{ moved: moved() }} style={knob() ? { transform: `translateX(${knob()!.x - 2}px)`, width: `${knob()!.w}px` } : { opacity: 0 }} />
       <For each={p.options}>{([v, label]) => (
-        <button class="seg-item" classList={{ on: v === p.value }} role="radio" aria-checked={v === p.value} onClick={() => p.set(v)}>{label}</button>
+        <button class="st-seg-item" classList={{ on: v === p.value }} role="radio" aria-checked={v === p.value} onClick={() => p.set(v)}>{label}</button>
       )}</For>
     </div>
   )
@@ -48,11 +48,11 @@ export function Segmented<T extends string | boolean>(p: { options: [T, string][
 /** Choices as small pictures, a ring around the one picked (Settings.swift:1353). */
 export function Pictures<T>(p: { options: [T, string, () => JSX.Element][]; value: T; set: (v: T) => void }) {
   return (
-    <div class="pics" role="radiogroup">
+    <div class="st-pics" role="radiogroup">
       <For each={p.options}>{([v, label, picture]) => (
-        <button class="pic" classList={{ on: v === p.value }} role="radio" aria-checked={v === p.value} aria-label={label} onClick={() => p.set(v)}>
-          <span class="pic-ring"><span class="pic-frame">{picture()}</span></span>
-          <span class="pic-label">{label}</span>
+        <button class="st-pic" classList={{ on: v === p.value }} role="radio" aria-checked={v === p.value} aria-label={label} onClick={() => p.set(v)}>
+          <span class="st-pic-ring"><span class="st-pic-frame">{picture()}</span></span>
+          <span class="st-pic-label">{label}</span>
         </button>
       )}</For>
     </div>
@@ -62,9 +62,9 @@ export function Pictures<T>(p: { options: [T, string, () => JSX.Element][]; valu
 /** A few things each shown or not, side by side (Settings.swift:1584). */
 export function Ticks(p: { items: [string, boolean, (on: boolean) => void][] }) {
   return (
-    <div class="ticks">
+    <div class="st-ticks">
       <For each={p.items}>{([label, on, set]) => (
-        <label class="tick"><input type="checkbox" checked={on} onChange={e => set(e.currentTarget.checked)} />{label}</label>
+        <label class="st-tick"><input type="checkbox" checked={on} onChange={e => set(e.currentTarget.checked)} />{label}</label>
       )}</For>
     </div>
   )
@@ -75,23 +75,23 @@ export function Steps(p: { stops: number[]; value: number; home: number; label: 
   const below = () => [...p.stops].reverse().find(s => s < p.value - 0.001)
   const above = () => p.stops.find(s => s > p.value + 0.001)
   return (
-    <div class="steps">
-      <button class="step" disabled={below() === undefined} onClick={() => below() !== undefined && p.set(below()!)} aria-label="Smaller"><Symbol name="minus" size={9} weight="semibold" /></button>
-      <button class="steps-value" title={`Back to ${p.label(p.home)}`} onClick={() => p.set(p.home)}>{p.label(p.value)}</button>
-      <button class="step" disabled={above() === undefined} onClick={() => above() !== undefined && p.set(above()!)} aria-label="Larger"><Symbol name="plus" size={9} weight="semibold" /></button>
+    <div class="st-steps">
+      <button class="st-step" disabled={below() === undefined} onClick={() => below() !== undefined && p.set(below()!)} aria-label="Smaller"><Symbol name="minus" size={9} weight="semibold" /></button>
+      <button class="st-steps-value" title={`Back to ${p.label(p.home)}`} onClick={() => p.set(p.home)}>{p.label(p.value)}</button>
+      <button class="st-step" disabled={above() === undefined} onClick={() => above() !== undefined && p.set(above()!)} aria-label="Larger"><Symbol name="plus" size={9} weight="semibold" /></button>
     </div>
   )
 }
 
 /** For a feature that is simply there: a quiet word (Settings.swift:1339). */
 export function Always(p: { text?: string }) {
-  return <span class="always">{p.text ?? 'Always on'}</span>
+  return <span class="st-always">{p.text ?? 'Always on'}</span>
 }
 
 /** A menu-style picker, its label hidden, as wide as its words. */
 export function Menu<T extends string | number>(p: { options: ([T, string] | null)[]; value: T; set: (v: T) => void; label?: string; width?: number }) {
   return (
-    <select class="menu" aria-label={p.label} style={p.width ? { width: `${p.width}px` } : undefined}
+    <select class="st-menu" aria-label={p.label} style={p.width ? { width: `${p.width}px` } : undefined}
       onChange={e => { const raw = e.currentTarget.value; const o = p.options.find(x => x && String(x[0]) === raw); if (o) p.set(o[0]) }}>
       <For each={p.options}>{o => (o ? <option value={String(o[0])} selected={o[0] === p.value}>{o[1]}</option> : <option disabled>──────────</option>)}</For>
     </select>
@@ -104,14 +104,14 @@ export function Card(p: { children: JSX.Element; class?: string }) {
 }
 
 export function Nothing(p: { text: string }) {
-  return <div class="nothing">{p.text}</div>
+  return <div class="st-nothing">{p.text}</div>
 }
 
 /** A section's group: its small heading with an icon, then its card (Settings.swift:1246). */
 export function GroupBlock(p: { title: string; icon: string; children: JSX.Element; id?: string }) {
   return (
-    <section class="group" data-group={p.id}>
-      <h3 class="group-head"><Symbol name={p.icon} size={10.5} weight="semibold" />{p.title.toUpperCase()}</h3>
+    <section class="st-group" data-group={p.id}>
+      <h3 class="st-group-head"><Symbol name={p.icon} size={10.5} weight="semibold" />{p.title.toUpperCase()}</h3>
       {p.children}
     </section>
   )
@@ -147,28 +147,28 @@ export function SettingRow(p: { id?: string; icon: string; title: string; detail
 /** A line with words and a control (Plate.swift Line). */
 export function Line(p: { title: string; detail?: string; children?: JSX.Element; class?: string }) {
   return (
-    <div class={`line ${p.class ?? ''}`}>
-      <div class="line-words"><div class="line-title">{p.title}</div><Show when={p.detail}><div class="line-detail">{p.detail}</div></Show></div>
-      <div class="line-control">{p.children}</div>
+    <div class={`st-line ${p.class ?? ''}`}>
+      <div class="st-line-words"><div class="st-line-title">{p.title}</div><Show when={p.detail}><div class="st-line-detail">{p.detail}</div></Show></div>
+      <div class="st-line-control">{p.children}</div>
     </div>
   )
 }
 
-export function Caption(p: { text: string }) { return <div class="caption">{p.text}</div> }
+export function Caption(p: { text: string }) { return <div class="st-caption">{p.text}</div> }
 
 /** The small grey capsule button of the lists (Plate.swift Quick). */
 export function Quick(p: { title: string; act: () => void; red?: boolean; disabled?: boolean; help?: string }) {
-  return <button class="quick" classList={{ red: p.red }} disabled={p.disabled} title={p.help} onClick={() => p.act()}>{p.title}</button>
+  return <button class="st-quick" classList={{ red: p.red }} disabled={p.disabled} title={p.help} onClick={() => p.act()}>{p.title}</button>
 }
 
 /** Searching a list (Plate.swift Hunt). */
 export function Hunt(p: { value: string; set: (v: string) => void; prompt?: string; ref?: (el: HTMLInputElement) => void }) {
   return (
-    <div class="hunt">
+    <div class="st-hunt">
       <Symbol name="magnifyingglass" size={11} weight="medium" />
       <input value={p.value} placeholder={p.prompt ?? 'Search'} aria-label={p.prompt ?? 'Search'} ref={p.ref}
         onInput={e => p.set(e.currentTarget.value)} onKeyDown={e => { if (e.key === 'Escape') { p.set(''); e.preventDefault() } }} />
-      <Show when={p.value}><button class="hunt-clear" aria-label="Clear" onClick={() => p.set('')}><Symbol name="xmark.circle.fill" size={11} /></button></Show>
+      <Show when={p.value}><button class="st-hunt-clear" aria-label="Clear" onClick={() => p.set('')}><Symbol name="xmark.circle.fill" size={11} /></button></Show>
     </div>
   )
 }

@@ -167,7 +167,7 @@ const sleepDetail: Record<string, string> = {
 }
 const zooms = Array.from({ length: 51 }, (_, k) => (50 + k * 5) / 100)
 const sw = (key: string, invert = false) => <Switch on={invert ? !p(key) : !!p(key)} set={v => void set(key, invert ? !v : v)} />
-const check = () => <span class="done"><Symbol name="checkmark" size={12} weight="medium" /></span>
+const check = () => <span class="st-done"><Symbol name="checkmark" size={12} weight="medium" /></span>
 
 function control(i: Item): JSX.Element {
   switch (i.id) {
@@ -189,7 +189,7 @@ function control(i: Item): JSX.Element {
       <div class="theme-control">
         <Segmented value={p<string>('home.theme') ?? 'off'} set={v => void set('home.theme', v)}
           options={[['off', 'Off'], ['wall', 'Wall painting'], ['stickers', 'Stickers'], ['solid', 'Solid colour'], ['gradient', 'Gradient'], ['image', 'Image']]} />
-        <Show when={(p<string>('home.theme') ?? 'off') === 'off'}><div class="under-note">The blank tab stays plain.</div></Show>
+        <Show when={(p<string>('home.theme') ?? 'off') === 'off'}><div class="st-under-note">The blank tab stays plain.</div></Show>
       </div>
     )
     // Appearance
@@ -201,7 +201,7 @@ function control(i: Item): JSX.Element {
       options={[[true, 'As a card', () => <CardPicture card />], [false, 'Edge to edge', () => <CardPicture card={false} />]]} />
     case 'address.width': return <Segmented value={p<string>('address.width') ?? 'small'} set={v => void set('address.width', v)} options={[['small', 'Small'], ['medium', 'Medium']]} />
     case 'window.glass.clear': case 'window.glass.grain':
-      return <input class="slider" type="range" min="0" max="1" step="0.01" value={p<number>(i.id)} onChange={e => void set(i.id, Number(e.currentTarget.value))} aria-label={i.title} />
+      return <input class="st-slider" type="range" min="0" max="1" step="0.01" value={p<number>(i.id)} onChange={e => void set(i.id, Number(e.currentTarget.value))} aria-label={i.title} />
     case 'helm.shown': return <Ticks items={[
       ['Back', !p('helm.back.hidden'), v => void set('helm.back.hidden', !v)],
       ['Forward', !p('helm.forward.hidden'), v => void set('helm.forward.hidden', !v)],
@@ -216,10 +216,10 @@ function control(i: Item): JSX.Element {
     case 'tabs.newPlace': return <Menu label="New tab position" value={p<string>('tabs.newPlace') ?? 'next'} set={v => void set('tabs.newPlace', v)}
       options={[['next', 'After current'], ['top', p('sidebar') ? 'Top' : 'Leftmost'], ['end', p('sidebar') ? 'Bottom' : 'Rightmost']]} />
     case 'tabs.sleep': return (
-      <div class="sleep">
+      <div class="st-sleep">
         <Segmented wide max={340} value={merged<string>('tabs.sleep')} set={v => void set('tabs.sleep', v)}
           options={[['never', 'Never'], ['later', 'Later'], ['normal', 'Normal'], ['sooner', 'Sooner']]} />
-        <div class="sleep-detail">{sleepDetail[merged<string>('tabs.sleep')] ?? ''}</div>
+        <div class="st-sleep-detail">{sleepDetail[merged<string>('tabs.sleep')] ?? ''}</div>
       </div>
     )
     case 'tabs.close.after': return <Menu label="Close tabs you leave alone" value={Number(p('tabs.close.after') ?? 0)} set={v => void set('tabs.close.after', v)}
@@ -230,7 +230,7 @@ function control(i: Item): JSX.Element {
       options={[['', 'Off'], null, ...engineTitles]} />
     case 'search.keywords': return (
       <Show when={draft()} fallback={<Pill title="Add" act={() => setDraft({ id: crypto.randomUUID(), keyword: '', template: '' })} />}>
-        <div class="pills"><Pill title="Cancel" act={() => setDraft(null)} /><Pill title="Save" filled disabled={!!keywordProblem(draft()!)} act={saveDraft} /></div>
+        <div class="st-pills"><Pill title="Cancel" act={() => setDraft(null)} /><Pill title="Save" filled disabled={!!keywordProblem(draft()!)} act={saveDraft} /></div>
       </Show>
     )
     case 'float.style': return <Segmented value={p<string>('float.style') ?? 'search'} set={v => void set('float.style', v)} options={[['search', "Oriel's window"], ['system', 'Picture in picture']]} />
@@ -312,7 +312,7 @@ function after(i: Item, searched: boolean): JSX.Element {
     case 'search.engine': return <Show when={p('search.engine') === 'custom'}><TemplateField id="search.custom" /></Show>
     case 'search.shift': return <Show when={p('search.shift') === 'custom'}><TemplateField id="search.shiftCustom" /></Show>
     case 'search.keywords': return <KeywordEditor />
-    case 'privacy.forget': return <Show when={!searched}><div class="under"><PermissionSites seen={permissionsSeen()} notificationsOn={p('notifications.ask') !== false} /><PopupSites sites={p<string[]>('privacy.popupSites') ?? []} remove={s => void set('privacy.popupSites', (p<string[]>('privacy.popupSites') ?? []).filter(x => x !== s))} /></div></Show>
+    case 'privacy.forget': return <Show when={!searched}><div class="st-under"><PermissionSites seen={permissionsSeen()} notificationsOn={p('notifications.ask') !== false} /><PopupSites sites={p<string[]>('privacy.popupSites') ?? []} remove={s => void set('privacy.popupSites', (p<string[]>('privacy.popupSites') ?? []).filter(x => x !== s))} /></div></Show>
     case 'passkeys': return <Show when={!searched}><NeverAsked /></Show>
     default: return null
   }
@@ -320,7 +320,7 @@ function after(i: Item, searched: boolean): JSX.Element {
 
 function TemplateField(q: { id: string }) {
   return (
-    <div class="template">
+    <div class="st-template">
       <input placeholder="https://example.com/search?q=%s" value={p<string>(q.id) ?? ''} onChange={e => void set(q.id, e.currentTarget.value)} aria-label="Search address" />
     </div>
   )
@@ -355,7 +355,7 @@ function NeverAsked() {
   onMount(async () => { const r = await call<{ never: number }>({ do: 'passwords.list' } as never).catch(() => null); setCount(r?.never ?? 0) })
   return (
     <Show when={count() > 0}>
-      <div class="rule" />
+      <div class="st-rule" />
       <SettingRow icon="hand.raised.slash" title="Sites never asked" detail={`${count()} sites told to stop offering`}
         control={<Pill title="Forget" act={async () => { await call({ do: 'passwords.forgetNever' } as never); setCount(0); announce('Every site can ask again') }} />} />
     </Show>
@@ -437,7 +437,7 @@ export function SettingsPage() {
           </div>
         </div>
       </main>
-      <Show when={said()}>{s => <div class="said" data-n={s().n}>{s().text}</div>}</Show>
+      <Show when={said()}>{s => <div class="st-said" data-n={s().n}>{s().text}</div>}</Show>
     </div>
   )
 }
@@ -469,12 +469,12 @@ function Rail(q: { page: PageID; searching: boolean; counts: Record<string, numb
   return (
     <nav class="rail" aria-label="Settings sections">
       <div class="rail-title">Settings</div>
-      <div class="find">
+      <div class="st-find">
         <Symbol name="magnifyingglass" size={11} weight="medium" />
         <input ref={q.findRef} value={q.query} placeholder="Find a setting" aria-label="Find a setting"
           onInput={e => q.setQuery(e.currentTarget.value)} onKeyDown={e => { if (e.key === 'Escape') { q.setQuery(''); e.preventDefault() } }} />
-        <Show when={q.query} fallback={<span class="find-key">Ctrl+F</span>}>
-          <button class="find-clear" aria-label="Clear" onClick={() => q.setQuery('')}><Symbol name="xmark.circle.fill" size={11} /></button>
+        <Show when={q.query} fallback={<span class="st-find-key">Ctrl+F</span>}>
+          <button class="st-find-clear" aria-label="Clear" onClick={() => q.setQuery('')}><Symbol name="xmark.circle.fill" size={11} /></button>
         </Show>
       </div>
       <div class="rail-list" ref={list}>
@@ -516,7 +516,7 @@ function Rows(q: { items: Item[]; searched: boolean; lit?: string | null }) {
   return (
     <For each={q.items}>{(item, k) => (
       <>
-        <Show when={k() > 0}><div class="rule" /></Show>
+        <Show when={k() > 0}><div class="st-rule" /></Show>
         <Row item={item} searched={q.searched} lit={q.lit === item.id} />
       </>
     )}</For>
@@ -575,15 +575,15 @@ function Proxy() {
   const v = () => { try { return JSON.parse(p<string>('network.proxy') || '{}') as { mode?: string; host?: string; port?: number } } catch { return {} } }
   const save = (patch: Record<string, unknown>) => void set('network.proxy', JSON.stringify({ ...v(), ...patch }))
   return (
-    <div class="proxy">
+    <div class="st-proxy">
       <Line title="Send everything through a proxy" detail="Off: Oriel follows Windows' own network settings.">
         <Menu label="Proxy" width={180} value={v().mode ?? 'off'} set={m => save({ mode: m })} options={[['off', "Off, or Windows' own"], ['http', 'HTTP'], ['socks5', 'SOCKS5']]} />
       </Line>
       <Show when={(v().mode ?? 'off') !== 'off'}>
-        <div class="proxy-fields">
+        <div class="st-proxy-fields">
           <input placeholder="Host, such as 127.0.0.1" value={v().host ?? ''} onChange={e => save({ host: e.currentTarget.value.trim() })} />
           <input placeholder="Port, such as 7890" value={v().port ?? ''} onChange={e => save({ port: Number(e.currentTarget.value) || undefined })} />
-          <div class="under-note">{v().mode === 'http' ? 'HTTP proxies are reached with CONNECT, so the proxy has to allow tunnelling.' : 'SOCKS5, as an SSH tunnel or a local client offers.'}</div>
+          <div class="st-under-note">{v().mode === 'http' ? 'HTTP proxies are reached with CONNECT, so the proxy has to allow tunnelling.' : 'SOCKS5, as an SSH tunnel or a local client offers.'}</div>
         </div>
       </Show>
     </div>
@@ -602,7 +602,7 @@ function Results(q: { hits: Item[]; go: (p: PageID, row?: string) => void }) {
         const list = () => found().filter(i => i.group === g.id)
         const pg = pageOf(g.page)!
         return (
-          <section class="group found">
+          <section class="st-group found">
             <button class="found-head" title={`Open ${pg.title} at ${g.title}`} onClick={() => { const first = list()[0]; q.go(g.page, first && !first.findOnly ? first.id : undefined) }}>
               <Symbol name={g.icon} size={10.5} weight="medium" />
               <span>{`${pg.title}  ›  ${g.title}`.toUpperCase()}</span>
@@ -613,7 +613,7 @@ function Results(q: { hits: Item[]; go: (p: PageID, row?: string) => void }) {
         )
       }}</For>
       <Show when={always().length}>
-        <section class="group found">
+        <section class="st-group found">
           <div class="found-head"><Symbol name="checkmark.circle" size={10.5} weight="medium" /><span>{'Always on, nothing to set'.toUpperCase()}</span></div>
           <Card><Rows items={always()} searched /></Card>
         </section>

@@ -48,7 +48,7 @@ def style(sel, prop):
 
 
 def search(text):
-    ev(tab, "(() => { const f = document.querySelector('.find input'); f.value = %s; f.dispatchEvent(new Event('input', {bubbles: true})) })()" % json.dumps(text))
+    ev(tab, "(() => { const f = document.querySelector('.st-find input'); f.value = %s; f.dispatchEvent(new Event('input', {bubbles: true})) })()" % json.dumps(text))
 
 
 def click(sel):
@@ -58,7 +58,7 @@ def click(sel):
 # 1. The rail: 196 wide, Settings, Find a setting, three blocks of sections.
 t.ok(round(box(".rail")["w"]) == 196, "the rail is 196 wide")
 t.ok(ev(tab, "document.querySelector('.rail-title').textContent") == "Settings", "the rail is titled Settings")
-t.ok(round(box(".find")["h"]) == 28, "Find a setting is 28 high")
+t.ok(round(box(".st-find")["h"]) == 28, "Find a setting is 28 high")
 names = ev(tab, "[...document.querySelectorAll('.rail-row .rail-name')].map(e => e.textContent)")
 t.ok(names == ["General", "Appearance", "Themes", "Tabs", "Browsing", "Spaces & Pins", "Passwords", "Privacy", "Extensions", "Keyboard & Mouse", "About"],
      f"the sections in the Mac's order, AI left out ({names})")
@@ -77,10 +77,10 @@ t.ok(abs(card["w"] - 552) < 1, f"cards are 600 less 24 a side ({card['w']})")
 ev(tab, "document.body.style.width = ''")
 t.ok(round(box(".sr-tile")["w"]) == 26 and round(box(".sr-tile")["h"]) == 26, "the icon tile is 26 × 26")
 t.ok(style(".sr-tile", "borderTopLeftRadius") == "7px", "with corners of 7")
-sw = box(".sw")
+sw = box(".st-sw")
 t.ok(round(sw["w"]) == 30 and round(sw["h"]) == 18, "a switch is 30 × 18")
 t.ok(style(".sr-title", "fontSize") == "13px" and style(".sr-detail", "fontSize") == "11.5px", "titles at 13, details at 11.5")
-t.ok(style(".group-head", "fontSize") == "10.5px" and style(".group-head", "textTransform") in ("none", "") and ev(tab, "document.querySelector('.group-head').textContent") == "YOUR BROWSER",
+t.ok(style(".st-group-head", "fontSize") == "10.5px" and style(".st-group-head", "textTransform") in ("none", "") and ev(tab, "document.querySelector('.st-group-head').textContent") == "YOUR BROWSER",
      "group headings small and in capitals")
 t.ok(style(".card-st", "borderTopLeftRadius") == "11px", "cards have corners of 11")
 t.ok(ev(tab, "getComputedStyle(document.querySelector('.st-head h1')).fontSize") == "17px", "the section's title is 17")
@@ -114,10 +114,10 @@ t.ok(shown >= 100, f"{shown} rows shown with the defaults")
 b.cmd("settings.open", page="general")
 b.wait_for(lambda: ev(tab, "location.pathname") == "/general", what="general")
 time.sleep(0.2)
-click(".sr[data-row='quit.confirm'] .sw")
+click(".sr[data-row='quit.confirm'] .st-sw")
 b.wait_for(lambda: prefs().get("quit.confirm") is True, what="quit.confirm on")
 t.ok(True, "Confirm before quitting writes quit.confirm")
-click(".sr[data-row='quit.confirm'] .sw")
+click(".sr[data-row='quit.confirm'] .st-sw")
 b.wait_for(lambda: not prefs().get("quit.confirm"), what="quit.confirm off")
 t.ok("quit.confirm" not in prefs() or prefs()["quit.confirm"] is None, "back at its default, the key is gone")
 
@@ -127,34 +127,34 @@ b.wait_for(lambda: ev(tab, "location.pathname") == "/appearance", what="appearan
 time.sleep(0.2)
 t.ok(ev(tab, "!!document.querySelector(\"[data-row='sidebar.hides']\")") and not ev(tab, "!!document.querySelector(\"[data-row='tabs.compact']\")"),
      "with the column, its rows show and the top bar's don't")
-ev(tab, "document.querySelector(\"[data-row='tabs.layout'] .pic[aria-label='Top']\").click()")
+ev(tab, "document.querySelector(\"[data-row='tabs.layout'] .st-pic[aria-label='Top']\").click()")
 b.wait_for(lambda: prefs().get("sidebar") is False, what="sidebar off")
 time.sleep(0.2)
 t.ok(ev(tab, "!!document.querySelector(\"[data-row='tabs.compact']\")") and not ev(tab, "!!document.querySelector(\"[data-row='sidebar.hides']\")"),
      "Top: Shorter tab bar shows, the column's rows go")
 t.ok(b.window()["sidebar"]["layout"] == "top", "the window's tabs go across the top")
-ev(tab, "document.querySelector(\"[data-row='tabs.layout'] .pic[aria-label='Right']\").click()")
+ev(tab, "document.querySelector(\"[data-row='tabs.layout'] .st-pic[aria-label='Right']\").click()")
 b.wait_for(lambda: prefs().get("sidebar.position") == "right" and prefs().get("sidebar") is not False, what="right")
 t.ok(b.window()["sidebar"]["side"] == "right", "Right: the column on the right (sidebar.position)")
-ev(tab, "document.querySelector(\"[data-row='tabs.layout'] .pic[aria-label='Left']\").click()")
+ev(tab, "document.querySelector(\"[data-row='tabs.layout'] .st-pic[aria-label='Left']\").click()")
 b.wait_for(lambda: prefs().get("sidebar.position") in (None, "left"), what="left")
 
 # Light, Dark, Auto: the look (and its dependent rows).
-ev(tab, "document.querySelector(\"[data-row='look'] .pic[aria-label='Light']\").click()")
+ev(tab, "document.querySelector(\"[data-row='look'] .st-pic[aria-label='Light']\").click()")
 b.wait_for(lambda: prefs().get("look") == "light", what="look light")
 time.sleep(0.2)
 t.ok(not ev(tab, "!!document.querySelector(\"[data-row='pages.dusk']\")"), "Light: Darken pages that stay light goes")
-ev(tab, "document.querySelector(\"[data-row='look'] .pic[aria-label='Auto']\").click()")
+ev(tab, "document.querySelector(\"[data-row='look'] .st-pic[aria-label='Auto']\").click()")
 b.wait_for(lambda: prefs().get("look") in (None, "system"), what="look auto")
 
 # Sleep tabs: Never / Later / Normal / Sooner over tabs.sleep and tabs.sleep.pace.
 b.cmd("settings.open", page="tabs")
 b.wait_for(lambda: ev(tab, "location.pathname") == "/tabs", what="tabs")
 time.sleep(0.2)
-ev(tab, "[...document.querySelectorAll(\"[data-row='tabs.sleep'] .seg-item\")].find(e => e.textContent === 'Sooner').click()")
+ev(tab, "[...document.querySelectorAll(\"[data-row='tabs.sleep'] .st-seg-item\")].find(e => e.textContent === 'Sooner').click()")
 b.wait_for(lambda: prefs().get("tabs.sleep.pace") == "sooner", what="sooner")
-t.ok("ten minutes" in ev(tab, "document.querySelector('.sleep-detail').textContent"), "Sooner: After ten minutes away")
-ev(tab, "[...document.querySelectorAll(\"[data-row='tabs.sleep'] .seg-item\")].find(e => e.textContent === 'Never').click()")
+t.ok("ten minutes" in ev(tab, "document.querySelector('.st-sleep-detail').textContent"), "Sooner: After ten minutes away")
+ev(tab, "[...document.querySelectorAll(\"[data-row='tabs.sleep'] .st-seg-item\")].find(e => e.textContent === 'Never').click()")
 b.wait_for(lambda: prefs().get("tabs.sleep") is False, what="never")
 t.ok(b.call({"do": "settings.state"})["merged"]["tabs.sleep"] == "never", "Never: tabs.sleep off")
 if SHOTS:
@@ -187,7 +187,7 @@ b.cmd("settings.open", page="privacy")
 b.wait_for(lambda: ev(tab, "location.pathname") == "/privacy", what="privacy")
 time.sleep(0.2)
 click(".sr[data-row='privacy.forget'] .pill-st")
-b.wait_for(lambda: ev(tab, "document.querySelector('.said')?.textContent") == "Camera, microphone, location and notification choices forgotten", what="said")
+b.wait_for(lambda: ev(tab, "document.querySelector('.st-said')?.textContent") == "Camera, microphone, location and notification choices forgotten", what="said")
 t.ok(True, "Forget choices: Camera, microphone, location and notification choices forgotten")
 t.ok(ev(tab, "!!document.querySelector(\"[data-group='proxy']\")"), "Privacy ends with Proxy")
 

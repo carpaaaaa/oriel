@@ -91,7 +91,7 @@ export function DownloadsList(p: { data: Listed | null; run: (command: string, i
           <div class="dl-section">
             <Caption text="Current downloads" />
             <Card>
-              <For each={p.data!.current}>{(e, i) => <><Show when={i() > 0}><div class="rule" /></Show><FetchRow e={e} run={c => p.run(c, e.id)} /></>}</For>
+              <For each={p.data!.current}>{(e, i) => <><Show when={i() > 0}><div class="st-rule" /></Show><FetchRow e={e} run={c => p.run(c, e.id)} /></>}</For>
             </Card>
           </div>
         </Show>
@@ -99,7 +99,7 @@ export function DownloadsList(p: { data: Listed | null; run: (command: string, i
           <div class="dl-section">
             <Caption text="Completed" />
             <Card>
-              <For each={p.data!.completed}>{(e, i) => <><Show when={i() > 0}><div class="rule" /></Show><KeptRow e={e} run={c => p.run(c, e.id)} /></>}</For>
+              <For each={p.data!.completed}>{(e, i) => <><Show when={i() > 0}><div class="st-rule" /></Show><KeptRow e={e} run={c => p.run(c, e.id)} /></>}</For>
             </Card>
           </div>
         </Show>
@@ -143,7 +143,7 @@ export function DownloadsFloat() {
         <button class="dlf-door" title="Open the Downloads Folder" onClick={() => run('download.folder')}><Symbol name="folder" size={12} weight="medium" /></button>
         <button class="dlf-door" title="Close" onClick={() => void cmd({ do: 'downloads.show', toggle: true })}><Symbol name="xmark" size={11} weight="medium" /></button>
       </div>
-      <div class="rule" />
+      <div class="st-rule" />
       <div class="dlf-body"><DownloadsList data={data()} run={run} /></div>
       <Show when={data()?.completed.length}><div class="dlf-foot"><Pill title="Clear list" act={() => run('download.clear')} /></div></Show>
     </div>

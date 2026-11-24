@@ -150,7 +150,7 @@ b.wait_for(lambda: ev(dl, "document.querySelectorAll('.dl-row.kept').length") or
 names = ev(dl, "[...document.querySelectorAll('.dl-row.kept .dl-name')].map(e => e.textContent)")
 t.ok(names[:2] == ["elsewhere.bin", "n.bin"] and "a.bin" in names, f"Completed, newest first ({names})")
 t.ok(ev(dl, "document.querySelector('.dl-row.kept .dl-state').textContent").startswith("127.0.0.1 · "), "each says <site> · <when>")
-ev(dl, "[...document.querySelectorAll('.dl-row.kept')].find(r => r.querySelector('.dl-name').textContent === 'a.bin').querySelector('.quick').click()")
+ev(dl, "[...document.querySelectorAll('.dl-row.kept')].find(r => r.querySelector('.dl-name').textContent === 'a.bin').querySelector('.st-quick').click()")
 time.sleep(0.3)
 opened = b.call({"do": "settings.state"})["opened"]
 t.ok(f"reveal:{folder / 'a.bin'}" in opened, "Show in File Explorer shows the file in its folder")

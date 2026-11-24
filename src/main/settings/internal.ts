@@ -141,8 +141,7 @@ allowPage('settings', {
   slices: ['prefs'],
 })
 allowPage('downloads', { commands: ['download.', 'downloads.show'], slices: ['downloads', 'settings'] })
-allowPage('passwords', { commands: passwordsCommands })
-allowPage('history', { commands: ['history.list', 'history.forget', 'history.clear', 'tab.go'] })
+allowPage('passwords', { commands: [...passwordsCommands, 'import.open', 'import.file'] })
 
 const hostOf = (url: string) => { try { return new URL(url).host } catch { return '' } }
 const fits = (list: string[], name: string) => list.some(a => (a.endsWith('.') ? name.startsWith(a) : name === a))

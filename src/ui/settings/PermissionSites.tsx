@@ -21,7 +21,7 @@ export function PermissionSites(p: { seen: number; notificationsOn: boolean }) {
   const origins = () => [...new Set(shown().map(s => s.origin))].sort()
   return (
     <Show when={saved().length}>
-      <div class="rule" />
+      <div class="st-rule" />
       <div class="perm-head">
         <div class="perm-note">Reset asks again next time. Devices already in use keep running.</div>
         <div class="perm-tools">
@@ -49,7 +49,7 @@ function SiteRow(p: { origin: string; entries: SavedPermission[]; notificationsO
   }
   return (
     <>
-      <div class="rule" />
+      <div class="st-rule" />
       <button class="perm-site" aria-label={`${p.origin}, ${count()}`} aria-expanded={open()} onClick={() => setOpen(!open())}>
         <span class="perm-origin">{p.origin}</span>
         <span class="perm-count">{count()}</span>
@@ -69,7 +69,7 @@ export function PopupSites(p: { sites: string[]; remove: (site: string) => void 
   return (
     <For each={p.sites}>{site => (
       <>
-        <div class="rule" />
+        <div class="st-rule" />
         <Line title={site} detail="Can open pop-ups without a click"><Pill title="Remove" act={() => p.remove(site)} /></Line>
       </>
     )}</For>
