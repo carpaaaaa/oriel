@@ -97,8 +97,9 @@ t.ok(catalog == [i for i in mac if i in catalog], "the rows keep the Mac's order
 # translate.target and note.translate are back with Translate Page (translate
 # module); swipe.history and agents hidden (area C); Liquid Glass's tab and the
 # window's glass left out (area A); Profiles in one window left out until
-# Oriel has profiles (area B).
-t.ok(len(catalog) == 136 and len(gone) == 22, f"136 rows on Windows, 22 of the Mac's left out ({gone})")
+# Oriel has profiles (area B). Where an extension runs is back with "Runs on"
+# (test/settings_extensions.py).
+t.ok(len(catalog) == 137 and len(gone) == 21, f"137 rows on Windows, 21 of the Mac's left out ({gone})")
 texts = ev(tab, "JSON.stringify(window.__settings.items.map(i => [i.title, i.detail, i.more || ''].join(' ')))")
 t.ok(not any(c in texts for c in "—–⌘⌥⌃⇧"), "no long dash, no Mac key symbol in any row")
 t.ok(not any(w in texts for w in ("macOS", "Touch ID", "keychain", "Finder", "System Settings")), "no macOS, Touch ID, keychain, Finder or System Settings")

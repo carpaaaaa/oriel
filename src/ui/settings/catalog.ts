@@ -76,7 +76,7 @@ export const removed: Record<string, string> = {
   'news.iphone': 'Search for iPhone\'s beta',
   'about.feedback': 'it writes to Office Commun',
   'extensions.safariApps': 'Safari apps are the Mac\'s',
-  'extensions.sites': 'Chromium in Electron runs content scripts as the manifest says, with no site access to change at runtime yet',
+  // extensions.sites is back: "Runs on" narrows the kept copy (main/extensions/sites.ts).
   'inlinePredictions': 'Chromium has no inline predictions',
   // The pages module (studio/08 area C):
   'swipe.history': 'Windows tells an app no start or end of a touchpad swipe',

@@ -94,3 +94,36 @@
 .ext-store-button:hover { opacity: .86; }
 .ext-store-button.quiet { background: var(--wash); color: var(--ink); }
 .ext-store-ring { width: 10px; height: 10px; margin-right: 8px; }
+
+/* Settings › Extensions (ExtensionsUI.swift Installer, studio/04 §2.6): cards
+   18 apart; a row 10 high padding, 14 to the sides, its icon 22, name 13,
+   detail 11.5; the "Runs on" capsule 22 high in the wash; the "…" 26 square. */
+.extset { display: flex; flex-direction: column; gap: 18px; }
+.extset-add { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+.extset-add-head { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 15.5px; color: var(--ink); }
+.extset-add-head > span { flex: 1; min-width: 0; }
+.extset-add-row { display: flex; align-items: center; gap: 8px; }
+.extset-field { flex: 1; min-width: 0; padding: 7px 10px; border-radius: 9px; background: var(--wash); color: var(--ink); font-size: 12.5px; user-select: text; }
+.extset-field::placeholder, .extset-site-field::placeholder { color: color-mix(in srgb, var(--muted) 80%, transparent); }
+.extset-note { font-size: 11.5px; line-height: 13.7px; color: var(--muted); }
+.extset-row { padding: 10px 14px; transition: background var(--dur-quick) var(--ease-quick); }
+.extset-row:hover { background: var(--hover); }
+.extset-row-main { display: flex; align-items: center; gap: 12px; }
+.extset-icon { width: 22px; height: 22px; flex: none; display: grid; place-items: center; color: var(--muted); }
+.extset-icon img { display: block; width: 22px; height: 22px; object-fit: contain; }
+.extset-words { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; margin-right: 8px; }
+.extset-name { font-size: 13px; line-height: 15.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.extset-detail { font-size: 11.5px; line-height: 13.7px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.extset-problem { font-size: 11.5px; line-height: 13.7px; color: var(--unsafe); user-select: text; }
+.extset-runs { display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 8px; border-radius: 999px; flex: none;
+  background: var(--wash); color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.extset-runs.restricted { color: var(--ink); }
+.extset-more { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border-radius: 7px; color: var(--muted); }
+.extset-row:hover .extset-more, .extset-more.open { color: var(--ink); }
+.extset-sites { display: flex; flex-direction: column; gap: 6px; padding: 8px 0 0 34px; }
+.extset-host { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); }
+.extset-host > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.extset-host-x { width: 18px; height: 18px; display: grid; place-items: center; color: var(--muted); }
+.extset-site-add { display: flex; align-items: center; gap: 8px; }
+.extset-site-field { flex: 1; min-width: 0; padding: 5px 8px; border-radius: 7px; background: var(--wash); color: var(--ink); font-size: 12px; user-select: text; }
+.extset-site-note { font-size: 11px; line-height: 13px; color: var(--muted); }

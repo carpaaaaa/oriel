@@ -26,7 +26,7 @@ import { apiConstants } from './dnr/types'
 import { bindCommands, unbindCommands, setupCommands } from './commands'
 import { setBadge, handleApiFrom } from './lib'
 import { prepare } from './dnr/war'
-import { setupUI, restoreAtStart, beforeStoreInstall } from './ui'
+import { setupUI, restoreAtStart, beforeStoreInstall, fitSites } from './ui'
 import { popupByContents, closePopup } from './popup'
 import { setupSidePanel, sidePanelApi, panelByContents, closePanel } from './sidepanel'
 import { setupOffscreen, offscreenApi } from './offscreen'
@@ -82,6 +82,8 @@ export async function setupExtensions(profile: Session): Promise<void> {
   const load = profile.extensions.loadExtension.bind(profile.extensions)
   profile.extensions.loadExtension = (folder: string, options?: Electron.LoadExtensionOptions) => {
     if (kept.some(k => path.resolve(folder).startsWith(k))) {
+      // "Runs on" first (sites.ts), then the package's own preparing.
+      try { fitSites(folder) } catch (error) { console.warn('[extensions] sites', error) }
       try { prepare(folder) } catch (error) { console.warn('[extensions] prepare', error) }
     }
     return load(folder, options)
