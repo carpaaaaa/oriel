@@ -15,6 +15,7 @@
 // (page.ts).
 
 import { app, net as enet } from 'electron'
+import { quickScriptlet } from './scriptlets'
 import { Worker } from 'node:worker_threads'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, openSync, fsyncSync, closeSync, unlinkSync } from 'node:fs'
 import { gunzipSync } from 'node:zlib'
@@ -214,7 +215,7 @@ export function cosmeticsFor(url: string, ancestors: string[] = []): Cosmetics |
     getBaseRules: true, getInjectionRules: true, getExtendedRules: true, getRulesFromHostname: true, getRulesFromDOM: false,
   })
   if (c.active === false) return null
-  return { styles: c.styles, scripts: c.scripts, extended: c.extended }
+  return { styles: c.styles, scripts: c.scripts.map(quickScriptlet), extended: c.extended }
 }
 
 /** The generic hiding rules for classes, ids and links found in the page. */
