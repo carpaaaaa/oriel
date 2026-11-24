@@ -260,11 +260,11 @@ class Model extends EventEmitter {
     return key in tabDefaults ? tabDefaults[key] : defaultOf(key)
   }
 
-  /** undefined, or a value equal to its default, takes the key away (§1.17):
-   * the merged view keeps the default, the file never gets it. */
+  /** undefined takes the key away; a value equal to its default never
+   * reaches the file either (prefsFile, studio/06 §1.17). */
   setPref(key: string, value: unknown): void {
     const was = this.prefs[key]
-    this.prefs[key] = value === undefined ? this.defaultFor(key) : value
+    this.prefs[key] = value
     this.savePrefs()
     this.touchAll(['prefs'])
     if (key === 'spaces' && !!was !== !!value) this.spacesToggled()
