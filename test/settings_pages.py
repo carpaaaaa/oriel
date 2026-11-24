@@ -94,6 +94,15 @@ t.ok(values == "Oriel", "the bridge answers on the Oriel page")
 bad = b.ev(tab, "window.oriel.cmd({do: 'window.close'}).then(() => 'ran').catch(() => 'refused')")
 t.ok(bad == "refused", "a command outside the page's list is refused")
 
+# 6. Another module's page through the same bridge: the data module's oriel://history.
+b.call({"do": "data.visit", "url": "https://history-one.example/", "title": "History One"})
+b.cmd("history.show")
+b.wait_for(lambda: [x for x in tabs() if x.get("internal") == "history"], what="History tab")
+hist = [x for x in tabs() if x.get("internal") == "history"][0]["id"]
+b.wait_for(lambda: "History One" in (ev(hist, "document.body.innerText") or ""), what="history rows")
+t.ok(True, "Show History… opens oriel://history, whose commands go through the bridge")
+t.ok(ev(hist, "window.oriel.cmd({do: 'download.list'}).then(() => 'ran').catch(() => 'refused')") == "refused", "a page runs only what its module allowed it")
+
 t.ok(not b.state().get("errors"), "no error in the main process")
 server.shutdown()
 t.done()
