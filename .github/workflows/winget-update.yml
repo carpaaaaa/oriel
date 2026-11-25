@@ -67,6 +67,7 @@ jobs:
             $ready = $false
           }
           "ready=$($ready.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          exit 0
       - name: wingetcreate
         if: steps.ready.outputs.ready == 'true'
         shell: pwsh
