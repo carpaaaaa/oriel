@@ -24,7 +24,7 @@ setupPaths()
 setupUserAgent()
 // Windows names the taskbar button, its jump list and notifications by this
 // id (the installer's appId), not by the executable's path.
-if (process.platform === 'win32') app.setAppUserModelId('app.oriel.browser')
+if (process.platform === 'win32' && !process.windowsStore) app.setAppUserModelId('app.oriel.browser')
 
 // An error nobody caught in the main process: Electron would show a dialog
 // (on top of everything, even for an invisible test window). Oriel logs it,
