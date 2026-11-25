@@ -9,7 +9,7 @@
 
 import { contextBridge, ipcRenderer, webFrame } from 'electron'
 import { youtubePage, youtubeSkipper } from './youtube'
-import { setupFloat } from './float'
+import { holdPictureInPicture, setFloatOn, setupFloat } from './float'
 import { setupCapture } from './capture'
 import { setupReader } from './reader'
 import { runScriptlets, watchPage, type Watch } from './blocker'
@@ -42,6 +42,8 @@ interface PagePrefs {
   noShorts: string[] | null
   /** Copying set free on this page. */
   copyFree: boolean
+  /** Settings > Floating video is on. */
+  floatOn: boolean
 }
 
 let p: PagePrefs | null = null
@@ -58,6 +60,9 @@ function start(first: PagePrefs): void {
   // Before the page's own scripts too: copying set free, YouTube without Shorts (sites.ts).
   setCopyFree(!!first.copyFree)
   hideShorts(first.noShorts ?? null)
+  // Picture in picture is the floating video's or none, from the page's start.
+  setFloatOn(first.floatOn !== false)
+  holdPictureInPicture()
   if (first.youtube) {
     try { contextBridge.executeInMainWorld({ func: youtubePage, args: [first.youtube, first.standIn] }) } catch {}
     try { youtubeSkipper(first.youtube) } catch {}
@@ -131,6 +136,7 @@ function start(first: PagePrefs): void {
     const was = now
     now = q
     hideShorts(q.noShorts ?? null)
+    setFloatOn(q.floatOn !== false)
     if (q.css !== was.css || q.style !== was.style) dress(q)
     // Off or paused here, or back on: the page's own rules go or come back.
     if (!q.css !== !was.css || q.dom !== was.dom) follow(q)

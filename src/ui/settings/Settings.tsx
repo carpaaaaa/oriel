@@ -71,6 +71,7 @@ function applies(id: string): boolean {
     case 'mail.default': return (p<string>('mail.webmail') ?? 'none') !== 'none'
     case 'links.peek.stays': return !!p('links.peek') || !!p('pins.peek')
     case 'launcher.key': return !!p('launcher.on')
+    case 'float.own': case 'float.minimize': case 'float.fade': return p('float.enabled') !== false
     default: return true
   }
 }
@@ -93,6 +94,7 @@ function needs(id: string): string {
     case 'mail.default': return 'Only with a webmail chosen for email links'
     case 'links.peek.stays': return 'Only when links or pins open peeks'
     case 'launcher.key': return 'Only with the address field from any app on'
+    case 'float.own': case 'float.minimize': case 'float.fade': return 'Only with the floating video on'
     case 'bookmarks.side': return 'Only with the bookmarks bar shown and the tabs down a side'
     case 'passwords.fill.prove': return 'Only with Fill in sign-ins on'
     default: return 'Only with the tabs down a side'
@@ -299,7 +301,7 @@ function control(i: Item): JSX.Element {
       </Show>
     )
     case 'window.fullScreenStyle': return <Segmented value={p<string>('window.fullScreenStyle') ?? 'full'} set={v => void set('window.fullScreenStyle', v)} options={[['full', 'Full screen'], ['borderless', 'Borderless window']]} />
-    case 'float.style': return <Segmented value={p<string>('float.style') ?? 'search'} set={v => void set('float.style', v)} options={[['search', "Oriel's window"], ['system', 'Picture in picture']]} />
+    case 'float.style': return <Switch on={p('float.enabled') !== false} set={v => void set('float.enabled', v)} />
     case 'float.own': return <Segmented wide max={340} value={merged<string>('float.own')} set={v => void set('float.own', v)} options={[['never', 'Never'], ['tabs', 'Switching tabs'], ['tabsOrApps', 'Tabs or apps']]} />
     case 'translate.target': return <TranslateAdd value={p<string[]>(MENU_KEY) ?? MENU_DEFAULT} set={v => void set(MENU_KEY, v)} />
     case 'pageZoom': return <Steps stops={zooms} value={Number(p('pageZoom') ?? 1)} home={1} label={v => `${Math.round(v * 100)}%`} set={v => void set('pageZoom', v)} />

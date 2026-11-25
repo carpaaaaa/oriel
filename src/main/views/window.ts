@@ -86,6 +86,9 @@ export class WindowController {
   readonly frame: Frame
   private slots = new Map<ID, Slot>()
   private shown = new Set<ID>()
+  /** Pages of this window that are out in the floating video's window
+   * (pages/float.ts): not placed here, however long their tab is in front. */
+  private held = new Set<ID>()
   private rev = 0
   private dirty = new Set<string>()
   private flushTimer: NodeJS.Timeout | null = null
@@ -304,7 +307,7 @@ export class WindowController {
     for (const id of this.slots.keys()) {
       const tab = model.tabs.get(id)
       // Only what the model has on screen: the tab in front and its split.
-      if (tab && !tab.empty && model.onScreen(id)) want.add(id)
+      if (tab && !tab.empty && model.onScreen(id) && !this.held.has(id)) want.add(id)
     }
     for (const id of [...this.shown]) {
       if (want.has(id)) continue
@@ -333,6 +336,20 @@ export class WindowController {
       this.placeOne(id)
     }
   }
+
+  /** The page of a tab in front moves into the floating video's window: it
+   * leaves this one and is no longer placed in it (its size is the little
+   * window's, and it comes back with release). */
+  hold(id: ID): void {
+    this.held.add(id)
+    const view = runtimes.get(id)?.view
+    if (view && this.base.contentView.children.includes(view)) this.base.contentView.removeChildView(view)
+    this.shown.delete(id)
+    if (this.filling === id) this.filling = null
+  }
+
+  /** The floating video landed: placePages takes the page back. */
+  release(id: ID): void { this.held.delete(id) }
 
   private placeOne(id: ID): void {
     const rt = runtimes.get(id)

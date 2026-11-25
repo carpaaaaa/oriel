@@ -12,7 +12,7 @@ import { reminder } from './escape'
 import { gliding, systemGlides } from './smooth'
 import { model } from '../model/model'
 import { peekContents, peekInfo } from './peek'
-import { floatControls, floatInfo } from './float'
+import { floatControls, floatInfo, floatShot, setFloatPointer } from './float'
 import { allControllers } from '../views/window'
 import { captures } from './capture'
 import { readerInfo, readerSaid } from './reader'
@@ -83,6 +83,20 @@ benchRequest('pages.floatControls', async req => {
   if (!wc) throw new Error('nothing floats')
   for (const e of (req.events as Electron.InputEvent[]) ?? []) wc.sendInputEvent(e as never)
   return { value: req.js ? await wc.executeJavaScript(String(req.js), true) : null }
+})
+
+/** A picture of the floating window, its video and its buttons together. */
+benchRequest('pages.floatShot', async req => {
+  const r = await floatShot(String(req.path))
+  if (!r) throw new Error('nothing floats')
+  return r
+})
+
+/** Where the pointer is, for the floating window (a test world's is
+ * invisible: the real pointer is never on it): true, false, or null for the real one. */
+benchRequest('pages.floatPointer', req => {
+  setFloatPointer(req.on === true ? true : req.on === false ? false : null)
+  return {}
 })
 
 /** Oriel left for another app, or back (a test world's windows never take

@@ -25,7 +25,6 @@ export interface PeekState {
 /** The floating video (Float.swift, studio/06 §3.5). */
 export interface FloatState {
   tab: ID
-  style: 'search' | 'system'
   tucked: boolean
 }
 
