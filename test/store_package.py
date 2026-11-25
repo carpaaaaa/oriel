@@ -34,8 +34,13 @@ TEMP = Path(os.environ.get("RUNNER_TEMP", os.environ["TEMP"]))
 t = b.T()
 
 
+# Windows PowerShell with its own modules: the step's PowerShell 7 hands its
+# PSModulePath down, and 5.1 can't load those (no Cert: drive, no Appx).
+PSENV = {k: v for k, v in os.environ.items() if k.upper() != "PSMODULEPATH"}
+
+
 def ps(cmd, check=False):
-    r = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True)
+    r = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True, env=PSENV)
     if check and r.returncode:
         print(r.stdout, r.stderr)
     return r
@@ -66,15 +71,13 @@ t.ok("runFullTrust" in manifest, "a desktop app (runFullTrust)")
 pfx, password = TEMP / "oriel-test.pfx", "oriel-test"
 script = TEMP / "oriel-test-cert.ps1"
 script.write_text(f"""$ErrorActionPreference = 'Stop'
-Import-Module Microsoft.PowerShell.Security
-Import-Module PKI
 $c = New-SelfSignedCertificate -Type Custom -Subject '{PUBLISHER}' -KeyUsage DigitalSignature -FriendlyName 'Oriel test' -CertStoreLocation 'Cert:\\CurrentUser\\My' -TextExtension @('2.5.29.37={{text}}1.3.6.1.5.5.7.3.3', '2.5.29.19={{text}}')
 $p = ConvertTo-SecureString -String '{password}' -Force -AsPlainText
 Export-PfxCertificate -Cert $c -FilePath '{pfx}' -Password $p | Out-Null
 Import-PfxCertificate -FilePath '{pfx}' -CertStoreLocation 'Cert:\\LocalMachine\\TrustedPeople' -Password $p | Out-Null
 'ok'
 """, encoding="utf-8")
-r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)], capture_output=True, text=True)
+r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)], capture_output=True, text=True, env=PSENV)
 if not pfx.exists():
     print("  certificate script said:", r.stdout, r.stderr, sep="\n")
 t.ok("ok" in r.stdout and pfx.exists(), "a test certificate of Char Studio's publisher, trusted on this machine")
