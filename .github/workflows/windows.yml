@@ -101,6 +101,9 @@ jobs:
       - name: Maximize, full screen and back, Restore Down; the size windows.json keeps
         if: always()
         run: python test/window_restore_full.py
+      - name: Borderless window keeps the taskbar within reach; full screen as before
+        if: always()
+        run: python test/window_borderless.py
       - name: The bookmarks bar above the page
         if: always()
         run: python test/bookmarks_bar.py

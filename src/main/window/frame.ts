@@ -263,6 +263,27 @@ export class Frame {
   /** In full screen as a borderless window (window.fullScreenStyle). */
   borderless(): boolean { return this.state === 'fullScreen' && model.pref<string>('window.fullScreenStyle') === 'borderless' }
 
+  /** Borderless is chosen, and this is Windows: the window covers the screen
+   * but Windows isn't told it is full screen, so the taskbar can still come
+   * up when the pointer goes to its edge. */
+  private borderlessWanted(): boolean { return !!this.hwnd && !!win32() && model.pref<string>('window.fullScreenStyle') === 'borderless' }
+
+  /** What a borderless window covers (DIP): the screen, a pixel short on the
+   * taskbar's edge when the taskbar hides, so Windows doesn't take the window
+   * for a full-screen one and the taskbar still comes up from that edge; the
+   * work area while the taskbar stays in view (it would sit over the window). */
+  private coverRect(d: Rectangle): Rectangle {
+    const bar = this.borderlessWanted() ? win32()?.taskbar() : null
+    if (!bar) return d
+    if (!bar.autoHide) return screen.getDisplayMatching(d).workArea
+    switch (bar.edge) {
+      case 'top': return { x: d.x, y: d.y + 1, width: d.width, height: d.height - 1 }
+      case 'left': return { x: d.x + 1, y: d.y, width: d.width - 1, height: d.height }
+      case 'right': return { x: d.x, y: d.y, width: d.width - 1, height: d.height }
+      default: return { x: d.x, y: d.y, width: d.width, height: d.height - 1 }
+    }
+  }
+
   view(): FrameView {
     return { kind: this.kind, margin: this.margin(), state: this.state, borderless: this.borderless(), hollow: this.hollow, manual: this.manual, manualResize: this.resizesByHand, grip: GRIP }
   }
@@ -283,7 +304,8 @@ export class Frame {
     const was = this.state
     const next = this.compute()
     const onScreen = screen.getDisplayMatching(b.getBounds()).bounds, now = b.getBounds()
-    const screenSized = now.x === onScreen.x && now.y === onScreen.y && now.width === onScreen.width && now.height === onScreen.height
+    const sameAs = (r: Rectangle) => now.x === r.x && now.y === r.y && now.width === r.width && now.height === r.height
+    const screenSized = sameAs(onScreen) || sameAs(this.coverRect(onScreen))
     if (next !== 'fullScreen' && !b.isMinimized() && !(next === 'free' && screenSized)) {
       const bounds = now, m = this.kind === 'drawn' && next === 'free' ? ROOM : NONE
       const visual = { x: bounds.x + m.left, y: bounds.y + m.top, width: bounds.width - m.left - m.right, height: bounds.height - m.top - m.bottom }
@@ -470,9 +492,20 @@ export class Frame {
       this.leaveMaximized()
     }
     this.full = on && !!this.hwnd
-    this.c.base.setFullScreen(on)
+    // Borderless: Electron's own full screen would tell Windows to put the
+    // taskbar away for good; the window covers the screen by itself (cover).
+    this.c.base.setFullScreen(on && !this.borderlessWanted())
     this.refresh()
     this.c.mark('window')
+  }
+
+  /** Borderless or Full screen chosen in Settings while in full screen: put
+   * on again the way the new choice says (a page's own full screen stays). */
+  restyle(): void {
+    if (!this.hwnd || this.byPage || !this.isFullScreen() || this.c.base.isDestroyed()) return
+    if (this.c.base.isFullScreen() === !this.borderlessWanted()) return
+    this.setFullScreen(false)
+    setTimeout(() => { if (!this.c.base.isDestroyed() && !this.isFullScreen()) this.setFullScreen(true) }, 150)
   }
 
   /** Into full screen, whoever asked (F11, a page, a restart). */
@@ -548,7 +581,7 @@ export class Frame {
     if (state !== 'maximized' && state !== 'fullScreen') return
     const m = w.monitorOf(this.hwnd)
     if (!m) return
-    const area = state === 'fullScreen' ? m.monitor : m.work
+    const area = state === 'fullScreen' && !(this.borderlessWanted() && win32()?.taskbar()?.autoHide === false) ? m.monitor : m.work
     const c = w.clientRect(this.hwnd)
     const past = Math.max(area.left - c.left, c.right - area.right, area.top - c.top, c.bottom - area.bottom)
     if (past <= 1) return
@@ -568,7 +601,7 @@ export class Frame {
   private cover(): void {
     const b = this.c.base
     if (b.isDestroyed() || b.isMinimized() || !this.isFullScreen()) return
-    const d = screen.getDisplayMatching(b.getBounds()).bounds
+    const d = this.coverRect(screen.getDisplayMatching(b.getBounds()).bounds)
     const now = b.getBounds()
     if (now.x !== d.x || now.y !== d.y || now.width !== d.width || now.height !== d.height) b.setBounds(d)
   }
@@ -658,6 +691,8 @@ export class Frame {
     out.pointer = screen.getCursorScreenPoint()
     out.minimized = this.c.base.isMinimized()
     out.icon = appIcon() ?? null
+    out.native = this.c.base.isFullScreen()
+    out.taskbar = w ? w.taskbar() : null
     out.workArea = screen.getDisplayMatching(this.c.base.getBounds()).workArea
     out.display = screen.getDisplayMatching(this.c.base.getBounds()).bounds
     out.scale = screen.getDisplayMatching(this.c.base.getBounds()).scaleFactor

@@ -81,6 +81,8 @@ export interface Win32 {
   monitorOf(hwnd: number): { monitor: { left: number; top: number; right: number; bottom: number }; work: { left: number; top: number; right: number; bottom: number } } | null
   /** Windows asked to measure the frame again (WM_NCCALCSIZE), nothing moved. */
   frameChanged(hwnd: number): void
+  /** The taskbar's edge and whether it hides until the pointer comes to that edge. */
+  taskbar(): { edge: 'left' | 'top' | 'right' | 'bottom'; autoHide: boolean } | null
 }
 
 let cached: Win32 | null | undefined
@@ -101,6 +103,7 @@ function load(): Win32 {
   const koffi = nodeRequire('koffi') as typeof import('koffi')
   const user32 = koffi.load('user32.dll')
   const dwmapi = koffi.load('dwmapi.dll')
+  const shell32 = koffi.load('shell32.dll')
   const POINT = koffi.struct('SEARCH_POINT', { x: 'int32_t', y: 'int32_t' })
   const RECT = koffi.struct('SEARCH_RECT', { left: 'int32_t', top: 'int32_t', right: 'int32_t', bottom: 'int32_t' })
   koffi.struct('SEARCH_WINDOWPLACEMENT', { length: 'uint32_t', flags: 'uint32_t', showCmd: 'uint32_t', ptMinPosition: POINT, ptMaxPosition: POINT, rcNormalPosition: RECT })
@@ -129,6 +132,8 @@ function load(): Win32 {
   const FindWindowExW = user32.func('intptr_t __stdcall FindWindowExW(intptr_t parent, intptr_t after, str16 cls, str16 title)')
   const GetWindowThreadProcessId = user32.func('uint32_t __stdcall GetWindowThreadProcessId(intptr_t hwnd, _Out_ uint32_t *pid)')
   const GetWindowTextW = user32.func('int __stdcall GetWindowTextW(intptr_t hwnd, _Out_ void *text, int max)')
+  koffi.struct('SEARCH_APPBARDATA', { cbSize: 'uint32_t', hWnd: 'intptr_t', uCallbackMessage: 'uint32_t', uEdge: 'uint32_t', rc: RECT, lParam: 'intptr_t' })
+  const SHAppBarMessage = shell32.func('uintptr_t __stdcall SHAppBarMessage(uint32_t message, _Inout_ SEARCH_APPBARDATA *data)')
   koffi.struct('SEARCH_MONITORINFO', { cbSize: 'uint32_t', rcMonitor: RECT, rcWork: RECT, dwFlags: 'uint32_t' })
   const GetClientRect = user32.func('int __stdcall GetClientRect(intptr_t hwnd, _Out_ SEARCH_RECT *rect)')
   const ClientToScreen = user32.func('int __stdcall ClientToScreen(intptr_t hwnd, _Inout_ SEARCH_POINT *point)')
@@ -226,6 +231,13 @@ function load(): Win32 {
       return GetMonitorInfoW(m, info) ? { monitor: info.rcMonitor, work: info.rcWork } : null
     },
     frameChanged: hwnd => { SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_FLAGS) },
+    taskbar() {
+      const zero = { left: 0, top: 0, right: 0, bottom: 0 }
+      const data = { cbSize: koffi.sizeof('SEARCH_APPBARDATA'), hWnd: 0, uCallbackMessage: 0, uEdge: 0, rc: { ...zero }, lParam: 0 }
+      const state = Number(SHAppBarMessage(4 /* ABM_GETSTATE */, data))
+      if (!SHAppBarMessage(5 /* ABM_GETTASKBARPOS */, data)) return null
+      return { edge: (['left', 'top', 'right', 'bottom'] as const)[data.uEdge] ?? 'bottom', autoHide: (state & 1) !== 0 /* ABS_AUTOHIDE */ }
+    },
     title(hwnd) {
       const buf = Buffer.alloc(512)
       const n = GetWindowTextW(hwnd, buf, 256)

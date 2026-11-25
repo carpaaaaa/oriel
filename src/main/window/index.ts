@@ -27,7 +27,7 @@ addDefaults({ 'window.nativeFrame': false, 'window.buttons': 'inline' })
 
 registerSlice('frame', c => c.frame.view())
 // Full screen or borderless chosen in Settings: the window drawn again at once.
-model.on('window-changed', (id: string, slices: string[]) => { if (slices?.includes('prefs')) controllerFor(id)?.mark('frame') })
+model.on('window-changed', (id: string, slices: string[]) => { if (slices?.includes('prefs')) { controllerFor(id)?.mark('frame'); controllerFor(id)?.frame.restyle() } })
 registerSlice('room', c => c.sideRoom())
 
 
