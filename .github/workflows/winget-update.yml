@@ -25,7 +25,7 @@ on:
         description: Oriel version, for example 0.1.12
         required: true
       submit:
-        description: Open the pull request (off: manifests are made and shown only)
+        description: 'Open the pull request (off, the manifests are made and shown only)'
         type: boolean
         default: true
 
