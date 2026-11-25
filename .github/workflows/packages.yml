@@ -1,0 +1,84 @@
+name: packages
+
+# The Chocolatey package: packed, installed from the pack on real Windows
+# (x64 and ARM), checked, removed. Pushed to chocolatey.org only by hand (push
+# = true) and only with the CHOCOLATEY_API_KEY secret of the account that
+# owns the package.
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: Push the package to chocolatey.org (needs the CHOCOLATEY_API_KEY secret)
+        type: boolean
+        default: false
+  push:
+    paths:
+      - 'packaging/chocolatey/**'
+      - '.github/workflows/packages.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  chocolatey:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Chocolatey
+        shell: pwsh
+        run: |
+          if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+          }
+          choco --version
+      # On this test machine only: nobody can click SmartScreen's question.
+      - name: SmartScreen off (test machine only)
+        shell: pwsh
+        run: |
+          New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' -Force | Out-Null
+          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' -Name EnableSmartScreen -Value 0 -Type DWord
+      - name: Pack
+        shell: pwsh
+        working-directory: packaging/chocolatey
+        run: |
+          choco pack
+          Get-ChildItem *.nupkg
+      - name: Install from the pack
+        shell: pwsh
+        working-directory: packaging/chocolatey
+        run: |
+          choco install oriel --source "$PWD" --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "choco install failed ($LASTEXITCODE)" }
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Oriel\Oriel.exe'
+          if (-not (Test-Path $exe)) { throw "Oriel.exe isn't where its installer puts it: $exe" }
+          (Get-Item $exe).VersionInfo | Format-List ProductName, ProductVersion
+      - name: Uninstall
+        shell: pwsh
+        run: |
+          choco uninstall oriel --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "choco uninstall failed ($LASTEXITCODE)" }
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Oriel\Oriel.exe'
+          for ($i = 0; $i -lt 20 -and (Test-Path $exe); $i++) { Start-Sleep 2 }
+          if (Test-Path $exe) { throw 'Oriel is still there after choco uninstall' }
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'windows-latest'
+        with:
+          name: oriel-nupkg
+          path: packaging/chocolatey/*.nupkg
+      - name: Push to chocolatey.org
+        if: matrix.os == 'windows-latest' && github.event_name == 'workflow_dispatch' && inputs.push
+        shell: pwsh
+        env:
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+        working-directory: packaging/chocolatey
+        run: |
+          if (-not $env:CHOCOLATEY_API_KEY) { throw 'The CHOCOLATEY_API_KEY secret is not set' }
+          choco push (Get-ChildItem oriel.*.nupkg).Name --source https://push.chocolatey.org/ --api-key $env:CHOCOLATEY_API_KEY

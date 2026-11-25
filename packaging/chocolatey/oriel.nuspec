@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>oriel</id>
+    <version>0.1.11</version>
+    <title>Oriel</title>
+    <authors>Char Studio</authors>
+    <owners>carpaaaaa</owners>
+    <projectUrl>https://oriel.charstudio.app/</projectUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/carpaaaaa/oriel@main/build/icon.png</iconUrl>
+    <licenseUrl>https://github.com/carpaaaaa/oriel/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/carpaaaaa/oriel</projectSourceUrl>
+    <packageSourceUrl>https://github.com/carpaaaaa/oriel/tree/main/packaging/chocolatey</packageSourceUrl>
+    <docsUrl>https://oriel.charstudio.app/faq</docsUrl>
+    <bugTrackerUrl>https://github.com/carpaaaaa/oriel/issues</bugTrackerUrl>
+    <tags>oriel browser web-browser chromium electron open-source privacy search vertical-tabs spaces extensions</tags>
+    <summary>A free, open source web browser for Windows: a column of tabs, spaces, Chrome extensions, ads and trackers blocked. An unofficial port of Search.</summary>
+    <description><![CDATA[
+Oriel brings the design of Search, the small fast browser for the Mac by Office Commun, to Windows: a column of tabs down the left (or a strip across the top), one field for addresses and searches, and the page as a card beside them.
+
+* Spaces and pinned tabs, Split View, reading mode, translation on your PC.
+* Chrome extensions from the Chrome Web Store.
+* Ads and trackers blocked with uBlock Origin's lists, in the network layer.
+* Passwords behind Windows Hello; import from Chrome, Edge, Brave, Opera and Arc.
+* Free, open source (MIT). No account and no telemetry.
+
+Oriel is built on Chromium through Electron. It is **not affiliated with or endorsed by** Office Commun.
+
+## Package notes
+
+* The installer is Oriel's own (NSIS), run silently for the current user; Chocolatey checks its SHA-256 against the one in this package, which is the one in `SHA256SUMS.txt` on the release.
+* Oriel isn't code-signed yet, so Windows may ask before it runs.
+* Oriel updates itself once installed. `choco upgrade oriel` follows the releases too.
+* x64 and ARM64 are both supported.
+]]></description>
+    <releaseNotes>https://github.com/carpaaaaa/oriel/releases/tag/v0.1.11</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
