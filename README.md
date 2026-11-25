@@ -58,7 +58,7 @@ The links always point to the latest release; every file is also on the [release
 |---|---|
 | [Scoop](https://scoop.sh/) | `scoop bucket add oriel https://github.com/carpaaaaa/scoop-oriel`, then `scoop install oriel` |
 | [winget](https://learn.microsoft.com/windows/package-manager/) | `winget install CharStudio.Oriel`: the package is waiting for Microsoft's moderators |
-| [Chocolatey](https://chocolatey.org/) | `choco install oriel`: the package is ready (`packaging/chocolatey`) and goes to chocolatey.org next |
+| [Chocolatey](https://chocolatey.org/) | `choco install oriel`: sent to chocolatey.org, in moderation (the package is in `packaging/chocolatey`) |
 
 Each one runs the same installer as the download button, silently, for you alone, and checks its SHA-256. This page changes when winget and Chocolatey are in.
 
