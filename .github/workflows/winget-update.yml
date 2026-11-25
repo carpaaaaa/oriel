@@ -1,0 +1,86 @@
+name: winget-update
+
+# After each release, opens the "Update: CharStudio.Oriel to <version>" pull
+# request on microsoft/winget-pkgs, with Microsoft's own wingetcreate: it reads
+# the installers' URLs, works out their SHA-256 and keeps what the last
+# manifest says (silent switches, protocols, file types).
+#
+# It does nothing, and says so, until two things are there:
+#  - the WINGET_TOKEN secret: a classic personal access token of the account
+#    that owns the winget package, with the public_repo scope (wingetcreate
+#    forks winget-pkgs for it and opens the pull request from the fork);
+#  - the package itself in winget-pkgs: the first pull request ("New package")
+#    has to be merged. Until then a new release is put in that pull request's
+#    branch by hand.
+#
+# Runs when the release workflow ends well, or by hand for a version.
+
+on:
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Oriel version, for example 0.1.12
+        required: true
+      submit:
+        description: Open the pull request (off: manifests are made and shown only)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    # A release workflow that ended well, on a tag (its branch name is the tag).
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+    steps:
+      - name: Version
+        id: v
+        shell: pwsh
+        run: |
+          $version = '${{ inputs.version }}'
+          if (-not $version) { $version = '${{ github.event.workflow_run.head_branch }}'.TrimStart('v') }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Not a version: $version" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - name: Is it time
+        id: ready
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ready = $true
+          if (-not $env:WINGET_TOKEN) {
+            Write-Host '::notice::The WINGET_TOKEN secret is not set: no winget pull request is opened.'
+            $ready = $false
+          }
+          $found = $false
+          try { gh api repos/microsoft/winget-pkgs/contents/manifests/c/CharStudio/Oriel --silent 2>$null; $found = ($LASTEXITCODE -eq 0) } catch {}
+          if (-not $found) {
+            Write-Host '::notice::CharStudio.Oriel is not in winget-pkgs yet (the first pull request is waiting): put this version in that pull request by hand.'
+            $ready = $false
+          }
+          "ready=$($ready.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+      - name: wingetcreate
+        if: steps.ready.outputs.ready == 'true'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe -MaximumRetryCount 5 -RetryIntervalSec 5
+          ./wingetcreate.exe --version
+      - name: Update
+        if: steps.ready.outputs.ready == 'true'
+        shell: pwsh
+        run: |
+          $version = '${{ steps.v.outputs.version }}'
+          $base = "https://github.com/${{ github.repository }}/releases/download/v$version"
+          $submit = '${{ inputs.submit }}' -ne 'false'
+          $args = @('update', 'CharStudio.Oriel', '--version', $version, '--urls', "$base/Oriel-Setup-$version-x64.exe", "$base/Oriel-Setup-$version-arm64.exe", '--release-notes-url', "https://github.com/${{ github.repository }}/releases/tag/v$version")
+          if ($submit) { $args += @('--submit', '--token', $env:WINGET_TOKEN) }
+          ./wingetcreate.exe @args
+          if ($LASTEXITCODE -ne 0) { throw "wingetcreate failed ($LASTEXITCODE)" }
