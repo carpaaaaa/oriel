@@ -25,7 +25,7 @@ import { allControllers, controllerFor } from '../views/window'
 import { tellPages } from './internal'
 import { openSystem, said, setKey } from './prefs'
 import { hidePanel, markAllSettings, settingsPart, showPanel } from './slice'
-import { portable } from './updater'
+import { portable, store } from './updater'
 
 /** What the installer writes (build/installer.nsh). The deep link names the
  * RegisteredApplications value, so the two must match. */
@@ -63,7 +63,27 @@ export function defaultFacts() {
 /** Oriel's page in Settings › Apps › Default apps (registeredAppMachine for
  * an install for everyone). */
 export function settingsLink(): string {
+  // Installed from the Store, Windows knows Oriel by its package (registeredAUMID).
+  const aumid = storeAUMID()
+  if (aumid) return `ms-settings:defaultapps?registeredAUMID=${encodeURIComponent(aumid)}`
+  // A package somewhere unexpected: Default apps itself, Oriel is listed there.
+  if (store) return 'ms-settings:defaultapps'
   return `ms-settings:defaultapps?${answer.scope === 'machine' ? 'registeredAppMachine' : 'registeredAppUser'}=${encodeURIComponent(REGISTERED)}`
+}
+
+/** The Store's package: its manifest lists Oriel for http, https, mailto and
+ * web files (build/appx-extensions.xml, package.json build.appx), and
+ * Windows names Oriel by Package Family Name!Oriel. The family comes from
+ * where Windows installed it: WindowsApps\Name_Version_Arch_Resource_PublisherId. */
+export const STORE_APP_ID = 'Oriel'
+export function storeFamily(exe = process.execPath): string | null {
+  if (!store) return null
+  const m = /\\WindowsApps\\([^_\\]+)_[^_\\]+_[^_\\]+_[^_\\]*_([^_\\]+)\\/i.exec(exe)
+  return m ? `${m[1]}_${m[2]}` : null
+}
+export function storeAUMID(): string | null {
+  const family = storeFamily()
+  return family ? `${family}!${STORE_APP_ID}` : null
 }
 
 // reading Windows' answer
@@ -95,9 +115,24 @@ export function chosenProgId(out: string | null): string | null {
 const ASSOC = 'HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations'
 const isOurs = (id: string | null) => (id ?? '').toLowerCase() === PROGID_URL.toLowerCase()
 
+/** A Store app's choice reads as an AppX ProgID; whose it is, its class says. */
+async function isOursPackaged(id: string | null): Promise<boolean> {
+  const family = storeFamily()
+  if (!family || !id || !/^AppX/i.test(id)) return false
+  const out = await query([`HKCU\\Software\\Classes\\${id}\\Application`, '/v', 'AppUserModelID'])
+    ?? await query([`HKCR\\${id}\\Application`, '/v', 'AppUserModelID'])
+  return !!out && out.toLowerCase().includes(family.toLowerCase())
+}
+
 async function read(): Promise<Answer> {
   if (probe) return { browser: fake.browser, mail: fake.mail, scope: fake.scope }
   if (process.platform !== 'win32') return { browser: false, mail: false, scope: null }
+  if (store) {
+    const [https, mailto] = await Promise.all([query([`${ASSOC}\\https`, '/s']), query([`${ASSOC}\\mailto`, '/s'])])
+    const [b, m] = await Promise.all([isOursPackaged(chosenProgId(https)), isOursPackaged(chosenProgId(mailto))])
+    // The package itself lists Oriel among the browsers: always 'user'.
+    return { browser: b, mail: m, scope: 'user' }
+  }
   const [https, mailto, user, machine] = await Promise.all([
     query([`${ASSOC}\\https`, '/s']),
     query([`${ASSOC}\\mailto`, '/s']),

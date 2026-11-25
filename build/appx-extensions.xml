@@ -1,0 +1,25 @@
+        <!-- Email links and web pages from other apps, besides the http and
+             https protocols electron-builder adds from build.protocols. The
+             Microsoft Store's package lists Oriel for them in Windows'
+             Default apps; the NSIS installer does the same through
+             build/installer.nsh. The same file types as FILE_TYPES in
+             src/main/settings/browser.ts. -->
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="mailto">
+            <uap:DisplayName>Email link</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="orielhtml">
+            <uap:DisplayName>Web page</uap:DisplayName>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.htm</uap:FileType>
+              <uap:FileType>.html</uap:FileType>
+              <uap:FileType>.shtml</uap:FileType>
+              <uap:FileType>.xht</uap:FileType>
+              <uap:FileType>.xhtml</uap:FileType>
+              <uap:FileType>.svg</uap:FileType>
+              <uap:FileType>.webp</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>

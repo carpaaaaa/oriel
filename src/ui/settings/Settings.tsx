@@ -21,7 +21,7 @@ import './settings.css'
 type Prefs = Record<string, unknown>
 type Stage = { kind: 'none' } | { kind: 'fetching' | 'ready' | 'waiting'; version: string; notes?: string }
 interface Pending { version: string; notes?: string; ready: boolean; fetching: boolean }
-interface UpdateFacts { stage: Stage; checking: boolean; checked: number | null; active: boolean; portable?: boolean; pending: Pending | null }
+interface UpdateFacts { stage: Stage; checking: boolean; checked: number | null; active: boolean; portable?: boolean; store?: boolean; pending: Pending | null }
 /** How Oriel can become the default (settings/browser.ts): through Windows Settings, not as the portable copy, not until installed. */
 type DefaultHow = 'settings' | 'portable' | 'unregistered'
 interface DefaultFacts { isDefault: boolean; mailDefault: boolean; defaultHow?: DefaultHow; defaultAsked?: boolean; mailAsked?: boolean }
@@ -214,6 +214,8 @@ function detail(i: Item): string {
       const s = u?.stage
       // The portable build doesn't update itself (settings/updater.ts).
       if (u?.portable) return "Portable Oriel doesn't update on its own. To update, download the new version"
+      // Installed from the Microsoft Store: the Store keeps it up to date.
+      if (u?.store) return 'The Microsoft Store keeps Oriel up to date'
       if (!s || s.kind === 'none') return u?.checked ? `Checked ${ago(u.checked)}, every hour on its own` : 'Checked every hour on its own'
       if (s.kind === 'fetching') return s.notes ?? 'Quietly, in the background. Nothing you have set is touched'
       if (s.kind === 'ready') return s.notes ?? "It's there the next time you open Oriel"
@@ -327,6 +329,7 @@ function control(i: Item): JSX.Element {
       const u = facts()?.update
       const s = u?.stage
       if (u?.portable) return <Pill title="Download…" act={() => void call({ do: 'tab.new', url: 'https://github.com/carpaaaaa/oriel/releases/latest' })} />
+      if (u?.store) return null
       if (!s || s.kind === 'none') return <Pill title={u?.checking ? 'Checking…' : 'Check now'} disabled={u?.checking} act={() => void act('updates.check')} />
       if (s.kind === 'fetching') return <span class="st-ring" aria-label="Downloading" />
       if (s.kind === 'ready') return <Pill title="Relaunch now" filled act={() => void act('updates.relaunch')} />

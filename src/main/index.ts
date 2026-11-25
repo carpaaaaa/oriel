@@ -26,7 +26,7 @@ setupPaths()
 setupUserAgent()
 // Windows names the taskbar button, its jump list and notifications by this
 // id (the installer's appId), not by the executable's path.
-if (process.platform === 'win32') app.setAppUserModelId('app.oriel.browser')
+if (process.platform === 'win32' && !process.windowsStore) app.setAppUserModelId('app.oriel.browser')
 // Every window Electron makes carries Oriel's icon, not its own in the taskbar:
 // a pop-up a site opens (a sign-in window), DevTools, an extension's window.
 app.on('browser-window-created', (_event, win) => {
@@ -58,7 +58,8 @@ app.on('render-process-gone', (_e, wc, d) => { if (wc.getType() !== 'webview' &&
 if (process.platform === 'darwin' && testEnv('SEARCH_PROBE') && testEnv('SEARCH_SHOW') !== '1') app.setActivationPolicy('accessory')
 // Installed: Oriel's own name with Windows, the one its shortcuts carry (package.json
 // build.appId), so the taskbar groups its windows under Oriel's icon, not Electron's.
-if (process.platform === 'win32' && app.isPackaged) app.setAppUserModelId('app.oriel.browser')
+// From the Store the package names it (Package Family Name!Oriel): leave that.
+if (process.platform === 'win32' && app.isPackaged && !process.windowsStore) app.setAppUserModelId('app.oriel.browser')
 // Windows 11's thin scrollbars that fade in, as Chrome has them. One switch: a
 // second enable-features would replace the first. (No elastic overscroll: it
 // only ever moved under a precision touchpad, so Bounce at the top and bottom
