@@ -20,6 +20,7 @@ import './bench/checks'
 import type { Command } from '../shared/commands'
 import { testEnv } from './testhooks'
 import { linkArgs } from './settings/browser'
+import { launchAction, doLaunch, frontController, setupJumpList } from './launch'
 
 setupPaths()
 setupUserAgent()
@@ -135,7 +136,10 @@ app.on('second-instance', (_e, argv) => {
   // (a small window, a space, a tab: the tabs module's link.arrive); a file
   // Windows hands over (Oriel opening .html, settings/browser.ts) too.
   const urls = linkArgs(argv.slice(1))
-  const c = allControllers()[0] ?? openWindow({ restore: false })
+  // The Jump List's New Window and New Private Tab.
+  const action = launchAction(argv.slice(1))
+  if (action && !urls.length) { void doLaunch(action).catch(e => keep('launch', e)); return }
+  const c = frontController() ?? openWindow({ restore: false })
   if (urls.length) { void arriveAll(urls, c); return }
   if (c.base.isMinimized()) c.base.restore()
   c.base.focus()
@@ -178,6 +182,9 @@ app.whenReady().then(async () => {
 
   const urls = linkArgs(process.argv.slice(1))
   if (urls.length) void arriveAll(urls, first)
+  // Opened by the Jump List's New Private Tab: its window, a private tab in it.
+  else if (launchAction(process.argv.slice(1)) === 'privateTab') void doLaunch('privateTab', first).catch(e => keep('launch', e))
+  setupJumpList()
 
   if (probe) startBench(probe)
 })

@@ -5,8 +5,10 @@ import { registerOutlet, registerPage, registerPanel } from '../lib/registry'
 import { ArchivePage } from './ArchivePage'
 import { HomeGrid } from './HomeGrid'
 import { AskPanel } from './AskPanel'
+import { PrivateNote } from './PrivateNote'
 import './tabs.css'
 
 registerPage('archive', ArchivePage)
 registerOutlet('blank.over', HomeGrid)
+registerOutlet('blank.over', PrivateNote)
 registerPanel('tabs.ask', AskPanel)

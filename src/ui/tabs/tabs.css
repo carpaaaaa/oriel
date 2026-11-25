@@ -29,3 +29,15 @@
 .ask-foot { border-top: 1px solid var(--hairline); margin-top: 6px; padding: 9px 12px 6px; display: grid; gap: 8px; }
 .ask-always { font-size: 12px; color: var(--ink); display: flex; gap: 8px; align-items: center; }
 .ask-keys { font-size: 10.5px; color: var(--muted); }
+
+/* A private tab's blank page says so: a plate above the field, as the field
+   stands on the ground with a hairline so it reads over any wall. */
+.private-note {
+  position: absolute; left: 50%; bottom: calc(50% + 77px); translate: -50% 0; max-width: min(440px, calc(100% - 28px));
+  display: flex; align-items: center; gap: 12px; padding: 12px 18px 12px 12px; border-radius: 14px;
+  background: var(--ground); box-shadow: inset 0 0 0 1px var(--hairline), var(--field-shadow); color: var(--ink);
+}
+.private-mark { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--wash); color: var(--muted); }
+.private-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.private-title { font-size: var(--fs-body); font-weight: 600; line-height: 16px; }
+.private-detail { font-size: var(--fs-detail); line-height: 14px; color: var(--muted); }
