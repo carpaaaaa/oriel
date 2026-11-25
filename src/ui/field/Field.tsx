@@ -17,7 +17,9 @@ function keyOf(s: Suggestion): string {
   return s.how === 'suggested' || s.how === 'searched' || s.how === 'search' || s.how === 'open' ? s.title : withoutWWW(s.title)
 }
 
-export function Field(p: { place: 'page' | 'overlay' }) {
+/** `line`: the address line's own, in its row (studio/03 §1.6); its places
+ * hang under the row in the overlay (LineOffers), not under the field. */
+export function Field(p: { place: 'page' | 'overlay' | 'line' }) {
   let input!: HTMLInputElement
   let box!: HTMLDivElement
   const f = () => state.field
@@ -26,7 +28,6 @@ export function Field(p: { place: 'page' | 'overlay' }) {
   /** The ending this input put in after the caret, while it is still there. */
   let ending: string | null = null
   let refused = false
-  const listShown = () => f().suggestions.length > 0 || !!f().offer || !!f().note
 
   const write = (value: string, from: number | null | undefined) => {
     input.value = value
@@ -147,23 +148,33 @@ export function Field(p: { place: 'page' | 'overlay' }) {
           onCompositionEnd={() => { composing = false; void send() }}
           onKeyDown={key} />
       </div>
-      <Show when={listShown()}>
-        <div class="field-list" role="listbox">
-          <Show when={f().offer}>{site => (
-            <div class="field-row field-offer" aria-label={`Search ${site().name}, press Tab`}
-              onPointerDown={e => e.preventDefault()} onClick={() => void cmd({ do: 'field.lock' })}>
-              <span class="field-icon"><Lens size={11} /></span>
-              <span class="field-key">Search {site().name}</span>
-              <span class="field-spacer" />
-              <span class="field-tabkey">Tab</span>
-            </div>
-          )}</Show>
-          <For each={f().suggestions}>{(s, i) => (
-            <OfferRow s={s} picked={i() === f().selected} take={() => void cmd({ do: 'field.take', index: i() })} />
-          )}</For>
-          <Show when={f().note}><div class="field-note">{f().note}</div></Show>
+      <Show when={p.place !== 'line' && listShown()}><FieldList /></Show>
+    </div>
+  )
+}
+
+/** Whether there is anything to list under the field. */
+export const listShown = () => state.field.suggestions.length > 0 || !!state.field.offer || !!state.field.note
+
+/** The places under the field: the site it offers to search, the rows, and
+ * ⌘K's quiet line. `class`: a list that isn't hung from a field. */
+export function FieldList(p: { class?: string }) {
+  const f = () => state.field
+  return (
+    <div class={p.class ? `field-list ${p.class}` : 'field-list'} role="listbox">
+      <Show when={f().offer}>{site => (
+        <div class="field-row field-offer" aria-label={`Search ${site().name}, press Tab`}
+          onPointerDown={e => e.preventDefault()} onClick={() => void cmd({ do: 'field.lock' })}>
+          <span class="field-icon"><Lens size={11} /></span>
+          <span class="field-key">Search {site().name}</span>
+          <span class="field-spacer" />
+          <span class="field-tabkey">Tab</span>
         </div>
-      </Show>
+      )}</Show>
+      <For each={f().suggestions}>{(s, i) => (
+        <OfferRow s={s} picked={i() === f().selected} take={() => void cmd({ do: 'field.take', index: i() })} />
+      )}</For>
+      <Show when={f().note}><div class="field-note">{f().note}</div></Show>
     </div>
   )
 }

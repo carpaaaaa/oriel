@@ -24,9 +24,10 @@ import type { Command } from '../shared/commands'
 import type { WindowController } from './views/window'
 import { model } from './model/model'
 import { addDefaults } from '../shared/prefs'
-import { controlUp, edit, escape as fieldEscape, fieldShowing, holdKey, launch, mem, putAway, searchTabsKey } from './field/commands'
+import { controlUp, escape as fieldEscape, fieldShowing, holdKey, launch, mem, putAway, searchTabsKey } from './field/commands'
 import { closeFind, findIsOpen, openFind, step as findStep } from './field/find'
 import { cancelTabEdit, tabEditing } from './field/tabedit'
+import { openAddress } from './field/line'
 
 export interface Chord { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean; key: string; code: string; altGraph?: boolean }
 
@@ -125,7 +126,7 @@ export const bindings: Binding[] = [
   // A private tab until the tabs module has one; a private window meanwhile.
   b('file.newPrivateTab', 'New Private Tab', 'File', '⇧⌘N', ['Ctrl+Shift+N'], first({ action: () => (handled().includes('tab.newPrivate' as never) ? { do: 'tab.newPrivate' } as never : { do: 'window.new', shy: true }) })),
   b('file.reopen', 'Reopen Closed Tab', 'File', '⇧⌘T', ['Ctrl+Shift+T'], first({ action: () => ({ do: 'tab.reopen' }) })),
-  b('file.openAddress', 'Open Address…', 'File', '⌘L', ['Ctrl+L', 'Alt+D', 'F6'], first({ once: true, action: c => { edit(c); return true } })),
+  b('file.openAddress', 'Open Address…', 'File', '⌘L', ['Ctrl+L', 'Alt+D', 'F6'], first({ once: true, action: c => { openAddress(c); return true } })),
   b('file.openFile', 'Open File…', 'File', '⌘O', ['Ctrl+O'], later('file.open')),
   b('file.closeTab', 'Close Tab', 'File', '⌘W', ['Ctrl+W', 'Ctrl+F4'], first({ action: closeFront })),
   b('file.closeWindow', 'Close Window', 'File', '⇧⌘W', ['Ctrl+Shift+W'], first({ action: () => ({ do: 'window.close' }) })),

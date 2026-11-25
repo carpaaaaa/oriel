@@ -24,6 +24,8 @@
   overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-app-region: no-drag; }
 .strip-row::-webkit-scrollbar { display: none; }
 .strip-spring { flex: 1 0 40px; height: 100%; }
+/* Always show the address bar: before the tabs, 8 after it and the band's gap (AddressLine.after) */
+.strip-band > .address-line { margin-right: 8px; }
 .strip-far { flex: none; display: flex; align-items: center; gap: 2px; margin-right: 12px; -webkit-app-region: no-drag; }
 .strip-helm { display: flex; gap: var(--door-gap); margin-right: 8px; }
 .strip-far .strip-helm:last-child { margin-right: 0; }
@@ -36,7 +38,7 @@
 
 /* a tab: 28 in the band of 30; air 11, mark 15, 6, title, 6, spring ≥ 2, 6, slot 15, air 7 */
 .strip-tab { position: relative; flex: none; height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 7px 0 11px; border-radius: var(--row-radius); }
-.strip-tab .ground { position: absolute; inset: 0; border-radius: var(--row-radius); }
+.strip-tab .ground { position: absolute; inset: 0; border-radius: var(--row-radius); overflow: hidden; }
 .strip-tab:hover .ground { background: var(--g-hover); }
 .strip-tab:not(.titled) .ground { background: var(--g-tile); }
 .strip-tab.live .ground { background: var(--g-wash); }

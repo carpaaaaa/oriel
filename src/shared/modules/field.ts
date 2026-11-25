@@ -67,6 +67,9 @@ declare module '../state' {
     /** Over a page, centred on the whole window and 24% down (Settings ›
      * The field in the middle of the window, Omnibox.swift:68-71). */
     high?: boolean
+    /** The field is the address line's, in its row and not over the page; its
+     * places hang under the row (studio/03 §1.6, AddressLine.swift). */
+    inline?: boolean
   }
   interface WindowState {
     /** Sent by the field module (registerSlice), so optional here. */
@@ -128,6 +131,12 @@ declare module '../commands' {
     'field.tabTake': { index: number }
     'field.tabAnchor': { rect: { x: number; y: number; width: number; height: number } }
     'field.tabBlur': { text?: string }
+    /** A click on the address line (studio/03 §1.6): ⌘L's field, in place. */
+    'field.line': None
+    /** The line's place in the interface, for its places to hang under. */
+    'field.lineAnchor': { rect: { x: number; y: number; width: number; height: number } }
+    /** The line's field let go of the keys: a click elsewhere puts it away. */
+    'field.lineBlur': None
   }
 }
 

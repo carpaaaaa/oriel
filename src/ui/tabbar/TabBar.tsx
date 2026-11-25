@@ -21,10 +21,11 @@ import { Wash, groupColour } from '../sidebar/Sidebar'
 import { Chase, Springs, curve, keepLeaving, quietOn, stay, fadeBack, type Box } from '../sidebar/motion'
 import { openMenu } from '../menus/open'
 import { tabMenu, groupMenu } from '../menus/build'
-import { activeTab } from '../sidebar/ui'
+import { activeTab, reading } from '../sidebar/ui'
 import { TabField, tabFieldText, fieldTextWidth } from '../field/TabField'
+import { AddressLine } from '../field/AddressLine'
 
-const TAB = 186, MIN = 36, TITLED = 104, PIN = 30, PLUS = 30, HOLD = 40, GAP = 2
+const TAB = 186, MIN = 36, TITLED = 104, PIN = 30, PLUS = 30, HOLD = 40, GAP = 2, AFTER = 8
 
 /** What comes into the strip or goes from it, started together once the row
  * has its new widths (TabBar.swift:1081, :338): a tab scales from 0.9 at its
@@ -155,11 +156,16 @@ export function TabBar() {
   const loose = () => { const known = new Set(state.groups.map(g => g.id)); return state.tabs.filter(t => !t.pinID && !(t.groupID && known.has(t.groupID))) }
   const lights = () => (state.chrome === 'mac' && !state.fullScreen ? 100 : 12)
   const dot = () => (P.spaces() && !P.spaceButtons() ? 26 + GAP : 0)
+  // Always show the address bar (address.shown): its row, Small 220 or Medium
+  // 340, before the tabs, 8 and the band's gap after (AddressLine.after, §4.3).
+  const addressShown = () => pref('address.shown', false)
+  const addressWidth = () => (pref<string>('address.width', 'small') === 'medium' ? 340 : 220)
+  const addressRoom = () => (addressShown() ? addressWidth() + AFTER + GAP : 0)
   const controls = () => (state.chrome === 'windows' ? state.controlsWidth : 0)
   // TabBar.swift:656-690: the room, what the pins, names and bands spend, each tab's width.
   const each = createMemo(() => {
     // + is 29 wide and has the row's gap before it (the Mac's 30 left the row 1 over).
-    const room = width() - controls() - lights() - (onLeft() ? nearW() : 0) - dot() - 12 - (PLUS - 1 + GAP) - HOLD - farW() - 3 * GAP
+    const room = width() - controls() - lights() - (onLeft() ? nearW() : 0) - addressRoom() - dot() - 12 - (PLUS - 1 + GAP) - HOLD - farW() - 3 * GAP
     const open = groups().filter(x => !x.g.folded)
     const shown = loose().length + open.reduce((n, x) => n + x.tabs.length, 0) + groups().filter(x => x.g.folded && x.tabs.some(t => t.id === state.activeID)).length
     const names = groups().reduce((w, x) => w + measure(x.g.name) + 20, 0)
@@ -170,7 +176,7 @@ export function TabBar() {
   })
   const titled = () => each() >= TITLED
   // The room a tab's address may take (TabBar.swift:468: strip − lights − leading − 12).
-  const fieldRoom = () => width() - controls() - lights() - (onLeft() ? nearW() : 0) - 12
+  const fieldRoom = () => width() - controls() - lights() - (onLeft() ? nearW() : 0) - addressRoom() - 12
 
   // The tab whose address is typed in it kept in sight as it widens: the run
   // follows its far edge frame by frame rather than leaving it cut off past
@@ -253,6 +259,7 @@ export function TabBar() {
       <div class="strip-band">
         <div class="strip-lights" style={{ width: `${lights()}px` }} />
         <Show when={onLeft()}><div ref={near} class="strip-near"><Helm /></div></Show>
+        <Show when={addressShown()}><AddressLine width={addressWidth()} /></Show>
         <Show when={dot()}><SpaceDot /></Show>
         <div ref={el => { row = el; motion.row = el }} class="strip-row">
           <div ref={pillEl} class="strip-pill" classList={{ on: !!gliding() }} />
@@ -348,7 +355,12 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
       onAuxClick={e => { if (e.button === 1) void cmd({ do: 'tab.close', id: t().id }) }}
       onMouseDown={e => { if (e.button === 1) e.preventDefault() }}
       onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(tabMenu(t()), { x: e.clientX, y: e.clientY }, `tab:${t().id}`) }}>
-      <div class="ground" />
+      <div class="ground">
+        {/* How far down its page you've read (tabs.reading, §2.17, §4.11): not on a tab down to its mark */}
+        <Show when={live() && P.reading() && titled() && reading()?.id === t().id}>
+          <div class="reading" style={{ width: `${Math.round((reading()?.fraction ?? 0) * 100)}%` }} />
+        </Show>
+      </div>
       <Show when={!t().empty}><Mark tab={{ ...t(), label: label(t()) }} size={15} /></Show>
       <Show when={addressing()}><TabField /></Show>
       <Show when={titled()}>
