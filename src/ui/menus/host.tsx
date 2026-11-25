@@ -39,7 +39,9 @@ export function claim(room: { w: number; h: number }) {
 export function release(refocus: boolean) {
   if (mainLayer.kind !== 'none') return
   void cmd({ do: 'overlay.region', rect: null })
-  if (refocus && !state.field.open) void cmd({ do: 'window.focusPage' })
+  // Not while another app is in front (Windows): it would bring Oriel back.
+  const away = window.search.platform === 'win32' && !state.focused
+  if (refocus && !state.field.open && !away) void cmd({ do: 'window.focusPage' })
 }
 
 export function close(refocus = true) {

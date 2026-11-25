@@ -17,6 +17,10 @@ export function focusPageSoon(c: WindowController): void {
   const step = (tries: number) => {
     waiting.delete(c)
     if (c.base.isDestroyed()) return
+    // Windows only: another app in front (Ctrl let go over it, which the key
+    // poll hears before the window's blur arrives): giving the page the keys
+    // would bring Oriel back in front. Not asked of a hidden test window on the Mac.
+    if (process.platform === 'win32' && !c.base.isFocused()) return
     if (c.record.switcher || (tries > 0 && c.record.field.open)) return
     const tab = model.activeTab(c.record)
     const view = c.activeRuntime()?.view
