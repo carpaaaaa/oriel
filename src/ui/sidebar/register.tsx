@@ -15,6 +15,7 @@ import { FoldLayer } from './Fold'
 import { sayRoom } from '../menus/open'
 import { post } from '../menus/bridge'
 import { createEffect, createRoot } from 'solid-js'
+import { watchPicks } from './picks'
 
 registerLayer('menu', MainMenuLayer)
 registerLayer('fold', FoldLayer)
@@ -30,6 +31,7 @@ if (window.search?.root === 'overlay') {
   createRoot(() => createEffect(() => { if (state.windowID) post({ type: 'close', window: state.windowID }) }))
 } else if (window.search) {
   createRoot(() => createEffect(() => { if (state.windowID) sayRoom() }))
+  watchPicks()
 }
 
 declare global {

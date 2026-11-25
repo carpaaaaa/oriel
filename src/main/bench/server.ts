@@ -84,10 +84,12 @@ async function answer(req: BenchRequest): Promise<BenchReply> {
       if (!v) return { ok: false, error: 'nothing there' }
       const b = v.getBounds()
       const x = req.x - b.x, y = req.y - b.y, button = req.button ?? 'left', clickCount = req.clicks ?? 1
-      v.webContents.sendInputEvent({ type: 'mouseMove', x, y })
+      // Keys held for the click (Ctrl-click, Shift-click): names as sendInputEvent has them.
+      const modifiers = ((req as { modifiers?: unknown }).modifiers ?? []) as Electron.InputEvent['modifiers']
+      v.webContents.sendInputEvent({ type: 'mouseMove', x, y, modifiers })
       // phase 'down' or 'up' alone: the button held (a tab giving under it), then let go.
-      if (req.phase !== 'up') v.webContents.sendInputEvent({ type: 'mouseDown', x, y, button, clickCount })
-      if (req.phase !== 'down') v.webContents.sendInputEvent({ type: 'mouseUp', x, y, button, clickCount })
+      if (req.phase !== 'up') v.webContents.sendInputEvent({ type: 'mouseDown', x, y, button, clickCount, modifiers })
+      if (req.phase !== 'down') v.webContents.sendInputEvent({ type: 'mouseUp', x, y, button, clickCount, modifiers })
       return { ok: true }
     }
     case 'focus' as never: {

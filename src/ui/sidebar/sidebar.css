@@ -101,6 +101,28 @@
 /* A tab carried and resting on this line: let go, the two side by side (drag.ts ontoTab). */
 .row.split-target .ground { background: var(--g-wash); box-shadow: inset 0 0 0 1.5px rgb(var(--ink-rgb) / .5); }
 .line.gliding .row.live .ground { background: transparent; transition: none; }
+
+/* A split in the column (studio/01 §8.29, SideIcons IconPair): its pages in
+   one frame of radius 11, the rows' 9 two in (concentric: inner = outer - the
+   distance), the tile grey, the live grey while one page has the keys; a
+   hairline between the rows, gone beside a row that is lit. Each row paints
+   its piece, reaching half the 2 between rows, so the pieces meet (layout.ts
+   keeps the 2 round the run). The page with the keys sits on the frame in
+   the darker grey; the other page's title is lit with it. */
+.row.in-pair::before { content: ''; position: absolute; left: -2px; right: -2px; top: -1px; bottom: -1px; pointer-events: none;
+  background: var(--g-tile); border: 0 solid rgb(var(--ink-rgb) / .1); border-left-width: 1px; border-right-width: 1px;
+  transition: background-color var(--dur-quick) var(--ease-quick); }
+.row.in-pair.pair-first::before { top: -2px; border-top-width: 1px; border-radius: 11px 11px 0 0; }
+.row.in-pair.pair-last::before { bottom: -2px; border-bottom-width: 1px; border-radius: 0 0 11px 11px; }
+.row.in-pair.pair-live::before { background: var(--g-wash); }
+.row.in-pair.live .ground { background: var(--g-wash); }
+.line.gliding .row.in-pair.live .ground { background: transparent; transition: none; }
+.row.in-pair:not(.live):hover .ground { background: var(--g-hover-on-tile); }
+.row.in-pair.pair-live:not(.live) .title { color: var(--ink-hover-text); }
+.row.in-pair:not(.pair-last)::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 1px; pointer-events: none;
+  background: rgb(var(--ink-rgb) / .12); transition: opacity var(--dur-quick) var(--ease-quick); }
+.row.in-pair.live::after, .row.in-pair.picked::after, .row.in-pair:hover::after,
+.line:has(+ .line .row.in-pair:is(.live, .picked)) .row.in-pair::after, .line:has(+ .line:hover) .row.in-pair::after { opacity: 0; }
 .reading { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-reading); transition: width 150ms cubic-bezier(0, 0, .58, 1); }
 @media (prefers-reduced-motion: reduce) { .reading { transition: none; } }
 .row .body { position: relative; flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 8px; padding: 0 10px; }
@@ -185,7 +207,7 @@
    letter on a row and a pinned square (not the column of icons', the ghost's
    or the player's); a pinned square's letter; group and pin folder headings,
    under the pointer too. Specific enough to win over hover and empty rows. */
-.sidebar.contrast .row .title, .sidebar.contrast .row .sign { color: var(--ink); }
+.sidebar.contrast .row .title, .sidebar.contrast .row .sign, .sidebar.contrast .row.in-pair.pair-live:not(.live) .title { color: var(--ink); }
 .sidebar.contrast .row .mark .letter, .sidebar.contrast .square .mark .letter { color: var(--ink); }
 .sidebar.contrast .group-heading, .sidebar.contrast .group-heading:hover,
 .sidebar.contrast .folder-heading { color: var(--ink); }
@@ -260,6 +282,24 @@
 .tile.live .ground { background: var(--g-pin-live); }
 .tile.picked .ground { background: var(--g-wash); box-shadow: inset 0 0 0 1px var(--ink-picked-outline); }
 .tile.live.gliding .ground { background: transparent; }
+/* A split in the column of icons (studio/01 §8.29, IconPair): its tiles in one
+   frame of radius 11 round tiles of 9, as the rows' (the tile list's 2 between
+   them kept, 2 more round the run). */
+.tile.in-pair::before { content: ''; position: absolute; left: -2px; right: -2px; top: -1px; bottom: -1px; pointer-events: none;
+  background: var(--g-tile); border: 0 solid rgb(var(--ink-rgb) / .1); border-left-width: 1px; border-right-width: 1px;
+  transition: background-color var(--dur-quick) var(--ease-quick); }
+.tile.in-pair.pair-first { margin-top: 2px; }
+.tile.in-pair.pair-last { margin-bottom: 2px; }
+.tile.in-pair.pair-first::before { top: -2px; border-top-width: 1px; border-radius: 11px 11px 0 0; }
+.tile.in-pair.pair-last::before { bottom: -2px; border-bottom-width: 1px; border-radius: 0 0 11px 11px; }
+.tile.in-pair.pair-live::before { background: var(--g-wash); }
+.tile.in-pair.live .ground { background: var(--g-wash); }
+.tile.in-pair.live.gliding .ground { background: transparent; }
+.tile.in-pair:not(.live):hover .ground { background: var(--g-hover-on-tile); }
+.tile.in-pair:not(.pair-last)::after { content: ''; position: absolute; left: 6px; right: 6px; bottom: -1px; height: 1px; pointer-events: none;
+  background: rgb(var(--ink-rgb) / .12); transition: opacity var(--dur-quick) var(--ease-quick); }
+.tile.in-pair.live::after, .tile.in-pair.picked::after, .tile.in-pair:hover::after,
+.tile.in-pair:has(+ .tile:is(.live, .picked, :hover))::after { opacity: 0; }
 .tile-mark { position: relative; opacity: .85; display: grid; color: var(--muted); }
 .tile.live .tile-mark, .tile:hover .tile-mark { opacity: 1; }
 .tile-x { position: absolute; left: 5px; top: 5px; width: 22px; height: 22px; display: none; place-items: center; }

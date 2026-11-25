@@ -127,6 +127,14 @@ export interface Parts {
   loose: TabView[]
 }
 
+/** The pages of the split `t` is in, in their order (itself alone if none; a pin has none). */
+export function splitMates(t: TabView): TabView[] {
+  const split = t.pinID ? undefined : state.splits.find(s => s.tabs.includes(t.id))
+  if (!split) return [t]
+  const pages = split.tabs.map(id => state.tabs.find(x => x.id === id)).filter((x): x is TabView => !!x && !x.pinID)
+  return pages.includes(t) ? pages : [t]
+}
+
 /** A tab carried to another place, as the column would draw it there. */
 export interface Move { tab: string; to: 'squares' | 'listed' | 'loose' | `group:${string}`; index: number }
 
@@ -138,7 +146,10 @@ export function parts(move?: Move | null): Parts {
   const rows = P.pinRows()
   const known = new Set(state.groups.map(g => g.id))
   const carried = move ? tabs.find(t => t.id === move.tab) : undefined
-  const rest = carried ? tabs.filter(t => t !== carried) : tabs
+  // A split goes as one among the loose tabs and the groups' (Model.moveTab);
+  // made a pin, one page leaves it.
+  const unit = carried ? (move!.to === 'loose' || move!.to.startsWith('group:') ? splitMates(carried) : [carried]) : []
+  const rest = carried ? tabs.filter(t => !unit.includes(t)) : tabs
   const squares = rest.filter(t => t.pinID && !(rows && t.listed))
   const listed = rest.filter(t => t.pinID && rows && t.listed)
   const groups = state.groups.map(group => {
@@ -148,7 +159,7 @@ export function parts(move?: Move | null): Parts {
   })
   const loose = rest.filter(t => !t.pinID && !(t.groupID && known.has(t.groupID)))
   if (move && carried) {
-    const put = (list: TabView[]) => list.splice(Math.max(0, Math.min(move.index, list.length)), 0, carried)
+    const put = (list: TabView[]) => list.splice(Math.max(0, Math.min(move.index, list.length)), 0, ...unit)
     if (move.to === 'squares') put(squares)
     else if (move.to === 'listed') put(listed)
     else if (move.to === 'loose') put(loose)
@@ -267,3 +278,36 @@ export const currentSpace = (): SpaceView | undefined => state.spaces.find(s => 
 /** Picked with Ctrl or Shift (§3.18). */
 export const picked = (id: string) => (state.picked ?? []).includes(id)
 export const pickedAmongOthers = (id: string) => (state.picked ?? []).length > 1 && picked(id)
+
+// a split in the tab list (studio/01 §8.29)
+
+/** Where a tab stands in a split drawn as one object: the pages of a split
+ * that lie side by side in the list, first to last. */
+export interface PairSlot {
+  /** The run's first page: the same for every page of it. */
+  key: string
+  /** This page's place in the run, and how many pages the run has. */
+  index: number
+  count: number
+  /** One of its pages has the keys: the whole run is lit. */
+  live: boolean
+}
+
+/** The run of a split `id` stands in within `list` (a block of the list as
+ * drawn: the loose tabs, a group's), or null when it stands alone there: not
+ * in a split, its partner in another block, folded away, or pinned (a pin
+ * leaves its split, but one may be read before the state says so). */
+export function pairSlot(list: TabView[], id: string): PairSlot | null {
+  if (!state.splits.length) return null
+  const split = state.splits.find(s => s.tabs.includes(id))
+  if (!split || split.tabs.length < 2) return null
+  const at = list.findIndex(t => t.id === id)
+  if (at < 0) return null
+  const mine = (i: number) => !!list[i] && !list[i].pinID && split.tabs.includes(list[i].id)
+  if (!mine(at)) return null
+  let from = at, to = at
+  while (mine(from - 1)) from--
+  while (mine(to + 1)) to++
+  if (to === from) return null
+  return { key: list[from].id, index: at - from, count: to - from + 1, live: list.slice(from, to + 1).some(t => t.id === state.activeID) }
+}

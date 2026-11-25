@@ -14,16 +14,17 @@ import { state, cmd } from '../lib/store'
 import { outlet } from '../lib/registry'
 import type { GroupView, TabView } from '../../shared/state'
 import { G, Ring } from '../sidebar/glyphs'
-import { P, label, monogram, pinOf, picked, pickedAmongOthers, pref, restOf } from '../sidebar/derive'
+import { P, label, monogram, pinOf, picked, pickedAmongOthers, pref, restOf, pairSlot, type PairSlot } from '../sidebar/derive'
 import { Mark } from '../sidebar/Row'
 import { SpaceDot, SpaceButtons } from '../sidebar/Foot'
 import { Wash, groupColour } from '../sidebar/Sidebar'
 import { Chase, Springs, curve, keepLeaving, quietOn, stay, fadeBack, type Box } from '../sidebar/motion'
 import { openMenu } from '../menus/open'
 import { tabMenu, groupMenu } from '../menus/build'
-import { activeTab, reading } from '../sidebar/ui'
+import { activeTab, reading, dropTarget } from '../sidebar/ui'
 import { TabField, tabFieldText, fieldTextWidth } from '../field/TabField'
 import { AddressLine } from '../field/AddressLine'
+import { press as carryPress, lifted, stripMark } from './drag'
 
 const TAB = 186, MIN = 36, TITLED = 104, PIN = 30, PLUS = 30, HOLD = 40, GAP = 2, AFTER = 8
 
@@ -274,7 +275,7 @@ export function TabBar() {
           )}</For>
           <For each={looseRoster.keys()}>{k => (
             <Show when={looseRoster.item(k)}>{t => <StripTab tab={t()} width={each()} titled={titled()} gliding={gliding() === k} motion={motion} room={fieldRoom()}
-              fresh={looseRoster.fresh(k)} leaving={looseRoster.leaving(k)} done={() => looseRoster.done(k)} />}</Show>
+              pair={pairSlot(loose(), k)} fresh={looseRoster.fresh(k)} leaving={looseRoster.leaving(k)} done={() => looseRoster.done(k)} />}</Show>
           )}</For>
           <button class="strip-plus" classList={{ shown: inside() }} title="New Tab   Ctrl+T" onClick={() => void cmd({ do: 'tab.blank' })}>
             <G.plus pt={10} weight="medium" />
@@ -298,10 +299,35 @@ function press(t: TabView) {
     if (e.button !== 0 || (e.target as HTMLElement).closest('.strip-x, .speaker')) return
     const ctrl = e.ctrlKey || (window.search.platform === 'darwin' && e.metaKey)
     if (ctrl && !e.shiftKey && t.pinID) { void cmd({ do: 'pin.commandClick', id: t.id }); return }
-    if (ctrl || e.shiftKey) { void cmd({ do: 'tab.pick', id: t.id, mode: ctrl && e.shiftKey ? 'addRange' : ctrl ? 'toggle' : 'range' }); return }
-    // A press on the tab you're on edits its address, in the tab (§5.18).
-    if (t.id === state.activeID) { if (state.tabEdit?.id !== t.id) void cmd({ do: 'field.editTab', id: t.id }); return }
+    const pick = () => void cmd({ do: 'tab.pick', id: t.id, mode: ctrl && e.shiftKey ? 'addRange' : ctrl ? 'toggle' : 'range' })
+    // A pin stays where it is; any other tab can be carried. With Ctrl or
+    // Shift the pick waits for the button up, as a carry may follow (Shift
+    // held on another tab splits the two).
+    if (ctrl || e.shiftKey) {
+      if (t.pinID) pick()
+      else carryPress(e, t.id, pick)
+      return
+    }
+    // On a tab picked among others a click lets the rest go and goes there,
+    // a carry keeps them all; on any other the picks let go at the press (§3.18).
+    if (pickedAmongOthers(t.id)) {
+      const go = () => { void cmd({ do: 'tab.pick', id: t.id, mode: 'clear' }); void cmd({ do: 'tab.select', id: t.id }) }
+      if (t.pinID) go()
+      else carryPress(e, t.id, go)
+      return
+    }
+    if ((state.picked ?? []).length) void cmd({ do: 'tab.pick', id: t.id, mode: 'clear' })
+    // A press on the tab you're on edits its address, in the tab (§5.18),
+    // once the button is up, so a carry from it doesn't open the field.
+    if (t.id === state.activeID) {
+      if (state.tabEdit?.id === t.id) return
+      const edit = () => void cmd({ do: 'field.editTab', id: t.id })
+      if (t.pinID) edit()
+      else carryPress(e, t.id, edit)
+      return
+    }
     void cmd({ do: 'tab.select', id: t.id })
+    if (!t.pinID) carryPress(e, t.id, null)
   }
 }
 
@@ -322,7 +348,7 @@ function held<T>(leaving: () => boolean, value: () => T): () => T {
   return createMemo<T | undefined>(prev => (leaving() && prev !== undefined ? prev : value()), undefined) as () => T
 }
 
-function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: boolean; grouped?: boolean; room?: number } & Coming) {
+function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: boolean; grouped?: boolean; room?: number; pair?: PairSlot | null } & Coming) {
   let el!: HTMLDivElement
   const t = () => p.tab
   const live = () => t().id === state.activeID
@@ -348,8 +374,15 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
   createEffect(on(addressing, (a, was) => { if (!a && was) fadeBack(el, ':scope > .mark, :scope > .strip-title') }))
   return (
     <div ref={el} class="strip-tab" data-tab={p.leaving ? undefined : t().id} data-ghost-tab={p.leaving ? t().id : undefined}
-      style={{ width: `${width()}px`, transition: glides() ? 'width var(--dur-glide) var(--ease-glide)' : undefined }}
-      classList={{ live: live() && !p.leaving, titled: titled() || addressing(), addressing: addressing(), picked: picked(t().id), gliding: p.gliding, 'put-away': !!p.grouped && t().asleep && !live(), loading: t().loading, leaving: !!p.leaving }}
+      style={{
+        width: `${width()}px`, transition: glides() ? 'width var(--dur-glide) var(--ease-glide)' : undefined,
+        translate: lifted()?.id === t().id ? `${lifted()!.dx}px ${lifted()!.dy}px` : undefined,
+      }}
+      classList={{
+        live: live() && !p.leaving, titled: titled() || addressing(), addressing: addressing(), picked: picked(t().id), gliding: p.gliding, 'put-away': !!p.grouped && t().asleep && !live(), loading: t().loading, leaving: !!p.leaving,
+        'split-target': dropTarget() === `s:${t().id}`, carried: lifted()?.id === t().id, faded: lifted()?.id === t().id && lifted()!.faded,
+        'in-pair': !!p.pair, 'pair-first': p.pair?.index === 0, 'pair-last': !!p.pair && p.pair.index === p.pair.count - 1, 'pair-live': !!p.pair?.live,
+      }}
       title={titled() ? undefined : label(t())}
       onPointerDown={press(t())}
       onAuxClick={e => { if (e.button === 1) void cmd({ do: 'tab.close', id: t().id }) }}
@@ -361,6 +394,7 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
           <div class="reading" style={{ width: `${Math.round((reading()?.fraction ?? 0) * 100)}%` }} />
         </Show>
       </div>
+      <Show when={stripMark()?.id === t().id}><span class="strip-drop" classList={{ after: stripMark()!.after }} /></Show>
       <Show when={!t().empty}><Mark tab={{ ...t(), label: label(t()) }} size={15} /></Show>
       <Show when={addressing()}><TabField /></Show>
       <Show when={titled()}>
@@ -433,7 +467,7 @@ function StripGroup(p: { group: GroupView; tabs: TabView[]; each: number; titled
       </div>
       <For each={tabs.keys()}>{k => (
         <Show when={tabs.item(k)}>{t => <StripTab tab={t()} width={each()} titled={titled()} gliding={p.gliding === k} grouped motion={p.motion} room={p.room}
-          fresh={tabs.fresh(k)} leaving={tabs.leaving(k)} done={() => tabs.done(k)} />}</Show>
+          pair={pairSlot(shown(), k)} fresh={tabs.fresh(k)} leaving={tabs.leaving(k)} done={() => tabs.done(k)} />}</Show>
       )}</For>
     </div>
   )

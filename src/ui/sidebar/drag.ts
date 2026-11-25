@@ -4,14 +4,17 @@
 // with a shadow; the others make room on settle as it passes their middle.
 // Over another block it fades and a ghost shows where it lands. Let go, it
 // lands; Escape while held puts it back. Pointer events, never HTML5 drag.
+// With Shift held over another tab's line, that line is marked and letting go
+// puts the two side by side (carpa, 25 Nov 2026), Shift pressed or let go
+// mid-carry as the mark follows it; without Shift the lines make room.
 
 import { batch, createRoot, createEffect } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import type { TabView } from '../../shared/state'
 import { layout, pinCells, type Item, GAP } from './layout'
-import { P, parts, folderLines, foldersShown, pinOf, type Move } from './derive'
+import { P, parts, folderLines, foldersShown, pinOf, splitMates, type Move } from './derive'
 import { setCarry, setShifted, setDropMark, setDropTarget, setSquareGhost, setRowGhost, carry } from './ui'
-import { splitHintAt } from '../chrome/SplitDrop'
+import { splitHintAt, canSplitWith } from '../chrome/SplitDrop'
 import type { SplitDropHint } from '../../shared/modules/window'
 
 export interface Pressed {
@@ -52,9 +55,15 @@ let held: {
   /** The page in front before the press opened the carried tab (Browser.cameFrom). */
   cameFrom: string | null
   broughtBack: boolean
-  /** Resting on another tab's line: armed after a moment still there, let go
-   * it splits with that tab (carpa, 24 Nov 2026: "a tab carried onto another"). */
-  onto: { id: string; x: number; y: number; armed: boolean; timer: ReturnType<typeof setTimeout> | null } | null
+  /** A split goes as one: its other pages' lines, each as far under the
+   * carried line as it stood, hang from it (studio/01 §8.18). */
+  with: Record<string, number> | undefined
+  /** Shift is down (told by the pointer's events and the key's own). */
+  shift: boolean
+  /** The pointer's last place, to read again when Shift comes or goes. */
+  last: { x: number; y: number }
+  /** Shift held on another tab's line: let go, it splits with that tab. */
+  onto: string | null
 } | null = null
 
 /** A press on a line or a square: a click, or the start of a carry. */
@@ -65,15 +74,33 @@ export function press(e: PointerEvent, p: Pressed): void {
   held = {
     p, x0: e.clientX, y0: e.clientY, itemX: sq?.x ?? 0, itemY: sq?.y ?? item?.y ?? 0,
     pointer: e.pointerId, carrying: false, move: null, place: null, group: null, out: false, split: null,
-    cameFrom: state.activeID ?? null, broughtBack: false, onto: null,
+    cameFrom: state.activeID ?? null, broughtBack: false, with: followers(p, item), shift: e.shiftKey, last: { x: e.clientX, y: e.clientY }, onto: null,
   }
   window.addEventListener('pointermove', onMove)
   window.addEventListener('pointerup', onUp)
   window.addEventListener('pointercancel', onCancel)
   window.addEventListener('keydown', onKey, true)
+  window.addEventListener('keyup', onKey, true)
 }
 
 function itemOf(key: string): Item | undefined { return layout().items.find(i => i.key === key) }
+
+/** The lines of the carried tab's split mates, as far from its own as they stand. */
+function followers(p: Pressed, own: Item | undefined): Record<string, number> | undefined {
+  const tab = p.kind === 'row' ? state.tabs.find(t => t.id === p.tab) : undefined
+  if (!tab || !own) return undefined
+  const out: Record<string, number> = {}
+  for (const m of splitMates(tab)) {
+    const it = m.id === tab.id ? undefined : itemOf(`t:${m.id}`)
+    if (it) out[it.key] = it.y - own.y
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
+/** The carried line drawn at a place, its followers with it. */
+function lift(y: number, x: number, faded: boolean): void {
+  setCarry({ key: held!.p.key, y, x, faded, with: held!.with })
+}
 function squareCell(tab: string) {
   const { squares } = parts()
   const i = squares.findIndex(t => t.id === tab)
@@ -81,8 +108,17 @@ function squareCell(tab: string) {
 }
 
 function onMove(e: PointerEvent): void {
+  if (!held) return
+  held.shift = e.shiftKey
+  held.last = { x: e.clientX, y: e.clientY }
+  follow()
+}
+
+/** The carry at the pointer's last place: on every move, and when Shift comes or goes. */
+function follow(): void {
   if (!held || !column) return
-  const dx = e.clientX - held.x0, dy = e.clientY - held.y0
+  const { x, y } = held.last
+  const dx = x - held.x0, dy = y - held.y0
   if (!held.carrying) {
     if (Math.hypot(dx, dy) < THRESHOLD) return
     held.carrying = true
@@ -90,9 +126,9 @@ function onMove(e: PointerEvent): void {
     document.documentElement.classList.add('carrying')
   }
   const body = column.body.getBoundingClientRect()
-  const px = e.clientX - body.left, py = e.clientY - body.top
-  if (overPage(e)) return
-  if (ontoTab(e, py)) return
+  const px = x - body.left, py = y - body.top
+  if (overPage(x, y)) return
+  if (ontoTab(py)) return
   if (held.p.kind === 'square') carrySquare(px, py, dx, dy)
   else carryLine(px, py, dy)
 }
@@ -101,14 +137,14 @@ function onMove(e: PointerEvent): void {
 
 /** A tab carried over the page: the bands, or the preview of a side, and
  * nothing moves in the column meanwhile. False when the point is elsewhere. */
-function overPage(e: PointerEvent): boolean {
+function overPage(x: number, y: number): boolean {
   if (!held || held.p.kind !== 'row') return false
   const tab = state.tabs.find(t => t.id === held!.p.tab)
   // The press opened the carried tab: over the page, the page from before
   // comes back, to be split with (TabDrag.bringBack, §8.17).
   const opened = !!tab && state.activeID === tab.id
   const page = opened && held.cameFrom && held.cameFrom !== tab!.id ? held.cameFrom : state.activeID ?? null
-  const hint = tab ? splitHintAt(e.clientX, e.clientY, tab, held.split?.side ?? null, page) : null
+  const hint = tab ? splitHintAt(x, y, tab, held.split?.side ?? null, page) : null
   if (hint && opened && page && page !== tab!.id && !held.broughtBack) { held.broughtBack = true; void cmd({ do: 'tab.select', id: page }) }
   const was = held.split
   held.split = hint
@@ -120,8 +156,10 @@ function overPage(e: PointerEvent): boolean {
   held.move = null
   held.place = null
   held.group = null
+  // Shift held a moment ago on a line: over the page it is the bands' to say.
+  held.onto = null
   batch(() => {
-    setCarry({ key: held!.p.key, y: held!.itemY + (e.clientY - held!.y0), x: 0, faded: true })
+    lift(held!.itemY + (y - held!.y0), 0, true)
     setShifted({})
     setDropMark(null)
     setDropTarget(null)
@@ -133,65 +171,39 @@ function overPage(e: PointerEvent): boolean {
 
 // onto another tab's line: the two side by side
 
-/** Still this long, moving no more than this, on the middle of a line. */
-const REST = 380
-const REST_MOVE = 6
-
-/** The tab whose line (where it stands before anything made room) has its
- * middle half at this height, if the carried tab can stand beside it. */
+/** The tab whose line (where it stands before anything made room) is under
+ * this height, if the carried tab can stand beside it. */
 function tabUnder(py: number, carried: TabView): TabView | null {
-  if (!column || carried.pinID || carried.empty) return null
+  if (!column) return null
   const ry = py - column.rowsTop()
-  const it = layout().items.find(i => i.kind === 'row' && i.key !== `t:${carried.id}` && ry >= i.y + i.h * 0.25 && ry <= i.y + i.h * 0.75)
-  const id = it && it.key.startsWith('t:') ? it.key.slice(2) : null
-  const t = id ? state.tabs.find(x => x.id === id) : undefined
-  if (!t || t.pinID || t.empty || !!t.shy !== !!carried.shy) return null
-  const split = state.splits.find(s => s.tabs.includes(t.id))
-  if (split && (split.tabs.includes(carried.id) || split.tabs.length >= 4)) return null
-  return t
+  const it = layout().items.find(i => i.kind === 'row' && i.key !== `t:${carried.id}` && ry >= i.y && ry <= i.y + i.h)
+  const t = it && it.key.startsWith('t:') ? state.tabs.find(x => x.id === it.key.slice(2)) : undefined
+  return t && canSplitWith(carried, t) ? t : null
 }
 
-function disarm(): void {
-  const o = held?.onto
-  if (!o) return
-  if (o.timer) clearTimeout(o.timer)
-  if (o.armed) setDropTarget(null)
-  held!.onto = null
-}
-
-/** Resting on another tab's line arms the split: the lines stop making room,
- * that line is marked. False while the carry goes on as a move. */
-function ontoTab(e: PointerEvent, py: number): boolean {
+/** Shift held over another tab's line marks it: the lines stop making room,
+ * and letting go splits the two. False while the carry goes on as a move. */
+function ontoTab(py: number): boolean {
   if (!held || held.p.kind !== 'row') return false
   const carried = state.tabs.find(t => t.id === held!.p.tab)
-  const target = carried ? tabUnder(py, carried) : null
-  const o = held.onto
-  if (!target) { disarm(); return false }
-  if (o && o.id === target.id) {
-    if (o.armed) return true
-    if (Math.hypot(e.clientX - o.x, e.clientY - o.y) <= REST_MOVE) return false
-    if (o.timer) clearTimeout(o.timer)
-  } else disarm()
-  const fresh = { id: target.id, x: e.clientX, y: e.clientY, armed: false, timer: null as ReturnType<typeof setTimeout> | null }
-  held.onto = fresh
-  fresh.timer = setTimeout(() => {
-    if (!held || held.onto !== fresh) return
-    fresh.armed = true
-    fresh.timer = null
-    held.move = null
-    held.place = null
-    held.group = null
-    batch(() => {
-      setShifted({})
-      setRowGhost(null)
-      setSquareGhost(null)
-      setDropMark(null)
-      setDropTarget(`s:${fresh.id}`)
-      const c = carry()
-      if (c) setCarry({ ...c, faded: true })
-    })
-  }, REST)
-  return false
+  const target = held.shift && carried ? tabUnder(py, carried) : null
+  if (!target) {
+    if (held.onto) { held.onto = null; setDropTarget(null) }
+    return false
+  }
+  held.onto = target.id
+  held.move = null
+  held.place = null
+  held.group = null
+  batch(() => {
+    setShifted({})
+    setRowGhost(null)
+    setSquareGhost(null)
+    setDropMark(null)
+    setDropTarget(`s:${target.id}`)
+    lift(held!.itemY + (held!.last.y - held!.y0), 0, true)
+  })
+  return true
 }
 
 // what a point is over
@@ -218,13 +230,19 @@ function zoneAt(py: number, tab: TabView | undefined): Zone {
 }
 
 /** The place among a list's lines (without the carried one) for a point:
- * before the first whose middle is past it (PinDrop.rowSlot, RowCarry). */
+ * before the first whose middle is past it (PinDrop.rowSlot, RowCarry). The
+ * pages of a split are passed at their middle together, never between. */
 function slotAmong(ids: string[], y: number): number {
   const L = layout()
-  let i = 0
-  for (const id of ids) {
-    const it = L.items.find(x => x.key === `t:${id}`)
-    if (it && y > it.y + it.h / 2) i++
+  const at = (id: string) => L.items.find(x => x.key === `t:${id}`)
+  let i = 0, k = 0
+  while (k < ids.length) {
+    const split = state.splits.find(s => s.tabs.includes(ids[k]))
+    let e = k
+    while (split && e + 1 < ids.length && split.tabs.includes(ids[e + 1])) e++
+    const a = at(ids[k]), b = at(ids[e])
+    if (a && b && y > (a.y + b.y + b.h) / 2) i += e - k + 1
+    k = e + 1
   }
   return i
 }
@@ -232,6 +250,7 @@ function slotAmong(ids: string[], y: number): number {
 function carryLine(px: number, py: number, dy: number): void {
   if (!held || !column) return
   const tab = state.tabs.find(t => t.id === held!.p.tab)
+  const mates = new Set(tab ? splitMates(tab).map(t => t.id) : [])
   const rowsTop = column.rowsTop()
   const y = held.itemY + dy
   const zone = held.p.kind === 'folder' ? 'listed' : zoneAt(py, tab)
@@ -258,7 +277,7 @@ function carryLine(px: number, py: number, dy: number): void {
       const g = state.groups.find(x => x.id === zone.group)
       const same = typeof from === 'object' && from.group === zone.group
       if (same && !g?.folded) {
-        const members = pts.groups.find(x => x.group.id === zone.group)?.members.filter(t => t.id !== tab.id) ?? []
+        const members = pts.groups.find(x => x.group.id === zone.group)?.members.filter(t => !mates.has(t.id)) ?? []
         move = { tab: tab.id, to: `group:${zone.group}`, index: slotAmong(members.map(t => t.id), ry) }
       } else {
         group = zone.group
@@ -269,7 +288,7 @@ function carryLine(px: number, py: number, dy: number): void {
         }
       }
     } else if (zone === 'loose') {
-      const loose = pts.loose.filter(t => t.id !== tab.id)
+      const loose = pts.loose.filter(t => !mates.has(t.id))
       move = { tab: tab.id, to: 'loose', index: slotAmong(loose.map(t => t.id), ry) }
       faded = from !== 'loose'
     }
@@ -281,7 +300,7 @@ function carryLine(px: number, py: number, dy: number): void {
   const moved = move ? layout(move) : null
   const L = layout()
   batch(() => {
-    setCarry({ key: held!.p.key, y, x: 0, faded })
+    lift(y, 0, faded)
     setShifted(moved ? Object.fromEntries(moved.items.filter(i => i.key !== held!.p.key).map(i => [i.key, i.y])) : {})
     setDropTarget(group ? `g:${group}` : place && place.folder && !place.anchor ? `f:${place.folder}` : null)
     setDropMark(place && place.anchor ? { key: place.anchor, after: place.after } : null)
@@ -324,7 +343,7 @@ function carrySquare(px: number, py: number, dx: number, dy: number): void {
   held.group = group
   const moved = move ? layout(move) : null
   batch(() => {
-    setCarry({ key: held!.p.key, y: held!.itemY + dy, x: held!.itemX + dx, faded })
+    lift(held!.itemY + dy, held!.itemX + dx, faded)
     setShifted(moved ? Object.fromEntries(moved.items.map(i => [i.key, i.y])) : {})
     setDropTarget(group ? `g:${group}` : null)
     setDropMark(held!.place?.anchor ? { key: held!.place.anchor, after: held!.place.after } : null)
@@ -399,9 +418,9 @@ function onUp(): void {
   // The click that ends a carry isn't a click.
   window.addEventListener('click', swallow, { capture: true, once: true })
   setTimeout(() => window.removeEventListener('click', swallow, true), 0)
-  // Let go on another tab's line, armed: the two side by side, the carried
-  // one on the right.
-  if (h.onto?.armed && h.p.tab) { void cmd({ do: 'split.pair', id: h.p.tab, side: 'right', target: h.onto.id }); return }
+  // Let go on another tab's line with Shift held: the two side by side, the
+  // carried one on the right.
+  if (h.onto && h.p.tab) { void cmd({ do: 'split.pair', id: h.p.tab, side: 'right', target: h.onto }); return }
   // Let go in a band: beside the page; over the page elsewhere, nothing.
   if (h.split) { if (h.split.side && h.p.tab) void cmd({ do: 'split.pair', id: h.p.tab, side: h.split.side, target: h.split.page }); return }
   void land(h)
@@ -411,17 +430,20 @@ const swallow = (e: Event) => { e.stopPropagation(); e.preventDefault() }
 
 function onCancel(): void { if (held) { end(); } }
 function onKey(e: KeyboardEvent): void {
-  if (e.key === 'Escape' && held?.carrying) { e.preventDefault(); e.stopPropagation(); end() }
+  if (!held?.carrying) return
+  if (e.key === 'Escape' && e.type === 'keydown') { e.preventDefault(); e.stopPropagation(); end() }
+  // Shift pressed or let go with the pointer still: the mark follows it.
+  else if (e.key === 'Shift' && held.shift !== (e.type === 'keydown')) { held.shift = e.type === 'keydown'; follow() }
 }
 
 function end(): void {
   if (held?.split) void cmd({ do: 'split.dropHint', hint: null })
-  if (held?.onto?.timer) clearTimeout(held.onto.timer)
   held = null
   window.removeEventListener('pointermove', onMove)
   window.removeEventListener('pointerup', onUp)
   window.removeEventListener('pointercancel', onCancel)
   window.removeEventListener('keydown', onKey, true)
+  window.removeEventListener('keyup', onKey, true)
   document.documentElement.classList.remove('carrying')
   batch(() => {
     setCarry(null)
@@ -474,6 +496,8 @@ async function land(h: NonNullable<typeof held>): Promise<void> {
   const pin = tab.pinID ? pinOf(tab) : undefined
   const shared = (p: TabView) => !!pinOf(p)?.everywhere
   const move = h.move
+  // A split moves as one (Model.moveTab): its pages are not among the others.
+  const mates = new Set(splitMates(tab).map(t => t.id))
 
   // into a group, let go over it (§6.42): where let go, or at its end
   if (h.group && (!move || move.to.startsWith('group:') || tab.pinID)) {
@@ -514,7 +538,7 @@ async function land(h: NonNullable<typeof held>): Promise<void> {
     if (tab.pinID) await cmd({ do: 'tab.unpin', id: tab.id })
     else if (tab.groupID && state.groups.some(g => g.id === tab.groupID)) await cmd({ do: 'tab.group', ids: [tab.id], group: null })
     const pins = state.tabs.filter(t => t.pinID && t.id !== tab.id).length
-    const grouped = pts.groups.reduce((n, g) => n + state.tabs.filter(t => !t.pinID && t.groupID === g.group.id && t.id !== tab.id).length, 0)
+    const grouped = pts.groups.reduce((n, g) => n + state.tabs.filter(t => !t.pinID && t.groupID === g.group.id && !mates.has(t.id)).length, 0)
     await cmd({ do: 'tab.move', id: tab.id, to: pins + grouped + move.index })
   } else if (move.to.startsWith('group:')) {
     const gid = move.to.slice(6)
@@ -523,7 +547,7 @@ async function land(h: NonNullable<typeof held>): Promise<void> {
     let before = 0
     for (const g of state.groups) {
       if (g.id === gid) break
-      before += state.tabs.filter(t => !t.pinID && t.groupID === g.id && t.id !== tab.id).length
+      before += state.tabs.filter(t => !t.pinID && t.groupID === g.id && !mates.has(t.id)).length
     }
     await cmd({ do: 'tab.move', id: tab.id, to: pins + before + move.index })
   } else if (move.to === 'squares') {

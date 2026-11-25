@@ -67,6 +67,38 @@
 .strip-tab:not(.titled).live:hover .mark { opacity: 0; }
 .strip-x .disc { width: var(--close); height: var(--close); border-radius: 50%; display: grid; place-items: center; background: var(--ink-close-disc); color: var(--muted); }
 
+/* A split across the top (studio/01 §8.29): its pages in one frame, 30 high
+   round tabs of 28, radius 10 = 9 + 1 (concentric), the tile grey, the live
+   grey while one page has the keys, a short line between the pages that goes
+   beside a lit one. Each tab paints its piece, reaching half the 2 between
+   tabs, so the pieces meet. The page with the keys sits on the frame in the
+   darker grey. */
+.strip-tab.in-pair::before { content: ''; position: absolute; left: -1px; right: -1px; top: -1px; bottom: -1px; pointer-events: none;
+  background: var(--g-tile); border: 0 solid rgb(var(--ink-rgb) / .1); border-top-width: 1px; border-bottom-width: 1px;
+  transition: background-color var(--dur-quick) var(--ease-quick); }
+.strip-tab.in-pair.pair-first::before { border-left-width: 1px; border-radius: 10px 0 0 10px; }
+.strip-tab.in-pair.pair-last::before { border-right-width: 1px; border-radius: 0 10px 10px 0; }
+.strip-tab.in-pair.pair-live::before { background: var(--g-wash); }
+.strip-tab.in-pair:not(.titled) .ground { background: transparent; }
+.strip-tab.in-pair.live .ground { background: var(--g-wash); }
+.strip-tab.in-pair.live.gliding .ground { background: transparent; }
+.strip-tab.in-pair:not(.live):hover .ground { background: var(--g-hover-on-tile); }
+.strip-tab.in-pair.pair-live:not(.live) .title { color: var(--ink-hover-text); }
+.strip-tab.in-pair:not(.pair-last)::after { content: ''; position: absolute; right: -1px; top: 6px; bottom: 6px; width: 1px; pointer-events: none;
+  background: rgb(var(--ink-rgb) / .12); transition: opacity var(--dur-quick) var(--ease-quick); }
+.strip-tab.in-pair.live::after, .strip-tab.in-pair.picked::after, .strip-tab.in-pair:hover::after,
+.strip-tab.in-pair:has(+ .strip-tab:is(.live, .picked, :hover))::after { opacity: 0; }
+
+/* Carried along the strip (tabbar/drag.ts): lifted on its own opaque grey,
+   the tab it is let go beside marked (a line, or with Shift the whole tab). */
+.strip-tab.carried { z-index: 5; transition: none !important; filter: drop-shadow(0 3px 10px rgba(0, 0, 0, .16)); }
+.strip-tab.carried .ground { background: linear-gradient(var(--g-wash), var(--g-wash)), var(--ground); }
+.strip-tab.faded { opacity: .4; }
+.strip-tab.split-target .ground { background: var(--g-wash); box-shadow: inset 0 0 0 1.5px rgb(var(--ink-rgb) / .5); }
+.strip-tab > .strip-drop { position: absolute; top: 2px; bottom: 2px; left: -2px; width: 2px; border-radius: 1px; background: var(--accent); pointer-events: none; }
+.strip-tab > .strip-drop.after { left: auto; right: -2px; }
+.carrying .strip-x { display: none !important; }
+
 /* a pin: a square of 30, its letter 12 medium, its icon 16 */
 .strip-pin { position: relative; flex: none; width: var(--tab-pin); height: 28px; display: grid; place-items: center; }
 .strip-pin .ground { position: absolute; inset: 0; border-radius: var(--row-radius); background: var(--g-tile); }
@@ -99,7 +131,7 @@
    1102, 1129, 1265-1268, TabGroups.swift:108-112): titles, pin letters, the
    sites' letters and the groups' names in ink, live or not, under the pointer
    or not. */
-.tabbar.contrast .strip-title .title, .tabbar.contrast .strip-pin .pin-letter,
+.tabbar.contrast .strip-title .title, .tabbar.contrast .strip-tab.in-pair.pair-live:not(.live) .title, .tabbar.contrast .strip-pin .pin-letter,
 .tabbar.contrast .strip-tab .mark .letter, .tabbar.contrast .strip-pin .mark .letter,
 .tabbar.contrast .strip-group-name { color: var(--ink); }
 

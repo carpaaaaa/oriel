@@ -99,6 +99,9 @@ function escapeKey(c: WindowController): boolean {
   // The field over the page has the keys and is in front of Find.
   if (m.editing && tab && !tab.empty) return fieldEscape(c)
   if (findIsOpen(c)) return closeFind(c)
+  // Tabs picked with Ctrl or Shift: Escape lets them go (§3.18), and only
+  // then is it the page's.
+  if (c.record.picked.length && !fieldShowing(c)) { model.pick(c.record, '', 'clear'); return true }
   return fieldEscape(c)
 }
 

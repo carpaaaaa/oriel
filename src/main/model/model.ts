@@ -1550,12 +1550,15 @@ class Model extends EventEmitter {
     const row = this.spaceTabs(win, t.space)
     const from = row.indexOf(id)
     if (from < 0) return
-    row.splice(from, 1)
+    // A split moves as one, from either of its pages (§8.18): `to` is the
+    // place in the row without them.
+    const unit = (win.splitsBy[t.space] ?? []).find(s => s.tabs.includes(id))?.tabs.filter(x => row.includes(x)) ?? [id]
+    for (const x of unit) row.splice(row.indexOf(x), 1)
     const pins = this.pinnedCount(win, t.space)
     // A pin among the pins, a tab among the tabs (§4.23).
     const lo = t.pinID ? 0 : pins
     const hi = t.pinID ? pins : row.length
-    row.splice(Math.max(lo, Math.min(to, hi)), 0, id)
+    row.splice(Math.max(lo, Math.min(to, hi)), 0, ...unit)
     if (t.pinID) this.pinsFromRow(win, t.space)
     this.arrangeGroups(win, t.space)
     this.touch(win, ['tabs'])
