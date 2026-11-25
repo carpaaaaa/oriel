@@ -125,9 +125,15 @@ t.ok(f["x"] == 0 and k.near(f["w"], f["pill"] * want, 1.0), f"the fill grows fro
 t.ok(f["radius"] == "9px" and f["clip"] == "hidden", f"inside the pill's radius 9, clipped by it ({f['radius']}, {f['clip']})")
 look = k.style(".row.live .reading", "background-color", "transition-property", "transition-duration", "transition-timing-function")
 t.ok(k.same_colour(look["background-color"], "rgba(23, 23, 23, 0.055)"), f"ink at 5.5%: {look['background-color']}")
-# Chromium names cubic-bezier(0, 0, .58, 1) by its keyword: ease-out
-t.ok(look["transition-property"] == "width" and look["transition-duration"] == "0.15s" and look["transition-timing-function"] in ("ease-out", "cubic-bezier(0, 0, 0.58, 1)"),
-     f"it grows on an ease-out of 0.15 s: {look}")
+# Chromium names cubic-bezier(0, 0, .58, 1) by its keyword: ease-out. With the
+# system's animation effects off (a Windows machine in a test) the interface
+# is in instant motion and nothing eases.
+instant = b.ui("document.documentElement.dataset.motion") == "instant"
+if instant:
+    t.ok(look["transition-duration"] in ("0s", "0ms"), f"animation effects off here: the fill takes its place at once: {look}")
+else:
+    t.ok(look["transition-property"] == "width" and look["transition-duration"] == "0.15s" and look["transition-timing-function"] in ("ease-out", "cubic-bezier(0, 0, 0.58, 1)"),
+         f"it grows on an ease-out of 0.15 s: {look}")
 time.sleep(0.3)
 p = OUT / "reading-column-light.png"
 b.shot(p)
@@ -250,7 +256,7 @@ b.wait_for(lambda: (reads() or [{}])[-1].get("id") == first, what="told")
 f = settle_fill(".strip-tab.live", reads()[-1]["fraction"], "the strip's fill")
 t.ok(f["x"] == 0 and f["radius"] == "9px" and f["clip"] == "hidden", f"across the top: in the tab's pill, radius 9, clipped ({f['radius']}, {f['clip']})")
 look = k.style(".strip-tab.live .reading", "background-color", "transition-duration", "transition-timing-function")
-t.ok(look and k.same_colour(look["background-color"], "rgba(237, 237, 237, 0.055)") and look["transition-duration"] == "0.15s", f"the same fill: {look}")
+t.ok(look and k.same_colour(look["background-color"], "rgba(237, 237, 237, 0.055)") and look["transition-duration"] == ("0s" if instant else "0.15s"), f"the same fill: {look}")
 b.shot(OUT / "reading-strip-dark.png")
 b.cmd("settings.set", id="look", value="light")
 b.wait_for(lambda: b.ui("document.documentElement.dataset.look") == "light", what="light")

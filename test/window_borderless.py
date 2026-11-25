@@ -44,6 +44,31 @@ def shell_state():
         return None
 
 
+def set_autohide(on):
+    """Set the taskbar to hide (ABM_SETSTATE); the state it had, or None."""
+    try:
+        class RECT(ctypes.Structure):
+            _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+        class APPBARDATA(ctypes.Structure):
+            _fields_ = [("cbSize", ctypes.c_uint32), ("hWnd", ctypes.c_void_p), ("uCallbackMessage", ctypes.c_uint32),
+                        ("uEdge", ctypes.c_uint32), ("rc", RECT), ("lParam", ctypes.c_ssize_t)]
+
+        shell32, user32 = ctypes.windll.shell32, ctypes.windll.user32
+        shell32.SHAppBarMessage.restype = ctypes.c_size_t
+        data = APPBARDATA()
+        data.cbSize = ctypes.sizeof(APPBARDATA)
+        data.hWnd = user32.FindWindowW("Shell_TrayWnd", None)
+        was = bool(shell32.SHAppBarMessage(4, ctypes.byref(data)) & 1)  # ABM_GETSTATE
+        data.lParam = 1 if on else 0
+        shell32.SHAppBarMessage(10, ctypes.byref(data))  # ABM_SETSTATE
+        time.sleep(0.5)
+        return was
+    except Exception as error:
+        print(f"  (taskbar: {error})")
+        return None
+
+
 def covers(f):
     c, m, bar = f.get("client"), f.get("monitor"), f.get("taskbar")
     if not c or not m:
@@ -89,10 +114,31 @@ def main():
         b.cmd("settings.set", id="window.fullScreenStyle", value="full")
         time.sleep(0.5)
         b.cmd("window.fullScreen", on=True)
-        f = settle(lambda: frame()["state"] == "fullScreen" and frame(), "full")
+        f = settle(lambda: frame()["state"] == "fullScreen" and frame()["native"] is True and frame(), "full, Electron's own")
         t.ok(f and f["borderless"] is False and f["native"] is True, "full screen is Electron's own")
         b.cmd("window.fullScreen", on=False)
         settle(lambda: frame()["state"] == "free", "free")
+
+        print("- The taskbar set to hide: the window is a pixel short on its edge, and Windows still doesn't take it for a full-screen app")
+        was = set_autohide(True)
+        if was is None:
+            print("  (the taskbar's hiding can't be set on this machine)")
+        else:
+            try:
+                time.sleep(1.0)
+                b.cmd("settings.set", id="window.fullScreenStyle", value="borderless")
+                time.sleep(0.4)
+                b.cmd("window.fullScreen", on=True)
+                f = settle(lambda: frame()["state"] == "fullScreen" and frame()["native"] is False and frame(), "borderless, taskbar hidden")
+                time.sleep(0.8)
+                t.ok(f and f.get("taskbar") and f["taskbar"]["autoHide"] is True, f"the taskbar hides ({f and f.get('taskbar')})")
+                t.ok(f and covers(f), f"the window covers the screen but a pixel on the taskbar's edge ({f and f.get('client')}, monitor {f and f.get('monitor', {}).get('monitor')})")
+                print(f"  (the shell says {shell_state()} with the taskbar hidden)")
+                t.ok(shell_state() != 2, "Windows doesn't take it for a full-screen app, so the taskbar comes up from its edge")
+                b.cmd("window.fullScreen", on=False)
+                settle(lambda: frame()["state"] == "free", "free")
+            finally:
+                set_autohide(was)
 
         print("- The choice changed while in full screen is put on at once")
         b.cmd("settings.set", id="window.fullScreenStyle", value="borderless")

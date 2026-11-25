@@ -101,6 +101,12 @@ jobs:
       - name: Maximize, full screen and back, Restore Down; the size windows.json keeps
         if: always()
         run: python test/window_restore_full.py
+      - name: "Split view drawn as one in the tabs list, in the column and across the top"
+        if: always()
+        run: python test/tabs_split_joined.py
+      - name: "A click outside lets picked tabs go"
+        if: always()
+        run: python test/tabs_pick_clear.py
       - name: "Borderless window keeps the taskbar within reach; full screen as before"
         if: always()
         run: python test/window_borderless.py

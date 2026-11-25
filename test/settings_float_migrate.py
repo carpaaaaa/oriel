@@ -41,7 +41,12 @@ try:
         t.ok(enabled() is True, f"float.style {style}: the floating video is on")
         t.ok(b.state()["prefs"].get("float.enabled") is True, "as the switch says it")
         b.cmd("settings.set", id="float.enabled", value=False)
-        t.ok(enabled() is False and written().get("float.enabled") is False, "turned off, it is kept")
+        kept = False
+        for _ in range(20):
+            if written().get("float.enabled") is False:
+                kept = True
+                break
+        t.ok(enabled() is False and kept, "turned off, it is kept")
         b.quit()
 
     # Off, as it was left.

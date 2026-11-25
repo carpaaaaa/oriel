@@ -393,13 +393,18 @@ k.fake(few, look="light")
 time.sleep(0.8)
 w = k.js("return [...document.querySelectorAll('.strip-tab')].map(e => e.getBoundingClientRect().width)")
 t.ok(w and all(k.near(x, 186) for x in w), f"with room, the tabs 186 beside the row: {w}")
-crowd = {**s, "tabs": s["tabs"] + [{**s["tabs"][-1], "id": f"y{i}", "label": f"Tab {i}", "title": f"Tab {i}", "url": f"https://example{i}.com/"} for i in range(3)]}
-crowd["prefs"] = {**crowd.get("prefs", {}), "address.shown": True, "address.width": "medium"}
-k.fake(crowd, look="light")
-time.sleep(0.8)
-fit = k.js("const r = document.querySelector('.strip-row'); const f = rel(document.querySelector('.strip-far').getBoundingClientRect()); const c = document.querySelector('.window > .caption-buttons');"
-           " return [r.scrollWidth - r.clientWidth, f.right, c ? rel(c.getBoundingClientRect()).x : W0.width, document.querySelector('.strip-tab').getBoundingClientRect().width]")
-t.ok(fit[0] <= 0 and fit[1] <= fit[2] + 0.5 and fit[3] < 186, f"crowded with Medium: the tabs shrink to fit beside the row, nothing hidden, the far end before the window's buttons: {fit}")
+FIT = ("const r = document.querySelector('.strip-row'); const f = rel(document.querySelector('.strip-far').getBoundingClientRect()); const c = document.querySelector('.window > .caption-buttons');"
+       " return [r.scrollWidth - r.clientWidth, f.right, c ? rel(c.getBoundingClientRect()).x : W0.width, document.querySelector('.strip-tab').getBoundingClientRect().width]")
+# Tabs are added one at a time until they shrink (a narrow window needs fewer than a wide one).
+for extra in range(0, 9):
+    crowd = {**s, "tabs": s["tabs"] + [{**s["tabs"][-1], "id": f"y{i}", "label": f"Tab {i}", "title": f"Tab {i}", "url": f"https://example{i}.com/"} for i in range(extra)]}
+    crowd["prefs"] = {**crowd.get("prefs", {}), "address.shown": True, "address.width": "medium"}
+    k.fake(crowd, look="light")
+    time.sleep(0.8)
+    fit = k.js(FIT)
+    if fit[3] < 186:
+        break
+t.ok(fit[0] <= 0 and fit[1] <= fit[2] + 0.5 and fit[3] < 186, f"crowded with Medium ({extra} more tabs): the tabs shrink to fit beside the row, nothing hidden, the far end before the window's buttons: {fit}")
 k.thaw()
 
 # 14. The column of icons has no room for it: no row, and Ctrl+L's field over the page

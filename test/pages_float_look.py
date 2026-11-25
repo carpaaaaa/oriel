@@ -174,12 +174,15 @@ def main():
         t.ok(shown() == 1, "a pointer over the page itself (:hover) shows them too")
         move({"type": "mouseLeave", "x": -1, "y": -1})
         t.ok(shown() == 0, "and leaving hides them")
-        t.ok(float(css(".chrome", "transitionDuration").split(",")[0].rstrip("s")) > 0, "the fade is soft, not a cut")
+        # A Windows machine with animation effects off (a test machine) reduces motion by itself.
+        reduced = bool(ctl("matchMedia('(prefers-reduced-motion: reduce)').matches"))
+        t.ok(reduced or float(css(".chrome", "transitionDuration").split(",")[0].rstrip("s")) > 0, f"the fade is soft, not a cut (system reduces motion: {reduced})")
         b.cmd("settings.set", id="motion.instant", value=True)
         b.wait_for(lambda: float(css(".chrome", "transitionDuration").split(",")[0].rstrip("s")) == 0, within=5, what="no fade")
         t.ok(True, "Reduce animations on: they come and go at once")
         b.cmd("settings.set", id="motion.instant", value=False)
-        b.wait_for(lambda: float(css(".chrome", "transitionDuration").split(",")[0].rstrip("s")) > 0, within=5, what="the fade back")
+        if not reduced:
+            b.wait_for(lambda: float(css(".chrome", "transitionDuration").split(",")[0].rstrip("s")) > 0, within=5, what="the fade back")
 
         print("- sizes, shapes, nothing decorative")
         move({"type": "mouseMove", "x": 120, "y": 90})

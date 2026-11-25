@@ -397,6 +397,8 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
       <Show when={stripMark()?.id === t().id}><span class="strip-drop" classList={{ after: stripMark()!.after }} /></Show>
       <Show when={!t().empty}><Mark tab={{ ...t(), label: label(t()) }} size={15} /></Show>
       <Show when={addressing()}><TabField /></Show>
+      {/* A private tab (§2.35): the column's eye, here too. */}
+      <Show when={t().shy && titled() && !addressing()}><G.eyeSlash pt={9} class="sign" /></Show>
       <Show when={titled()}>
         <span class="strip-title">
           <span class="title">{label(t())}</span>
