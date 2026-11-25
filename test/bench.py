@@ -151,9 +151,12 @@ def key(k, *mods, phase=None):
     return call(req)
 
 
-def mouse(x, y, button="left", clicks=1, phase=None):
-    """phase 'down' or 'up': the button held, or let go of, alone."""
+def mouse(x, y, button="left", clicks=1, phase=None, modifiers=None):
+    """phase 'down' or 'up': the button held, or let go of, alone. modifiers:
+    keys held for the click, as ["control"] or ["shift"]."""
     req = {"do": "mouse", "x": x, "y": y, "button": button, "clicks": clicks}
+    if modifiers:
+        req["modifiers"] = list(modifiers)
     if phase:
         req["phase"] = phase
     return call(req)

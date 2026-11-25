@@ -18,6 +18,8 @@ export interface Carry {
   x: number
   /** Over a block that would take it as something else: faded (§6.16). */
   faded: boolean
+  /** The other pages of its split, hung from it: line key → how far under it (§8.18). */
+  with?: Record<string, number>
 }
 export const [carry, setCarry] = createSignal<Carry | null>(null)
 

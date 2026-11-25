@@ -165,6 +165,8 @@ const overrides: Record<string, Partial<Item>> = {
   'wheel.smooth': { more: 'New tabs follow at once, tabs already open once Oriel restarts. A touchpad is left as it is, and a page still gets each notch as it comes. With Animation effects off in Windows Settings › Accessibility › Visual effects, a notch moves the page at once, as in Chrome.' },
   // The tabs module (studio/08 area B): Oriel has no View menu, and no site card yet.
   'note.panel': { detail: 'Always there: right-click a tab › Open in Side Panel' },
+  // Split View (studio/01 §8): holding Shift while carrying a tab onto another is the way in from the tab list.
+  'note.split': { detail: 'Always there: Alt-click a tab, hold Shift and drag a tab onto another, drag a tab onto a page, or press Alt+Shift+N' },
   'note.awake': { detail: 'Always there: right-click a tab › Keep This Site Awake' },
   // Block ads and trackers: uBlock Origin's lists (pages module); off for one site from the tab's menu.
   'shield': {

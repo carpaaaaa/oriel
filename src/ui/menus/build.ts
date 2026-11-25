@@ -102,7 +102,8 @@ function shieldPaused(t: TabView): boolean {
 /** A tab's or a pin's menu (§4.35). */
 export function tabMenu(t: TabView): Entry[] {
   const picked = state.picked ?? []
-  if (picked.length > 1 && picked.includes(t.id)) return manyMenu(picked)
+  // A plain copy of the picks: the store's own array can't cross to the main process (the menu didn't open).
+  if (picked.length > 1 && picked.includes(t.id)) return manyMenu([...picked])
   const items: Entry[] = []
   const pin = t.pinID ? pinOf(t) : undefined
   if (!t.pinID && !t.shy) items.push(groupItems([t.id]))

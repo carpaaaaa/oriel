@@ -82,20 +82,30 @@ benchRequest('window.drag', async req => {
   // The path is fixed on the screen, like a real pointer's: while the window
   // moves under it, the point inside the window changes.
   const origin = c.base.getContentBounds()
-  const path = req.path as [number, number][]
-  const at = ([x, y]: [number, number]) => {
+  // A point may carry keys held at that step: [x, y, ['shift']] (Shift-drag onto a tab).
+  const path = req.path as ([number, number] | [number, number, string[]])[]
+  const at = ([x, y]: [number, number, ...unknown[]]) => {
     const now = c.base.getContentBounds()
     const gx = origin.x + x, gy = origin.y + y
     return { x: gx - now.x, y: gy - now.y, globalX: gx, globalY: gy }
   }
-  wc.sendInputEvent({ type: 'mouseMove', ...at(path[0]) })
-  wc.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...at(path[0]) })
+  type Mod = NonNullable<Electron.InputEvent['modifiers']>[number]
+  const keys = (p: (typeof path)[number]): Mod[] => (p[2] as Mod[] | undefined) ?? []
+  wc.sendInputEvent({ type: 'mouseMove', modifiers: keys(path[0]), ...at(path[0]) })
+  wc.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, modifiers: keys(path[0]), ...at(path[0]) })
+  // A pointer at rest sends no move: a point the same as the one before only
+  // lets the time pass (a key pressed meanwhile is then the only event).
+  let sent = JSON.stringify([at(path[0]).x, at(path[0]).y, keys(path[0])])
   for (const p of path.slice(1)) {
     await new Promise(r => setTimeout(r, 16))
-    wc.sendInputEvent({ type: 'mouseMove', modifiers: ['leftbuttondown'], ...at(p) })
+    const where = at(p)
+    const key = JSON.stringify([where.x, where.y, keys(p)])
+    if (key === sent) continue
+    sent = key
+    wc.sendInputEvent({ type: 'mouseMove', modifiers: ['leftbuttondown', ...keys(p)], ...where })
   }
   await new Promise(r => setTimeout(r, 16))
-  wc.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...at(path[path.length - 1]) })
+  wc.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, modifiers: keys(path[path.length - 1]), ...at(path[path.length - 1]) })
   await new Promise(r => setTimeout(r, 100))
   return { bounds: c.base.getBounds() }
 })

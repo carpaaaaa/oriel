@@ -8,7 +8,7 @@ import { createEffect, createSignal, on, onMount, Show } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import type { TabView } from '../../shared/state'
 import { G, Ring } from './glyphs'
-import { P, label, monogram, restOf, markSize, picked, pickedAmongOthers, pinOf } from './derive'
+import { P, label, monogram, restOf, markSize, picked, pickedAmongOthers, pinOf, type PairSlot } from './derive'
 import { editing, setEditing, reading, dropTarget } from './ui'
 import { openMenu } from '../menus/open'
 import { tabMenu } from '../menus/build'
@@ -80,7 +80,7 @@ function RestLine(p: { tab: TabView }) {
   )
 }
 
-export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
+export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean; pair?: PairSlot }) {
   let el!: HTMLDivElement
   const t = () => p.tab
   const live = () => t().id === state.activeID
@@ -154,7 +154,9 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean }) {
       classList={{
         live: live(), picked: picked(t().id), 'split-target': dropTarget() === `s:${t().id}`, status: status() && !addressing(), closable: closable() && !isEditing() && !addressing(),
         dim: dim(), 'put-away': putAway(), editing: isEditing() || addressing(), addressing: addressing(), 'at-rest': !!rest(), empty: t().empty,
+        'in-pair': !!p.pair, 'pair-first': p.pair?.index === 0, 'pair-last': !!p.pair && p.pair.index === p.pair.count - 1, 'pair-live': !!p.pair?.live,
       }}
+      data-pair={p.pair?.key}
       onPointerDown={onDown}
       onClick={onClick}
       onAuxClick={e => { if (e.button === 1) { e.preventDefault(); close() } }}

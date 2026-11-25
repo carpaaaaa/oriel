@@ -6,14 +6,17 @@
 
 import type { GroupView, PinFolderView, TabView } from '../../shared/state'
 import { state } from '../lib/store'
-import { P, parts, folderLines, foldersShown, rowHeight, spaceColours, type Move } from './derive'
+import { P, parts, folderLines, foldersShown, rowHeight, spaceColours, pairSlot, type Move, type PairSlot } from './derive'
 
 export const GAP = 2
 export const INDENT = 14
 export const GROUP_INSET = 4
+/** A split's pages in the list sit in one frame (studio/01 §8.29): its edge is
+ * this far from the rows, so the rows' radius 9 and the frame's 11 are concentric. */
+export const PAIR_PAD = 2
 
 export type Item =
-  | { key: string; kind: 'row'; tab: TabView; y: number; h: number; x: number; r: number; group?: GroupView; pinned?: boolean; depth?: number }
+  | { key: string; kind: 'row'; tab: TabView; y: number; h: number; x: number; r: number; group?: GroupView; pinned?: boolean; depth?: number; pair?: PairSlot }
   | { key: string; kind: 'folder'; folder: PinFolderView; y: number; h: number; x: number; r: number; depth: number }
   | { key: string; kind: 'group'; group: GroupView; y: number; h: number; x: number; r: number }
   | { key: string; kind: 'wash'; group: GroupView; y: number; h: number; x: number; r: number }
@@ -72,8 +75,12 @@ export function layout(move?: Move | null): Layout {
     y += heading
     for (const t of members) {
       y += GAP
-      items.push({ key: `t:${t.id}`, kind: 'row', tab: t, y, h: row, x: icons ? 0 : INDENT, r: inset, group })
+      const pair = icons ? null : pairSlot(members, t.id)
+      if (pair?.index === 0) y += PAIR_PAD
+      const pad = pair ? PAIR_PAD : 0
+      items.push({ key: `t:${t.id}`, kind: 'row', tab: t, y, h: row, x: (icons ? 0 : INDENT) + pad, r: inset + pad, group, pair: pair ?? undefined })
       y += row
+      if (pair && pair.index === pair.count - 1) y += PAIR_PAD
     }
     if (coloured) items.push({ key: `w:${group.id}`, kind: 'wash', group, y: top, h: y - top, x: 0, r: 0 })
   }
@@ -85,8 +92,12 @@ export function layout(move?: Move | null): Layout {
   }
   for (const t of loose) {
     next()
-    items.push({ key: `t:${t.id}`, kind: 'row', tab: t, y, h: row, x: 0, r: 0 })
+    const pair = icons ? null : pairSlot(loose, t.id)
+    if (pair?.index === 0) y += PAIR_PAD
+    const pad = pair ? PAIR_PAD : 0
+    items.push({ key: `t:${t.id}`, kind: 'row', tab: t, y, h: row, x: pad, r: pad, pair: pair ?? undefined })
     y += row
+    if (pair && pair.index === pair.count - 1) y += PAIR_PAD
   }
 
   // New tab, 2 above

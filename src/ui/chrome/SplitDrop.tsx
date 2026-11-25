@@ -18,6 +18,15 @@ const BAND = 120
 const SHARE = 0.24
 const SLACK = 20
 
+/** Whether `carried` can stand beside the ordinary tab `target`: not itself,
+ * not a pin, not an empty page, both private or neither, and not in the
+ * target's split already or past its 4 pages (Shift-drag onto a tab, drag.ts). */
+export function canSplitWith(carried: TabView, target: TabView): boolean {
+  if (carried.id === target.id || carried.pinID || carried.empty || target.pinID || target.empty || !!carried.shy !== !!target.shy) return false
+  const split = state.splits.find(s => s.tabs.includes(target.id))
+  return !(split && (split.tabs.includes(carried.id) || split.tabs.length >= MOST))
+}
+
 /** The bands and the side the point is in, over the page's card; null when
  * the point isn't over the card or the carried tab can't stand beside the
  * page in front ("a page can't be split with itself"). `was`: the side shown

@@ -2,13 +2,14 @@
 // each tab a tile of 32, 2 apart, 10 from the edge; its mark at 85% (whole
 // when live or under the pointer); the live tile on `pinLive`; under the
 // pointer, on the live tile only, a cross in place of the mark. A group: a
-// short heading with its letter, its tiles held by a thin bracket.
+// short heading with its letter, its tiles held by a thin bracket. A split:
+// its tiles in one frame (§8.29, IconPair), as the rows have it.
 
 import { For, Show, onMount } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import type { TabView } from '../../shared/state'
 import { G, Ring } from './glyphs'
-import { parts, label, restOf, picked } from './derive'
+import { parts, label, restOf, picked, pairSlot, type PairSlot } from './derive'
 import { Mark } from './Row'
 import { GroupHeading, NewTabRow } from './Lines'
 import { openMenu } from '../menus/open'
@@ -26,16 +27,16 @@ export function Tiles(p: { still: boolean; glidingTo: string | null }) {
         <div class="tile-group" style={{ background: groupColour(g.group.colour) }}>
           <GroupHeading group={g.group} compact />
           <Show when={!g.group.folded && g.members.length}><span class="bracket" /></Show>
-          <For each={g.members}>{t => <Tile tab={t} still={p.still} gliding={p.glidingTo === t.id} />}</For>
+          <For each={g.members}>{t => <Tile tab={t} still={p.still} gliding={p.glidingTo === t.id} pair={pairSlot(g.members, t.id)} />}</For>
         </div>
       )}</For>
-      <For each={blocks().loose}>{t => <Tile tab={t} still={p.still} gliding={p.glidingTo === t.id} />}</For>
+      <For each={blocks().loose}>{t => <Tile tab={t} still={p.still} gliding={p.glidingTo === t.id} pair={pairSlot(blocks().loose, t.id)} />}</For>
       <NewTabRow centred />
     </div>
   )
 }
 
-function Tile(p: { tab: TabView; still: boolean; gliding: boolean }) {
+function Tile(p: { tab: TabView; still: boolean; gliding: boolean; pair?: PairSlot | null }) {
   let el!: HTMLDivElement
   const t = () => p.tab
   const live = () => t().id === state.activeID
@@ -49,7 +50,10 @@ function Tile(p: { tab: TabView; still: boolean; gliding: boolean }) {
     return lines.join('\n')
   }
   return (
-    <div ref={el} class="tile" data-tab={t().id} classList={{ live: live(), picked: picked(t().id), gliding: p.gliding, asleep: t().asleep }}
+    <div ref={el} class="tile" data-tab={t().id} classList={{
+      live: live(), picked: picked(t().id), gliding: p.gliding, asleep: t().asleep,
+      'in-pair': !!p.pair, 'pair-first': p.pair?.index === 0, 'pair-last': !!p.pair && p.pair.index === p.pair.count - 1, 'pair-live': !!p.pair?.live,
+    }}
       style={{ '--r': '9px' }} title={tip()}
       onPointerDown={e => { if (e.button === 0 && !live() && !(e.target as HTMLElement).closest('.tile-x')) void cmd({ do: 'tab.select', id: t().id }) }}
       onDblClick={() => { if (live()) void cmd({ do: 'field.open', target: 'here' }) }}

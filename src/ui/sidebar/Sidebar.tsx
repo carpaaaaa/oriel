@@ -336,9 +336,12 @@ export function Column() {
 function Line(p: { key: string; item: Item | undefined; leaving: boolean; fresh: boolean; gliding: string | null; done: () => void }) {
   let el!: HTMLDivElement
   const c = () => carry()
-  const carried = () => c()?.key === p.key
+  // A split goes as one: its other pages hang from the carried line.
+  const follows = () => c()?.with?.[p.key] !== undefined
+  const carried = () => c()?.key === p.key || follows()
   const y = () => {
-    if (carried()) return c()!.y
+    if (c()?.key === p.key) return c()!.y
+    if (follows()) return c()!.y + c()!.with![p.key]
     const s = shifted()[p.key]
     return s ?? p.item?.y ?? 0
   }
@@ -362,7 +365,7 @@ function Line(p: { key: string; item: Item | undefined; leaving: boolean; fresh:
         // applied inside it, so it shrinks the line where it stands.
         style={{ translate: `0 ${y()}px`, height: `${it().h}px`, left: `${it().x}px`, right: `${it().r}px` }}>
         <Switch>
-          <Match when={it().kind === 'row' && (it() as Extract<Item, { kind: 'row' }>)}>{r => <Row tab={r().tab} grouped={!!r().group} pinned={!!r().pinned} />}</Match>
+          <Match when={it().kind === 'row' && (it() as Extract<Item, { kind: 'row' }>)}>{r => <Row tab={r().tab} grouped={!!r().group} pinned={!!r().pinned} pair={r().pair} />}</Match>
           <Match when={it().kind === 'group' && (it() as Extract<Item, { kind: 'group' }>)}>{g => <GroupHeading group={g().group} />}</Match>
           <Match when={it().kind === 'folder' && (it() as Extract<Item, { kind: 'folder' }>)}>{f => <FolderHeading folder={f().folder} depth={f().depth} />}</Match>
           <Match when={it().kind === 'keep' && (it() as Extract<Item, { kind: 'keep' }>)}>{k => <KeepLine clears={k().clears} />}</Match>
