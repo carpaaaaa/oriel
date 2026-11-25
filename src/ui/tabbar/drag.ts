@@ -1,10 +1,11 @@
 // A tab carried along the strip (studio/01 §4.22-§4.24, §8.17; TabBar.swift,
 // TabDrag.swift): after 5 points it lifts and follows the pointer; over the
 // tabs a mark shows where it would land, among the tabs of its own block (the
-// loose ones, or its group's); let go, it lands there. With Shift held over
-// another tab, that tab is marked instead, and letting go puts the two side
-// by side (carpa, 25 Nov 2026), Shift pressed or let go mid-carry as the mark
-// follows it. Over the page the bands of Split View show, as for a tab carried
+// loose ones, or its group's); let go, it lands there. Over the middle of
+// another tab (anywhere on it with Shift held), that tab is marked instead,
+// and letting go puts the two side by side (carpa, 25 Nov 2026: carried onto
+// another tab they split, no key needed), Shift pressed or let go mid-carry
+// as the mark follows it. Over the page the bands of Split View show, as for a tab carried
 // from the column (drag.ts there). Escape while held puts it back. Pointer
 // events, never HTML5 drag.
 
@@ -82,8 +83,10 @@ function follow(): void {
   const bar = document.querySelector('.tabbar')?.getBoundingClientRect()
   const inStrip = !!bar && y >= bar.top && y <= bar.bottom
   const others = inStrip ? tabRects(tab.id) : []
-  // Shift held over another tab: that tab is the target, nothing makes room.
-  const target = held.shift ? others.find(o => x >= o.left && x <= o.right && canSplitWith(tab, o.tab)) : undefined
+  // Over the middle of another tab (anywhere on it with Shift held): that tab
+  // is the target, nothing makes room. Its edges are for moving among the tabs.
+  const inMiddle = (o: Rect) => { const w = o.right - o.left; return x >= o.left + w * 0.25 && x <= o.right - w * 0.25 }
+  const target = others.find(o => x >= o.left && x <= o.right && canSplitWith(tab, o.tab) && (held!.shift || inMiddle(o)))
   held.onto = target?.tab.id ?? null
   if (target) {
     held.to = null

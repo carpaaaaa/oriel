@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """A tab carried from the column onto the page (studio/01 §8.17; TabDrag.swift,
 Browser.pair), the divider (§8.14), the X on picked tabs (§3.19), and a tab
-carried onto another tab with Shift held (carpa, 25 Nov 2026), in a hidden
-world.
+carried onto another tab (carpa, 25 Nov 2026), in a hidden world.
 
 Carried over the page, the bands show at its edges (the overlay's
 split.drop); in a band, the preview of that side; let go there, the tab
@@ -15,8 +14,9 @@ them closes them all.
 Shift held while a tab is carried onto another tab marks that tab (the
 `split-target` class) and letting go puts the two side by side, in the column
 and across the top; the mark follows Shift pressed or let go mid-carry, by the
-pointer's events and by the key's own. Without Shift, resting on a tab marks
-nothing and the tab lands where it was carried, as in any reorder.
+pointer's events and by the key's own. Without Shift, resting on a tab's edge
+marks nothing and the tab lands where it was carried, as in any reorder; across
+the top, resting on a tab's middle marks it too, and letting go splits.
 
     npm run build && python3 test/split_drop.py
 """
@@ -165,7 +165,7 @@ def shift_tests(layout):
     print(f"- {where}: Shift pressed and let go mid-carry, by the pointer's events")
     b.cmd("split.separate")
     time.sleep(0.5)
-    th = drag_over(Z, Y, [(60, False), (70, True), (70, False)], layout)
+    th = drag_over(Z, Y, [(60, False), (70, True), (70, False)], layout, at=0.1)
     t.ok(b.wait_for(lambda: marked() == "" , within=2, what="nothing yet"), "nothing marked before Shift")
     t.ok(b.wait_for(lambda: marked() == Y, within=4, what="Y marked"), "Shift pressed: the tab under it is marked")
     t.ok(b.wait_for(lambda: marked() == "", within=4, what="mark gone"), "Shift let go: the mark goes")
@@ -174,7 +174,7 @@ def shift_tests(layout):
     t.ok(split_of(Y) is None, "let go without Shift: no split")
 
     print(f"- {where}: Shift pressed and let go mid-carry, by the key's own events")
-    th = drag_over(Z, Y, [(300, False)], layout)
+    th = drag_over(Z, Y, [(300, False)], layout, at=0.1)
     b.wait_for(lambda: b.ui("document.documentElement.classList.contains('carrying')"), within=10, what="the carry under way")
     # The pointer has to be at rest on the tab: a later move would say Shift isn't down.
     lifted = ".line.carried" if layout == "side" else ".strip-tab.carried"
@@ -189,6 +189,15 @@ def shift_tests(layout):
     th.join()
     time.sleep(0.6)
     t.ok(split_of(Y) is None, "let go without Shift: no split")
+
+    if layout == "top":
+        # Across the top, onto the middle of a tab splits with no key (carpa, 25 Nov 2026).
+        print(f"- {where}: no Shift, let go on the middle of a tab: the two side by side")
+        th = drag_over(Z, Y, [(90, False)], layout, at=0.5)
+        t.ok(b.wait_for(lambda: marked() == Y, within=6, what="Y marked"), "the tab it is over is marked, no key held")
+        th.join()
+        s = b.wait_for(lambda: split_of(Y), within=4, what="the split")
+        t.ok(s["tabs"] == [Y, Z], f"the carried tab on the right of the one it was let go on ({len(s['tabs'])} pages)")
 
     for nm in names:
         b.cmd("tab.close", id=tab(nm)["id"])
