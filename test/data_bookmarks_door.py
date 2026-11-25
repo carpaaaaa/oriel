@@ -35,6 +35,8 @@ for name in ("alpha", "beta", "gamma", "delta", "epsilon", "page"):
 
 b.use("data-bookmarks-door")
 b.launch(env={"SEARCH_LOOK": "light"})
+b.cmd("prefs.set", key="fold.fullScreen", value=False)  # these test folding alone, not full screen with it
+
 t = b.T()
 time.sleep(0.6)
 

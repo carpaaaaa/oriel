@@ -186,6 +186,8 @@ def open_tabs(n, prefix="t"):
 # ---------------------------------------------------------------- the column
 b.use("ui-motion")
 b.launch(*k.FRAMES, env={"SEARCH_LOOK": "light"})
+b.cmd("prefs.set", key="fold.fullScreen", value=False)  # these test folding alone, not full screen with it
+
 time.sleep(0.8)
 open_tabs(6)
 ids = [x["id"] for x in tabs()]
@@ -299,6 +301,8 @@ window.__fold = (() => {
 """
 b.use("ui-motion-fold")
 b.launch(*k.FRAMES, env={"SEARCH_LOOK": "light"})
+b.cmd("prefs.set", key="fold.fullScreen", value=False)  # these test folding alone, not full screen with it
+
 time.sleep(0.8)
 b.cmd("tab.go", input="data:text/html,<title>page</title><body style='background:%23fd8'>a page")
 b.wait_for(lambda: b.active()["title"] == "page", what="a page")

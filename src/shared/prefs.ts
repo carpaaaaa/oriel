@@ -35,6 +35,8 @@ export const defaults = {
   'sidebar.hides': false,
   'sidebar.slides': false,
   'sidebar.foldIcons': false,
+  // Ctrl+S hides the tabs and takes the page full screen, and back (carpa, 25 Nov 2026); off, it only folds.
+  'fold.fullScreen': true,
   'fold.loadingLine': false,
   'layout.cards': true,
   'layout.cardsFullScreen': false,

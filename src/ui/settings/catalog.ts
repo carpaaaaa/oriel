@@ -222,6 +222,14 @@ const added: (Item & { after: string })[] = [
     words: ['return', 'enter', 'suggestion', 'top', 'address bar', 'command bar', 'arc'],
   },
   {
+    id: 'fold.fullScreen', group: 'window', icon: 'arrow.up.left.and.arrow.down.right', after: 'window.fullScreenStyle',
+    title: 'Ctrl+S goes full screen',
+    detail: 'Hiding the tabs with Ctrl+S takes the page full screen, and showing them gives the window back',
+    more: 'Full screen or Borderless window, as chosen above. Off, Ctrl+S only hides the tabs and leaves the window as it is.',
+    keys: ['fold.fullScreen'],
+    words: ['ctrl s', 'fold', 'hide', 'tabs', 'sidebar', 'full screen', 'fullscreen', 'edge to edge'],
+  },
+  {
     id: 'tabs.splitDrop', group: 'tabbar', icon: 'rectangle.split.2x1', after: 'tabs.shortcuts',
     title: 'Split View without Shift',
     detail: 'Carry a tab onto the middle of another to put the two side by side, with no key held',

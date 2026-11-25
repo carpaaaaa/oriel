@@ -16,6 +16,8 @@ import bench as b  # noqa: E402
 
 b.use("data-bookmarks-fold")
 b.launch(env={"SEARCH_LOOK": "light"})
+b.cmd("prefs.set", key="fold.fullScreen", value=False)  # these test folding alone, not full screen with it
+
 t = b.T()
 time.sleep(0.6)
 

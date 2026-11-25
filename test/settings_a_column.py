@@ -40,6 +40,8 @@ SITE = f"http://127.0.0.1:{srv.server_port}"
 
 b.use("settings-a-column")
 b.launch(*k.FRAMES, env={"SEARCH_LOOK": "light"})
+b.cmd("prefs.set", key="fold.fullScreen", value=False)  # these test folding alone, not full screen with it
+
 t = b.T()
 
 
