@@ -3,9 +3,9 @@ $ErrorActionPreference = 'Stop'
 # Oriel's own installer for the current user, run silently. The file isn't in
 # this package: it is downloaded from the release and checked against its
 # SHA-256 (also in SHA256SUMS.txt beside it).
-$version = '0.1.11'
-$x64 = @{ Url = "https://github.com/carpaaaaa/oriel/releases/download/v$version/Oriel-Setup-$version-x64.exe"; Checksum = 'd2338d95cd27eee4d88cf94c2bd4f5babcc802db3c5dcc48121459bdb7805655' }
-$arm = @{ Url = "https://github.com/carpaaaaa/oriel/releases/download/v$version/Oriel-Setup-$version-arm64.exe"; Checksum = 'd6bc73b372e0620b3adce2f895ae808a283e3d1ef1f61e49accbb78ba1af6f70' }
+$version = '0.1.12'
+$x64 = @{ Url = "https://github.com/carpaaaaa/oriel/releases/download/v$version/Oriel-Setup-$version-x64.exe"; Checksum = '096521a8c3a7ec3c9d144209329c69c18a3f255413984bb3c098b1a0f6ddf8ea' }
+$arm = @{ Url = "https://github.com/carpaaaaa/oriel/releases/download/v$version/Oriel-Setup-$version-arm64.exe"; Checksum = 'be97c5eccecfc214f5624bc154416676d1c9cea0d1212979dec06ebe98c42d99' }
 
 # A Snapdragon PC gets the ARM installer, any other 64-bit PC the x64 one.
 $isArm = ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') -or ($env:PROCESSOR_ARCHITEW6432 -eq 'ARM64')

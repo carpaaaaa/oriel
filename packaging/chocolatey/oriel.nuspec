@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>oriel</id>
-    <version>0.1.11</version>
+    <version>0.1.12</version>
     <title>Oriel</title>
     <authors>Char Studio</authors>
     <owners>carpaaaaa</owners>
@@ -34,7 +34,7 @@ Oriel is built on Chromium through Electron. It is **not affiliated with or endo
 * Oriel updates itself once installed. `choco upgrade oriel` follows the releases too.
 * x64 and ARM64 are both supported.
 ]]></description>
-    <releaseNotes>https://github.com/carpaaaaa/oriel/releases/tag/v0.1.11</releaseNotes>
+    <releaseNotes>https://github.com/carpaaaaa/oriel/releases/tag/v0.1.12</releaseNotes>
   </metadata>
   <files>
     <file src="tools\**" target="tools" />
