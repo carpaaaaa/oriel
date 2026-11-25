@@ -276,11 +276,15 @@ export class Frame {
     const bar = this.borderlessWanted() ? win32()?.taskbar() : null
     if (!bar) return d
     if (!bar.autoHide) return screen.getDisplayMatching(d).workArea
+    // Two physical pixels short on the taskbar's edge, as Windows leaves a maximized window
+    // there (Chromium's kAutoHideTaskbarThicknessPx): one wasn't enough to bring the taskbar up
+    // (carpa, 25 Nov 2026). In DIP, whole pixels at the screen's scale.
+    const n = Math.ceil(2 / (screen.getDisplayMatching(d).scaleFactor || 1))
     switch (bar.edge) {
-      case 'top': return { x: d.x, y: d.y + 1, width: d.width, height: d.height - 1 }
-      case 'left': return { x: d.x + 1, y: d.y, width: d.width - 1, height: d.height }
-      case 'right': return { x: d.x, y: d.y, width: d.width - 1, height: d.height }
-      default: return { x: d.x, y: d.y, width: d.width, height: d.height - 1 }
+      case 'top': return { x: d.x, y: d.y + n, width: d.width, height: d.height - n }
+      case 'left': return { x: d.x + n, y: d.y, width: d.width - n, height: d.height }
+      case 'right': return { x: d.x, y: d.y, width: d.width - n, height: d.height }
+      default: return { x: d.x, y: d.y, width: d.width, height: d.height - n }
     }
   }
 
