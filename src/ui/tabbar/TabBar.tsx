@@ -115,6 +115,11 @@ const measure = (() => {
   }
 })()
 
+/** The width the tabs had when one was closed with its cross, kept while the pointer stays on the
+ * strip, so the next tab's cross comes to where the last one was and tabs can be closed one after
+ * another (Search 1.0.21); let go when the pointer leaves the strip. */
+const [heldWidth, setHeldWidth] = createSignal<number | null>(null)
+
 export function TabBar() {
   let row!: HTMLDivElement
   let far!: HTMLDivElement
@@ -173,7 +178,9 @@ export function TabBar() {
     // The line between pins and tabs: 1 and its margins, and the row's gap after it.
     const line = pins().length && (groups().length || loose().length) ? 3 + GAP : 0
     const spend = pins().length * PIN + names + Math.max(0, pins().length + shown + groups().length - 1) * GAP + line + open.length * 8
-    return Math.max(MIN, Math.min(TAB, (room - spend) / Math.max(1, shown)))
+    const fit = Math.max(MIN, Math.min(TAB, (room - spend) / Math.max(1, shown)))
+    const kept = heldWidth()
+    return kept === null ? fit : Math.min(kept, fit)
   })
   const titled = () => each() >= TITLED
   // The room a tab's address may take (TabBar.swift:468: strip − lights − leading − 12).
@@ -255,7 +262,7 @@ export function TabBar() {
 
   return (
     <header ref={bar} class="tabbar drag" data-tabs-ui="strip" classList={{ compact: pref('tabs.compact', false), contrast: P.contrast() }} style={{ '--controls': `${controls()}px` }}
-      onPointerEnter={() => setInside(true)} onPointerLeave={() => setInside(false)}>
+      onPointerEnter={() => setInside(true)} onPointerLeave={() => { setInside(false); setHeldWidth(null) }}>
       <Wash />
       <div class="strip-band">
         <div class="strip-lights" style={{ width: `${lights()}px` }} />
@@ -419,7 +426,7 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
             e.stopPropagation()
             // Picked among others, its X closes all of them (§3.19).
             if (pickedAmongOthers(t().id)) void cmd({ do: 'tab.closeMany', ids: [...(state.picked ?? [])] })
-            else void cmd({ do: 'tab.close', id: t().id })
+            else { setHeldWidth(el.offsetWidth); void cmd({ do: 'tab.close', id: t().id }) }
           }}>
           <span class="disc">{p.grouped ? <G.minus pt={8} weight="semibold" /> : <G.xmark pt={8} weight="semibold" />}</span>
         </button>

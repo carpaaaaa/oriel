@@ -40,6 +40,8 @@ export interface PagePrefs {
   floatOn: boolean
   /** Settings > Pages > Scroll bars: Oriel's (true) or Windows' own. */
   bars: boolean
+  /** Settings › Keyboard & Mouse › Backspace goes back. */
+  backspace: boolean
 }
 
 /** Let me copy on every site, or this one (a tab's menu, copy.sites). */
@@ -78,6 +80,7 @@ export function pagePrefs(wc: WebContents, address: string): PagePrefs | null {
     copyFree: copyFreeOn(host),
     floatOn: pref<boolean>('float.enabled') !== false,
     bars: pref<string>('pages.scrollbars') !== 'windows',
+    backspace: pref<boolean>('keys.backspaceBack') === true,
   }
 }
 
@@ -142,6 +145,14 @@ function framePrefs(event: Electron.IpcMainEvent): unknown {
   return p
 }
 
+// Backspace goes back, Shift+Backspace forward, when the page isn't being typed in (Search 1.0.21).
+ipcMain.on('pages:history', (event, direction: string) => {
+  const wc = event.sender
+  if (wc.isDestroyed() || pref<boolean>('keys.backspaceBack') !== true) return
+  const h = wc.navigationHistory
+  if (direction === 'forward') { if (h.canGoForward()) h.goForward() } else if (h.canGoBack()) h.goBack()
+})
+
 /** Pages whose preload asked, with the address it asked for. */
 const pages = new Map<WebContents, string>()
 
@@ -166,7 +177,7 @@ export function retell(): void {
   }
 }
 
-const watched = ['youtube.hideShorts', 'shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'sites.styles', 'privacy.gpc', 'float.enabled', 'pages.scrollbars']
+const watched = ['youtube.hideShorts', 'shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'sites.styles', 'privacy.gpc', 'float.enabled', 'pages.scrollbars', 'keys.backspaceBack']
 let last = ''
 let timer: NodeJS.Timeout | null = null
 model.on('window-changed', (_id: string, slices: string[]) => {

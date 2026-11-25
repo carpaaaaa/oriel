@@ -594,7 +594,12 @@ export async function submit(c: WindowController, o: Submit): Promise<void> {
   const aside = !!o.newTab
   const active = activeOf(c)
   const fromSwitcher = m.summoning && !!active && !active.empty
-  const picked = m.picked != null ? m.offers[m.picked] : undefined
+  // Return takes the top suggestion (Settings › Browsing, search.returnTop): a place on top of the
+  // list is the one chosen as you type, so Return goes to it and not to a search for the words.
+  // A search or a command on top, an address typed out and the grey ending go where they went.
+  const top = m.picked == null && m.chip == null && m.ending == null && !m.summoning && model.pref<boolean>('search.returnTop') && !addressURL(m.typed) ? m.offers[0] : undefined
+  const place = top && (top.how === 'visited' || top.how === 'known' || top.how === 'bookmark' || top.how === 'open') ? top : undefined
+  const picked = m.picked != null ? m.offers[m.picked] : place
   if (picked?.tabID && model.tabs.has(picked.tabID)) {
     m.summoning = false
     model.selectTab(c.record, picked.tabID)

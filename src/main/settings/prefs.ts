@@ -16,6 +16,7 @@ import { allControllers, type WindowController } from '../views/window'
 import { openInternal, scheme } from './internal'
 import { forgetPermissions } from './permissions'
 import { forgetDownloadAddresses } from './downloads'
+import { arm, confirmWipe, KEY as WIPE_KEY } from './wipe'
 import { check, install, relaunch, updateFacts, updateNow } from './updater'
 import { askDefault, defaultFacts, dismissOffer, recheck } from './browser'
 import { testEnv } from '../testhooks'
@@ -136,6 +137,11 @@ handle('settings.set', async ({ id, value }, ctx) => {
     return settingsValues()
   }
   if (!known(id)) throw new Error(`no setting ${id}`)
+  // Clearing everything at every quit asks first (settings/wipe.ts).
+  if (id === WIPE_KEY && value === true && !pref<boolean>(WIPE_KEY)) {
+    if (!confirmWipe(need(ctx).base)) return settingsValues()
+    arm()
+  }
   setKey(id, value)
   return settingsValues()
 })

@@ -68,7 +68,8 @@ export function addressURL(typed: string): string | null {
   const head = text.split(/[/?#]/, 1)[0]
   if (head.includes('@')) return null // an email address
   if (head.startsWith('[::1]')) return parse('http://' + text)
-  const host = head.split(':', 1)[0]
+  // Names are not case sensitive: LOCALHOST:3000 is a local address like localhost:3000 (Search 1.0.21).
+  const host = head.split(':', 1)[0].toLowerCase()
   if (!looksLikeHost(host)) return null
   const local = host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')
     || host === '127.0.0.1' || host === '0.0.0.0' || privateRange(host)

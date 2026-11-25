@@ -45,6 +45,7 @@ interface PagePrefs {
   /** Settings > Floating video is on. */
   floatOn: boolean
   bars?: boolean
+  backspace?: boolean
 }
 
 let p: PagePrefs | null = null
@@ -211,6 +212,19 @@ function start(first: PagePrefs): void {
   setupReader()
 
   // The element that filled the screen, to put back after an Escape.
+  // Backspace goes back and Shift+Backspace forward, only when nothing is being typed in (Search 1.0.21).
+  const typing = (): boolean => {
+    let el: Element | null = document.activeElement
+    while (el && el.shadowRoot?.activeElement) el = el.shadowRoot.activeElement
+    if (!el) return false
+    if (el instanceof HTMLInputElement) return !/^(button|checkbox|radio|range|submit|reset|image|file|color)$/.test(el.type)
+    return el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el as HTMLElement).isContentEditable || document.designMode === 'on'
+  }
+  window.addEventListener('keydown', e => {
+    if (!now.backspace || e.key !== 'Backspace' || e.ctrlKey || e.altKey || e.metaKey || e.defaultPrevented || typing()) return
+    e.preventDefault()
+    try { ipcRenderer.send('pages:history', e.shiftKey ? 'forward' : 'back') } catch {}
+  }, true)
   let full: WeakRef<Element> | null = null
   document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement) full = new WeakRef(document.fullscreenElement) }, true)
   // The window follows the page's full screen (window/pagefull.ts): told by

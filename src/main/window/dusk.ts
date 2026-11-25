@@ -29,6 +29,8 @@ async function look(wc: WebContents): Promise<void> {
   const key = applied.get(wc)
   if (key) { applied.delete(wc); await wc.removeInsertedCSS(key).catch(() => {}) }
   if (!wanted() || wc.getURL().startsWith('oriel:')) return
+  // Google's editors draw their own pages: a filter over them spoils them (Search 1.0.21).
+  if (/^https:\/\/docs\.google\.com\/(document|spreadsheets|presentation)\//.test(wc.getURL())) return
   const light = await wc.executeJavaScriptInIsolatedWorld(1002, [{ code: MEASURE }]).catch(() => false)
   if (light && !wc.isDestroyed() && wanted()) applied.set(wc, await wc.insertCSS(CSS))
 }

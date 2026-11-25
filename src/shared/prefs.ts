@@ -120,6 +120,12 @@ export const defaults = {
   'pages.allowCopy': false,
   // Scroll bars on websites: Oriel's thin ones on every site, or Windows' own.
   'pages.scrollbars': 'oriel',
+  // Clear all data when Oriel quits (settings/wipe.ts); asks first when turned on.
+  'privacy.clearOnQuit': false,
+  // Backspace goes back a page and Shift+Backspace forward, when not typing (Search 1.0.21).
+  'keys.backspaceBack': false,
+  // Return takes the place on top of the address field's list as you type (Search 1.0.21).
+  'search.returnTop': false,
   'copy.sites': [],
   'media.click': false,
   'fullscreen.escapeTwice': false,

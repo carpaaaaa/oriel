@@ -198,6 +198,30 @@ const keep = (title: string) => title // titles keep their words when an overrid
 /** Rows Oriel has and Search doesn't, each right after the row it names. */
 const added: (Item & { after: string })[] = [
   {
+    id: 'privacy.clearOnQuit', group: 'clear', icon: 'trash', after: 'clear.cache',
+    title: 'Clear all data when Oriel quits',
+    detail: 'Cookies, passwords, history, the cache and the tabs it would bring back are erased each time you quit',
+    more: 'Asks first when you turn it on. Bookmarks, pins, spaces, Settings and downloaded files stay. If Oriel is closed without quitting (a crash, the power going), the next launch erases first.',
+    keys: ['privacy.clearOnQuit'],
+    words: ['clear', 'delete', 'erase', 'wipe', 'cookies', 'passwords', 'history', 'quit', 'close', 'private', 'forget', 'everything'],
+  },
+  {
+    id: 'keys.backspaceBack', group: 'mouse', icon: 'arrow.left.arrow.right', after: 'swipe.history',
+    title: 'Backspace goes back',
+    detail: 'Backspace goes back a page and Shift+Backspace forward, when you are not typing in a field',
+    more: 'Pages already open follow the switch at once. Never while a text field or editable text has the keys, and never with another key held.',
+    keys: ['keys.backspaceBack'],
+    words: ['backspace', 'back', 'forward', 'history', 'keyboard', 'delete'],
+  },
+  {
+    id: 'search.returnTop', group: 'search', icon: 'magnifyingglass', after: 'search.shift',
+    title: 'Return takes the top suggestion',
+    detail: 'The place on top of the address field list is picked as you type, so Return goes to it instead of searching for the words',
+    more: 'A search or a command on top, an address typed out and the grey ending go where they went before. ↑ lets go of the row, and Return then searches.',
+    keys: ['search.returnTop'],
+    words: ['return', 'enter', 'suggestion', 'top', 'address bar', 'command bar', 'arc'],
+  },
+  {
     id: 'tabs.splitDrop', group: 'tabbar', icon: 'rectangle.split.2x1', after: 'tabs.shortcuts',
     title: 'Split View without Shift',
     detail: 'Carry a tab onto the middle of another to put the two side by side, with no key held',
