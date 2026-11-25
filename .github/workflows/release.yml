@@ -97,3 +97,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx electron-builder --win nsis portable --x64 --arm64 --publish always
+      # SHA256SUMS.txt beside the installers: what anyone can check a download
+      # against, and what winget, Scoop and Chocolatey read.
+      - name: Checksums
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/checksums.mjs dist | tee dist/SHA256SUMS.txt
+          gh release upload "v$(node -p "require('./package.json').version")" dist/SHA256SUMS.txt --clobber
