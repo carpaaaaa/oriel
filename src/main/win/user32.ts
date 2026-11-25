@@ -87,12 +87,57 @@ export interface Win32 {
 
 let cached: Win32 | null | undefined
 
+/** Never a call into Windows inside another. A Windows call that changes a window (SetWindowLongPtr,
+ * SetWindowPos, ShowWindow) sends the window its messages before it returns, and Electron tells
+ * the page of some of them at once: its code then asks Windows again (the window's state), inside
+ * the first call. koffi can't take that: its call came back to a state it no longer had, and the
+ * app went down with an access violation in koffi.node (Windows 11 with Windhawk's window mods,
+ * which add their own messages, every time; found with a trace of the calls, 25 Nov 2026).
+ * A call made inside another gets the last answer that method gave (a question) or waits until
+ * the first has returned (an order), so nothing is lost and nothing is nested. */
+const ORDERS = new Set(['setStyle', 'show', 'showAsync', 'setPlacement', 'dwmSet', 'frameChanged', 'setAlpha', 'beginMove', 'beginSize'])
+const NONE: Record<string, unknown> = {
+  keyHeld: false, primaryDown: false, cursor: { x: 0, y: 0 }, style: 0, exStyle: 0, arranged: null, zoomed: false, placement: null,
+  dwmFrame: null, windowRect: { left: 0, top: 0, right: 0, bottom: 0 }, rootAt: 0, isWindow: true, topmostOf: [], clientRect: { left: 0, top: 0, right: 0, bottom: 0 },
+  monitorOf: null, taskbar: null, title: '',
+}
+
+function guarded(api: Win32): Win32 {
+  const methods = api as unknown as Record<string, (...a: unknown[]) => unknown>
+  const wrapped: Record<string, unknown> = { ...methods }
+  const last = new Map<string, unknown>()
+  const waiting: (() => void)[] = []
+  let inside = 0
+  for (const name of Object.keys(methods)) {
+    const call = methods[name]
+    // Pure JS, never a call into Windows.
+    if (typeof call !== 'function' || name === 'hwnd') continue
+    wrapped[name] = (...args: unknown[]) => {
+      if (inside > 0) {
+        if (ORDERS.has(name)) { waiting.push(() => { try { call(...args) } catch { /* the window is gone */ } }); return undefined }
+        return last.has(name) ? last.get(name) : NONE[name]
+      }
+      inside++
+      try {
+        const answer = call(...args)
+        if (!ORDERS.has(name)) last.set(name, answer)
+        return answer
+      } finally {
+        inside--
+        // Orders made while it ran, now, one after another (each may bring more).
+        while (inside === 0 && waiting.length) { const next = waiting.shift()!; inside++; try { next() } finally { inside-- } }
+      }
+    }
+  }
+  return wrapped as unknown as Win32
+}
+
 export function win32(): Win32 | null {
   if (cached !== undefined) return cached
   cached = null
   if (process.platform !== 'win32' || testEnv('SEARCH_NO_USER32')) return null
   try {
-    cached = load()
+    cached = guarded(load())
   } catch (error) {
     console.warn('[win32] koffi not available, moving and resizing by hand', error)
   }
