@@ -52,6 +52,20 @@ On purpose, or not yet:
 
 The links always point to the latest release; every file is also on the [releases page](https://github.com/carpaaaaa/oriel/releases), built by GitHub Actions from this repository.
 
+### From a terminal
+
+| With | Run |
+|---|---|
+| [Scoop](https://scoop.sh/) | `scoop bucket add oriel https://github.com/carpaaaaa/scoop-oriel`, then `scoop install oriel` |
+| [winget](https://learn.microsoft.com/windows/package-manager/) | `winget install CharStudio.Oriel`: the package is waiting for Microsoft's moderators |
+| [Chocolatey](https://chocolatey.org/) | `choco install oriel`: the package is ready (`packaging/chocolatey`) and goes to chocolatey.org next |
+
+Each one runs the same installer as the download button, silently, for you alone, and checks its SHA-256. This page changes when winget and Chocolatey are in.
+
+### Check a download
+
+Every release has a `SHA256SUMS.txt` with the SHA-256 of each installer. In PowerShell: `Get-FileHash .\Oriel-Setup-0.1.11-x64.exe`, and compare it with the line for that file.
+
 Open the installer and that's all: Oriel installs for you alone (no administrator needed, no questions) and opens when it's done. Because the installer isn't signed yet, Windows SmartScreen says "Windows protected your PC" the first time: choose **More info**, then **Run anyway**. To make Oriel your default browser: Settings, Make it the default, which opens Windows' Default apps on Oriel.
 
 ## Security
