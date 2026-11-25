@@ -66,6 +66,8 @@ t.ok("runFullTrust" in manifest, "a desktop app (runFullTrust)")
 pfx, password = TEMP / "oriel-test.pfx", "oriel-test"
 script = TEMP / "oriel-test-cert.ps1"
 script.write_text(f"""$ErrorActionPreference = 'Stop'
+Import-Module Microsoft.PowerShell.Security
+Import-Module PKI
 $c = New-SelfSignedCertificate -Type Custom -Subject '{PUBLISHER}' -KeyUsage DigitalSignature -FriendlyName 'Oriel test' -CertStoreLocation 'Cert:\\CurrentUser\\My' -TextExtension @('2.5.29.37={{text}}1.3.6.1.5.5.7.3.3', '2.5.29.19={{text}}')
 $p = ConvertTo-SecureString -String '{password}' -Force -AsPlainText
 Export-PfxCertificate -Cert $c -FilePath '{pfx}' -Password $p | Out-Null
