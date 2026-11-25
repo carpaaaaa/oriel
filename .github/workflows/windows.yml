@@ -274,6 +274,48 @@ jobs:
             shots/
             out/*.log
 
+  # The Microsoft Store's package (package.json build.appx): made for each
+  # processor, signed with a test certificate of the Store's publisher,
+  # installed, opened from the Start menu, uninstalled. The unsigned packages
+  # are kept: they are what goes to Partner Center (the Store signs them).
+  store:
+    name: store (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x64
+          - os: windows-11-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run build
+      - run: npx electron-builder --win appx --${{ matrix.arch }} --publish never
+      - name: The Store's package installed, opened and uninstalled
+        timeout-minutes: 10
+        env:
+          SHOTS_DIR: shots
+          PYTHONUNBUFFERED: '1'
+        run: python test/store_package.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: store-${{ matrix.arch }}
+          path: |
+            dist/*.appx
+            shots/
+
   installer:
     runs-on: windows-latest
     timeout-minutes: 30

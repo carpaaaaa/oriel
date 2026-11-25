@@ -112,6 +112,21 @@
         "repo": "oriel",
         "releaseType": "release"
       }
-    ]
+    ],
+    "appx": {
+      "identityName": "CharStudio.OrielBrowser",
+      "publisher": "CN=69839DB2-F9FE-4B33-AB87-4BEAF5C37102",
+      "publisherDisplayName": "Char Studio",
+      "displayName": "Oriel Browser",
+      "applicationId": "Oriel",
+      "backgroundColor": "transparent",
+      "languages": [
+        "en-US"
+      ],
+      "minVersion": "10.0.17763.0",
+      "maxVersionTested": "10.0.26100.0",
+      "customExtensionsPath": "build/appx-extensions.xml",
+      "artifactName": "${productName}-Store-${version}-${arch}.${ext}"
+    }
   }
 }

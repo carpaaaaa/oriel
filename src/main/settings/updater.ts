@@ -103,9 +103,12 @@ const fakeSource: Source = {
 const feed = testEnv('ORIEL_UPDATE_FEED')
 /** electron-builder's portable launcher sets these for the app it unpacks. */
 export const portable = !!(process.env.PORTABLE_EXECUTABLE_DIR || process.env.PORTABLE_EXECUTABLE_FILE)
+/** Installed from the Microsoft Store (an MSIX package): the Store updates
+ * it, and a package's files can't be replaced from inside anyway. */
+export const store = !!process.windowsStore || (probe && testEnv('ORIEL_STORE') === '1')
 /** Installed builds use GitHub; a test world uses a feed it names, or the
- * fake; the portable build none. */
-const source: Source | null = portable ? null : feed ? electronUpdater(feed) : probe ? fakeSource : app.isPackaged ? electronUpdater() : null
+ * fake; the portable build and the Store's none. */
+const source: Source | null = portable || store ? null : feed ? electronUpdater(feed) : probe ? fakeSource : app.isPackaged ? electronUpdater() : null
 
 function changed(): void {
   tellPages('update', updateFacts(), 'settings')
@@ -115,7 +118,7 @@ function changed(): void {
 export function updateFacts() {
   const s = update.stage
   return {
-    stage: s, checking: update.checking, checked: update.checked, active: !!source, portable,
+    stage: s, checking: update.checking, checked: update.checked, active: !!source, portable, store,
     // A pending update, once its popup is out of the way: Settings shows it
     // as its first section (the user's own wish, 24 Nov 2026).
     pending: s.kind !== 'none' && !popup ? { version: s.version, notes: s.notes, ready: s.kind === 'ready', fetching: s.kind === 'fetching' } : null,
