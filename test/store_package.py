@@ -65,6 +65,7 @@ t.ok("runFullTrust" in manifest, "a desktop app (runFullTrust)")
 # 2. A test certificate of the same publisher, the package signed with it.
 pfx, password = TEMP / "oriel-test.pfx", "oriel-test"
 r = ps(f"""
+$ErrorActionPreference = 'Stop'
 $c = New-SelfSignedCertificate -Type Custom -Subject '{PUBLISHER}' -KeyUsage DigitalSignature -FriendlyName 'Oriel test' `
   -CertStoreLocation 'Cert:\\CurrentUser\\My' -TextExtension @('2.5.29.37={{text}}1.3.6.1.5.5.7.3.3', '2.5.29.19={{text}}')
 $p = ConvertTo-SecureString -String '{password}' -Force -AsPlainText
@@ -72,7 +73,7 @@ Export-PfxCertificate -Cert $c -FilePath '{pfx}' -Password $p | Out-Null
 Import-PfxCertificate -FilePath '{pfx}' -CertStoreLocation 'Cert:\\LocalMachine\\TrustedPeople' -Password $p | Out-Null
 'ok'
 """, check=True)
-t.ok("ok" in r.stdout, "a test certificate of Char Studio's publisher, trusted on this machine")
+t.ok("ok" in r.stdout and pfx.exists(), f"a test certificate of Char Studio's publisher, trusted on this machine ({r.stderr.strip()[-300:]})")
 kits = sorted(glob.glob(r"C:\Program Files (x86)\Windows Kits\10\bin\10.*\x64\signtool.exe")) + \
        sorted(glob.glob(str(Path(os.environ.get("LOCALAPPDATA", "")) / "electron-builder" / "Cache" / "winCodeSign" / "**" / "signtool.exe"), recursive=True))
 signtool = kits[-1] if kits else None
