@@ -222,9 +222,14 @@ def main():
         x, y = centre(f".strip-tab[data-tab=\"{E}\"]")
         b.mouse(x, y, button="right", phase="down")
         time.sleep(0.6)
+        if sys.platform == "win32":
+            # Windows opens a context menu as the button is let go.
+            b.mouse(x, y, button="right", phase="up")
+            time.sleep(0.6)
         b.ui("(() => { const e = [...document.querySelectorAll('.menu .menu-item')].find(x => x.dataset.label === 'Close 3 Tabs');"
              " e.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true })); e.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 })); return 1 })()", root="overlay")
-        b.mouse(x, y, button="right", phase="up")
+        if sys.platform != "win32":
+            b.mouse(x, y, button="right", phase="up")
         t.ok(b.wait_for(lambda: not tab("d") and not tab("e") and not tab("b"), within=5, what="the three closed"), "Close 3 Tabs closes B, D and E")
         t.ok(tab("a") and tab("c"), "the others stay")
     except Exception as error:
