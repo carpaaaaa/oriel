@@ -5,8 +5,18 @@
 
 import { ipcRenderer } from 'electron'
 
+/** A field or editable text has the keys: Ctrl+Backspace there deletes a word and is no shortcut. */
+function typing(): boolean {
+  let el: Element | null = document.activeElement
+  while (el && el.shadowRoot?.activeElement) el = el.shadowRoot.activeElement
+  if (!el) return false
+  if (el instanceof HTMLInputElement) return !/^(button|checkbox|radio|range|submit|reset|image|file|color)$/.test(el.type)
+  return el instanceof HTMLTextAreaElement || (el as HTMLElement).isContentEditable || document.designMode === 'on'
+}
+
 function leftover(e: KeyboardEvent): void {
   if (e.defaultPrevented || e.isComposing) return
+  if (e.key === 'Backspace' && typing()) return
   if (!(e.ctrlKey || e.metaKey || e.altKey || e.key.startsWith('F') || e.key === 'Escape')) return
   ipcRenderer.send('search:leftover-key', {
     key: e.key, code: e.code, ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey, meta: e.metaKey,

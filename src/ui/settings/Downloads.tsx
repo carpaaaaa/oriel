@@ -43,7 +43,7 @@ function FetchRow(p: { e: DownloadEntry; run: (c: string) => void }) {
         <div class="dl-name" title={p.e.name}>{p.e.name}</div>
         <div class="dl-state">
           <Show when={fraction() !== null}><span class="dl-bar"><i style={{ width: `${(fraction() ?? 0) * 100}%` }} /></span></Show>
-          <span>{`${stateLabel[p.e.state] ?? ''} · ${amount()}`}</span>
+          <span>{`${p.e.stalled && p.e.state === 'downloading' ? 'Stalled' : stateLabel[p.e.state] ?? ''} · ${amount()}`}</span>
         </div>
         <Show when={p.e.state === 'failed'}><div class="dl-error">{p.e.error ?? 'The download failed.'}</div></Show>
       </div>

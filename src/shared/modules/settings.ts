@@ -49,6 +49,8 @@ export interface DownloadEntry {
   state: 'downloading' | 'pausing' | 'paused' | 'resuming' | 'failed' | 'completed'
   canResume: boolean
   canRetry: boolean
+  /** Downloading, with nothing coming in for a while: the list says Stalled (Search 1.0.21). */
+  stalled?: boolean
   error?: string
   /** ms since 1970. */
   date: number

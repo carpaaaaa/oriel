@@ -27,7 +27,7 @@ t.ok(k.labels() == WANT, f"nothing under the click: the page's rows, in Chrome's
 t.ok(k.dom_items() == WANT, f"…drawn in the overlay as built ({k.dom_items()})")
 t.ok(k.last()["menu"]["context"] == ["page"], "its context is the page")
 k.near_click(t, at)
-t.ok(k.entry("Back")["accel"] == "Alt+Left" and k.entry("Reload")["accel"] == "Ctrl+R" and k.entry("Forward")["accel"] == "Alt+Right",
+t.ok(k.entry("Back")["accel"] == "Ctrl+Backspace" and k.entry("Reload")["accel"] == "Ctrl+R" and k.entry("Forward")["accel"] == "Ctrl+Shift+Backspace",
      "Back, Forward and Reload say their keys")
 k.style_check(t)
 k.shot("ctxmenu-page-light")

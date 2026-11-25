@@ -19,7 +19,7 @@ server, origin = web.start()
 web.PAGES["/page"] = "<title>files</title><body>files</body>"
 
 b.use("settings-downloads")
-b.launch()
+b.launch(env={"ORIEL_STALL_MS": "3000"})
 t = b.T()
 folder = Path(b.folder()) / "Downloads here"
 shutil.rmtree(folder, ignore_errors=True)
@@ -71,6 +71,10 @@ t.ok(any(x["state"] == "progressing" for x in b.window()["downloads"]), "the win
 t.ok("Downloading a.bin" in b.call({"do": "settings.state"})["said"], "Downloading a.bin")
 door = b.ui("!!document.querySelector('.fetch-door')")
 t.ok(door, "the downloads button is at the column's foot")
+
+# Held mid-way by the server: nothing coming in, so the list says Stalled (Search 1.0.21).
+b.wait_for(lambda: (current("a.bin") or {}).get("stalled") is True, within=15, what="Stalled")
+t.ok(True, "nothing coming in for a few seconds: Stalled")
 
 # Pause and resume.
 b.cmd("download.pause", id=d["id"])

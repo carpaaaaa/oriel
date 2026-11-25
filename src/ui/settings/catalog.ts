@@ -95,7 +95,7 @@ const chords: [string, string][] = [
   ['⇧⌘P', 'Ctrl+Shift+P'], ['⇧⌘T', 'Ctrl+Shift+T'], ['⌥⌘N', 'Alt+Shift+N'], ['⇧⌘-click', 'Ctrl+Shift-click'],
   ['⌘-clicking', 'Ctrl-clicking'], ['⌘-click', 'Ctrl-click'], ['⌥-click', 'Alt-click'],
   ['⌘1–⌘9', 'Ctrl+1 to Ctrl+9'], ['⌘1–9', 'Ctrl+1 to 9'], ['⌃1–⌃9', 'Alt+1 to Alt+9'],
-  ['⌘[, ⌘] and ⌘R', 'Alt+Left, Alt+Right and Ctrl+R'], ['⌘+ and ⌘−', 'Ctrl+Plus and Ctrl+Minus'],
+  ['⌘[, ⌘] and ⌘R', 'Ctrl+Backspace, Ctrl+Shift+Backspace and Ctrl+R'], ['⌘+ and ⌘−', 'Ctrl+Plus and Ctrl+Minus'],
   ['⌘Q', 'Ctrl+Shift+Q'], ['⌘S', 'Ctrl+S'], ['⌘T', 'Ctrl+T'], ['⌘L', 'Ctrl+L'], ['⌘K', 'Ctrl+K'], ['⌘W', 'Ctrl+W'],
   ['⌘Z', 'Ctrl+Z'], ['⌘O', 'Ctrl+O'], ['⌘R', 'Ctrl+R'], ['⌃Tab', 'Ctrl+Tab'], ['⌃W', 'Ctrl+W'], ['⌃R', 'Ctrl+R'],
   ['⌃M', 'Ctrl+M'], ['⌃O', 'Ctrl+O'], ["⌘T's", "Ctrl+T's"], ["⌘L's", "Ctrl+L's"], ['⌘ number', 'Ctrl number'], ['⌘ is held', 'Ctrl is held'],

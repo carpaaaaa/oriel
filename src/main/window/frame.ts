@@ -498,16 +498,21 @@ export class Frame {
     this.full = on && !!this.hwnd
     // Borderless: Electron's own full screen would tell Windows to put the
     // taskbar away for good; the window covers the screen by itself (cover).
-    this.c.base.setFullScreen(on && !this.borderlessWanted())
+    this.emulated = on && this.borderlessWanted()
+    this.c.base.setFullScreen(on && !this.emulated)
     this.refresh()
     this.c.mark('window')
   }
+
+  /** Full screen as a borderless window of ours (the taskbar can come up), not Electron's. */
+  private emulated = false
 
   /** Borderless or Full screen chosen in Settings while in full screen: put
    * on again the way the new choice says (a page's own full screen stays). */
   restyle(): void {
     if (!this.hwnd || this.byPage || !this.isFullScreen() || this.c.base.isDestroyed()) return
-    if (this.c.base.isFullScreen() === !this.borderlessWanted()) return
+    // What we put on, not Electron's word for it: a transparent window never says it is in full screen.
+    if (this.emulated === this.borderlessWanted()) return
     this.setFullScreen(false)
     setTimeout(() => { if (!this.c.base.isDestroyed() && !this.isFullScreen()) this.setFullScreen(true) }, 150)
   }

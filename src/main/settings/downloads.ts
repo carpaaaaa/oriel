@@ -16,6 +16,7 @@ import { readJSON, writeJSON, toAppleDate, fromAppleDate } from '../model/persis
 import { handle } from '../router'
 import { need } from '../context'
 import { probe } from '../paths'
+import { testEnv } from '../testhooks'
 import { onPageSession, runtimes } from '../views/tabs'
 import { allControllers, registerSlice, type WindowController } from '../views/window'
 import { openInternal, scheme, tellPages } from './internal'
@@ -33,6 +34,8 @@ interface Live {
   shy: boolean
   /** The name a retry is numbered afresh from. */
   retryName: string
+  /** When bytes last came in, for Stalled. */
+  moved?: number
 }
 
 const live = new Map<ID, Live>()
@@ -138,12 +141,15 @@ async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): P
     received: 0, total: item.getTotalBytes(), state: 'downloading', canResume: false, canRetry: /^https?:/i.test(url) && item.getURLChain().length > 0,
     date: Date.now(),
   }
-  live.set(id, { entry, item, session: s, shy, retryName: retried ?? name })
+  live.set(id, { entry, item, session: s, shy, retryName: retried ?? name, moved: Date.now() })
   started++
   doneUntil = 0
   say(`Downloading ${entry.name}`)
   item.on('updated', (_e, state) => {
+    const before = entry.received
     entry.received = item.getReceivedBytes()
+    const l = live.get(id)
+    if (l && entry.received > before) { l.moved = Date.now(); entry.stalled = false }
     entry.total = item.getTotalBytes()
     if (!entry.path && item.getSavePath()) { entry.path = item.getSavePath(); entry.name = path.basename(entry.path) }
     entry.state = state === 'interrupted' ? (item.canResume() ? 'paused' : 'failed') : item.isPaused() ? 'paused' : 'downloading'
@@ -251,6 +257,19 @@ function taskbar(): void {
     try { c.base.setProgressBar(value, { mode: mode as 'none' | 'normal' | 'indeterminate' | 'paused' }) } catch {}
   }
 }
+
+// Stalled (Search 1.0.21): a download with nothing coming in for this long says so, and says
+// Downloading again the moment bytes come. Looked at every 2 seconds while one is going.
+const STALL = Number(testEnv('ORIEL_STALL_MS')) || 10_000
+setInterval(() => {
+  let touched = false
+  for (const l of live.values()) {
+    if (!l.item) continue
+    const stalled = l.entry.state === 'downloading' && Date.now() - (l.moved ?? Date.now()) >= STALL
+    if (stalled !== !!l.entry.stalled) { l.entry.stalled = stalled; touched = true }
+  }
+  if (touched) changed()
+}, 2000).unref()
 
 /** A file in: the taskbar button flashes, as the Mac's Downloads stack bounces. */
 function flash(): void {

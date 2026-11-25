@@ -2,7 +2,8 @@
 //
 // ⌘ becomes Ctrl; the spaces' ⌃1-9 move to Alt+1-9 so they don't fight the
 // tabs' Ctrl+1-9; Windows' own habits that don't collide are added (Ctrl+F4,
-// Ctrl+PageUp/PageDown, Alt+F4, F5, F6, Alt+D, F3, F11, F12, Alt+Left/Right).
+// Ctrl+PageUp/PageDown, Alt+F4, F5, F6, Alt+D, F3, F11, F12). Back and Forward are Ctrl+Backspace and
+// Ctrl+Shift+Backspace, with Ctrl+[ and Ctrl+] (carpa, 25 Nov 2026, instead of Alt+Left and Alt+Right).
 // Letters are read by the character they type (event.key, or the key's place
 // on a layout that doesn't type Latin), digits and punctuation by the key's
 // place (event.code), and Ctrl+Alt is never a shortcut: on European layouts
@@ -63,6 +64,11 @@ export interface Binding {
   /** Fixed: not changeable in Settings (the Mac's ⌘Q, ⌃⌘F, tab numbers, Esc). */
   fixed?: boolean
 }
+
+/** Ctrl+Backspace deletes a word wherever one is typed. From the interface (the address field, a
+ * tab's address, Find, Settings) it is never Back; from a page only when the page left it alone
+ * (preload/page/keys.ts holds it back from a field being typed in). */
+const typesHere = (k: KeyContext) => !k.fromPage && /Backspace$/.test(k.chord ?? '')
 
 const activeID = (c: WindowController) => c.record.active[c.record.space] ?? null
 
@@ -178,8 +184,8 @@ export const bindings: Binding[] = [
   b('view.inspect', 'Inspect Element', 'View', '⌥⌘C', [], later('view.inspect')),
   b('view.fullScreen', 'Enter Full Screen', 'View', '⌃⌘F', ['F11'], first({ ...later('window.fullScreen'), fixed: true })),
   // Tabs
-  b('tabs.back', 'Back', 'Tabs', '⌘[  ⌘←', ['Alt+Left', 'Ctrl+['], { action: () => ({ do: 'tab.back' }) }),
-  b('tabs.forward', 'Forward', 'Tabs', '⌘]  ⌘→', ['Alt+Right', 'Ctrl+]'], { action: () => ({ do: 'tab.forward' }) }),
+  b('tabs.back', 'Back', 'Tabs', '⌘[  ⌘←', ['Ctrl+Backspace', 'Ctrl+['], { action: (_c, k) => (typesHere(k) ? false : { do: 'tab.back' }) }),
+  b('tabs.forward', 'Forward', 'Tabs', '⌘]  ⌘→', ['Ctrl+Shift+Backspace', 'Ctrl+]'], { action: (_c, k) => (typesHere(k) ? false : { do: 'tab.forward' }) }),
   b('tabs.next', 'Next Tab', 'Tabs', '⇧⌘]', ['Ctrl+PageDown', 'Ctrl+Shift+]'], first({ action: c => step(c, 1) })),
   // The recent-use switcher is the tabs module's; until it is there, the next tab.
   b('tabs.recent', 'Switch to Recent Tab', 'Tabs', '⌃Tab', ['Ctrl+Tab'], first({ action: c => step(c, 1) })),

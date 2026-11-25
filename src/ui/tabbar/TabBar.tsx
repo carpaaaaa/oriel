@@ -246,10 +246,10 @@ export function TabBar() {
   const Helm = () => (
     <div class="strip-helm">
       <Show when={!pref('helm.back.hidden', false)}>
-        <button class="door" disabled={!back()} title="Back   Alt+Left" onClick={() => void cmd({ do: 'tab.back' })}><G.chevronLeft pt={11} weight="medium" /></button>
+        <button class="door" disabled={!back()} title="Back   Ctrl+Backspace" onClick={() => void cmd({ do: 'tab.back' })}><G.chevronLeft pt={11} weight="medium" /></button>
       </Show>
       <Show when={!pref('helm.forward.hidden', false)}>
-        <button class="door" disabled={!forward()} title="Forward   Alt+Right" onClick={() => void cmd({ do: 'tab.forward' })}><G.chevronRight pt={11} weight="medium" /></button>
+        <button class="door" disabled={!forward()} title="Forward   Ctrl+Shift+Backspace" onClick={() => void cmd({ do: 'tab.forward' })}><G.chevronRight pt={11} weight="medium" /></button>
       </Show>
       <Show when={!pref('helm.reload.hidden', false)}>
         <button class="door" disabled={!tab() || tab()!.empty} title={tab()?.loading ? 'Stop   Esc' : 'Reload   Ctrl+R'}
