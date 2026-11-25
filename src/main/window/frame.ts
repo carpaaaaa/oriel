@@ -268,12 +268,15 @@ export class Frame {
    * up when the pointer goes to its edge. */
   private borderlessWanted(): boolean { return !!this.hwnd && !!win32() && model.pref<string>('window.fullScreenStyle') === 'borderless' }
 
+  /** Borderless now: chosen, and not a page's own full screen (a video is full screen whole). */
+  private borderlessNow(): boolean { return this.borderlessWanted() && !this.byPage }
+
   /** What a borderless window covers (DIP): the screen, a pixel short on the
    * taskbar's edge when the taskbar hides, so Windows doesn't take the window
    * for a full-screen one and the taskbar still comes up from that edge; the
    * work area while the taskbar stays in view (it would sit over the window). */
   private coverRect(d: Rectangle): Rectangle {
-    const bar = this.borderlessWanted() ? win32()?.taskbar() : null
+    const bar = this.borderlessNow() ? win32()?.taskbar() : null
     if (!bar) return d
     if (!bar.autoHide) return screen.getDisplayMatching(d).workArea
     // Two physical pixels short on the taskbar's edge, as Windows leaves a maximized window
@@ -496,25 +499,25 @@ export class Frame {
       this.leaveMaximized()
     }
     this.full = on && !!this.hwnd
-    // Borderless: Electron's own full screen would tell Windows to put the
-    // taskbar away for good; the window covers the screen by itself (cover).
-    this.emulated = on && this.borderlessWanted()
-    this.c.base.setFullScreen(on && !this.emulated)
+    // On Windows the window covers the screen by itself (cover), in both styles:
+    // exactly for Full screen (Windows takes it for a full-screen app and keeps
+    // the taskbar away), two pixels short on the taskbar's edge for Borderless
+    // window (it comes up there). Electron's own full screen is the Mac's, and
+    // went through an asynchronous leave and enter whenever the style was
+    // changed in full screen, which left the window as it was.
+    if (!this.hwnd) this.c.base.setFullScreen(on)
+    else if (!on && this.c.base.isFullScreen()) this.c.base.setFullScreen(false)
     this.refresh()
     this.c.mark('window')
   }
 
-  /** Full screen as a borderless window of ours (the taskbar can come up), not Electron's. */
-  private emulated = false
-
-  /** Borderless or Full screen chosen in Settings while in full screen: put
-   * on again the way the new choice says (a page's own full screen stays). */
+  /** Borderless or Full screen chosen in Settings while in full screen: the
+   * window covers the screen the way the new choice says, at once. */
   restyle(): void {
-    if (!this.hwnd || this.byPage || !this.isFullScreen() || this.c.base.isDestroyed()) return
-    // What we put on, not Electron's word for it: a transparent window never says it is in full screen.
-    if (this.emulated === this.borderlessWanted()) return
-    this.setFullScreen(false)
-    setTimeout(() => { if (!this.c.base.isDestroyed() && !this.isFullScreen()) this.setFullScreen(true) }, 150)
+    if (!this.hwnd || !this.isFullScreen() || this.c.base.isDestroyed()) return
+    this.cover()
+    this.refresh()
+    this.c.mark('window')
   }
 
   /** Into full screen, whoever asked (F11, a page, a restart). */
@@ -590,11 +593,11 @@ export class Frame {
     if (state !== 'maximized' && state !== 'fullScreen') return
     const m = w.monitorOf(this.hwnd)
     if (!m) return
-    const area = state === 'fullScreen' && !(this.borderlessWanted() && win32()?.taskbar()?.autoHide === false) ? m.monitor : m.work
+    const area = state === 'fullScreen' && !(this.borderlessNow() && win32()?.taskbar()?.autoHide === false) ? m.monitor : m.work
     const c = w.clientRect(this.hwnd)
     const past = Math.max(area.left - c.left, c.right - area.right, area.top - c.top, c.bottom - area.bottom)
     // A pixel short on purpose (borderless), and DIP to pixel rounding at 125 or 150%: not past the screen.
-    if (past <= (this.borderlessWanted() ? 3 : 1)) return
+    if (past <= (this.borderlessNow() ? 3 : 1)) return
     const said = `${state} past the screen by ${past}: client ${c.left},${c.top},${c.right},${c.bottom} area ${area.left},${area.top},${area.right},${area.bottom} (try ${tries})`
     this.fixes.push(said)
     if (this.fixes.length > 20) this.fixes.shift()
