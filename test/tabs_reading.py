@@ -128,7 +128,7 @@ t.ok(k.same_colour(look["background-color"], "rgba(23, 23, 23, 0.055)"), f"ink a
 # Chromium names cubic-bezier(0, 0, .58, 1) by its keyword: ease-out. With the
 # system's animation effects off (a Windows machine in a test) the interface
 # is in instant motion and nothing eases.
-instant = b.ui("document.documentElement.dataset.motion") == "instant"
+instant = bool(b.ui("document.documentElement.dataset.motion === 'instant' || matchMedia('(prefers-reduced-motion: reduce)').matches"))
 if instant:
     t.ok(look["transition-duration"] in ("0s", "0ms"), f"animation effects off here: the fill takes its place at once: {look}")
 else:

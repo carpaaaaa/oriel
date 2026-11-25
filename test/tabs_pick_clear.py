@@ -157,11 +157,16 @@ def run(layout):
     x, y = centre(row(D))
     b.mouse(x, y, button="right", phase="down")
     time.sleep(0.6)
+    if sys.platform == "win32":
+        # Windows opens a context menu as the button is let go.
+        b.mouse(x, y, button="right", phase="up")
+        time.sleep(0.6)
     t.ok(picked() == before, f"still picked after the right click ({len(picked())})")
     labels = json.loads(b.ui("JSON.stringify([...(document.querySelector('.menu')?.children ?? [])].map(e => e.dataset.label || ''))", root="overlay") or "[]")
     t.ok("Close 3 Tabs" in labels, f"the menu is the one for the three ({[x for x in labels if x][:5]}...)")
     b.ui("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); true", root="overlay")
-    b.mouse(x, y, button="right", phase="up")
+    if sys.platform != "win32":
+        b.mouse(x, y, button="right", phase="up")
     time.sleep(0.4)
     t.ok(picked() == before, "and after the menu is closed")
 
