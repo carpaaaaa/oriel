@@ -39,13 +39,20 @@ function broughtBefore(r: NonNullable<ImportSourceView['record']>): string {
 }
 
 /** How its passwords come, in a line under "Passwords". */
-function passwordsDetail(v: ImportSourceView, p: ImportPreview | undefined): string {
+function passwordsDetail(v: ImportSourceView, p: ImportPreview | undefined, waiting: boolean): string {
   const name = v.name
   if (v.passwords === 'none') return `Not supported for ${name}`
   if (p && p.passwords === 0) return `None in ${name}`
   if (v.passwords === 'read') return `Read from ${name}'s own files, unless it has a primary password`
-  if (v.passwords === 'csv') return `Export them from ${name} and bring in the CSV file`
   const readable = p?.passwordsReadable ?? 0, locked = p?.passwordsLocked ?? 0
+  // Locked to its browser: its own Export button is the way in, and Oriel waits for the file.
+  if (v.assist && (v.passwords === 'csv' || locked > 0)) {
+    if (waiting) return `Waiting for ${name}'s file: in ${name} press Download file and confirm with Windows Hello. It comes in by itself.`
+    const first = readable ? `${n(readable)} can be read here; ${n(locked)} are locked to ${name}.`
+      : locked ? `${plural(locked, 'password')} locked to ${name}.` : `Its passwords are locked to ${name}.`
+    return `${first} Press Start: ${name} opens its Export page, you confirm with Windows Hello, and the file comes in by itself.`
+  }
+  if (v.passwords === 'csv') return `Export them from ${name} and bring in the CSV file`
   if (locked && !readable) return `${name} locks its passwords to itself: export them from it and bring in the CSV file`
   if (locked) return `${n(readable)} can be read here; ${n(locked)} are locked to ${name}: bring those in from its CSV file`
   return `Read from ${name}'s own files on this PC, once you allow it`
@@ -86,6 +93,9 @@ function Options(props: { s: ImportPanelState; v: ImportSourceView }) {
   const passwordsNone = () => props.v.passwords === 'none' || props.v.passwords === 'csv' || p()?.passwords === 0
     || (props.v.passwords === 'consent' && (p()?.passwordsReadable ?? 0) === 0)
   const locked = () => props.v.passwords === 'csv' || (p()?.passwordsLocked ?? 0) > 0
+  // Its own Export button, started from here: the file is picked up when it lands.
+  const guided = () => !!props.v.assist && locked() && p()?.passwords !== 0
+  const waiting = () => props.s.waiting?.source === props.v.id
   return (
     <div class="bt-card bt-options">
       <Show when={props.v.record}>
@@ -108,8 +118,17 @@ function Options(props: { s: ImportPanelState; v: ImportSourceView }) {
         </Line>
         <div class="bt-rule" />
       </Show>
-      <Line title="Passwords" detail={passwordsDetail(props.v, p())}>
-        <Show when={locked()}>
+      <Line title="Passwords" detail={passwordsDetail(props.v, p(), waiting())}>
+        <Show when={guided()}>
+          <Show
+            when={waiting()}
+            fallback={<button class="bt-pill bt-filled" disabled={props.s.bringing} onClick={() => void cmd({ do: 'import.export', source: props.v.id })}>Start</button>}
+          >
+            <span class="bt-ring" />
+            <button class="bt-pill" onClick={() => void cmd({ do: 'import.exportStop' })}>Cancel</button>
+          </Show>
+        </Show>
+        <Show when={locked() && !guided()}>
           <button class="bt-pill bt-quiet" onClick={() => void cmd({ do: 'import.how', source: props.s.how === props.v.id ? null : props.v.id })}>
             {props.s.how === props.v.id ? 'Hide' : 'How'}
           </button>

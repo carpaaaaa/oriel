@@ -92,6 +92,12 @@ jobs:
       - name: "Hide YouTube Shorts"
         if: always()
         run: python test/pages_shorts.py
+      - name: "A name with no address of its own is tried with www. (unibg.it), and the other way round"
+        if: always()
+        run: python test/field_www_fallback.py
+      - name: "Data, the guided export: Chrome's own Export page, its file picked up and brought in"
+        if: always()
+        run: python test/data_export_guided.py
       - name: "A private tab: the Jump List's flags, Ctrl+Shift+N, the note on its blank page"
         if: always()
         run: python test/launch_private.py

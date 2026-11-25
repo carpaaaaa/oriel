@@ -6,6 +6,7 @@ import { brand } from '../shared/brand'
 import { statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { pathToFileURL } from 'node:url'
+import { parse as parseHost } from 'tldts'
 import { destination } from './field/engines'
 
 /** The internal pages' scheme (the Mac's search://). */
@@ -89,6 +90,25 @@ export function fileURL(typed: string): string | null {
     if (!statSync(path).isFile()) return null
   } catch { return null }
   return pathToFileURL(path).href
+}
+
+/** The other name to try when a site's name has no address at all (Oriel's
+ * own, as Firefox does it): unibg.it exists only as www.unibg.it, so a
+ * registrable name without a subdomain gets "www." in front, and a "www."
+ * name that goes nowhere loses it. Same path, query and fragment. null when
+ * the address has no other name worth a second try. */
+export function otherName(address: string): string | null {
+  let u: URL
+  try { u = new URL(address) } catch { return null }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
+  const host = u.hostname.toLowerCase()
+  const info = parseHost(host)
+  // Only real names: no addresses, no localhost, no .local, no private suffixes.
+  if (!info.isIcann || !info.domain || info.isIp) return null
+  if (info.subdomain === '') u.hostname = 'www.' + host
+  else if (info.subdomain === 'www') u.hostname = info.domain
+  else return null
+  return u.href
 }
 
 /** Dev servers say 0.0.0.0; it is opened as localhost (Address.reachable). */

@@ -82,6 +82,9 @@ export interface ImportSourceView {
   passwords: 'read' | 'consent' | 'csv' | 'none'
   /** Where it keeps its export, for the guided CSV steps. */
   exportAt?: string
+  /** Its passwords are locked to it, and it can be opened here at its Export
+   * page to bring the file in without a hunt (import.export). */
+  assist?: boolean
   record?: ImportRecordView
 }
 
@@ -106,6 +109,9 @@ export interface ImportPanelState {
   how: string | null
   /** A file just brought in that holds passwords in the clear. */
   clearFile?: string | null
+  /** The guided export is under way: the browser was opened at its Export
+   * page and the file it writes is awaited (import/export.ts). */
+  waiting?: { source: string; since: number } | null
 }
 
 /** One line of the bookmark button's list (BookmarkOutline.Shown): a site or
@@ -247,6 +253,8 @@ declare module '../commands' {
     'import.run': None
     'import.file': { path?: string }
     'import.trashFile': { path: string }
+    'import.export': { source: string }
+    'import.exportStop': None
   }
 }
 

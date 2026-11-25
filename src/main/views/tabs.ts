@@ -9,7 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { ID } from '../../shared/state'
 import { model, internalKind, internalURL, type TabRecord, type Keepsake } from '../model/model'
-import { resolveInput } from '../address'
+import { otherName, resolveInput } from '../address'
 import { applyUserAgent } from '../ua'
 import { attachNet } from '../net'
 import { data } from '../data/api'
@@ -108,6 +108,12 @@ export function tellHistory(wc: WebContents, wait = 500): Promise<void> {
   })
 }
 
+/** Two spellings of one address (a typed one is already normalized, an
+ * address from another app may not be). */
+function sameAddress(a: string, b: string): boolean {
+  try { return new URL(a).href === new URL(b).href } catch { return a === b }
+}
+
 export function sessionFor(t: TabRecord): Session {
   return sessionNamed(partitionFor(t))
 }
@@ -133,6 +139,11 @@ export class TabRuntime {
   view: WebContentsView | null = null
   partition: string | null = null
   private lastVisit = ''
+  /** The address Oriel itself was asked to open (typed, picked, from another
+   * app): only that one gets a second try under another name, not a link. */
+  private asked = ''
+  /** The first name, while the other one is being tried. */
+  private second: { first: string; other: string } | null = null
 
   constructor(public id: ID, public session?: Session) {}
 
@@ -210,6 +221,8 @@ export class TabRuntime {
       wc.navigationHistory.restore({ entries: keep.entries, index: keep.index })
         .catch(() => { if (tab.url && !wc.isDestroyed()) wc.loadURL(tab.url).catch(() => {}) })
     } else if (tab?.url && !tab.empty && !tab.internal) {
+      this.asked = tab.url
+      this.second = null
       wc.loadURL(tab.url).catch(() => {})
     }
     model.updateTab(this.id, { asleep: false, resting: undefined })
@@ -246,6 +259,8 @@ export class TabRuntime {
     })
     if (this.shell && this.contents) { this.shell = false; this.fill(this.contents); return }
     if (!this.contents) { this.ensure(); return }
+    this.asked = url
+    this.second = null
     this.contents.loadURL(url).catch(() => {})
   }
 
@@ -372,7 +387,10 @@ export class TabRuntime {
     wc.on('did-navigate', (_e, url) => {
       if (!mine()) return
       // A new document: whatever the last one captured has ended with it.
-      if (url && url !== 'about:blank' && !url.startsWith('chrome-error:')) update({ url: shown(url), error: undefined, dead: undefined, crashed: undefined, capturing: undefined })
+      if (url && url !== 'about:blank' && !url.startsWith('chrome-error:')) {
+        this.second = null
+        update({ url: shown(url), error: undefined, dead: undefined, crashed: undefined, capturing: undefined })
+      }
       nav()
       this.visit(shown(url))
     })
@@ -397,7 +415,20 @@ export class TabRuntime {
     wc.on('did-fail-load', (_e, code, _description, url, isMainFrame) => {
       // Not errors: a load stopped or replaced, a page become a download (§2.33).
       if (!isMainFrame || code === -3) return
-      update({ error: { code, description: failure(code), url }, loading: false })
+      // A name with no address at all (unibg.it: only www.unibg.it answers)
+      // is tried once under its other name before the page says "No site".
+      let said = url
+      if (this.second && sameAddress(url, this.second.other)) { said = this.second.first; this.second = null }
+      else if (code === -105 && !this.second && sameAddress(url, this.asked) && mine()) {
+        const other = otherName(url)
+        if (other) {
+          this.second = { first: url, other }
+          wc.loadURL(other).catch(() => {})
+          return
+        }
+      }
+      // The second name failed too: the tab goes back to the name that was asked for.
+      update({ error: { code, description: failure(code), url: said }, loading: false, ...(said !== url ? { url: said } : {}) })
     })
     wc.on('before-mouse-event', (_e, mouse) => { if (mouse.type === 'mouseDown') for (const f of pageInput) f(this.id, 'mouse', mouse) })
     wc.on('before-input-event', (event, input) => {

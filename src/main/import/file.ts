@@ -125,8 +125,8 @@ export function parseBookmarksHTML(text: string): BookmarkNode[] | null {
 
 /** Brought in, and said in a line (Browser.importFile, takeFile). The name
  * it is recorded under is the file's, without its extension. */
-export function bringFile(file: string): { said: ImportSaid[]; passwords: number; bookmarks: number } {
-  const name = path.basename(file).replace(/\.[^.]+$/, '')
+export function bringFile(file: string, recordAs?: string): { said: ImportSaid[]; passwords: number; bookmarks: number } {
+  const name = recordAs ?? path.basename(file).replace(/\.[^.]+$/, '')
   let text: string
   try {
     if (statSync(file).size > maxFile) throw new Error('too big')

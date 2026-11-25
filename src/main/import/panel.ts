@@ -2,9 +2,7 @@
 // (ImportPanel.swift, studio/05 §1.12). Drawn in the overlay by
 // src/ui/data/ImportPanel.tsx from the window's data state.
 
-import { app, dialog, shell, session } from 'electron'
-import { mkdirSync, renameSync } from 'node:fs'
-import path from 'node:path'
+import { dialog, session } from 'electron'
 import type { ImportPanelState, ImportSaid, ImportSourceView } from '../../shared/modules/data'
 import { handle } from '../router'
 import { need } from '../context'
@@ -18,6 +16,7 @@ import { readPasswords, passwordsSaid, passwordMode } from './passwords'
 import { bringFile } from './file'
 import { sweepScratch } from './read'
 import { keyAsks } from './dpapi'
+import { browserExe, startExport, stopExport, trashFile } from './export'
 import { probe } from '../paths'
 
 sweepScratch()
@@ -43,6 +42,7 @@ function view(source: Source): ImportSourceView {
     canBring: line[0].toUpperCase() + line.slice(1),
     passwords: mode,
     exportAt: source.exportAt,
+    assist: !!browserExe(source),
     record: record ? { date: record.date, bookmarks: record.bookmarks, places: record.places, passwords: record.passwords, recorded: record.bookmarkIDs.length > 0 } : undefined,
   }
 }
@@ -83,7 +83,7 @@ export function openPanel(c: WindowController, options: { source?: string; exten
     wants: options.extensions
       ? { passwords: false, bookmarks: false, history: false, extensions: true, replace: false }
       : { passwords: true, bookmarks: true, history: true, extensions: false, replace: false },
-    consent: {}, bringing: false, brought: null, how: null, clearFile: null,
+    consent: {}, bringing: false, brought: null, how: null, clearFile: null, waiting: null,
   }
   mark(c)
   showPanel(c, 'data.import')
@@ -101,6 +101,7 @@ export function openPanel(c: WindowController, options: { source?: string; exten
 }
 
 function closePanel(c: WindowController): void {
+  stopExport(c)
   windowData(c).import = null
   mark(c)
   if (c.overlayLayer.kind === 'panel' && c.overlayLayer.name === 'data.import') c.sendOverlay({ kind: 'none' })
@@ -160,6 +161,22 @@ handle('import.pick', ({ source }, ctx) => {
   mark(c)
   count(c, source)
 })
+
+/** The guided export: the browser opened at its Export page, its file picked
+ * up as it lands, brought in and sent to the Recycle Bin (import/export.ts). */
+handle('import.export', ({ source }, ctx) => {
+  const c = need(ctx), s = panel(c), src = byName(source)
+  if (!s || !src || s.bringing) return false
+  return startExport(c, src, profileOf(s, source), said => {
+    const now = panel(c)
+    if (!now) return
+    now.brought = said
+    // The record changed: the row and "Brought before" say so.
+    now.sources = now.sources.map(v => v.id === src.name ? view(src) : v)
+    mark(c)
+  })
+})
+handle('import.exportStop', (_a, ctx) => stopExport(need(ctx)))
 handle('import.profile', ({ source, profile }, ctx) => {
   const c = need(ctx), s = panel(c)
   if (!s) return
@@ -219,12 +236,7 @@ handle('import.file', async ({ path: given }, ctx) => {
 handle('import.trashFile', async ({ path: file }, ctx) => {
   const c = need(ctx), s = panel(c)
   if (s?.clearFile !== file) return false
-  // A test world never touches the real Recycle Bin: its own folder stands in.
-  if (probe) {
-    const bin = path.join(app.getPath('userData'), 'Recycle Bin')
-    mkdirSync(bin, { recursive: true })
-    renameSync(file, path.join(bin, path.basename(file)))
-  } else await shell.trashItem(file)
+  await trashFile(file)
   s.clearFile = null
   s.brought = [...(s.brought ?? []), { ok: true, text: 'The file went to the Recycle Bin' }]
   mark(c)
