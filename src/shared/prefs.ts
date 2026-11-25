@@ -112,10 +112,6 @@ export const defaults = {
   // Away from the pointer the floating video lets what is behind show
   // through: 0 not at all, 1 the most (Oriel's own, pages/float.ts).
   'float.fade': 0,
-  // Full screen (F11, a page's): 'full' the page edge to edge, the window's
-  // buttons coming down at the top; 'borderless' the whole screen with the
-  // window as when maximized (Oriel's own, window/frame.ts).
-  'window.fullScreenStyle': 'full',
   // YouTube without Shorts; copying set free everywhere, or on the sites
   // listed (Oriel's own, preload/page/sites.ts).
   'youtube.hideShorts': false,

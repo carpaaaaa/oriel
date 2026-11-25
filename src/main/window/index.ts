@@ -26,8 +26,8 @@ if (process.platform === 'win32' && testEnv('SEARCH_PROBE')) app.commandLine.app
 addDefaults({ 'window.nativeFrame': false, 'window.buttons': 'inline' })
 
 registerSlice('frame', c => c.frame.view())
-// Full screen or borderless chosen in Settings: the window drawn again at once.
-model.on('window-changed', (id: string, slices: string[]) => { if (slices?.includes('prefs')) { controllerFor(id)?.mark('frame'); controllerFor(id)?.frame.restyle() } })
+// A window setting changed: the window drawn again at once.
+model.on('window-changed', (id: string, slices: string[]) => { if (slices?.includes('prefs')) { controllerFor(id)?.mark('frame') } })
 registerSlice('room', c => c.sideRoom())
 
 

@@ -222,10 +222,10 @@ const added: (Item & { after: string })[] = [
     words: ['return', 'enter', 'suggestion', 'top', 'address bar', 'command bar', 'arc'],
   },
   {
-    id: 'fold.fullScreen', group: 'window', icon: 'arrow.up.left.and.arrow.down.right', after: 'window.fullScreenStyle',
+    id: 'fold.fullScreen', group: 'window', icon: 'arrow.up.left.and.arrow.down.right', after: 'layout.cardsFullScreen',
     title: 'Ctrl+S goes full screen',
     detail: 'Hiding the tabs with Ctrl+S takes the page full screen, and showing them gives the window back',
-    more: 'Full screen or Borderless window, as chosen above. Off, Ctrl+S only hides the tabs and leaves the window as it is.',
+    more: 'Off, Ctrl+S only hides the tabs and leaves the window as it is.',
     keys: ['fold.fullScreen'],
     words: ['ctrl s', 'fold', 'hide', 'tabs', 'sidebar', 'full screen', 'fullscreen', 'edge to edge'],
   },
@@ -244,13 +244,6 @@ const added: (Item & { after: string })[] = [
     more: "With the pointer on it, it's solid again, and for its first moments after it comes out. All the way left, it never fades.",
     keys: ['float.fade'],
     words: ['pip', 'picture in picture', 'transparent', 'transparency', 'opacity', 'fade', 'see through'],
-  },
-  {
-    id: 'window.fullScreenStyle', group: 'window', icon: 'arrow.up.left.and.arrow.down.right', after: 'layout.cardsFullScreen',
-    title: 'Full screen',
-    detail: "Full screen takes the page edge to edge and hides the window's buttons until the top. Borderless window fills the screen as it is, buttons and all",
-    keys: ['window.fullScreenStyle'],
-    words: ['full screen', 'borderless', 'windowed', 'f11', 'fullscreen'],
   },
   {
     id: 'youtube.hideShorts', group: 'video', icon: 'play.slash', after: 'float.fade',

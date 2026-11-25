@@ -68,8 +68,7 @@ export function ChromeRoot() {
 
   // The frame's kind and state drive the tokens (corners, margin, shadow).
   const kind = () => state.frame?.kind ?? (state.chrome === 'mac' ? 'mac' : 'drawn')
-  // Borderless full screen is drawn as a maximized window (its buttons, the card).
-  const where = () => { const s = state.frame?.state ?? 'free'; return s === 'fullScreen' && state.frame?.borderless ? 'maximized' : s }
+  const where = () => state.frame?.state ?? 'free'
   createEffect(() => {
     const root = document.documentElement.dataset
     root.frame = kind()

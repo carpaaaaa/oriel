@@ -38,8 +38,8 @@ export function CaptionButtons(p: { full?: boolean }) {
   return (
     <div class="caption-buttons" classList={{ [buttonStyle()]: true }} data-style={buttonStyle()}>
       <button class="minimize" title="Minimize" onClick={() => cmd({ do: 'window.minimize' })}><span class="hl" />{g().minimize()}</button>
-      {/* In full screen (the strip that comes down, or a borderless window's own buttons): out of it. */}
-      <Show when={!p.full && !state.frame?.borderless} fallback={
+      {/* In full screen (the strip that comes down): out of it. */}
+      <Show when={!p.full} fallback={
         <button class="maximize" title="Exit Full Screen" onClick={() => cmd({ do: 'window.fullScreen', on: false })}><span class="hl" />{g().restore()}</button>
       }>
         <button class="maximize" title={maximized() ? 'Restore Down' : 'Maximize'} onClick={() => cmd({ do: 'window.maximize' })}>

@@ -46,7 +46,8 @@ try:
     f = frame()
     t.ok(f["client"]["right"] - f["client"]["left"] >= 1000 and f["client"]["bottom"] - f["client"]["top"] >= 640, f"the client area is the screen's ({f['client']})")
 
-    t.ok(frame()["borderless"] is False, "drawn as full screen, not as a window with its buttons")
+    m = f["monitor"]["monitor"]
+    t.ok((f["client"]["left"], f["client"]["top"], f["client"]["right"], f["client"]["bottom"]) == (m["left"], m["top"], m["right"], m["bottom"]), f"the client area is exactly the monitor, no pixel short ({f['client']} on {m})")
 
     print("- Ctrl+S again: the tabs and the window back")
     b.cmd("sidebar.toggle")
@@ -66,21 +67,11 @@ try:
     b.cmd("window.fullScreen", on=False)
     settle(lambda: frame()["state"] == "free", "free")
 
-    print("- Borderless window chosen: Ctrl+S is still drawn edge to edge, with the taskbar within reach")
-    b.cmd("settings.set", id="window.fullScreenStyle", value="borderless")
-    b.cmd("sidebar.toggle")
-    t.ok(settle(lambda: frame()["state"] == "fullScreen" and folded(), "folded and full screen") is not None, "folded and full screen")
-    t.ok(frame()["borderless"] is False, "edge to edge: not drawn as a window with its buttons")
-    t.ok(frame()["client"]["bottom"] <= frame()["monitor"]["monitor"]["bottom"] - 1, f"the window leaves the taskbar's edge ({frame()['client']})")
-    b.cmd("sidebar.toggle")
-    settle(lambda: frame()["state"] == "free" and not folded(), "back")
-    b.cmd("settings.set", id="window.fullScreenStyle", value="full")
-
     print("- the tabs down the side: the same")
     b.cmd("prefs.set", key="tabs.layout", value="side")
     time.sleep(0.8)
     b.cmd("sidebar.toggle")
-    t.ok(settle(lambda: frame()["state"] == "fullScreen" and folded(), "folded and full screen") is not None and frame()["borderless"] is False, "folded and full screen, edge to edge")
+    t.ok(settle(lambda: frame()["state"] == "fullScreen" and folded(), "folded and full screen") is not None, "folded and full screen, edge to edge")
     b.cmd("sidebar.toggle")
     t.ok(settle(lambda: frame()["state"] == "free" and not folded(), "back") is not None, "the column and the window back")
     b.cmd("prefs.set", key="tabs.layout", value="top")

@@ -39,12 +39,10 @@ handle('sidebar.toggle', (_a, ctx) => {
   if (model.pref<boolean>('fold.fullScreen') !== false) {
     const id = c.record.id
     if (folding) {
-      // Already full screen (F11, Borderless window): it stays, and is drawn edge to edge while folded.
-      if (c.frame.isFullScreen()) { c.frame.edgeToEdge = true; c.mark('frame') }
-      else { foldedFull.add(id); c.frame.edgeToEdge = true; c.frame.setFullScreen(true) }
+      // Already full screen (F11): it stays.
+      if (!c.frame.isFullScreen()) { foldedFull.add(id); c.frame.setFullScreen(true) }
     } else {
       if (foldedFull.delete(id) && c.frame.isFullScreen()) c.frame.setFullScreen(false)
-      else { c.frame.edgeToEdge = false; c.mark('frame') }
     }
   }
 })

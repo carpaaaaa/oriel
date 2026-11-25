@@ -45,8 +45,7 @@ function ours(c: WindowController): boolean {
 
 const folded = (c: WindowController) => c.record.sidebar.folded && !c.base.isMinimized()
 const top = (c: WindowController) => c.record.sidebar.layout === 'top'
-// A borderless window keeps its buttons: nothing comes down at the top.
-const full = (c: WindowController) => c.frame.isFullScreen() && !c.frame.borderless() && !c.base.isMinimized()
+const full = (c: WindowController) => c.frame.isFullScreen() && !c.base.isMinimized()
 const layer = (c: WindowController) => c.overlayLayer
 const peeking = (c: WindowController) => { const l = layer(c) as { kind: string; going?: boolean }; return l.kind === 'fold' && !l.going }
 const leavingOut = (c: WindowController) => { const l = layer(c) as { kind: string; going?: boolean }; return l.kind === 'fold' && !!l.going }
