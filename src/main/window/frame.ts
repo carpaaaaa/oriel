@@ -503,7 +503,7 @@ export class Frame {
       this.beforeFull = this.comeBackTo()
       this.leaveMaximized()
     }
-    if (!on) this.edgeToEdge = false
+    if (!on) { this.edgeToEdge = false; this.setCaption(false) }
     this.full = on && !!this.hwnd
     // On Windows the window covers the screen by itself (cover), in both styles:
     // exactly for Full screen (Windows takes it for a full-screen app and keeps
@@ -550,14 +550,30 @@ export class Frame {
    * back, maximized again if it was, else the size it had before (Electron's
    * own can be the screen's after a page went full screen inside F11's). */
   private left(): void {
-    const max = this.fromMax, before = this.beforeFull
+    const max = this.fromMax, before = this.beforeFull, ownMax = this.ownMax
     this.fromMax = null
     this.beforeFull = null
+    this.ownMax = false
     setImmediate(() => {
       const b = this.c.base
-      this.note(`left: max ${!!max}, before ${JSON.stringify(before)}`)
+      this.note(`left: max ${!!max}, own max ${ownMax}, before ${JSON.stringify(before)}`)
       if (b.isDestroyed() || this.isFullScreen()) return
       const w = win32()
+      // Out of a Borderless window we maximized: Windows restores it (on its own turn), then the
+      // size it had before full screen.
+      // Maximized before full screen, and maximized by us for Borderless: it stays maximized,
+      // with the size Restore Down goes back to as it was.
+      if (ownMax && max && w && this.hwnd && this.zoomed()) { w.setPlacement(this.hwnd, { ...max, showCmd: SW_SHOWMAXIMIZED }); this.refresh(); this.refocusSoon(); return }
+      if (ownMax && w && this.hwnd && this.zoomed()) {
+        w.showAsync(this.hwnd, SW_RESTORE)
+        setTimeout(() => {
+          if (b.isDestroyed() || this.isFullScreen()) return
+          if (before && !this.zoomed()) b.setBounds(before)
+          this.refresh()
+          this.refocusSoon()
+        }, 80)
+        return
+      }
       if (max && w && this.hwnd) { if (!this.zoomed()) w.setPlacement(this.hwnd, { ...max, showCmd: SW_SHOWMAXIMIZED }) }
       // Covering the screen exactly, Electron says "maximized" for a window it didn't maximize
       // (its bounds are the work area's, or the screen's): that is not a reason to leave it there.
@@ -574,6 +590,8 @@ export class Frame {
    * alone), its placement kept to maximize it again after full screen. */
   private leaveMaximized(): void {
     const w = win32()
+    // Borderless window: maximized is what it is (cover).
+    if (this.borderlessNow() && variant.maximize === 'native') return
     if (!w || !this.hwnd || this.fromMax || !this.zoomed()) return
     this.note('leave maximized')
     this.fromMax = w.placement(this.hwnd)
@@ -622,6 +640,24 @@ export class Frame {
   private cover(): void {
     const b = this.c.base
     if (b.isDestroyed() || b.isMinimized() || !this.isFullScreen()) return
+    const w = win32()
+    // Borderless window: a window Windows maximizes, drawn as Oriel's full screen. Windows never
+    // takes a maximized window for a full-screen app, so the taskbar stays in front and comes up at
+    // its edge; with the taskbar set to hide, a maximized window has the whole screen. That is what
+    // Claude's and Blender's windows are when they fill the screen (carpa, 25 Nov 2026), and what
+    // a window two pixels short of the screen was not, every time, on a real screen.
+    if (this.borderlessNow() && variant.maximize === 'native' && w && this.hwnd) {
+      this.setCaption(true)
+      if (!this.zoomed()) { this.ownMax = true; w.showAsync(this.hwnd, SW_MAXIMIZE); setTimeout(() => this.refresh(), 60) }
+      return
+    }
+    this.setCaption(false)
+    // Full screen after Borderless: the maximize we put on goes (the one the person had stays
+    // remembered, to come back after full screen), and the window covers the screen exactly.
+    if (w && this.hwnd && this.zoomed()) {
+      if (this.ownMax) { this.ownMax = false; w.setStyle(this.hwnd, w.style(this.hwnd) & ~WS.MAXIMIZE) }
+      else this.leaveMaximized()
+    }
     const d = this.coverRect(screen.getDisplayMatching(b.getBounds()).bounds)
     const now = b.getBounds()
     if (now.x !== d.x || now.y !== d.y || now.width !== d.width || now.height !== d.height) b.setBounds(d)
@@ -629,6 +665,21 @@ export class Frame {
 
   /** Full screen put on for a page's own (pagefull.ts), to be taken off with it. */
   private byPage = false
+
+  /** Maximized by us for a Borderless window (not by the person): undone when full screen ends. */
+  private ownMax = false
+
+  /** WS_CAPTION while a Borderless window fills the screen, as Claude's maximized window has: with
+   * it Windows doesn't take the window for a full-screen app. Never drawn (the frame is Oriel's and
+   * DWM renders none). */
+  private captioned = false
+  private setCaption(on: boolean): void {
+    const w = win32()
+    if (!w || !this.hwnd || variant.style === 'caption' || on === this.captioned || this.c.base.isDestroyed()) return
+    this.captioned = on
+    const style = w.style(this.hwnd)
+    w.setStyle(this.hwnd, on ? style | WS.CAPTION : style & ~WS.CAPTION)
+  }
 
   /** A page entered or left its own full screen: the window covers the
    * screen meanwhile (Electron leaves a maximized window as it is). */
