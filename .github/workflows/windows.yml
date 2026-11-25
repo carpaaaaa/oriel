@@ -69,6 +69,32 @@ jobs:
       - name: See through the floating video away from the pointer (Oriel's window, picture in picture)
         if: always()
         run: python test/pages_float_fade.py
+      - name: The floating video: one switch, its buttons in Oriel's look, off means nothing floats
+        if: always()
+        run: python test/pages_float_look.py
+      - name: The floating video's switch from the old choice
+        if: always()
+        run: python test/settings_float_migrate.py
+      - name: Always show the address bar
+        if: always()
+        run: python test/ui_address_line.py
+      - name: Show how far you've read, in the column and across the top
+        if: always()
+        run: python test/tabs_reading.py
+      - name: Scroll with the middle button stays off when it is off
+        if: always()
+        run: python test/pages_autoscroll_off.py
+      - name: Thin scrollbars, a site's own kept (a picture of the page with it)
+        if: always()
+        env:
+          SHOTS_DIR: shots
+        run: python test/pages_scrollbar.py
+      - name: Hide YouTube Shorts
+        if: always()
+        run: python test/pages_shorts.py
+      - name: A private tab: the Jump List's flags, Ctrl+Shift+N, the note on its blank page
+        if: always()
+        run: python test/launch_private.py
       - name: A tab carried onto the page splits it; the divider; the X on picked tabs
         if: always()
         run: python test/split_drop.py
