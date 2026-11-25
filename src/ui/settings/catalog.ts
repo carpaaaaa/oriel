@@ -198,6 +198,14 @@ const keep = (title: string) => title // titles keep their words when an overrid
 /** Rows Oriel has and Search doesn't, each right after the row it names. */
 const added: (Item & { after: string })[] = [
   {
+    id: 'tabs.splitDrop', group: 'tabbar', icon: 'rectangle.split.2x1', after: 'tabs.shortcuts',
+    title: 'Split View without Shift',
+    detail: 'Carry a tab onto the middle of another to put the two side by side, with no key held',
+    more: 'Off, hold Shift while you carry a tab onto another to split. On, the middle of a tab is the target too; its edges still move the tab among the others.',
+    keys: ['tabs.splitDrop'],
+    words: ['split', 'split view', 'drag', 'drop', 'shift', 'side by side', 'tabs'],
+  },
+  {
     id: 'float.fade', group: 'video', icon: 'circle.lefthalf.filled', after: 'float.minimize',
     title: 'See through the floating video',
     detail: "While the pointer isn't on it. Further right, more see-through",

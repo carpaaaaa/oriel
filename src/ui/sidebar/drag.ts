@@ -4,16 +4,17 @@
 // with a shadow; the others make room on settle as it passes their middle.
 // Over another block it fades and a ghost shows where it lands. Let go, it
 // lands; Escape while held puts it back. Pointer events, never HTML5 drag.
-// Over the middle of another tab's line (anywhere on it with Shift held), that
-// line is marked and letting go puts the two side by side (carpa, 25 Nov 2026:
-// no key needed), Shift pressed or let go mid-carry as the mark follows it;
-// over a line's edges the lines make room.
+// With Shift held over another tab's line, that line is marked and letting go
+// puts the two side by side (carpa, 25 Nov 2026), Shift pressed or let go
+// mid-carry as the mark follows it; without Shift the lines make room, unless
+// Settings › Tabs › Split View without Shift is on (tabs.splitDrop): then the
+// middle half of a line is the target too.
 
 import { batch, createRoot, createEffect } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import type { TabView } from '../../shared/state'
 import { layout, pinCells, type Item, GAP } from './layout'
-import { P, parts, folderLines, foldersShown, pinOf, splitMates, type Move } from './derive'
+import { P, pref, parts, folderLines, foldersShown, pinOf, splitMates, type Move } from './derive'
 import { setCarry, setShifted, setDropMark, setDropTarget, setSquareGhost, setRowGhost, carry } from './ui'
 import { splitHintAt, canSplitWith } from '../chrome/SplitDrop'
 import type { SplitDropHint } from '../../shared/modules/window'
@@ -175,18 +176,17 @@ function overPage(x: number, y: number): boolean {
 /** The tab whose line (where it stands before anything made room) is under
  * this height, if the carried tab can stand beside it. */
 function tabUnder(py: number, carried: TabView, anywhere: boolean): TabView | null {
-  if (!column) return null
+  if (!column || (!anywhere && !pref('tabs.splitDrop', false))) return null
   const ry = py - column.rowsTop()
-  // The middle half of a line without Shift, all of it with Shift: the edges
-  // are for moving among the lines.
+  // All of the line with Shift; the middle half without it (tabs.splitDrop on):
+  // the edges are for moving among the lines.
   const lo = anywhere ? 0 : 0.25, hi = anywhere ? 1 : 0.75
   const it = layout().items.find(i => i.kind === 'row' && i.key !== `t:${carried.id}` && ry >= i.y + i.h * lo && ry <= i.y + i.h * hi)
   const t = it && it.key.startsWith('t:') ? state.tabs.find(x => x.id === it.key.slice(2)) : undefined
   return t && canSplitWith(carried, t) ? t : null
 }
 
-/** Over the middle of another tab's line (anywhere on it with Shift held)
- * marks it: the lines stop making room, and letting go splits the two. False while the carry goes on as a move. */
+/** Shift held over another tab's line (or, tabs.splitDrop on, its middle) marks it: the lines stop making room, and letting go splits the two. False while the carry goes on as a move. */
 function ontoTab(py: number): boolean {
   if (!held || held.p.kind !== 'row') return false
   const carried = state.tabs.find(t => t.id === held!.p.tab)

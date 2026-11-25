@@ -15,8 +15,8 @@ Shift held while a tab is carried onto another tab marks that tab (the
 `split-target` class) and letting go puts the two side by side, in the column
 and across the top; the mark follows Shift pressed or let go mid-carry, by the
 pointer's events and by the key's own. Without Shift, resting on a tab's edge
-marks nothing and the tab lands where it was carried, as in any reorder; resting
-on a tab's middle marks it too, and letting go splits.
+marks nothing and the tab lands where it was carried, as in any reorder; with
+tabs.splitDrop on, resting on a tab's middle marks it too, and letting go splits.
 
     npm run build && python3 test/split_drop.py
 """
@@ -190,13 +190,16 @@ def shift_tests(layout):
     time.sleep(0.6)
     t.ok(split_of(Y) is None, "let go without Shift: no split")
 
-    # Onto the middle of a tab splits with no key, in the column and across the top (carpa, 25 Nov 2026).
-    print(f"- {where}: no Shift, let go on the middle of a tab: the two side by side")
+    # Split View without Shift, an option (tabs.splitDrop, carpa, 25 Nov 2026): the middle of a tab splits with no key.
+    print(f"- {where}: no Shift, option on, let go on the middle of a tab: the two side by side")
+    b.cmd("prefs.set", key="tabs.splitDrop", value=True)
+    time.sleep(0.5)
     th = drag_over(Z, Y, [(90, False)], layout, at=0.5)
     t.ok(b.wait_for(lambda: marked() == Y, within=6, what="Y marked"), "the tab it is over is marked, no key held")
     th.join()
     s = b.wait_for(lambda: split_of(Y), within=4, what="the split")
     t.ok(s["tabs"] == [Y, Z], f"the carried tab on the right of the one it was let go on ({len(s['tabs'])} pages)")
+    b.cmd("prefs.set", key="tabs.splitDrop", value=False)
 
     for nm in names:
         b.cmd("tab.close", id=tab(nm)["id"])

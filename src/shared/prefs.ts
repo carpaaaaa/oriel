@@ -40,6 +40,8 @@ export const defaults = {
   'layout.cardsFullScreen': false,
   'toolbar.left': true,
   'tabs.compact': false,
+  // A tab carried onto another splits with it with Shift held; on, with no key (middle of the tab).
+  'tabs.splitDrop': false,
   'window.glass': false,
   'window.glass.clear': 0.5,
   'window.glass.grain': 0.2,
