@@ -16,6 +16,7 @@ import {
   EngineSuggester, engineQuestion, openPages, placeOffers, recentPlaces, SUGGEST_MOST, suggestionRow, switcherFallback, tabOffers,
 } from './suggest'
 import { cancelTabEdit, tabEditing } from './tabedit'
+import { placeLine } from './line'
 
 /** What a window's field holds besides what it shows (Browser's fields). */
 interface Memory {
@@ -35,6 +36,11 @@ interface Memory {
   launchDraft: string
   /** Raised by New Tab in Group: the tab Return makes goes to its end. */
   launchGroup: string | null
+  /** ⌘L's field is the address line's, in its row and not over the page
+   * (AddressLine.swift, Browser.editingInline, studio/03 §1.6). */
+  inline: boolean
+  /** The line's place in the interface, for its places to hang under. */
+  anchor: { x: number; y: number; width: number; height: number } | null
   /** ⌘K raised with Ctrl still down: Ctrl let go of takes the row walked to. */
   summonHeld: boolean
   cycling: boolean
@@ -65,7 +71,7 @@ export function mem(c: WindowController): Memory {
   if (!m) {
     m = {
       typed: '', offers: [], ending: null, picked: null, pickedByTyping: false, editing: false, summoning: false, summonHeld: false, cycling: false,
-      launching: false, launchDraft: '', launchGroup: null,
+      launching: false, launchDraft: '', launchGroup: null, inline: false, anchor: null,
       chip: null, offer: null, refusals: 0, sync: 0, focus: 0, selectFrom: null, shown: '', serial: 0, pending: Promise.resolve(),
       engineWords: { asked: '', words: [] }, suggester: new EngineSuggester(), drafts: new Map(),
       lastActive: c.record.active[c.record.space] ?? null, focusAsked: null, held: [],
@@ -78,7 +84,7 @@ export function mem(c: WindowController): Memory {
 }
 
 const activeOf = (c: WindowController) => model.activeTab(c.record)
-const blankInFront = (c: WindowController) => activeOf(c)?.empty ?? true
+export const blankInFront = (c: WindowController) => activeOf(c)?.empty ?? true
 
 /** The field on screen: raised over a page, or a blank tab's own. */
 export function fieldShowing(c: WindowController): boolean {
@@ -133,7 +139,7 @@ function note(m: Memory): string | null {
 
 /** Into the window's state. `rewrite`: the text was changed here, not by
  * typing, so the interface writes it into its input. */
-function publish(c: WindowController, rewrite = false, selectFrom?: number | null): void {
+export function publish(c: WindowController, rewrite = false, selectFrom?: number | null): void {
   const m = mem(c)
   const shown = completed(m)
   if (rewrite) {
@@ -158,11 +164,14 @@ function publish(c: WindowController, rewrite = false, selectFrom?: number | nul
     offer: siteView(m.offer),
     chip: siteView(m.chip),
     note: note(m),
-    placeholder: m.chip ? `Search ${m.chip.name}` : placeholders[md],
-    label: labels[md],
+    // The address line's field says what the blank tab's does (studio/03 §1.1).
+    placeholder: m.chip ? `Search ${m.chip.name}` : placeholders[m.editing && m.inline ? 'blank' : md],
+    label: labels[m.editing && m.inline ? 'blank' : md],
     high: onWindow(c, m),
+    inline: m.editing && m.inline,
   }
   model.touch(c.record, ['field'])
+  placeLine(c)
 }
 
 // guessing (Browser.guess)
@@ -282,7 +291,8 @@ function wordsToCarry(c: WindowController, m: Memory): string | null {
 function askFocus(c: WindowController, m: Memory): void {
   m.focus++
   m.focusAsked = Date.now()
-  if (blankInFront(c)) {
+  // A blank tab's field and the address line's are in the interface, not over the page.
+  if (blankInFront(c) || m.inline) {
     if (c.overlayLayer.kind === 'field') c.sendOverlay({ kind: 'none' })
     c.ui.webContents.focus()
     return
@@ -299,8 +309,10 @@ function askFocus(c: WindowController, m: Memory): void {
   }, 0)
 }
 
-/** ⌘L: the page's address, selected whole; pressed again, put away. */
-export function edit(c: WindowController): void {
+/** ⌘L: the page's address, selected whole; pressed again, put away. `inline`:
+ * in the address line's row, where a click on it or ⌘L with it shown brings
+ * the same field (studio/03 §1.6); a blank tab's field is its own. */
+export function edit(c: WindowController, inline = false): void {
   const m = mem(c)
   if (m.editing && !m.summoning && !m.launching && !blankInFront(c)) { putAway(c); return }
   // From ⌘T or ⌘K, what was typed stays, for this page now.
@@ -311,6 +323,8 @@ export function edit(c: WindowController): void {
   const active = activeOf(c)
   m.typed = words ?? (active && !active.empty ? shownAddress(active.url) : '')
   m.editing = true
+  m.inline = inline && !blankInFront(c)
+  if (m.inline && tabEditing(c)) cancelTabEdit(c)
   pick(m, null)
   m.ending = null
   void guess(c, true).then(() => publish(c))
@@ -337,6 +351,7 @@ function summon(c: WindowController, held: boolean): void {
   const words = wordsToCarry(c, m) ?? ''
   m.chip = null
   m.launching = false
+  m.inline = false
   m.summoning = true
   m.summonHeld = held
   m.typed = words
@@ -418,6 +433,7 @@ export function launch(c: WindowController, group?: string): boolean {
   m.chip = null
   m.offer = null
   m.editing = true
+  m.inline = false
   m.launching = true
   m.launchGroup = group ?? null
   m.typed = words
@@ -443,6 +459,7 @@ export function putAway(c: WindowController): void {
 
 function closeOver(c: WindowController, m: Memory): void {
   m.editing = false
+  m.inline = false
   m.launching = false
   m.launchGroup = null
   m.chip = null
@@ -456,7 +473,7 @@ function closeOver(c: WindowController, m: Memory): void {
   if (c.overlayLayer.kind === 'field') {
     c.sendOverlay({ kind: 'none' })
     afterField(c)
-  }
+  } else if ((c.overlayLayer.kind as string) === 'lineOffers') c.sendOverlay({ kind: 'none' })
   publish(c, true)
 }
 
@@ -751,6 +768,7 @@ function noticeActive(c: WindowController): void {
   m.summonHeld = false
   m.cycling = false
   m.editing = false
+  m.inline = false
   // Another tab in front puts ⌘T's field away, keeping nothing (Browser.select).
   m.launching = false
   m.launchGroup = null
@@ -758,6 +776,7 @@ function noticeActive(c: WindowController): void {
   pick(m, null)
   m.typed = tab?.empty ? m.drafts.get(tab.id) ?? '' : ''
   if (c.overlayLayer.kind === 'field') { c.sendOverlay({ kind: 'none' }); afterField(c) }
+  else if ((c.overlayLayer.kind as string) === 'lineOffers') c.sendOverlay({ kind: 'none' })
   void guess(c, true).then(() => publish(c))
   publish(c, true, m.typed.length)
 }
@@ -802,7 +821,7 @@ function letGo(c: WindowController): void {
   m.focusAsked = null
   const held = m.held
   m.held = []
-  const wc = blankInFront(c) ? c.ui.webContents : c.overlay.webContents
+  const wc = blankInFront(c) || m.inline ? c.ui.webContents : c.overlay.webContents
   if (wc.isDestroyed()) return
   for (const k of held) {
     const modifiers: Electron.InputEvent['modifiers'] = k.shift ? ['shift'] : []
@@ -835,7 +854,7 @@ handle('field.focused', (_a, ctx) => {
   const c = need(ctx)
   // A blank tab's field has the keys: the interface's view must have them
   // too (a new window comes up with the overlay or nothing focused).
-  if (blankInFront(c) && !c.ui.webContents.isFocused() && c.base.isFocused()) c.ui.webContents.focus()
+  if ((blankInFront(c) || mem(c).inline) && !c.ui.webContents.isFocused() && c.base.isFocused()) c.ui.webContents.focus()
   if (mem(c).held.length) letGo(c); else mem(c).focusAsked = null
 })
 

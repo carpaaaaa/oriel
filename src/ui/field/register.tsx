@@ -5,6 +5,7 @@ import { cmd, state } from '../lib/store'
 import { Field } from './Field'
 import { FindBar } from './Find'
 import { TabOffers } from './TabField'
+import { LineOffers } from './AddressLine'
 
 // A click on the veil puts the field away (Omnibox.swift:87-94). With The
 // field in the middle of the window the veil is the whole window's and the
@@ -20,3 +21,6 @@ registerLayer('find', () => <FindBar />)
 
 // The list under the tab whose address is being typed in it.
 registerLayer('tabOffers', () => <TabOffers />)
+
+// The places under the address line's row (studio/03 §1.6).
+registerLayer('lineOffers', () => <LineOffers />)

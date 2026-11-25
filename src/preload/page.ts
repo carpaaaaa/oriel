@@ -15,6 +15,7 @@ if (window.top === window) {
   require('./page/translate')
   require('./page/hide')
   require('./page/ground')
+  require('./page/reading')
 } else {
   require('./page/frame')
 }

@@ -22,6 +22,8 @@
 /* the band: 52, the window's title bar but over the doors */
 .band { height: var(--strip); flex: none; display: flex; align-items: center; }
 .sidebar.icons .band { height: 8px; }
+/* the page's address, under the band when it is to be in sight (Side.swift:277): a tab's height, 6 under it */
+.address-room { flex: none; padding: 0 var(--side-pad) 6px; }
 .helm { display: flex; align-items: center; gap: var(--door-gap); padding-left: 10px; }
 .helm.vertical { flex-direction: column; padding: 0 0 8px; }
 .door {
@@ -100,6 +102,7 @@
 .row.split-target .ground { background: var(--g-wash); box-shadow: inset 0 0 0 1.5px rgb(var(--ink-rgb) / .5); }
 .line.gliding .row.live .ground { background: transparent; transition: none; }
 .reading { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-reading); transition: width 150ms cubic-bezier(0, 0, .58, 1); }
+@media (prefers-reduced-motion: reduce) { .reading { transition: none; } }
 .row .body { position: relative; flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 8px; padding: 0 10px; }
 .row.status .body { padding-right: 7px; }
 .row.closable:not(.status):hover .body {

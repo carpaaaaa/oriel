@@ -118,3 +118,24 @@
 .field-taboffers-room { position: fixed; inset: 0; padding: 8px; pointer-events: none; }
 .field-list.field-taboffers { position: relative; top: auto; left: auto; right: auto; pointer-events: auto; transform-origin: top left;
   box-shadow: inset 0 0 0 1px var(--hairline), 0 4px 20px rgba(0,0,0,.10); }
+
+/* The address line (studio/03 §1.6, AddressLine.swift): a row as tall as a tab,
+   the tab's grey and radius, 12 for its words, 10 in at each end; the page's
+   address in the muted grey, what to type in the placeholder's. Under the
+   pointer or with the field in it the live tab's grey. Its field fills the
+   row, bare: the row is the box. Its places are the tab list's panel (above),
+   as wide as the row. */
+.address-line { position: relative; flex: none; display: flex; align-items: center; min-width: 0; height: var(--row); padding: 0 10px;
+  border-radius: var(--row-radius); background: var(--g-hover); font-size: 12px; color: var(--muted); -webkit-app-region: no-drag;
+  transition: background-color var(--dur-quick) var(--ease-quick); }
+.address-line:hover, .address-line.editing { background: var(--g-wash); }
+.address-text { flex: 1; min-width: 0; line-height: 16px; white-space: nowrap; overflow: hidden; }
+.address-line.empty .address-text { color: var(--ink-placeholder); }
+.address-line .field-wrap { position: absolute; inset: 0; width: auto; }
+.address-line .field { height: 100%; padding: 0 10px; gap: 6px; border-radius: inherit; background: none; box-shadow: none; }
+.address-line .field.refused { box-shadow: inset 0 0 0 1px var(--refused-edge); }
+.address-line .field-breath { display: none; }
+.address-line .field input { height: 20px; margin-right: 0; font-size: 12px; line-height: 20px; }
+/* the site Tab put in the field, in proportion: 20 in a row of 28, radius 5 (9 less its 4 of air) */
+.address-line .field-chip { height: 20px; padding: 0 7px; gap: 5px; border-radius: 5px; }
+.address-line .field-chip-name { font-size: 12px; }

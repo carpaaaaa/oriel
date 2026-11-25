@@ -11,7 +11,7 @@ import { state, cmd } from '../lib/store'
 import { outlet } from '../lib/registry'
 import { Dynamic } from 'solid-js/web'
 import { G } from './glyphs'
-import { P, currentSpace, pref } from './derive'
+import { P, currentSpace, pref, rowHeight } from './derive'
 import { layout, pinCells, type Item } from './layout'
 import { Row } from './Row'
 import { GroupHeading, FolderHeading, KeepLine, NewTabRow, RowGhost, openColumnMenu } from './Lines'
@@ -24,6 +24,7 @@ import { Chase, Springs, leave, stay, arrive, swipe, reducedMotion, keepLeaving,
 import { carry, shifted, dropMark, rowGhost, wireMenuPicks, activeTab } from './ui'
 import { setColumn } from './drag'
 import { TabBar } from '../tabbar/TabBar'
+import { AddressLine } from '../field/AddressLine'
 
 export function Sidebar() {
   wireMenuPicks()
@@ -289,7 +290,7 @@ export function Column() {
   return (
     <aside class="sidebar on-frame" data-tabs-ui="column" classList={{ icons: icons(), right: state.sidebar.side === 'right', contrast: P.contrast() }}
       style={{ width: `${width()}px` }}
-      onContextMenu={e => { if (!(e.target as HTMLElement).closest('.row, .square, .tile, .group-heading, .folder-heading, .door, .foot > *')) { e.preventDefault(); void openColumnMenu(e) } }}>
+      onContextMenu={e => { if (!(e.target as HTMLElement).closest('.row, .square, .tile, .group-heading, .folder-heading, .door, .address-line, .foot > *')) { e.preventDefault(); void openColumnMenu(e) } }}>
       <Wash />
       <div class="band drag" style={{ 'padding-right': capRoom() ? `${capRoom()}px` : undefined }}>
         <Show when={!icons()}><Helm /></Show>
@@ -297,6 +298,10 @@ export function Column() {
         {/* Buttons at the top (sidebar.doorsUp): the foot's doors beside the helm, when they fit */}
         <Show when={doorsUp()}><Foot up /></Show>
       </div>
+      {/* Always show the address bar (address.shown): its row under the band, not in the column of icons (studio/03 §1.6) */}
+      <Show when={!icons() && pref('address.shown', false)}>
+        <div class="address-room"><AddressLine height={rowHeight()} /></div>
+      </Show>
       <Show when={icons()}>
         <Show when={!pref('sidebar.narrowed', false) || state.sidebar.icons}><Helm vertical /></Show>
       </Show>
