@@ -50,7 +50,8 @@ app.on('render-process-gone', (_e, wc, d) => { if (wc.getType() !== 'webview' &&
 if (process.platform === 'darwin' && testEnv('SEARCH_PROBE') && testEnv('SEARCH_SHOW') !== '1') app.setActivationPolicy('accessory')
 // Installed: Oriel's own name with Windows, the one its shortcuts carry (package.json
 // build.appId), so the taskbar groups its windows under Oriel's icon, not Electron's.
-if (process.platform === 'win32' && app.isPackaged) app.setAppUserModelId('app.oriel.browser')
+// From the Store the package names it (Package Family Name!Oriel): leave that.
+if (process.platform === 'win32' && app.isPackaged && !process.windowsStore) app.setAppUserModelId('app.oriel.browser')
 // Windows 11's thin scrollbars that fade in, as Chrome has them; and
 // Chromium's elastic overscroll (chrome://flags/#elastic-overscroll, off by
 // default on Windows), the page stretching past its ends under a precision

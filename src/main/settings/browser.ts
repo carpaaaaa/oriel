@@ -66,6 +66,8 @@ export function settingsLink(): string {
   // Installed from the Store, Windows knows Oriel by its package (registeredAUMID).
   const aumid = storeAUMID()
   if (aumid) return `ms-settings:defaultapps?registeredAUMID=${encodeURIComponent(aumid)}`
+  // A package somewhere unexpected: Default apps itself, Oriel is listed there.
+  if (store) return 'ms-settings:defaultapps'
   return `ms-settings:defaultapps?${answer.scope === 'machine' ? 'registeredAppMachine' : 'registeredAppUser'}=${encodeURIComponent(REGISTERED)}`
 }
 

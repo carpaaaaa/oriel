@@ -66,8 +66,12 @@ suggestions, no account to sign into.
 - Light and dark, Windows 11's corners and buttons, x64 and ARM64.
 
 Oriel has no server of its own: your history, bookmarks, passwords and
-settings stay on your PC. The code is on GitHub under the MIT license:
-https://github.com/carpaaaaa/oriel
+settings stay on your PC. It goes online only for the pages you open, the
+Chrome Web Store when you add an extension, and the blocking lists. The
+code is on GitHub under the MIT license: https://github.com/carpaaaaa/oriel
+
+Oriel from the Store keeps its own settings, apart from a copy installed
+from the website, and the Store keeps it up to date.
 
 **Product features** (one per line in Partner Center)
 
@@ -93,7 +97,7 @@ browser, web browser, vertical tabs, ad blocker, privacy, chromium, arc
 
 **Store logos:** the package's own (build/appx, from Oriel's icon).
 
-**Copyright:** © 2026 Char Studio. Based on Search by Office Commun (MIT).
+**Copyright:** Oriel contributors. Based on Search by Office Commun (MIT).
 
 ## After it's published
 
