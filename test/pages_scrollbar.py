@@ -16,6 +16,7 @@ H = f"http://127.0.0.1:{P}"
 TALL = "<body style='margin:0;height:6000px;background:linear-gradient(#fff,#ccd)'><p style='margin:40px'>words</p>"
 web.PAGES["/tall"] = "<title>tall</title>" + TALL
 web.PAGES["/own"] = "<title>own</title><style>html{scrollbar-color:red blue}</style>" + TALL
+web.PAGES["/plain"] = "<title>plain</title><style>html{scrollbar-width:auto;scrollbar-color:auto}</style>" + TALL
 web.PAGES["/inner"] = ("<title>inner</title><body style='margin:0'><div id='s' style='width:300px;height:200px;overflow:auto'>"
                        "<div style='height:2000px'>inner</div></div>")
 
@@ -52,6 +53,12 @@ time.sleep(0.6)
 gutter = ev(tab, "innerWidth - document.documentElement.clientWidth")
 print(f"  (the scrollbar takes {gutter} px of the page's width)")
 b.shot(shots / "scrollbar-tall.png")
+
+plain = open_page("/plain", "plain")
+ev(plain, "scrollTo(0, 400); 1")
+time.sleep(0.6)
+print(f"  (with the system's own scrollbar: {ev(plain, 'innerWidth - document.documentElement.clientWidth')} px)")
+b.shot(shots / "scrollbar-system.png")
 
 own = open_page("/own", "own")
 width, color = ev(own, "(() => { const s = getComputedStyle(document.documentElement); return [s.scrollbarWidth, s.scrollbarColor] })()")
