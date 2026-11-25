@@ -20,7 +20,7 @@ import { handOn } from './blank'
 import { scrollbarCSS } from './scrollbar'
 import { holdPictureInPicture } from './float'
 
-interface FramePrefs { css: string; scripts: string[]; extended: unknown[]; dom: boolean; gpc: boolean; noCookies: boolean }
+interface FramePrefs { bars?: boolean; css: string; scripts: string[]; extended: unknown[]; dom: boolean; gpc: boolean; noCookies: boolean }
 
 let p: FramePrefs | null = null
 try { p = ipcRenderer.sendSync('pages:frame') as FramePrefs | null } catch {}
@@ -33,6 +33,6 @@ if (p) {
   handOn({ cosmetics: () => ({ css: share.css, scripts: share.scripts }), noCookies: p.noCookies, gpc: p.gpc })
   if (p.scripts.length) runScriptlets(p.scripts)
   if (p.css) { try { webFrame.insertCSS(p.css, { cssOrigin: 'user' }) } catch {} }
-  try { webFrame.insertCSS(scrollbarCSS, { cssOrigin: 'user' }) } catch {}
+  if (p.bars !== false) { try { webFrame.insertCSS(scrollbarCSS, { cssOrigin: 'user' }) } catch {} }
   if (p.css && (p.dom || p.extended.length)) watchPage(p.dom, p.extended, css => { try { webFrame.insertCSS(css, { cssOrigin: 'user' }) } catch {} })
 }

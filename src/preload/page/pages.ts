@@ -44,6 +44,7 @@ interface PagePrefs {
   copyFree: boolean
   /** Settings > Floating video is on. */
   floatOn: boolean
+  bars?: boolean
 }
 
 let p: PagePrefs | null = null
@@ -128,7 +129,7 @@ function start(first: PagePrefs): void {
   const dress = (q: PagePrefs) => {
     sheet('shield', q.css)
     sheet('style', q.style, 'author')
-    sheet('bar', scrollbarCSS)
+    sheet('bar', q.bars === false ? '' : scrollbarCSS)
   }
   dress(first)
 
@@ -137,7 +138,7 @@ function start(first: PagePrefs): void {
     now = q
     hideShorts(q.noShorts ?? null)
     setFloatOn(q.floatOn !== false)
-    if (q.css !== was.css || q.style !== was.style) dress(q)
+    if (q.css !== was.css || q.style !== was.style || q.bars !== was.bars) dress(q)
     // Off or paused here, or back on: the page's own rules go or come back.
     if (!q.css !== !was.css || q.dom !== was.dom) follow(q)
   })

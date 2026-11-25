@@ -268,6 +268,7 @@ function control(i: Item): JSX.Element {
       options={(['top', 'left', 'right', 'icons'] as const).map(l => [l, { top: 'Top', left: 'Left', right: 'Right', icons: 'Icons only' }[l], () => <LayoutPicture layout={l} />])} />
     case 'layout.cards': return <Pictures value={p<boolean>('layout.cards') !== false} set={v => void set('layout.cards', v)}
       options={[[true, 'As a card', () => <CardPicture card />], [false, 'Edge to edge', () => <CardPicture card={false} />]]} />
+    case 'pages.scrollbars': return <Segmented value={p<string>('pages.scrollbars') ?? 'oriel'} set={v => void set('pages.scrollbars', v)} options={[['oriel', "Oriel's"], ['windows', "Windows' own"]]} />
     case 'address.width': return <Segmented value={p<string>('address.width') ?? 'small'} set={v => void set('address.width', v)} options={[['small', 'Small'], ['medium', 'Medium']]} />
     case 'window.glass.clear': case 'window.glass.grain': case 'float.fade':
       return <input class="st-slider" type="range" min="0" max="1" step="0.01" value={p<number>(i.id)} onChange={e => void set(i.id, Number(e.currentTarget.value))} aria-label={i.title} />

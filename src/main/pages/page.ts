@@ -38,6 +38,8 @@ export interface PagePrefs {
   copyFree: boolean
   /** Settings > Floating video: a site's own picture in picture button floats the video, or is refused. */
   floatOn: boolean
+  /** Settings > Pages > Scroll bars: Oriel's (true) or Windows' own. */
+  bars: boolean
 }
 
 /** Let me copy on every site, or this one (a tab's menu, copy.sites). */
@@ -75,6 +77,7 @@ export function pagePrefs(wc: WebContents, address: string): PagePrefs | null {
     noShorts: pref<boolean>('youtube.hideShorts') ? [...youtubeHosts, ...testHosts('test.youtubeHosts')] : null,
     copyFree: copyFreeOn(host),
     floatOn: pref<boolean>('float.enabled') !== false,
+    bars: pref<string>('pages.scrollbars') !== 'windows',
   }
 }
 
@@ -132,6 +135,7 @@ function framePrefs(event: Electron.IpcMainEvent): unknown {
     dom: !!lists,
     gpc: gpcFor(wc),
     noCookies: third && protects(wc),
+    bars: pref<string>('pages.scrollbars') !== 'windows',
   }
   framesDressed.push({ url, css: p.css.length, scripts: p.scripts.length, noCookies: p.noCookies })
   if (framesDressed.length > 50) framesDressed.shift()
@@ -162,7 +166,7 @@ export function retell(): void {
   }
 }
 
-const watched = ['youtube.hideShorts', 'shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'sites.styles', 'privacy.gpc', 'float.enabled']
+const watched = ['youtube.hideShorts', 'shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'sites.styles', 'privacy.gpc', 'float.enabled', 'pages.scrollbars']
 let last = ''
 let timer: NodeJS.Timeout | null = null
 model.on('window-changed', (_id: string, slices: string[]) => {

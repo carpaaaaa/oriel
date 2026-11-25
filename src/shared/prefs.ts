@@ -118,6 +118,8 @@ export const defaults = {
   // listed (Oriel's own, preload/page/sites.ts).
   'youtube.hideShorts': false,
   'pages.allowCopy': false,
+  // Scroll bars on websites: Oriel's thin ones on every site, or Windows' own.
+  'pages.scrollbars': 'oriel',
   'copy.sites': [],
   'media.click': false,
   'fullscreen.escapeTwice': false,

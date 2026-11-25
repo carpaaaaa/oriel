@@ -584,7 +584,8 @@ export class Frame {
     const area = state === 'fullScreen' && !(this.borderlessWanted() && win32()?.taskbar()?.autoHide === false) ? m.monitor : m.work
     const c = w.clientRect(this.hwnd)
     const past = Math.max(area.left - c.left, c.right - area.right, area.top - c.top, c.bottom - area.bottom)
-    if (past <= 1) return
+    // A pixel short on purpose (borderless), and DIP to pixel rounding at 125 or 150%: not past the screen.
+    if (past <= (this.borderlessWanted() ? 3 : 1)) return
     const said = `${state} past the screen by ${past}: client ${c.left},${c.top},${c.right},${c.bottom} area ${area.left},${area.top},${area.right},${area.bottom} (try ${tries})`
     this.fixes.push(said)
     if (this.fixes.length > 20) this.fixes.shift()

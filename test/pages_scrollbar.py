@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """A page's scrollbars are thin and quiet (preload/page/scrollbar.ts): a slim
-thumb in a neutral grey, no track, no arrows. A site that styles its own scrollbars
-keeps them. The picture of a tall page scrolled a little is kept for looking
+thumb in a neutral grey, no track, no arrows. Every site has the same, its own
+styling set aside (carpa, 25 Nov 2026); Settings > Pages > Scroll bars: Windows' own
+leaves them all alone. The picture of a tall page scrolled a little is kept for looking
 at (SHOTS_DIR or out/)."""
 import os
 import sys
@@ -51,12 +52,19 @@ time.sleep(0.6)
 b.shot(shots / "scrollbar-tall.png")
 
 plain = open_page("/plain", "plain")
-t.ok(gutter(plain) != 10, f"a site that sets its own scrollbar colour keeps its own ({gutter(plain)} px)")
+t.ok(gutter(plain) == 10, f"a site that sets its own scrollbar colour has the same ({gutter(plain)} px)")
 
 own = open_page("/own", "own")
-t.ok(gutter(own) == 20, f"a site that styles ::-webkit-scrollbar keeps its own ({gutter(own)} px)")
+t.ok(gutter(own) == 10, f"a site that styles ::-webkit-scrollbar has the same ({gutter(own)} px)")
 
 inner = open_page("/inner", "inner")
 inside = ev(inner, "(() => { const e = document.getElementById('s'); return e.offsetWidth - e.clientWidth })()")
 t.ok(inside == 10, f"a box that scrolls inside the page is the same ({inside} px)")
+# Windows' own: the system's width again, on a page open already.
+b.cmd("prefs.set", key="pages.scrollbars", value="windows")
+b.wait_for(lambda: gutter(tab) != 10, within=10, what="the system's scroll bar back")
+t.ok(gutter(tab) != 10, f"Windows' own leaves the system's scroll bar ({gutter(tab)} px)")
+b.cmd("prefs.set", key="pages.scrollbars", value="oriel")
+b.wait_for(lambda: gutter(tab) == 10, within=10, what="Oriel's back")
+t.ok(gutter(tab) == 10, "Oriel's back at once")
 t.done()

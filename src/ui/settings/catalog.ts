@@ -235,6 +235,14 @@ const added: (Item & { after: string })[] = [
     keys: ['pages.allowCopy'],
     words: ['copy', 'select', 'right click', 'context menu', 'allow copy', 'protected'],
   },
+  {
+    id: 'pages.scrollbars', group: 'pages', icon: 'arrow.up.and.down', after: 'pages.allowCopy',
+    title: 'Scroll bars',
+    detail: "Oriel's: thin, rounded and quiet, the same on every site. Windows' own: the system's, with arrows",
+    more: "Oriel's replace the scroll bars a site draws for itself too. Pages already open change at once.",
+    keys: ['pages.scrollbars'],
+    words: ['scroll', 'scrollbar', 'scroll bar', 'thin', 'stock', 'native', 'windows', 'arrows'],
+  },
   // Reading mode had only its two options here, so Find didn't find it (carpa, 24 Nov 2026).
   {
     id: 'note.reader', group: 'reading', icon: 'doc.text', kind: 'note', after: 'reader.follows',

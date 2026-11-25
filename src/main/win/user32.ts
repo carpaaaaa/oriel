@@ -149,6 +149,15 @@ function load(): Win32 {
     return (GetAsyncKeyState(key) & 0x8000) !== 0
   }
 
+  let barSeen: { at: number; value: ReturnType<Win32['taskbar']> } | null = null
+  const askTaskbar = (): ReturnType<Win32['taskbar']> => {
+    const zero = { left: 0, top: 0, right: 0, bottom: 0 }
+    const data = { cbSize: koffi.sizeof('SEARCH_APPBARDATA'), hWnd: 0, uCallbackMessage: 0, uEdge: 0, rc: { ...zero }, lParam: 0 }
+    const state = Number(SHAppBarMessage(4 /* ABM_GETSTATE */, data))
+    if (!SHAppBarMessage(5 /* ABM_GETTASKBARPOS */, data)) return null
+    return { edge: (['left', 'top', 'right', 'bottom'] as const)[data.uEdge] ?? 'bottom', autoHide: (state & 1) !== 0 /* ABS_AUTOHIDE */ }
+  }
+
   return {
     keyHeld: vk => (GetAsyncKeyState(vk) & 0x8000) !== 0,
     hwnd: handle => Number(handle.length >= 8 ? handle.readBigUInt64LE(0) : BigInt(handle.readUInt32LE(0))),
@@ -230,13 +239,18 @@ function load(): Win32 {
       const info = { cbSize: 40, rcMonitor: { ...zero }, rcWork: { ...zero }, dwFlags: 0 }
       return GetMonitorInfoW(m, info) ? { monitor: info.rcMonitor, work: info.rcWork } : null
     },
-    frameChanged: hwnd => { SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_FLAGS) },
+    // Asked of Windows for its own turn (SWP_ASYNCWINDOWPOS), never inside this call: the
+    // sizing messages it sends the window ran Electron's code under koffi's, and
+    // borderless full screen took the app down (an access violation in koffi.node).
+    frameChanged: hwnd => { SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_FLAGS | 0x4000) },
     taskbar() {
-      const zero = { left: 0, top: 0, right: 0, bottom: 0 }
-      const data = { cbSize: koffi.sizeof('SEARCH_APPBARDATA'), hWnd: 0, uCallbackMessage: 0, uEdge: 0, rc: { ...zero }, lParam: 0 }
-      const state = Number(SHAppBarMessage(4 /* ABM_GETSTATE */, data))
-      if (!SHAppBarMessage(5 /* ABM_GETTASKBARPOS */, data)) return null
-      return { edge: (['left', 'top', 'right', 'bottom'] as const)[data.uEdge] ?? 'bottom', autoHide: (state & 1) !== 0 /* ABS_AUTOHIDE */ }
+      // Asked of the shell (a message to explorer, answered while this thread waits):
+      // once a second at most, not at every refresh of a window going full screen.
+      const now = Date.now()
+      if (barSeen && now - barSeen.at < 1000) return barSeen.value
+      const value = askTaskbar()
+      barSeen = { at: now, value }
+      return value
     },
     title(hwnd) {
       const buf = Buffer.alloc(512)
