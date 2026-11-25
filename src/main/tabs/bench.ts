@@ -97,6 +97,5 @@ benchRequest('tabs.closeWindow', req => {
   return {}
 })
 
-// The switches Chromium was started with (real_switcher.py: the bounce
-// needs ElasticOverscroll among the enabled features).
+// The switches Chromium was started with (real_switcher.py).
 benchRequest('app.switches', () => ({ enableFeatures: app.commandLine.getSwitchValue('enable-features') }))

@@ -31,7 +31,6 @@ export interface PagePrefs {
   autoscroll: boolean
   optionSplit: boolean
   peek: string
-  bounce: boolean
   style: string
   /** YouTube's hosts while Hide YouTube Shorts is on, null otherwise. */
   noShorts: string[] | null
@@ -70,7 +69,6 @@ export function pagePrefs(wc: WebContents, address: string): PagePrefs | null {
     autoscroll: !!pref<boolean>('autoscroll'),
     optionSplit: !!pref<boolean>('links.optionSplit'),
     peek: peekChoice(),
-    bounce: !!pref<boolean>('pages.bounce'),
     style: host ? siteStyle(host) : '',
     noShorts: pref<boolean>('youtube.hideShorts') ? [...youtubeHosts, ...testHosts('test.youtubeHosts')] : null,
     copyFree: copyFreeOn(host),
@@ -161,7 +159,7 @@ export function retell(): void {
   }
 }
 
-const watched = ['youtube.hideShorts', 'shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'pages.bounce', 'sites.styles', 'privacy.gpc']
+const watched = ['youtube.hideShorts', 'shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'sites.styles', 'privacy.gpc']
 let last = ''
 let timer: NodeJS.Timeout | null = null
 model.on('window-changed', (_id: string, slices: string[]) => {

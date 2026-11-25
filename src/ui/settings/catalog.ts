@@ -83,6 +83,7 @@ export const removed: Record<string, string> = {
   'note.sitesearch': 'no ready-made sites for now (the owner\'s decision)',
   // The pages module (studio/08 area C):
   'swipe.history': 'Windows tells an app no start or end of a touchpad swipe',
+  'pages.bounce': 'Chromium on Windows stretches a page only under a precision touchpad, so it is left out',
   'agents': 'no bridge for coding agents yet (studio/03 §8.2): back with it',
   // The tabs module (studio/08 area B):
   'profiles.oneWindow': 'no profiles in Oriel yet (Personal alone): back with them',

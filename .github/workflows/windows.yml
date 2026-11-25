@@ -239,8 +239,8 @@ jobs:
             shots/
             out/*.log
 
-  # Ctrl+Tab and the switcher, the tab numbers, the number keys and the
-  # bounce, with real keys, mouse and touch from Windows (test/real_switcher.py).
+  # Ctrl+Tab and the switcher, the tab numbers and the number keys,
+  # with real keys, mouse and touch from Windows (test/real_switcher.py).
   keys:
     name: keys (${{ matrix.os }})
     strategy:
@@ -260,7 +260,7 @@ jobs:
           python-version: '3.12'
       - run: npm ci
       - run: npm run build
-      - name: Ctrl+Tab, tab numbers, number keys and the bounce (real input)
+      - name: Ctrl+Tab, tab numbers and number keys (real input)
         timeout-minutes: 9
         env:
           SHOTS_DIR: shots

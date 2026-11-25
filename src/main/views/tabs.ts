@@ -169,9 +169,6 @@ export class TabRuntime {
         // in frames too; nothing of Node's is there (sandboxed).
         nodeIntegrationInSubFrames: true,
         spellcheck: true,
-        // The page may bounce at its ends (a Mac's rubber band; on Windows
-        // ElasticOverscroll, index.ts); Settings › Bounce decides per page.
-        scrollBounce: true,
       },
     })
     // Dark until it paints, while Oriel is dark (studio/01 §2.6).

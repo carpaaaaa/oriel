@@ -10,6 +10,7 @@ import { need, quietTests } from '../context'
 import { popups, pageInput, runtimeFor } from '../views/tabs'
 import { controllerFor, type WindowController } from '../views/window'
 import { shortcut } from '../keys'
+import { iconOption } from '../win/icon'
 import { benchRequest } from '../bench/server'
 import { groundPage } from '../pages/ground'
 
@@ -34,7 +35,7 @@ popups.open = (opener, details) => {
     const c = win && controllerFor(win.id)
     const frame = popupFrame(details.features, c?.base.getBounds())
     // A test world's window stays out of sight (context.ts quietTests).
-    return { action: 'allow', overrideBrowserWindowOptions: { ...frame, useContentSize: true, autoHideMenuBar: true, ...(quietTests ? { show: false } : {}) } }
+    return { action: 'allow', overrideBrowserWindowOptions: { ...frame, ...iconOption(), useContentSize: true, autoHideMenuBar: true, ...(quietTests ? { show: false } : {}) } }
   }
   if (!win) return null
   return {

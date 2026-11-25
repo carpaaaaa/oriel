@@ -1,6 +1,7 @@
 // Oriel: the main process starts here.
 
 import { app, ipcMain, session, nativeTheme, protocol, type Session } from 'electron'
+import { appIcon } from './win/icon'
 import { setupPaths, probe } from './paths'
 import { setupUserAgent, applyUserAgent } from './ua'
 import { model } from './model/model'
@@ -25,6 +26,12 @@ setupUserAgent()
 // Windows names the taskbar button, its jump list and notifications by this
 // id (the installer's appId), not by the executable's path.
 if (process.platform === 'win32') app.setAppUserModelId('app.oriel.browser')
+// Every window Electron makes carries Oriel's icon, not its own in the taskbar:
+// a pop-up a site opens (a sign-in window), DevTools, an extension's window.
+app.on('browser-window-created', (_event, win) => {
+  const icon = appIcon()
+  if (icon && !win.isDestroyed()) { try { win.setIcon(icon) } catch {} }
+})
 
 // An error nobody caught in the main process: Electron would show a dialog
 // (on top of everything, even for an invisible test window). Oriel logs it,
@@ -51,15 +58,11 @@ if (process.platform === 'darwin' && testEnv('SEARCH_PROBE') && testEnv('SEARCH_
 // Installed: Oriel's own name with Windows, the one its shortcuts carry (package.json
 // build.appId), so the taskbar groups its windows under Oriel's icon, not Electron's.
 if (process.platform === 'win32' && app.isPackaged) app.setAppUserModelId('app.oriel.browser')
-// Windows 11's thin scrollbars that fade in, as Chrome has them; and
-// Chromium's elastic overscroll (chrome://flags/#elastic-overscroll, off by
-// default on Windows), the page stretching past its ends under a precision
-// touchpad and springing back on the compositor, as the Mac's rubber band
-// (a touchscreen's scroll never starts it: ElasticOverscrollController).
-// Settings › Bounce at the top and bottom decides per page: off, the page's
-// root says overscroll-behavior: none (preload/page/pages.ts). One switch:
-// a second enable-features would replace the first.
-if (process.platform === 'win32') app.commandLine.appendSwitch('enable-features', 'FluentScrollbar,FluentOverlayScrollbar,ElasticOverscroll')
+// Windows 11's thin scrollbars that fade in, as Chrome has them. One switch: a
+// second enable-features would replace the first. (No elastic overscroll: it
+// only ever moved under a precision touchpad, so Bounce at the top and bottom
+// is not offered on Windows.)
+if (process.platform === 'win32') app.commandLine.appendSwitch('enable-features', 'FluentScrollbar,FluentOverlayScrollbar')
 
 // One Search at a time per world: a second launch hands its link over.
 if (!app.requestSingleInstanceLock({ probe })) {

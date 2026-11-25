@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Settings › Keyboard & Mouse and Browsing › Pages, by what each switch does
 (studio/06 §1.11, §1.5): Scroll with the middle button, Alt-click a link
-opens it in Split View, Bounce at the top and bottom, Smooth scrolling with
+opens it in Split View, Smooth scrolling with
 a mouse wheel, Correct spelling as you type, and the keys in the tab
 switcher (Ctrl+W, Ctrl+R, Ctrl+M while Ctrl+Tab is up)."""
 import sys
@@ -105,14 +105,6 @@ t.ok(next(x for x in st["tabs"] if x["id"] == tab)["title"] == "links", "the pag
 t.ok(b.window()["activeID"] == other["id"], "the new page has the keys")
 b.cmd("split.separate")
 setting("links.optionSplit", False)
-
-# 3. Bounce at the top and bottom (off by default): the page stops at its ends.
-tab = tab_titled("tall", H + "/tall?b")
-t.ok(ev(tab, "getComputedStyle(document.documentElement).overscrollBehaviorY") == "none", "off: the page doesn't stretch past its ends")
-setting("pages.bounce", True)
-time.sleep(0.3)
-t.ok(ev(tab, "getComputedStyle(document.documentElement).overscrollBehaviorY") == "auto", "on: Chromium's own bounce is left to it, at once")
-setting("pages.bounce", False)
 
 # 4. Smooth scrolling with a mouse wheel (on by default in Oriel, the user's
 # choice; Search's is off): a notch glides, off it lands at once (more in

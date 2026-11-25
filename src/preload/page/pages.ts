@@ -2,7 +2,7 @@
 // Shield's hiding rules and YouTube's script, Global Privacy Control's
 // navigator.globalPrivacyControl, videos that wait for a click, scrolling
 // with the middle button, Alt-click into Split View, the peek's click, the
-// bounce at the ends and Esc's reminder over a full screen. What each page
+// Esc's reminder over a full screen. What each page
 // gets is asked of the main process once, as the page starts (pagePrefs in
 // src/main/pages/page.ts), and told again when a switch moves. The main
 // frame's only, as the other preload parts. Owned by the pages module.
@@ -15,6 +15,7 @@ import { setupReader } from './reader'
 import { runScriptlets, watchPage, type Watch } from './blocker'
 import { handOn } from './blank'
 import { hideShorts, setCopyFree } from './sites'
+import { scrollbarCSS } from './scrollbar'
 
 interface PagePrefs {
   /** Shield's hiding rules for this site, or nothing while it is off or paused. */
@@ -35,7 +36,6 @@ interface PagePrefs {
   optionSplit: boolean
   /** off | shift | optionShift | optionCommand */
   peek: string
-  bounce: boolean
   /** The site's own style (Edit Site Style…), when Your own style is on. */
   style: string
   /** YouTube's hosts while Hide YouTube Shorts is on. */
@@ -103,7 +103,7 @@ function start(first: PagePrefs): void {
   } catch {}
 
   // Stylesheets of the user's origin: the page's own can't undo them.
-  const sheets: Record<string, string | null> = { shield: null, bounce: null, style: null }
+  const sheets: Record<string, string | null> = { shield: null, style: null, bar: null }
   const sheet = (name: string, css: string, origin: 'user' | 'author' = 'user') => {
     const key = sheets[name]
     if (key) { try { webFrame.removeInsertedCSS(key) } catch {} sheets[name] = null }
@@ -122,9 +122,8 @@ function start(first: PagePrefs): void {
   follow(first)
   const dress = (q: PagePrefs) => {
     sheet('shield', q.css)
-    // Bounce off (Search's default): the page stops at its ends.
-    sheet('bounce', q.bounce ? '' : ':root { overscroll-behavior-y: none !important; }')
     sheet('style', q.style, 'author')
+    sheet('bar', scrollbarCSS)
   }
   dress(first)
 
@@ -132,7 +131,7 @@ function start(first: PagePrefs): void {
     const was = now
     now = q
     hideShorts(q.noShorts ?? null)
-    if (q.css !== was.css || q.bounce !== was.bounce || q.style !== was.style) dress(q)
+    if (q.css !== was.css || q.style !== was.style) dress(q)
     // Off or paused here, or back on: the page's own rules go or come back.
     if (!q.css !== !was.css || q.dom !== was.dom) follow(q)
   })
@@ -308,9 +307,14 @@ function autoScroll(on: () => boolean): void {
   addEventListener('mousedown', e => {
     swallow = -1
     if (active) { e.preventDefault(); e.stopPropagation(); stop(); swallow = e.button; return }
-    if (e.button !== 1 || !on()) return
+    if (e.button !== 1) return
     const t = e.target as Element | null
-    if (t?.closest?.('a[href], area[href], input, textarea, select, button, video, audio, iframe, [contenteditable=""], [contenteditable="true"]')) return
+    const own = !!t?.closest?.('a[href], area[href], input, textarea, select, button, video, audio, iframe, [contenteditable=""], [contenteditable="true"]')
+    // Off: Chromium on Windows scrolls with the wheel button by itself; a
+    // pressed middle button the page didn't take stops it (a link still opens
+    // on release, as auxclick).
+    if (!on()) { if (!own) e.preventDefault(); return }
+    if (own) return
     e.preventDefault()
     active = { x: e.clientX, y: e.clientY, dx: 0, dy: 0, since: performance.now(), target: scroller(t), badge: mark(e.clientX, e.clientY), cursor: document.documentElement.style.cursor, frame: 0 }
     document.documentElement.style.cursor = 'all-scroll'

@@ -59,6 +59,17 @@ export function ThemesPage() {
 
         <Segmented value={family()} set={choose} options={families} />
 
+        {/* Under the choice, not under a long grid of walls: the strength is one of every look's controls. */}
+        <Show when={family() !== 'off' && (family() !== 'image' || !!pic())}>
+          <div class="th-sliders">
+            <Slider title="Intensity" value={tp().tuning.intensity * 100} max={100} unit="%" commit={v => void tune({ intensity: v / 100 })} />
+            <Show when={tp().theme === 'stickers'}>
+              <Slider title="Density" value={tp().tuning.density * 100} max={100} unit="%" commit={v => void tune({ density: v / 100 })} />
+              <Slider title="Scale" value={tp().tuning.scale * 100} max={100} unit="%" commit={v => void tune({ scale: v / 100 })} />
+            </Show>
+          </div>
+        </Show>
+
         <Choose>
           <Match when={family() === 'off'}>
             <div class="th-note">The blank tab stays plain.</div>
@@ -126,16 +137,6 @@ export function ThemesPage() {
             <input type="checkbox" checked={tp().shuffle} onChange={e => void set('home.shuffle', e.currentTarget.checked)} />
             Shuffle: a different one each day
           </label>
-        </Show>
-
-        <Show when={family() !== 'off' && (family() !== 'image' || !!pic())}>
-          <div class="th-sliders">
-            <Slider title="Intensity" value={tp().tuning.intensity * 100} max={100} unit="%" commit={v => void tune({ intensity: v / 100 })} />
-            <Show when={tp().theme === 'stickers'}>
-              <Slider title="Density" value={tp().tuning.density * 100} max={100} unit="%" commit={v => void tune({ density: v / 100 })} />
-              <Slider title="Scale" value={tp().tuning.scale * 100} max={100} unit="%" commit={v => void tune({ scale: v / 100 })} />
-            </Show>
-          </div>
         </Show>
       </div>
     </Show>

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Ctrl+Tab, the tab numbers, the number keys and the bounce, with real input
-from Windows (studio/01 §3.25-§3.28, §7.16; studio/06 §1.11 bounce):
+"""Ctrl+Tab, the tab numbers and the number keys, with real input
+from Windows (studio/01 §3.25-§3.28, §7.16):
 
 1. A quick Ctrl+Tab goes straight to the tab used before, and again back.
    (Before 0.1.5 it left the switcher open: Chromium drops Ctrl's keyUp once
@@ -12,9 +12,6 @@ from Windows (studio/01 §3.25-§3.28, §7.16; studio/06 §1.11 bounce):
 5. Show tab numbers while Ctrl is held: Ctrl held, the numbers; let go, gone.
 6. Ctrl+1 to Ctrl+9 switch spaces: Ctrl+2 the second space, Alt+3 the third
    tab, Alt held the tab numbers.
-7. Bounce at the top and bottom: Chromium started with ElasticOverscroll,
-   and the page's rule follows the switch (the stretch itself needs a
-   precision touchpad, which no test machine has).
 
 Windows only."""
 import ctypes, json, os, struct, subprocess, sys, time, zlib
@@ -384,25 +381,6 @@ t.ok(got, "after Alt let go, Ctrl+2 still works")
 b.cmd("prefs.set", key="spaces.commandNumbers", value=False)
 b.cmd("space.select", id=first_space)
 time.sleep(0.4)
-
-# 7. Bounce at the top and bottom. Chromium stretches the page only under a
-# precision touchpad (ElasticOverscrollController: a scroll that begins
-# "non-momentum" in precise pixels; a touchscreen's never does), and no test
-# machine has one: what is checked is the engine's switch and the page's
-# own rule, both ways.
-say('7. bounce')
-sw = b.call({"do": "app.switches"}).get("enableFeatures") or ""
-t.ok("ElasticOverscroll" in sw.split(","), f"Chromium started with ElasticOverscroll ({sw})")
-b.cmd("tab.go", input="data:text/html,<title>bounce</title><div style='height:3000px'>tall</div>")
-b.wait_for(lambda: title() == "bounce", what="bounce page")
-tab = b.active()["id"]
-rule = lambda: b.ev(tab, "getComputedStyle(document.documentElement).overscrollBehaviorY")
-b.cmd("settings.set", id="pages.bounce", value=True)
-time.sleep(0.5)
-t.ok(rule() == "auto", f"on: the page may stretch past its ends ({rule()})")
-b.cmd("settings.set", id="pages.bounce", value=False)
-time.sleep(0.5)
-t.ok(rule() == "none", f"off: it stops at its ends ({rule()})")
 
 release_all()
 try:
