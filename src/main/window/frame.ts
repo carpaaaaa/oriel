@@ -261,7 +261,12 @@ export class Frame {
   }
 
   /** In full screen as a borderless window (window.fullScreenStyle). */
-  borderless(): boolean { return this.state === 'fullScreen' && model.pref<string>('window.fullScreenStyle') === 'borderless' }
+  borderless(): boolean { return this.state === 'fullScreen' && !this.edgeToEdge && model.pref<string>('window.fullScreenStyle') === 'borderless' }
+
+  /** Full screen put on by Ctrl+S: drawn as full screen (the page edge to edge, the tabs coming down
+   * at the top), whatever the style; the window's size is still the style's, so a Borderless window
+   * keeps the taskbar within reach. Cleared when full screen ends. */
+  edgeToEdge = false
 
   /** Borderless is chosen, and this is Windows: the window covers the screen
    * but Windows isn't told it is full screen, so the taskbar can still come
@@ -498,6 +503,7 @@ export class Frame {
       this.beforeFull = this.comeBackTo()
       this.leaveMaximized()
     }
+    if (!on) this.edgeToEdge = false
     this.full = on && !!this.hwnd
     // On Windows the window covers the screen by itself (cover), in both styles:
     // exactly for Full screen (Windows takes it for a full-screen app and keeps
@@ -553,7 +559,9 @@ export class Frame {
       if (b.isDestroyed() || this.isFullScreen()) return
       const w = win32()
       if (max && w && this.hwnd) { if (!this.zoomed()) w.setPlacement(this.hwnd, { ...max, showCmd: SW_SHOWMAXIMIZED }) }
-      else if (before && this.compute() === 'free') {
+      // Covering the screen exactly, Electron says "maximized" for a window it didn't maximize
+      // (its bounds are the work area's, or the screen's): that is not a reason to leave it there.
+      else if (before && !this.zoomed() && this.compute() !== 'snapped') {
         const now = b.getBounds()
         if (now.x !== before.x || now.y !== before.y || now.width !== before.width || now.height !== before.height) b.setBounds(before)
       }
