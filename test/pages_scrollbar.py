@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """A page's scrollbars are thin and quiet (preload/page/scrollbar.ts): a slim
-thumb in a neutral grey, no track. A site that styles its own scrollbars
+thumb in a neutral grey, no track, no arrows. A site that styles its own scrollbars
 keeps them. The picture of a tall page scrolled a little is kept for looking
 at (SHOTS_DIR or out/)."""
 import os
@@ -15,8 +15,8 @@ server, P = web.start(tls=False)
 H = f"http://127.0.0.1:{P}"
 TALL = "<body style='margin:0;height:6000px;background:linear-gradient(#fff,#ccd)'><p style='margin:40px'>words</p>"
 web.PAGES["/tall"] = "<title>tall</title>" + TALL
-web.PAGES["/own"] = "<title>own</title><style>html{scrollbar-color:red blue}</style>" + TALL
-web.PAGES["/plain"] = "<title>plain</title><style>html{scrollbar-width:auto;scrollbar-color:auto}</style>" + TALL
+web.PAGES["/own"] = "<title>own</title><style>::-webkit-scrollbar{width:20px}</style>" + TALL
+web.PAGES["/plain"] = "<title>plain</title><style>html{scrollbar-color:red blue}</style>" + TALL
 web.PAGES["/inner"] = ("<title>inner</title><body style='margin:0'><div id='s' style='width:300px;height:200px;overflow:auto'>"
                        "<div style='height:2000px'>inner</div></div>")
 
@@ -44,27 +44,19 @@ def open_page(path, title):
 
 
 tab = open_page("/tall", "tall")
-cs = lambda js: ev(tab, f"(() => {{ const s = getComputedStyle({js}); return [s.scrollbarWidth, s.scrollbarColor] }})()")
-width, color = cs("document.documentElement")
-t.ok(width == "thin", f"the page's scrollbar is thin ({width})")
-t.ok(color.replace(",", "").replace("  ", " ").startswith("rgba(128 128 128 / 0.5)") or color.startswith("rgba(128, 128, 128, 0.5)"), f"in a neutral grey, no track ({color})")
+gutter = lambda t: ev(t, "innerWidth - document.documentElement.clientWidth")
+t.ok(gutter(tab) == 10, f"the page's scrollbar is 10 px wide, not the system's 15 with arrows ({gutter(tab)})")
 ev(tab, "scrollTo(0, 400); 1")
 time.sleep(0.6)
-gutter = ev(tab, "innerWidth - document.documentElement.clientWidth")
-print(f"  (the scrollbar takes {gutter} px of the page's width)")
 b.shot(shots / "scrollbar-tall.png")
 
 plain = open_page("/plain", "plain")
-ev(plain, "scrollTo(0, 400); 1")
-time.sleep(0.6)
-print(f"  (with the system's own scrollbar: {ev(plain, 'innerWidth - document.documentElement.clientWidth')} px)")
-b.shot(shots / "scrollbar-system.png")
+t.ok(gutter(plain) != 10, f"a site that sets its own scrollbar colour keeps its own ({gutter(plain)} px)")
 
 own = open_page("/own", "own")
-width, color = ev(own, "(() => { const s = getComputedStyle(document.documentElement); return [s.scrollbarWidth, s.scrollbarColor] })()")
-t.ok("255, 0, 0" in color or "red" in color, f"a site's own scrollbar colour is kept ({color})")
+t.ok(gutter(own) == 20, f"a site that styles ::-webkit-scrollbar keeps its own ({gutter(own)} px)")
 
 inner = open_page("/inner", "inner")
-width, color = ev(inner, "(() => { const s = getComputedStyle(document.getElementById('s')); return [s.scrollbarWidth, s.scrollbarColor] })()")
-t.ok(width == "thin", f"a box that scrolls inside the page is thin too ({width})")
+inside = ev(inner, "(() => { const e = document.getElementById('s'); return e.offsetWidth - e.clientWidth })()")
+t.ok(inside == 10, f"a box that scrolls inside the page is the same ({inside} px)")
 t.done()
