@@ -21,11 +21,12 @@ import type { WindowController } from '../views/window'
 import { bringFile } from './file'
 import type { Source } from './sources'
 
-/** Where each browser lives on this PC (Windows' usual places). */
-const executables: Record<string, string[]> = {
-  Chrome: ['%PROGRAMFILES%/Google/Chrome/Application/chrome.exe', '%PROGRAMFILES(X86)%/Google/Chrome/Application/chrome.exe', '%LOCALAPPDATA%/Google/Chrome/Application/chrome.exe'],
-  Edge: ['%PROGRAMFILES(X86)%/Microsoft/Edge/Application/msedge.exe', '%PROGRAMFILES%/Microsoft/Edge/Application/msedge.exe'],
-  Brave: ['%PROGRAMFILES%/BraveSoftware/Brave-Browser/Application/brave.exe', '%PROGRAMFILES(X86)%/BraveSoftware/Brave-Browser/Application/brave.exe', '%LOCALAPPDATA%/BraveSoftware/Brave-Browser/Application/brave.exe'],
+/** Where each browser lives under Program Files, Program Files (x86) or the
+ * user's own AppData\Local (Windows' usual places). */
+const executables: Record<string, string> = {
+  Chrome: 'Google/Chrome/Application/chrome.exe',
+  Edge: 'Microsoft/Edge/Application/msedge.exe',
+  Brave: 'BraveSoftware/Brave-Browser/Application/brave.exe',
 }
 
 /** The browser's program, when its passwords are locked to it and it can be
@@ -35,9 +36,12 @@ export function browserExe(source: Source): string | null {
   if (source.family !== 'chromium' || !source.appBound) return null
   if (probe) return testEnv('ORIEL_EXPORT_DIRS') ? 'test-browser.exe' : null
   if (process.platform !== 'win32') return null
-  for (const template of executables[source.name] ?? []) {
-    const file = template.replace(/%([^%]+)%/g, (_m, name: string) => process.env[name] ?? '')
-    if (file && path.isAbsolute(file) && existsSync(file)) return file
+  const relative = executables[source.name]
+  if (!relative) return null
+  for (const base of [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA]) {
+    if (!base || !path.isAbsolute(base)) continue
+    const file = path.join(base, relative)
+    if (existsSync(file)) return file
   }
   return null
 }

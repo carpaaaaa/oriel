@@ -294,7 +294,11 @@ export const items: Item[] = (raw.items as Item[])
     }
     return adapted
   })
-  .flatMap(i => [i, ...added.filter(a => a.after === i.id).map(({ after: _, ...a }) => a)])
+  .flatMap(function place(i: Item): Item[] {
+    // A row added after another added row (Hide YouTube Shorts after See through the
+    // floating video) comes along too: each is placed right after the one it names.
+    return [i, ...added.filter(a => a.after === i.id).flatMap(({ after: _, ...a }) => place(a))]
+  })
 
 export const groupOf = (id: string) => groups.find(g => g.id === id)
 export const itemOf = (id: string) => items.find(i => i.id === id)
