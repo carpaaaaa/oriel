@@ -132,9 +132,14 @@ const overrides: Record<string, Partial<Item>> = {
     more: 'With Energy Saver on, or on battery. Pages are left as they are.',
   },
   'motion.instant': { more: 'For Oriel alone, whatever Animation effects in Windows Settings says. The tab Ctrl+1 to Ctrl+9 picks is lit at once, and the page shows at once.' },
+  // One switch (studio/06 §1.5 #78): the Mac's choice between Search's window
+  // and macOS's picture in picture is gone, one floating video is left. The
+  // row keeps the Mac's id and place in index.json; its key is float.enabled.
   'float.style': {
-    detail: "Oriel's own window, or Chromium's picture in picture",
-    more: "Oriel's window floats a video without a click and keeps its page alive in it. Picture in picture is the one Chrome uses, with its own controls.",
+    title: 'Floating video',
+    detail: 'A playing video can float above other windows',
+    more: 'It keeps playing in a small window you can move and resize, with its page alive in it. Ctrl+Shift+P floats one by hand. Off, nothing floats, not even when a site\'s own button asks for it.',
+    keys: ['float.enabled'],
   },
   'spaces': { more: 'Each space can be signed in where the others are or start afresh.' },
   'spaces.commandNumbers': {
@@ -193,7 +198,7 @@ const added: (Item & { after: string })[] = [
     id: 'float.fade', group: 'video', icon: 'circle.lefthalf.filled', after: 'float.minimize',
     title: 'See through the floating video',
     detail: "While the pointer isn't on it. Further right, more see-through",
-    more: "Oriel's window and picture in picture both. With the pointer on it, it's solid again. All the way left, it never fades.",
+    more: "With the pointer on it, it's solid again, and for its first moments after it comes out. All the way left, it never fades.",
     keys: ['float.fade'],
     words: ['pip', 'picture in picture', 'transparent', 'transparency', 'opacity', 'fade', 'see through'],
   },

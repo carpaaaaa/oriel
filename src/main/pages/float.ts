@@ -1,22 +1,29 @@
-// The floating video (studio/06 §1.5 #78-#81, §3.5; Float.swift, NativePiP.swift,
+// The floating video (studio/06 §1.5 #78-#81, §3.5; Float.swift,
 // Browser.swift lift/land/appLeft). A video keeps playing in a small window
-// above everything when you go somewhere else.
-//  - Oriel's window (float.style "search", the default): the page itself
-//    moves. Everything but the video is made invisible, the video fills the
-//    page, and the tab's whole view goes into a small frameless window that
-//    stays on top; the video never stops, it only changed windows. Buttons
-//    on hover: close, back to the tab, play/pause, 15 s back and on, and,
-//    with Minimize the floating video, a button that tucks it small.
-//    Two fingers on a touchpad flick it to the corner they point at.
-//  - Picture in picture ("system"): Chromium's own, with its controls.
+// above everything when you go somewhere else, if Settings' Floating video
+// is on (float.enabled; the Mac's choice between Search's window and
+// macOS's picture in picture is gone, Chromium's own can't wear Oriel's
+// look). The page itself moves. Everything but the video is made invisible,
+// the video fills the page, and the tab's whole view goes into a small
+// frameless window that stays on top; the video never stops, it only
+// changed windows. Its buttons (src/ui/float.html, themed as the interface)
+// show while the pointer is on it: close, back to the tab, play/pause, 15 s
+// back and on, a thin line that seeks, and, with Minimize the floating
+// video, a button that tucks it small. Two fingers on a touchpad flick it
+// to the corner they point at.
 // On its own (Float the video on its own): leaving a tab (float.leave, on)
 // or Oriel (float.away) floats a video that is playing and heard, from a
 // site whose video is the point of the site (Players.knows); coming back to
 // the tab, or to Oriel for one lifted that way, lands it. Ctrl+Shift+P
-// floats any playing video by hand, or lands it.
-// See through (float.fade, Oriel's own): away from the pointer either one
-// lets what is behind show through, as much as Settings' slider says.
+// floats any playing video by hand, or lands it. A site's own picture in
+// picture button floats its video the same way (preload/page/float.ts); off,
+// it is refused.
+// See through (float.fade, Oriel's own): away from the pointer it lets what
+// is behind show through, as much as Settings' slider says.
 
+import { dirname, join } from 'node:path'
+import { writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { BaseWindow, WebContentsView, ipcMain, screen, type WebContents } from 'electron'
 import { iconOption } from '../win/icon'
 import type { ID, Rect } from '../../shared/state'
@@ -30,6 +37,9 @@ import { allControllers, controllerFor, registerSlice } from '../views/window'
 import { pref } from './facts'
 import { keepOnPage } from '../views/guard'
 import { win32 } from '../win/user32'
+
+/** The buttons' own page (src/ui/float.html), built beside the interface's. */
+const controlsPage = join(dirname(fileURLToPath(import.meta.url)), '../ui/float.html')
 
 const PRELOAD_WORLD = 999
 
@@ -64,19 +74,25 @@ interface Floating {
   /** Lifted because Oriel was left: lands when Oriel comes back. */
   away: boolean
   tuckedFrom: Rect | null
+  /** The pointer is over it, as the main process sees it: its buttons show. */
+  near: boolean
   ticker: NodeJS.Timeout
+  watcher: NodeJS.Timeout
 }
 
 let floating: Floating | null = null
-/** The tab whose video is in Chromium's picture in picture. */
-let pictured: ID | null = null
 let liftedAway = false
+
+/** Settings › Floating video (float.enabled, on as it comes). Off, nothing
+ * floats: not by hand, not on its own, not from a site's own button. The
+ * Mac's float.style (Search's window or macOS's picture in picture) held
+ * two kinds of "on"; whichever a prefs file still has, it means on. */
+export const floatEnabled = () => pref<boolean>('float.enabled') !== false
 
 const isolated = (wc: WebContents, code: string, gesture = false): Promise<unknown> =>
   wc.executeJavaScriptInIsolatedWorld(PRELOAD_WORLD, [{ code: `(globalThis.__orielFloat ? (${code}) : null)` }], gesture)
 
-registerSlice('float', c => (floating && floating.win === c.record.id ? { tab: floating.tab, style: 'search', tucked: !!floating.tuckedFrom }
-  : pictured && model.windowOf(pictured)?.id === c.record.id ? { tab: pictured, style: 'system', tucked: false } : null))
+registerSlice('float', c => (floating && floating.win === c.record.id ? { tab: floating.tab, tucked: !!floating.tuckedFrom } : null))
 
 function markAll(): void { for (const c of allControllers()) c.mark('float') }
 
@@ -110,47 +126,6 @@ export function corner(frame: Rect, area: Rect, way: { dx: number; dy: number },
   return { x: midX > area.x + area.width / 2 ? right : left, y }
 }
 
-// the buttons over the video: a page with no preload that speaks through
-// its console (oriel-float:close), read in console-message.
-
-const glyph = (d: string, size: number) => `<svg width="${size}" height="${size}" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
-const CONTROLS = `<!doctype html><meta charset="utf-8"><style>
-html,body{margin:0;height:100%;overflow:hidden;background:transparent;-webkit-app-region:drag;user-select:none;cursor:default}
-.scrim{position:fixed;inset:0;background:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,0) 28%,rgba(0,0,0,0) 66%,rgba(0,0,0,.5));opacity:0;transition:opacity .15s}
-button{-webkit-app-region:no-drag;position:fixed;border:0;border-radius:50%;background:rgba(26,26,26,.55);display:grid;place-items:center;padding:0;opacity:0;transition:opacity .15s}
-body:hover .scrim,body:hover button,body:hover #line,body.near .scrim,body.near button,body.near #line{opacity:1}
-#close{left:14px;top:14px;width:30px;height:30px}#tuck{left:52px;top:14px;width:30px;height:30px}#back{right:14px;top:14px;width:30px;height:30px}
-#pause{left:calc(50% - 25px);top:calc(50% - 25px);width:50px;height:50px}
-#rewind{left:calc(50% - 79px);top:calc(50% - 19px);width:38px;height:38px}#forward{left:calc(50% + 41px);top:calc(50% - 19px);width:38px;height:38px}
-#line{position:fixed;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.22);opacity:0}#line i{display:block;height:100%;width:0;background:rgba(255,255,255,.85)}
-body.tucked #rewind,body.tucked #pause,body.tucked #forward,body.tucked #line{display:none}.off{display:none}
-</style><div class="scrim"></div>
-<button id="close" title="Close" aria-label="Close">${glyph('<path d="m5 5 6 6m0-6-6 6"/>', 11)}</button>
-<button id="tuck" class="off" title="Minimize" aria-label="Minimize">${glyph('<path d="M4.5 8h7"/>', 11)}</button>
-<button id="back" title="Back to the tab" aria-label="Back to the tab">${glyph('<path d="M6 4h6v6M12 4 4.5 11.5"/>', 12)}</button>
-<button id="rewind" title="Back 15 seconds" aria-label="Back 15 seconds">${glyph('<path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3M4.9 2.4v2.4h2.4"/>', 15)}</button>
-<button id="pause" title="Pause" aria-label="Pause">${glyph('<path d="M6 4.5v7M10 4.5v7"/>', 17)}</button>
-<button id="forward" title="Forward 15 seconds" aria-label="Forward 15 seconds">${glyph('<path d="M12.5 8a4.5 4.5 0 1 1-1.4-3.3M11.1 2.4v2.4H8.7"/>', 15)}</button>
-<div id="line"><i></i></div>
-<script>
-const say = w => console.debug('oriel-float:' + w);
-for (const [id, w] of [['close','close'],['tuck','tuck'],['back','back'],['rewind','skip,-15'],['pause','toggle'],['forward','skip,15']]) document.getElementById(id).onclick = () => say(w);
-let sum = { x: 0, y: 0 }, quiet = null;
-addEventListener('wheel', e => {
-  e.preventDefault(); sum.x += e.deltaX; sum.y += e.deltaY; clearTimeout(quiet);
-  quiet = setTimeout(() => { const s = sum; sum = { x: 0, y: 0 }; say('wheel,' + Math.round(s.x) + ',' + Math.round(s.y)); }, 120);
-}, { passive: false });
-const pauseIcon = document.getElementById('pause').innerHTML;
-const playIcon = '${glyph('<path d="M5.5 4v8l6.5-4z" fill="#fff"/>', 17).replace(/"/g, '\\"')}';
-window.set = o => {
-  if ('tuck' in o) document.getElementById('tuck').classList.toggle('off', !o.tuck);
-  if ('tucked' in o) { document.body.classList.toggle('tucked', o.tucked); document.getElementById('tuck').innerHTML = o.tucked ? '${glyph('<path d="M8 4.5v7M4.5 8h7"/>', 11)}' : '${glyph('<path d="M4.5 8h7"/>', 11)}'; }
-  if ('playing' in o) { const b = document.getElementById('pause'); b.innerHTML = o.playing ? pauseIcon : playIcon; b.title = o.playing ? 'Pause' : 'Play'; }
-  if ('through' in o) document.querySelector('#line i').style.width = (o.through * 100) + '%';
-  if ('near' in o) document.body.classList.toggle('near', o.near);
-  return true;
-};
-</script>`
 
 function layoutInside(f: Floating): void {
   const { width, height } = f.base.getContentBounds()
@@ -177,10 +152,10 @@ function openWindow(tab: ID, win: ID, view: WebContentsView, away: boolean): Flo
   base.contentView.addChildView(view)
   base.contentView.addChildView(controls)
   view.setBorderRadius(0)
-  const f: Floating = { tab, win, view, base, controls, away, tuckedFrom: null, ticker: setInterval(() => tick(), 500) }
+  const f: Floating = { tab, win, view, base, controls, away, tuckedFrom: null, near: false, ticker: setInterval(() => tick(), 500), watcher: setInterval(() => hover(f), HOVER_TICK) }
   layoutInside(f)
-  controls.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(CONTROLS)).catch(() => {})
-  controls.webContents.once('did-finish-load', () => tell(f, { tuck: !!pref<boolean>('float.minimize'), playing: true }))
+  controls.webContents.loadFile(controlsPage).catch(() => {})
+  controls.webContents.once('did-finish-load', () => tell(f, { tuck: !!pref<boolean>('float.minimize'), still: !!pref<boolean>('motion.instant'), playing: true }))
   controls.webContents.on('console-message', e => { const m = e.message ?? ''; if (m.startsWith('oriel-float:')) heard(f, m.slice(12)) })
   base.on('resize', () => layoutInside(f))
   for (const e of ['moved', 'resized'] as const) base.on(e as 'moved', () => keepFrame(f))
@@ -206,6 +181,8 @@ function heard(f: Floating, what: string): void {
   if (name === 'tuck') { tuck(f); return }
   if (name === 'toggle') { void isolated(f.view.webContents, 'globalThis.__orielFloat.toggle()', true).then(p => tell(f, { playing: !!p })); return }
   if (name === 'skip') { void isolated(f.view.webContents, `globalThis.__orielFloat.skip(${Number(a) || 0})`); return }
+  // The line along the foot: a fraction of the video's length.
+  if (name === 'seek') { if (Number.isFinite(Number(a))) void isolated(f.view.webContents, `globalThis.__orielFloat.seek(${Number(a)})`); return }
   if (name === 'wheel') wheel(f, Number(a) || 0, Number(b) || 0)
 }
 
@@ -257,10 +234,22 @@ function tick(): void {
   if (!f || f.view.webContents.isDestroyed()) return
   void isolated(f.view.webContents, '[globalThis.__orielFloat.where(), globalThis.__orielFloat.gone()]').then(r => {
     if (floating !== f || !Array.isArray(r)) return
-    const [[through, playing], gone] = r as [[number, boolean], boolean]
-    tell(f, { through, playing })
+    const [[through, playing, seekable], gone] = r as [[number, boolean, boolean], boolean]
+    tell(f, { through, playing, seekable })
     if (gone) land()
   }).catch(() => {})
+}
+
+/** Its buttons show while the pointer is over the window. The page has
+ * :hover for that, but Windows hands a draggable region no hover at all, and
+ * the whole window is one: so the main process says where the pointer is. */
+const HOVER_TICK = 80
+function hover(f: Floating): void {
+  if (!f || f.base.isDestroyed()) return
+  const on = pointerOn(f.base)
+  if (on === f.near) return
+  f.near = on
+  tell(f, { near: on })
 }
 
 // lifting and landing
@@ -275,6 +264,7 @@ export async function lift(tab: ID, quietly: boolean, away = false): Promise<str
 }
 
 async function lifting(tab: ID, quietly: boolean, away: boolean): Promise<string> {
+  if (!floatEnabled()) return 'off'
   if (floating) return 'busy'
   const t = model.tabs.get(tab)
   const rt = runtimes.get(tab)
@@ -283,15 +273,31 @@ async function lifting(tab: ID, quietly: boolean, away: boolean): Promise<string
   if (!t || !rt?.view || !wc || !win || t.empty || t.internal) return 'no page'
   if (quietly && !knownPlayer(wc.getURL())) return 'not a player'
   if (quietly && !t.audible) return 'silent'
-  if (pref<string>('float.style') === 'system') return picture(tab, quietly, false)
   const found = await isolated(wc, `globalThis.__orielFloat.on(${quietly})`).catch(() => null)
   if (found !== 'floating') return `found ${found}`
-  // Its tab in front again meanwhile, or another video out: nothing moves.
-  if (floating || model.onScreen(tab) || rt.view !== runtimes.get(tab)?.view) { void isolated(wc, 'globalThis.__orielFloat.off()'); return 'none' }
+  // Its tab in front again meanwhile, or another video out, or the switch
+  // turned off: nothing moves.
+  if (floating || !floatEnabled() || model.onScreen(tab) || rt.view !== runtimes.get(tab)?.view) { void isolated(wc, 'globalThis.__orielFloat.off()'); return 'none' }
   floating = openWindow(tab, win.id, rt.view, away)
   liftedAway = away
   markAll()
   return 'floating'
+}
+
+/** Float the video of `tab` by hand: the one playing, or the one its page's
+ * own button named. False when there is none, or another is out by now. */
+async function floatByHand(tab: ID, win: ID): Promise<boolean> {
+  const rt = runtimes.get(tab)
+  const wc = rt?.contents
+  if (!rt?.view || !wc) return false
+  const found = await isolated(wc, 'globalThis.__orielFloat.on(false)').catch(() => null)
+  if (found !== 'floating') return false
+  if (floating || !floatEnabled() || rt.view !== runtimes.get(tab)?.view) { void isolated(wc, 'globalThis.__orielFloat.off()'); return false }
+  // Its tab may be in front: its window lets go of the page, for good until it lands.
+  controllerFor(win)?.hold(tab)
+  floating = openWindow(tab, win, rt.view, false)
+  markAll()
+  return true
 }
 
 /** Back into its tab (Browser.land): the little window closes whatever else is true. */
@@ -301,6 +307,7 @@ export function land(): void {
   floating = null
   liftedAway = false
   clearInterval(f.ticker)
+  clearInterval(f.watcher)
   const kids = f.base.isDestroyed() ? [] : f.base.contentView.children
   if (kids.includes(f.view)) f.base.contentView.removeChildView(f.view)
   if (!f.controls.webContents.isDestroyed()) f.controls.webContents.close()
@@ -309,6 +316,7 @@ export function land(): void {
   if (!wc.isDestroyed()) void isolated(wc, 'globalThis.__orielFloat.off()')
   // On screen again: its window takes the page back.
   const c = controllerFor(f.win)
+  c?.release(f.tab)
   if (c && model.onScreen(f.tab)) c.placePages()
   markAll()
 }
@@ -338,59 +346,41 @@ let solidUntil = 0
 const fadeLevel = () => { const v = Number(pref('float.fade')); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0 }
 let alpha = 1
 let fader: NodeJS.Timeout | null = null
-/** Chromium's picture in picture window, once found. */
-let pipWindow = 0
+/** Where a test world says the pointer is (its window is invisible and lets
+ * clicks through, so the real pointer is never on it): null, the real one. */
+let pointerSaid: boolean | null = null
+export function setFloatPointer(on: boolean | null): void { pointerSaid = on }
 
-/** The little window's handle, and the picture in picture's (found the
- * first time: this process's always-on-top Chromium window that is none of
- * Electron's). */
-function fadingWindows(): { base: BaseWindow | null; hwnds: number[] } {
-  const w = win32()
-  const base = floating && !floating.base.isDestroyed() ? floating.base : null
-  const hwnds: number[] = []
-  if (base && w) hwnds.push(w.hwnd(base.getNativeWindowHandle()))
-  if (pictured && w) {
-    if (pipWindow && !w.isWindow(pipWindow)) pipWindow = 0
-    if (!pipWindow) {
-      const ours = BaseWindow.getAllWindows().filter(b => !b.isDestroyed()).map(b => w.hwnd(b.getNativeWindowHandle()))
-      pipWindow = w.topmostOf(process.pid, ours)[0] ?? 0
-    }
-    if (pipWindow) hwnds.push(pipWindow)
-  }
-  return { base, hwnds }
-}
-
-/** The pointer inside one of them. Both stay on top of everything, so
- * inside is on it; Windows' own window-under-a-point answers past Electron's
- * little window, to whatever is behind it. */
-function pointerOn(base: BaseWindow | null, hwnds: number[]): boolean {
+/** The pointer inside the little window, which stays on top of everything,
+ * so inside is on it; Windows' own window-under-a-point answers past
+ * Electron's little window, to whatever is behind it. */
+function pointerOn(base: BaseWindow | null): boolean {
+  if (pointerSaid !== null) return pointerSaid
+  if (!base || quietTests) return false
   const w = win32()
   if (w) {
-    const p = w.cursor()
-    return hwnds.some(h => { const r = w.windowRect(h); return p.x >= r.left && p.x < r.right && p.y >= r.top && p.y < r.bottom })
+    const p = w.cursor(), r = w.windowRect(w.hwnd(base.getNativeWindowHandle()))
+    return p.x >= r.left && p.x < r.right && p.y >= r.top && p.y < r.bottom
   }
-  if (!base) return false
   const p = screen.getCursorScreenPoint(), b = base.getBounds()
   return p.x >= b.x && p.y >= b.y && p.x < b.x + b.width && p.y < b.y + b.height
 }
 
-function setAlpha(base: BaseWindow | null, hwnds: number[], a: number): void {
-  if (base) base.setOpacity(a)
-  const w = win32()
-  if (w) for (const h of hwnds) if (h === pipWindow) w.setAlpha(h, a)
+/** A test world's window stays at no opacity at all: the number is kept, never applied. */
+function setAlpha(base: BaseWindow, a: number): void {
+  if (!quietTests) base.setOpacity(a)
 }
 
 /** One step towards solid (the pointer on it) or see-through (away). */
 function fadeStep(): void {
-  if (quietTests) return
-  const { base, hwnds } = fadingWindows()
-  if (!base && !hwnds.length) { if (!floating && !pictured) stopFade(); return }
-  const target = pointerOn(base, hwnds) || Date.now() < solidUntil ? 1 : 1 - FADE_MOST * fadeLevel()
-  if (Math.abs(target - alpha) < 0.005 && target === 1 && fadeLevel() === 0) { setAlpha(base, hwnds, 1); stopFade(); return }
+  const base = floating && !floating.base.isDestroyed() ? floating.base : null
+  if (!base) { stopFade(); return }
+  const target = pointerOn(base) || Date.now() < solidUntil ? 1 : 1 - FADE_MOST * fadeLevel()
+  if (Math.abs(target - alpha) < 0.005 && target === 1 && fadeLevel() === 0) { alpha = 1; setAlpha(base, 1); stopFade(); return }
   const next = Math.abs(target - alpha) < 0.01 ? target : alpha + (target - alpha) * 0.3
   if (next === alpha) return
   alpha = next
-  setAlpha(base, hwnds, alpha)
+  setAlpha(base, alpha)
 }
 
 function stopFade(): void {
@@ -401,39 +391,9 @@ function stopFade(): void {
 /** Watching starts while something floats and the slider isn't at 0, and
  * goes on until the window is solid again. */
 function fadeWatch(): void {
-  if (fader || quietTests || (!floating && !pictured)) return
+  if (fader || !floating) return
   if (fadeLevel() === 0 && alpha === 1) return
   fader = setInterval(fadeStep, FADE_TICK)
-}
-
-// The page's video in and out of picture in picture, by Oriel or by the
-// page's own button (preload/page/float.ts).
-ipcMain.on('float:pip', (event, on: unknown) => {
-  if (event.senderFrame !== event.sender.mainFrame) return
-  const rt = [...runtimes.values()].find(r => r.contents === event.sender)
-  if (!rt) return
-  if (on === true) { pictured = rt.id; pipWindow = 0; alpha = 1; solidUntil = Date.now() + SOLID_FIRST; setImmediate(fadeWatch) }
-  else if (pictured === rt.id) { pictured = null; pipWindow = 0 }
-  markAll()
-})
-
-/** Chromium's picture in picture (Browser.picture). */
-async function picture(tab: ID, quietly: boolean, toggle: boolean): Promise<string> {
-  const wc = runtimes.get(tab)?.contents
-  if (!wc) return 'none'
-  const answer = String(await isolated(wc, `globalThis.__orielFloat.pip(${quietly}, ${toggle})`, true).catch(() => 'none'))
-  if (answer === 'in') pictured = tab
-  if (answer === 'out' && pictured === tab) pictured = null
-  markAll()
-  return answer
-}
-
-function unpicture(): void {
-  const id = pictured
-  pictured = null
-  const wc = id ? runtimes.get(id)?.contents : null
-  if (wc) void isolated(wc, 'globalThis.__orielFloat.pipOff()')
-  markAll()
 }
 
 // on its own
@@ -445,17 +405,16 @@ model.on('selected', (win: WindowRecord, id: ID) => {
   const was = win.used[0] ? model.tabs.get(win.used[0]) : undefined
   const left = was && now && was.touched === now.touched ? was.id : undefined
   if (floating?.tab === id || floating?.win === win.id && model.onScreen(floating.tab)) land()
-  if (pictured === id) unpicture()
   if (left && left !== id && pref<boolean>('float.leave') !== false && model.tabs.has(left) && !model.onScreen(left)) {
     void lift(left, true).catch(() => {})
   }
 })
 
-model.on('tab-closed', (id: ID) => { if (floating?.tab === id) land(); if (pictured === id) pictured = null })
+model.on('tab-closed', (id: ID) => { if (floating?.tab === id) land() })
 
 /** Oriel left for another app: float.away lifts the video in front. */
 function appLeft(win: ID): void {
-  if (!pref<boolean>('float.away') || floating || pictured) return
+  if (!floatEnabled() || !pref<boolean>('float.away') || floating) return
   const w = model.windows.get(win)
   const id = w?.active[w.space]
   if (!w || !id) return
@@ -467,10 +426,9 @@ function appLeft(win: ID): void {
     const t = model.tabs.get(id)
     const wc = runtimes.get(id)?.contents
     if (!t || !wc || !knownPlayer(wc.getURL()) || !t.audible) return
-    if (pref<string>('float.style') === 'system') { if (await picture(id, true, false) === 'in') liftedAway = true; return }
     const found = await isolated(wc, 'globalThis.__orielFloat.on(true)').catch(() => null)
-    if (found !== 'floating' || floating || anyFocused()) { if (found === 'floating') void isolated(wc, 'globalThis.__orielFloat.off()'); return }
-    if (c.base.contentView.children.includes(view)) c.base.contentView.removeChildView(view)
+    if (found !== 'floating' || floating || !floatEnabled() || anyFocused()) { if (found === 'floating') void isolated(wc, 'globalThis.__orielFloat.off()'); return }
+    c.hold(id)
     floating = openWindow(id, win, view, true)
     liftedAway = true
     markAll()
@@ -484,7 +442,6 @@ function appBack(win: ID): void {
   const w = model.windows.get(win)
   const id = w?.active[w.space]
   if (floating && floating.away && floating.tab === id) land()
-  if (pictured && pictured === id) unpicture()
 }
 
 const anyFocused = () => allControllers().some(c => !c.base.isDestroyed() && c.base.isFocused())
@@ -496,36 +453,41 @@ model.on('window-opened', (id: string) => setImmediate(() => {
   c.base.on('focus', () => appBack(id))
 }))
 
-// Settings moving under it: Minimize appears or goes at once, and the
-// slider's see-through shows on the floating video as it moves.
+// Settings moving under it: Floating video turned off lands what floats,
+// Minimize appears or goes at once, and the slider's see-through shows on
+// the floating video as it moves.
 model.on('window-changed', (_id: string, slices: string[]) => {
   if (slices.includes('prefs')) fadeWatch()
   if (!slices.includes('prefs') || !floating) return
+  if (!floatEnabled()) { land(); return }
   const on = !!pref<boolean>('float.minimize')
-  tell(floating, { tuck: on })
+  tell(floating, { tuck: on, still: !!pref<boolean>('motion.instant') })
   if (!on && floating.tuckedFrom) tuck(floating)
 })
 
 // Ctrl+Shift+P, Float Video (keys.ts's table): lands one that floats, or
-// floats the video playing in front, by hand.
+// floats the video playing in front, by hand. Off in Settings, nothing.
 handle('view.float', async ({ id }, ctx) => {
   const c = need(ctx)
+  if (!floatEnabled()) return { said: 'The floating video is off in Settings' }
   if (floating) { land(); return { landed: true } }
   const tab = id ?? c.record.active[c.record.space]
-  if (!tab) return { said: 'Nothing is playing here' }
-  if (pref<string>('float.style') === 'system') {
-    const r = await picture(tab, false, true)
-    return r === 'none' ? { said: 'Nothing is playing here' } : r === 'refused' ? { said: 'This page keeps its video to itself' } : { picture: r }
-  }
-  const rt = runtimes.get(tab)
-  const wc = rt?.contents
-  if (!rt?.view || !wc) return { said: 'Nothing is playing here' }
-  const found = await isolated(wc, 'globalThis.__orielFloat.on(false)').catch(() => null)
-  if (found !== 'floating') return { said: 'Nothing is playing here' }
-  if (c.base.contentView.children.includes(rt.view)) c.base.contentView.removeChildView(rt.view)
-  floating = openWindow(tab, c.record.id, rt.view, false)
-  markAll()
+  if (!tab || !(await floatByHand(tab, c.record.id))) return { said: 'Nothing is playing here' }
   return { floating: true }
+})
+
+// A site's own picture in picture button, or its player's: the page asks
+// (preload/page/float.ts) and the video floats here instead, or lands if it
+// already floats. Off in Settings the page never asks: the button is refused.
+ipcMain.on('float:request', event => {
+  if (event.senderFrame !== event.sender.mainFrame || !floatEnabled()) return
+  const rt = [...runtimes.values()].find(r => r.contents === event.sender)
+  const win = rt && model.windowOf(rt.id)
+  if (!rt || !win) return
+  if (floating?.tab === rt.id) { land(); return }
+  if (!model.onScreen(rt.id)) return
+  if (floating) land()
+  void floatByHand(rt.id, win.id)
 })
 
 handle('pages.float.land', () => land())
@@ -537,21 +499,47 @@ handle('pages.float.tuck', () => { if (floating) tuck(floating) })
 /** For the bench: what the fade sees under the pointer. */
 function fadeProbe(): Record<string, unknown> {
   const w = win32()
-  if (!w || (!floating && !pictured)) return {}
-  const { base, hwnds } = fadingWindows()
-  const at = w.cursor()
-  return { pointer: at, hwnds, on: pointerOn(base, hwnds) }
+  const base = floating && !floating.base.isDestroyed() ? floating.base : null
+  if (!w || !base) return {}
+  return { pointer: w.cursor(), on: pointerOn(base) }
 }
 
 /** For the bench. */
 export function floatInfo() {
   const f = floating
   return {
-    floating: f ? { tab: f.tab, win: f.win, bounds: f.base.getBounds(), tucked: !!f.tuckedFrom, away: f.away, holdsPage: f.base.contentView.children.includes(f.view), controls: f.controls.webContents.id } : null,
-    pictured,
-    fade: { level: fadeLevel(), alpha, watching: !!fader, pipWindow: pipWindow ? win32()?.title(pipWindow) ?? '' : null, ...fadeProbe() },
+    enabled: floatEnabled(),
+    floating: f ? { tab: f.tab, win: f.win, bounds: f.base.getBounds(), tucked: !!f.tuckedFrom, away: f.away, holdsPage: f.base.contentView.children.includes(f.view), controls: f.controls.webContents.id, near: f.near } : null,
+    fade: { level: fadeLevel(), alpha, watching: !!fader, ...fadeProbe() },
     lifts: lifts.slice(-5),
   }
 }
 export function floatControls(): WebContents | null { return floating && !floating.controls.webContents.isDestroyed() ? floating.controls.webContents : null }
 export function floatWheel(dx: number, dy: number): void { if (floating) wheel(floating, dx, dy) }
+
+/** Runs in the buttons' page (it has a canvas): lays the pictures out. */
+function compose(parts: { b: { x: number; y: number; width: number; height: number }; png: string }[], width: number, height: number): Promise<string> {
+  const canvas = document.createElement('canvas')
+  const scale = devicePixelRatio
+  canvas.width = width * scale
+  canvas.height = height * scale
+  const g = canvas.getContext('2d')!
+  return parts.reduce((p, part) => p.then(() => new Promise<void>(done => {
+    const img = new Image()
+    img.onload = () => { g.drawImage(img, part.b.x * scale, part.b.y * scale, part.b.width * scale, part.b.height * scale); done() }
+    img.onerror = () => done()
+    img.src = 'data:image/png;base64,' + part.png
+  })), Promise.resolve()).then(() => canvas.toDataURL('image/png').split(',')[1])
+}
+
+/** For the bench: a picture of the floating window, its video and its
+ * buttons each at its place (the window itself is invisible in a test world). */
+export async function floatShot(file: string): Promise<{ width: number; height: number } | null> {
+  const f = floating
+  if (!f || f.base.isDestroyed() || f.controls.webContents.isDestroyed()) return null
+  const { width, height } = f.base.getContentBounds()
+  const parts = await Promise.all([f.view, f.controls].map(async v => ({ b: v.getBounds(), png: (await v.webContents.capturePage()).toPNG().toString('base64') })))
+  const data: string = await f.controls.webContents.executeJavaScript(`(${compose.toString()})(${JSON.stringify(parts)}, ${width}, ${height})`, true)
+  writeFileSync(file, Buffer.from(data, 'base64'))
+  return { width, height }
+}

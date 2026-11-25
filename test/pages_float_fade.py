@@ -4,10 +4,11 @@ in a hidden world.
 
 Away from the pointer the floating video lets what is behind show through,
 as much as the slider says (at its end a fifth stays); the slider at 0, it
-is solid again and nothing watches. Both ways of floating: Oriel's window
-and Chromium's picture in picture, found among the process's windows. A
-picture in picture opened by the page itself counts too, and closing it
-from the page is heard.
+is solid again and nothing watches. Just out it is solid for 2.5 seconds, so
+you see where it went (0.1.10). With the pointer on it, it is solid; away,
+it goes see-through again. A tab's own picture in picture button floats the
+same window, so it fades the same. In a test world the window itself is
+invisible: the number the fade keeps is read, not the window's opacity.
 
     npm run build && python3 test/pages_float_fade.py
 """
@@ -55,6 +56,10 @@ def fl():
     return b.call({"do": "pages.state"})["float"]
 
 
+def pointer(on):
+    b.call({"do": "pages.floatPointer", "on": on})
+
+
 def main():
     b.use(WORLD)
     try:
@@ -63,32 +68,41 @@ def main():
         tab = b.cmd("tab.open", url=f"{BASE}/video", foreground=True)
         b.wait_for(lambda: b.ev(tab, "(() => { const v = document.querySelector('video'); return !!v && !v.paused && v.readyState >= 2 })()"), what="the video playing")
 
-        print("- Oriel's window")
+        print("- the floating window")
         t.ok((b.cmd("view.float") or {}).get("floating") is True, "floats")
-        # The fade eases in: waited until it has arrived (unless the pointer is on it).
-        f = b.wait_for(lambda: (lambda x: x if abs(x["fade"]["alpha"] - 0.4) < 0.02 or x["fade"].get("on") else None)(fl()), within=4, what="see-through")
+        f = fl()
+        t.ok(f["fade"]["alpha"] == 1 and f["fade"]["watching"], "just out it is solid, with the slider at 0.75 (0.1.10)")
+        time.sleep(1.5)
+        t.ok(fl()["fade"]["alpha"] == 1, "and still solid a second and a half on")
+        # The fade eases in after its 2.5 s: waited until it has arrived.
+        f = b.wait_for(lambda: (lambda x: x if abs(x["fade"]["alpha"] - 0.4) < 0.02 else None)(fl()), within=8, what="see-through")
         t.ok(True, f"away from the pointer, 0.4 ({f['fade']['alpha']:.2f})")
+        pointer(True)
+        b.wait_for(lambda: fl()["fade"]["alpha"] == 1, within=5, what="solid under the pointer")
+        t.ok(True, "the pointer on it: solid again")
+        pointer(False)
+        b.wait_for(lambda: abs(fl()["fade"]["alpha"] - 0.4) < 0.02, within=5, what="see-through again")
+        t.ok(True, "the pointer away: see-through again")
+        b.cmd("settings.set", id="float.fade", value=0.25)
+        b.wait_for(lambda: abs(fl()["fade"]["alpha"] - 0.8) < 0.02, within=5, what="a lighter fade")
+        t.ok(True, "the slider moved: the floating video follows at once (0.8)")
         b.cmd("settings.set", id="float.fade", value=0)
-        f = b.wait_for(lambda: (lambda x: x if x["fade"]["alpha"] == 1 and not x["fade"]["watching"] else None)(fl()), within=4, what="solid again")
+        f = b.wait_for(lambda: (lambda x: x if x["fade"]["alpha"] == 1 and not x["fade"]["watching"] else None)(fl()), within=5, what="solid again")
         t.ok(True, "the slider at 0: solid, nothing watching")
+        pointer(None)
         b.cmd("view.float")
         b.wait_for(lambda: not fl()["floating"], within=3, what="landed")
 
-        print("- picture in picture")
+        print("- from a tab's own picture in picture button")
         b.cmd("settings.set", id="float.fade", value=0.75)
-        b.cmd("settings.set", id="float.style", value="system")
-        t.ok((b.cmd("view.float") or {}).get("picture") == "in", "in picture in picture")
-        f = b.wait_for(lambda: (lambda x: x if x["fade"]["pipWindow"] is not None and x["fade"]["alpha"] < 0.5 else None)(fl()), within=5, what="its window found and faded")
-        t.ok(f["pictured"] == tab, "the tab is the one pictured")
-        b.ev(tab, "document.exitPictureInPicture()")
-        b.wait_for(lambda: fl()["pictured"] is None, within=3, what="closed from the page, heard")
-        t.ok(True, "closed from the page: heard")
-
-        print("- picture in picture opened by the page")
-        b.ev(tab, "document.querySelector('video').requestPictureInPicture().then(() => true)")
-        f = b.wait_for(lambda: (lambda x: x if x["pictured"] == tab and x["fade"]["pipWindow"] is not None else None)(fl()), within=5, what="the page's own picture in picture")
-        t.ok(True, "found and faded too")
-        b.ev(tab, "document.exitPictureInPicture()")
+        asked = b.ev(tab, "document.querySelector('video').requestPictureInPicture().then(() => 'in', e => e.name)")
+        t.ok(asked == "in" and b.wait_for(lambda: fl()["floating"], within=5, what="floated from the site's button"), f"the site's button floats the video ({asked})")
+        t.ok(fl()["fade"]["watching"] and fl()["fade"]["alpha"] == 1, "solid just out, as any")
+        b.wait_for(lambda: abs(fl()["fade"]["alpha"] - 0.4) < 0.02, within=8, what="its see-through")
+        t.ok(True, "and see-through after, as any")
+        b.cmd("view.float")
+        b.wait_for(lambda: not fl()["floating"], within=3, what="landed")
+        b.cmd("settings.set", id="float.fade", value=0)
     except Exception as error:
         import traceback
         traceback.print_exc()

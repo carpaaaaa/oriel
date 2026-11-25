@@ -97,7 +97,10 @@ export const defaults = {
   'links.little.tabs': false,
   'reader.twins': false,
   'reader.follows': false,
-  'float.style': 'search', // search (Oriel's window) | system
+  // The floating video, on or off (studio/06 §1.5 #78). The Mac's
+  // float.style (Search's window or macOS's picture in picture) is gone: both
+  // values meant "on", and Oriel's window is the only one now.
+  'float.enabled': true,
   'float.leave': true,
   'float.away': false,
   'float.minimize': false,

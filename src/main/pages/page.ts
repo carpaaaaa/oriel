@@ -37,6 +37,8 @@ export interface PagePrefs {
   noShorts: string[] | null
   /** Copying set free on this page (everywhere, or this site). */
   copyFree: boolean
+  /** Settings > Floating video: a site's own picture in picture button floats the video, or is refused. */
+  floatOn: boolean
 }
 
 /** Let me copy on every site, or this one (a tab's menu, copy.sites). */
@@ -74,6 +76,7 @@ export function pagePrefs(wc: WebContents, address: string): PagePrefs | null {
     style: host ? siteStyle(host) : '',
     noShorts: pref<boolean>('youtube.hideShorts') ? [...youtubeHosts, ...testHosts('test.youtubeHosts')] : null,
     copyFree: copyFreeOn(host),
+    floatOn: pref<boolean>('float.enabled') !== false,
   }
 }
 
@@ -161,7 +164,7 @@ export function retell(): void {
   }
 }
 
-const watched = ['youtube.hideShorts', 'shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'pages.bounce', 'sites.styles', 'privacy.gpc']
+const watched = ['youtube.hideShorts', 'shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'pages.bounce', 'sites.styles', 'privacy.gpc', 'float.enabled']
 let last = ''
 let timer: NodeJS.Timeout | null = null
 model.on('window-changed', (_id: string, slices: string[]) => {

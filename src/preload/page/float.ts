@@ -1,15 +1,19 @@
 // The floating video's part in the page (studio/06 §3.5; Float.swift
-// Isolate, NativePiP.swift), in the preload's own world: the main process
-// calls globalThis.__orielFloat with executeJavaScriptInIsolatedWorld.
-//  - on: the video somebody watches is picked, everything else made
-//    invisible and the video stretched to the viewport, so the whole page
-//    can move into the little window and keep playing (Isolate.on);
+// Isolate), in the preload's own world: the main process calls
+// globalThis.__orielFloat with executeJavaScriptInIsolatedWorld.
+//  - on: the video somebody watches (or the one a site's own picture in
+//    picture button named) is picked, everything else made invisible and the
+//    video stretched to the viewport, so the whole page can move into the
+//    little window and keep playing (Isolate.on);
 //  - off: the page as it was;
-//  - pip: Chromium's picture in picture for the same video (NativePiP);
-//  - toggle, skip, where, gone: the little window's buttons and line.
+//  - toggle, skip, seek, where, gone: the little window's buttons and line.
+// Chromium's own picture in picture can't wear Oriel's look, so it is never
+// let open: a site's button for it (requestPictureInPicture) floats the video
+// here instead, or is refused with Floating video off, and the player's
+// built-in one is closed as it opens (holdPictureInPicture).
 // Owned by the pages module.
 
-import { ipcRenderer, webFrame } from 'electron'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
 
 const MARK = 'data-oriel-float'
 
@@ -29,6 +33,67 @@ const SHEET = [
   ' clip-path:none !important; mask:none !important; container-type:normal !important }',
 ].join('\n')
 
+/** Floating video is on (float.enabled): told by the main process, as the page starts and when the switch moves. */
+let floatOn = false
+export function setFloatOn(on: boolean): void { floatOn = on }
+
+/** The video a site's own button named, until it is floated (or a moment
+ * has passed: a request that came to nothing names no video later). */
+let named: HTMLVideoElement | null = null
+function request(v: unknown): void {
+  const mine = v instanceof HTMLVideoElement ? v : null
+  named = mine
+  setTimeout(() => { if (named === mine) named = null }, 3000)
+  ipcRenderer.send('float:request')
+}
+
+/** Picture in picture is Oriel's floating video or nothing (the main world is
+ * patched before the page's own scripts, the frames' too):
+ *  - requestPictureInPicture asks this page's preload, which answers by
+ *    cancelling the event and floating the video; with no answer (Floating
+ *    video off, and in every frame but the top one) it is refused;
+ *  - document.pictureInPictureEnabled says the same, so a site hides its button;
+ *  - what still gets through (the player's own button, an extension's) is
+ *    closed the moment Chromium opens it, and floated here if it is on. */
+export function holdPictureInPicture(): void {
+  try {
+    contextBridge.executeInMainWorld({
+      func: () => {
+        const ask = (on: EventTarget, what: string) => {
+          const e = new CustomEvent('__oriel_pip', { cancelable: true, bubbles: true, composed: true, detail: what })
+          on.dispatchEvent(e)
+          return e.defaultPrevented
+        }
+        Object.defineProperty(HTMLVideoElement.prototype, 'requestPictureInPicture', {
+          value: { requestPictureInPicture(this: HTMLVideoElement) {
+            if (!navigator.userActivation?.isActive) return Promise.reject(new DOMException('Must be handling a user gesture to request picture in picture.', 'NotAllowedError'))
+            if (!ask(this, 'request')) return Promise.reject(new DOMException('Picture in picture is off.', 'NotAllowedError'))
+            return Promise.resolve(Object.assign(new EventTarget(), { width: this.videoWidth, height: this.videoHeight, onresize: null }))
+          } }.requestPictureInPicture,
+          writable: true, enumerable: true, configurable: true,
+        })
+        Object.defineProperty(Document.prototype, 'pictureInPictureEnabled', {
+          get(this: Document) { return ask(this, 'ask') }, enumerable: true, configurable: true,
+        })
+      },
+    })
+  } catch {}
+  // The page's own call, answered: a trusted gesture was needed to get here.
+  window.addEventListener('__oriel_pip', e => {
+    if (!floatOn || !(e instanceof CustomEvent) || window.top !== window) return
+    e.preventDefault()
+    if (e.detail !== 'request') return
+    request(e.composedPath()[0])
+  }, true)
+  // Chromium's own window, opened anyway: closed, and floated if it is on.
+  document.addEventListener('enterpictureinpicture', e => {
+    if (!e.isTrusted) return
+    void document.exitPictureInPicture().catch(() => {})
+    if (!floatOn || window.top !== window) return
+    request(e.target)
+  }, true)
+}
+
 export function setupFloat(): void {
   // Videos paused only because nobody could see the page, and videos heard
   // (Isolate.watch): what floats out on its own is one somebody watches.
@@ -38,11 +103,6 @@ export function setupFloat(): void {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') unseen = new WeakSet() }, true)
   const listen = (e: Event) => { const v = e.target; if (v instanceof HTMLVideoElement && !v.paused && !v.muted && v.volume > 0) heard.add(v) }
   for (const n of ['play', 'playing', 'volumechange']) document.addEventListener(n, listen, true)
-  // In and out of Chromium's picture in picture, by Oriel or by the page's
-  // own button: the main process fades that window too (float.fade).
-  document.addEventListener('enterpictureinpicture', () => ipcRenderer.send('float:pip', true), true)
-  document.addEventListener('leavepictureinpicture', () => ipcRenderer.send('float:pip', false), true)
-
   /** Isolate.real: heard, long enough, big enough, not a preview in a link. */
   const real = (v: HTMLVideoElement) => {
     if (!(heard.has(v) || (!v.muted && v.volume > 0))) return false
@@ -75,7 +135,10 @@ export function setupFloat(): void {
 
   const api = {
     on(quietly: boolean): 'floating' | 'none' {
-      const v = pick(quietly)
+      // One a site's button named floats even paused; else the one playing.
+      const asked = named && named.isConnected ? named : null
+      named = null
+      const v = asked ?? pick(quietly)
       if (!v) return 'none'
       api.off()
       video = v
@@ -91,23 +154,6 @@ export function setupFloat(): void {
       if (sheet) { try { webFrame.removeInsertedCSS(sheet) } catch {} sheet = null }
       video = null
     },
-    /** Chromium's picture in picture (NativePiP.script): in, out, none or refused. */
-    async pip(quietly: boolean, toggle: boolean): Promise<string> {
-      if (document.pictureInPictureElement) {
-        if (!toggle) return 'in'
-        await document.exitPictureInPicture().catch(() => {})
-        return 'out'
-      }
-      const v = pick(quietly)
-      if (!v) return 'none'
-      if (v.disablePictureInPicture) return 'refused'
-      try { await v.requestPictureInPicture(); return 'in' } catch { return 'refused' }
-    },
-    async pipOff(): Promise<boolean> {
-      if (!document.pictureInPictureElement) return false
-      await document.exitPictureInPicture().catch(() => {})
-      return true
-    },
     toggle(): boolean {
       const v = video
       if (!v) return false
@@ -121,11 +167,17 @@ export function setupFloat(): void {
       const end = isFinite(v.duration) ? v.duration : Infinity
       v.currentTime = Math.max(0, Math.min(end, v.currentTime + seconds))
     },
-    where(): [number, boolean] {
+    /** A fraction of the video's length (the line along the foot). */
+    seek(at: number): void {
       const v = video
-      if (!v) return [0, false]
-      const through = isFinite(v.duration) && v.duration > 0 ? v.currentTime / v.duration : 0
-      return [through, !v.paused]
+      if (!v || !isFinite(v.duration) || v.duration <= 0 || !isFinite(at)) return
+      v.currentTime = Math.max(0, Math.min(1, at)) * v.duration
+    },
+    where(): [number, boolean, boolean] {
+      const v = video
+      if (!v) return [0, false, false]
+      const seekable = isFinite(v.duration) && v.duration > 0
+      return [seekable ? v.currentTime / v.duration : 0, !v.paused, seekable]
     },
     /** The floated video gone from its page, or ended a while ago (Isolate.gone). */
     goneSince: 0,

@@ -85,7 +85,7 @@ Voce nuova di Oriel, non del Mac: `window.buttons` (Themes › Window buttons, I
 |---|---|---|---|
 | reading | `reader.twins` | Read the site's own Markdown | fatto: copia Markdown dello stesso sito, renderer che fa escape (test/settings_c_reading.py) |
 | reading | `reader.follows` | Reading mode follows light and dark | fatto: chiaro/scuro con la finestra, selettore nell'angolo, `reader.look` (settings_c_reading) |
-| video | `float.style` | The floating video | fatto: finestra di Oriel (la vista si sposta) o PiP di Chromium (settings_c_video; PiP solo con ORIEL_PIP=1) |
+| video | `float.enabled` | Floating video | fatto: un interruttore, la finestra di Oriel (la vista si sposta) è l'unica; il PiP di Chromium non c'è più, il bottone PiP di un sito porta il video lì (settings_c_video, settings_float_migrate, pages_float_look) |
 | video | `float.leave` | Float the video on its own | fatto: esce cambiando scheda, solo video sentito su siti di video (settings_c_video) |
 | video | `float.away` | Float the video on its own | vicino: esce quando nessuna finestra di Oriel ha il fuoco; manca il controllo "ancora visibile su un altro schermo" (settings_c_video) |
 | video | `float.minimize` | Minimize the floating video | fatto: pulsante che lo rimpicciolisce a 220 e lo riporta (settings_c_video) |

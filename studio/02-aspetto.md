@@ -747,6 +747,10 @@ Indirizzi `search://settings`, `search://settings/privacy`, `search://history`, 
 
 `Plate` con il nome del sito come titolo, prima 420 × 220, minimo 340 × 120, ridimensionabile dall'angolo in basso a sinistra (simbolo 8 semibold in 22 × 22, doppio clic torna alla misura iniziale); didascalia "CSS for every page of this site"; editor monospazio 12 `ink` su `wash` raggio 10 padding 8; piede: pillola piena "Done" e "Clear".
 
+### 8.10 Video flottante, solo Windows (`src/ui/float.html`, 25 nov 2026)
+
+Non c'è su Mac (lì è `Float.swift` con i suoi controlli): è la scelta di Oriel di vestire i bottoni con l'aspetto dell'app. Ultra pulito: sul video non c'è nulla finché il puntatore non è sulla finestra (dissolvenza `--dur-quick`, `--ease-quick`, che `motion.instant` azzera); allora compaiono solo capsule di `ground` al 92% con filo `card-edge` e ombra morbida (`0 1px 8px` nero 20%), glifi `ink` a tratto tondo come i simboli (§7), passaggio del puntatore `g-wash`. In alto a sinistra una capsula con chiudi e, se `float.minimize`, riduci (26 × 26, dentro di 10 dai bordi); in alto a destra un cerchio 26 × 26 "torna alla scheda"; al centro una capsula con indietro 15 s, pausa o play (38 × 38) e avanti 15 s; in fondo, dentro di 14 e a 4 dal bordo, una linea sottile (4, 6 sotto il puntatore, estremi tondi) con pista `ground` al 55% e riempimento `ink`, che cerca con clic o trascinamento e manca nei video senza durata. Niente gradienti, niente cerchi che pulsano, niente testo (Plus Jakarta Sans resta per ciò che un giorno vi comparirà). Chiaro o scuro come l'app (`prefers-color-scheme`, come `page.tsx`). Il filo tutto intorno è `card-edge` a 1 px, raggio 8 come gli angoli che Windows 11 dà alla finestra: le capsule hanno gli estremi concentrici con la propria altezza. Ridotta (220 di larghezza) restano chiudi, riduci, torna e pausa. Prova: `test/pages_float_look.py`.
+
 ---
 
 ## 9. Indice dei riferimenti principali

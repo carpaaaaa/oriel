@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Settings › Browsing › Video, by what each switch does (studio/06 §1.5,
 §3.5): Videos wait for a click, Press Esc twice to leave full screen, and
-the floating video (The floating video, Float the video on its own,
-Minimize the floating video, the flick to a corner)."""
+the floating video (one switch, Floating video; Float the video on its own,
+Minimize the floating video, the flick to a corner; a site's own picture in
+picture button floats it too, and is refused with the switch off)."""
 import sys
 import time
 from pathlib import Path
@@ -141,7 +142,8 @@ t.ok(f["tab"] == film and f["holdsPage"], "leaving a tab with a video playing fl
 t.ok(ev(film, "document.documentElement.classList.contains('oriel-floating') && !document.getElementById('v').paused") is True, "the video goes on playing")
 size = ev(film, "(() => { const r = document.getElementById('v').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), innerWidth, innerHeight] })()")
 t.ok(size and size[0] == size[2] and size[1] == size[3] and 250 <= size[2] <= 460, f"everything else goes, the video fills the little window ({size})")
-t.ok(b.window()["float"] and b.window()["float"]["style"] == "search", "Oriel's own window, by default")
+t.ok(b.window()["float"] and b.window()["float"]["tab"] == film and "style" not in b.window()["float"], "one floating video, on as it comes")
+t.ok(b.state()["prefs"].get("float.enabled") is True and fl()["enabled"] is True, "Floating video is on by default")
 b.cmd("tab.select", id=film)
 b.wait_for(lambda: not fl()["floating"], within=10, what="landed")
 time.sleep(0.5)
@@ -225,15 +227,92 @@ t.ok(not fl()["floating"], "a muted video doesn't float out on its own")
 b.cmd("tab.select", id=film)
 ev(film, "document.getElementById('v').muted = false; 1")
 
-# Picture in picture puts a window of Chromium's on the screen: only when asked (ORIEL_PIP=1).
-if os.environ.get("ORIEL_PIP") == "1":
-    setting("float.style", "system")
-    r = b.cmd("view.float")
-    t.ok(r.get("picture") == "in" and fl()["pictured"] == film, f"Picture in picture: Chromium's own window ({r})")
-    t.ok(ev(film, "!!document.pictureInPictureElement") is True, "the page's video is in picture in picture")
-    b.cmd("view.float")
-    time.sleep(0.5)
-    t.ok(ev(film, "!document.pictureInPictureElement") is True, "Ctrl+Shift+P again brings it back")
-    setting("float.style", "search")
+# A tab's own picture in picture button (requestPictureInPicture): the video
+# floats here, the one the button named, and it lands on a second press.
+web.PAGES["/pip"] = ("<title>pip</title><body style='margin:0'>"
+                     "<video id='v' autoplay muted loop src='/tone.wav' style='width:320px;height:180px;background:#000'></video>"
+                     "<video id='w' loop src='/tone.wav' style='width:320px;height:180px'></video>"
+                     "<script>window.pip = null; setTimeout(() => document.getElementById('v').requestPictureInPicture().then(() => window.pip = 'in', e => window.pip = e.name), 700)</script>")
+b.call({"do": "pages.testHosts", "test.playerHosts": []})
+pipper = tab_titled("pip", H + "/pip", paint=False)
+time.sleep(2.2)
+t.ok(ev(pipper, "window.pip") == "NotAllowedError" and not fl()["floating"], f"asked with no click, it is refused as Chromium refuses it ({ev(pipper, 'window.pip')})")
+t.ok(ev(pipper, "document.pictureInPictureEnabled") is True, "a site is told it may")
+ask = "document.getElementById('w').requestPictureInPicture().then(() => 'in', e => e.name)"
+t.ok(ev(pipper, ask) == "in", "a click on the site's button is answered")
+b.wait_for(lambda: fl()["floating"], within=10, what="floated from the site's button")
+t.ok(fl()["floating"]["tab"] == pipper and fl()["floating"]["holdsPage"], "the video floats in Oriel's window, not Chromium's")
+t.ok(ev(pipper, "document.getElementById('w').hasAttribute('data-oriel-float') && !document.getElementById('v').hasAttribute('data-oriel-float')") is True, "the one the button named, though the other was the one playing")
+t.ok(ev(pipper, "!document.getElementById('w').paused") is True, "and it plays")
+ev(pipper, ask)
+b.wait_for(lambda: not fl()["floating"], within=10, what="landed by the site's button")
+t.ok(True, "the button again lands it")
+time.sleep(0.5)
+t.ok(ev(pipper, "document.visibilityState") == "visible" and ev(pipper, "innerWidth") > 460, "its page is back in its tab, whole")
+t.ok(ev(pipper, "!document.pictureInPictureElement") is True, "Chromium's own window never opened")
+ev(pipper, "var f = document.createElement('iframe'); f.srcdoc = '<video></video>'; document.body.appendChild(f); 1")
+time.sleep(0.5)
+t.ok(ev(pipper, "document.querySelector('iframe').contentDocument.pictureInPictureEnabled") is False, "in a frame it is refused: no picture in picture of Chromium's there either")
+ev(pipper, "document.querySelectorAll('video').forEach(v => v.pause()); 1")  # it would float on leaving
+
+# Floating video off: nothing floats, by hand, on its own or from a site's button.
+b.cmd("tab.select", id=film)
+time.sleep(0.5)
+ev(film, "document.getElementById('v').play().then(() => 1)")  # a tab left rests its video
+b.wait_for(lambda: ev(film, "!document.getElementById('v').paused"), within=10, what="the film playing")
+b.cmd("view.float")
+b.wait_for(lambda: fl()["floating"], within=10, what="floated by hand")
+setting("float.enabled", False)
+b.call({"do": "pages.testHosts", "test.playerHosts": ["127.0.0.1"]})
+t.ok(not fl()["floating"] and fl()["enabled"] is False, "turned off while one floats: it lands at once")
+time.sleep(0.5)
+t.ok(ev(film, "document.visibilityState") == "visible" and ev(film, "!!document.querySelector('video') && !document.getElementById('v').paused") is True, "back in its tab, still playing")
+r = b.cmd("view.float")
+t.ok(not r.get("floating") and "off" in r.get("said", "") and not fl()["floating"], f"Ctrl+Shift+P does nothing, and says why quietly ({r})")
+b.cmd("tab.select", id=other)
+time.sleep(2)
+t.ok(not fl()["floating"] and fl()["lifts"][-1:] == ["off"], f"leaving the tab leaves the video in it ({fl()['lifts']})")
+setting("float.own", "tabsOrApps")
+b.cmd("tab.select", id=film)
+b.call({"do": "pages.appFocus", "focused": False})
+time.sleep(1.5)
+t.ok(not fl()["floating"], "nor does leaving Oriel float it")
+b.call({"do": "pages.appFocus", "focused": True})
+setting("float.own", "tabs")
+t.ok(ev(film, "document.pictureInPictureEnabled") is False, "a site is told there is no picture in picture: its button goes")
+t.ok(ev(film, "document.getElementById('v').requestPictureInPicture().then(() => 'in', e => e.name)") == "NotAllowedError", "and a call for it is refused")
+time.sleep(0.5)
+t.ok(not fl()["floating"] and ev(film, "!document.pictureInPictureElement") is True, "nothing floats, Chromium's window doesn't open either")
+
+# The rows: one switch; what depends on it goes while it is off.
+b.cmd("settings.open", page="browsing")
+b.wait_for(lambda: [x for x in b.window()["tabs"] if x.get("internal") == "settings"], what="Settings tab")
+settings = [x for x in b.window()["tabs"] if x.get("internal") == "settings"][0]["id"]
+b.wait_for(lambda: ev(settings, "document.querySelectorAll('.sr').length") or 0, what="Settings drawn", within=30)
+rows = lambda: ev(settings, "[...document.querySelectorAll('[data-row]')].map(r => r.dataset.row).filter(r => r.startsWith('float.'))")
+b.wait_for(lambda: "float.style" in (rows() or []), what="the Floating video row")
+t.ok(rows() == ["float.style"], f"off: one row, the rows that depend on it are gone ({rows()})")
+text = ev(settings, "(() => { const r = document.querySelector('[data-row=\"float.style\"]'); return r.innerText + ' ' + r.querySelector('.sr-info').title })()")
+t.ok(text.lower().startswith("floating video") and "oriel" not in text.lower() and "picture in picture" not in text.lower() and "\u2014" not in text and "\u2013" not in text, f"titled Floating video, no Oriel or picture in picture in its words ({text[:40]!r})")
+t.ok(ev(settings, "document.querySelector('[data-row=\"float.style\"] .st-sw').getAttribute('aria-checked')") == "false", "its switch shows it off")
+ev(settings, "document.querySelector('[data-row=\"float.style\"] .st-sw').click(); 1")
+b.wait_for(lambda: fl()["enabled"] is True, what="the switch turned on")
+b.wait_for(lambda: len(rows() or []) == 4, what="the dependent rows back")
+t.ok(rows() == ["float.style", "float.own", "float.minimize", "float.fade"], f"on: Float the video on its own, Minimize, See through are back ({rows()})")
+t.ok(ev(settings, "!!document.querySelector('[data-row=\"float.style\"] button[role=radio], [data-row=\"float.style\"] .st-seg')") is False, "no choice between windows any more: a switch")
+ev(settings, "document.querySelector('[data-row=\"float.style\"] .st-sw').click(); 1")
+b.wait_for(lambda: fl()["enabled"] is False, what="the switch turned off")
+t.ok(rows() == ["float.style"], "off again: they go")
+ev(settings, "document.querySelector('[data-row=\"float.style\"] .st-sw').click(); 1")
+b.wait_for(lambda: fl()["enabled"] is True, what="the switch turned on again")
+
+# Back on: it floats again, and the page's own button too.
+b.cmd("tab.select", id=film)
+time.sleep(0.5)
+t.ok(ev(film, "document.pictureInPictureEnabled") is True, "back on: a site's button is back")
+r = b.cmd("view.float")
+t.ok(r.get("floating") is True, "back on: Ctrl+Shift+P floats")
+b.cmd("view.float")
+b.wait_for(lambda: not fl()["floating"], within=10, what="landed")
 
 t.done()
