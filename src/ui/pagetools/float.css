@@ -8,13 +8,15 @@ html, body, #root { height: 100%; overflow: hidden; background: transparent; }
 html {
   font-family: var(--font-ui); letter-spacing: var(--tracking-ui); color: var(--ink);
   -webkit-font-smoothing: antialiased; user-select: none; cursor: default;
-  /* The whole window moves by its video; the chips and the line don't. */
-  -webkit-app-region: drag;
+  /* The whole window moves by its video, the chips and the line don't: moved by
+     the page itself (FloatControls.tsx drag), not by -webkit-app-region. A
+     draggable region made Windows answer "title bar" over the buttons too, so
+     a real click on one never reached it. */
 }
 /* Settings > Reduce animations (motion.instant), as the interface's own. */
 :root[data-motion="instant"] { --dur-quick: 0ms; }
 :root[data-motion="instant"] * { transition-duration: 0s !important; }
-button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; -webkit-app-region: no-drag; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
 button:focus { outline: none; }
 button:focus-visible { outline: 2px solid rgb(var(--ink-rgb) / .35); outline-offset: 1px; }
 
@@ -35,7 +37,7 @@ button:focus-visible { outline: 2px solid rgb(var(--ink-rgb) / .35); outline-off
 
 .group {
   position: absolute; display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: 999px;
-  background: var(--chip); box-shadow: var(--lift); -webkit-app-region: no-drag;
+  background: var(--chip); box-shadow: var(--lift);
 }
 .tl { left: var(--inset); top: var(--inset); }
 .tr { right: var(--inset); top: var(--inset); }
@@ -53,7 +55,7 @@ button:focus-visible { outline: 2px solid rgb(var(--ink-rgb) / .35); outline-off
 /* The line along the foot: a thin track, grown a little under the pointer. */
 .scrub {
   position: absolute; left: calc(var(--inset) + 4px); right: calc(var(--inset) + 4px); bottom: 4px; height: 18px;
-  display: flex; align-items: center; -webkit-app-region: no-drag;
+  display: flex; align-items: center;
 }
 .scrub.off { display: none; }
 .track {

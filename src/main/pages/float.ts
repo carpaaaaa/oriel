@@ -164,11 +164,18 @@ function openWindow(tab: ID, win: ID, view: WebContentsView, away: boolean): Flo
   alpha = 1
   solidUntil = Date.now() + SOLID_FIRST
   setImmediate(fadeWatch)
+  // Solid for its first moments, then it fades: the fade watch rests while it
+  // is solid, so it is woken when they are over.
+  setTimeout(fadeWatch, SOLID_FIRST + 60).unref?.()
   return f
 }
 
+/** Where the window was when the video was taken hold of: the pointer's travel is added to it. */
+let held: Rect | null = null
+
 function keepFrame(f: Floating): void {
-  if (f.tuckedFrom || f.base.isDestroyed()) return
+  // Not at every step of a drag: once, when it is put down.
+  if (held || f.tuckedFrom || f.base.isDestroyed()) return
   const b = f.base.getBounds()
   model.setPref('float.frame', `${b.x},${b.y},${b.width},${b.height}`)
 }
@@ -179,6 +186,16 @@ function heard(f: Floating, what: string): void {
   if (name === 'close') { land(); return }
   if (name === 'back') { goBack(); return }
   if (name === 'tuck') { tuck(f); return }
+  // The window follows the pointer while the video is held (FloatControls.tsx).
+  if (name === 'drag') {
+    if (f.base.isDestroyed()) return
+    if (a === 'start') { held = f.base.getBounds(); return }
+    if (a === 'end') { held = null; keepFrame(f); markAll(); return }
+    if (held && Number.isFinite(Number(a)) && Number.isFinite(Number(b))) {
+      f.base.setBounds({ x: Math.round(held.x + Number(a)), y: Math.round(held.y + Number(b)), width: held.width, height: held.height })
+    }
+    return
+  }
   if (name === 'toggle') { void isolated(f.view.webContents, 'globalThis.__orielFloat.toggle()', true).then(p => tell(f, { playing: !!p })); return }
   if (name === 'skip') { void isolated(f.view.webContents, `globalThis.__orielFloat.skip(${Number(a) || 0})`); return }
   // The line along the foot: a fraction of the video's length.
@@ -250,6 +267,8 @@ function hover(f: Floating): void {
   if (on === f.near) return
   f.near = on
   tell(f, { near: on })
+  // The pointer came or went: the see-through follows.
+  fadeWatch()
 }
 
 // lifting and landing
@@ -306,6 +325,7 @@ export function land(): void {
   if (!f) return
   floating = null
   liftedAway = false
+  held = null
   clearInterval(f.ticker)
   clearInterval(f.watcher)
   const kids = f.base.isDestroyed() ? [] : f.base.contentView.children
@@ -313,11 +333,19 @@ export function land(): void {
   if (!f.controls.webContents.isDestroyed()) f.controls.webContents.close()
   if (!f.base.isDestroyed()) f.base.destroy()
   const wc = f.view.webContents
-  if (!wc.isDestroyed()) void isolated(wc, 'globalThis.__orielFloat.off()')
-  // On screen again: its window takes the page back.
+  // On screen again: its window takes the page back, at the page's own size first.
   const c = controllerFor(f.win)
   c?.release(f.tab)
-  if (c && model.onScreen(f.tab)) c.placePages()
+  const back = !!c && model.onScreen(f.tab)
+  if (back) c.placePages()
+  // The page lets go of its floating look only once it is back at its own
+  // size: done while it was still the little window's size, it laid itself out
+  // small (a player's mini layout) and again at full size, and the return to
+  // the video stuttered. A moment for the window to place it first.
+  if (!wc.isDestroyed()) {
+    if (back) setTimeout(() => { if (!wc.isDestroyed() && floating?.view !== f.view) void isolated(wc, 'globalThis.__orielFloat.off()') }, 60)
+    else void isolated(wc, 'globalThis.__orielFloat.off()')
+  }
   markAll()
 }
 
@@ -378,7 +406,10 @@ function fadeStep(): void {
   const target = pointerOn(base) || Date.now() < solidUntil ? 1 : 1 - FADE_MOST * fadeLevel()
   if (Math.abs(target - alpha) < 0.005 && target === 1 && fadeLevel() === 0) { alpha = 1; setAlpha(base, 1); stopFade(); return }
   const next = Math.abs(target - alpha) < 0.01 ? target : alpha + (target - alpha) * 0.3
-  if (next === alpha) return
+  // Arrived: nothing more to do until the pointer comes or goes (hover wakes
+  // it) or the first solid moments pass. Left running it asked Windows for
+  // the pointer thirty times a second for as long as the video floated.
+  if (next === alpha) { if (Date.now() >= solidUntil) stopFade(); return }
   alpha = next
   setAlpha(base, alpha)
 }

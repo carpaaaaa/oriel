@@ -51,6 +51,30 @@ export function FloatControls() {
     quiet = setTimeout(() => { const s = sum; sum = { x: 0, y: 0 }; say(`wheel,${Math.round(s.x)},${Math.round(s.y)}`) }, 120)
   }, { passive: false })
 
+  // The window moves by its video: a press anywhere but on a chip or the line
+  // holds it, and the pointer's travel is told to the main process (float.ts
+  // drag), which moves the window. The page does it, not a draggable region,
+  // because a region made Windows answer "title bar" over the buttons too.
+  let from: { x: number; y: number } | null = null, pending: { x: number; y: number } | null = null, frame = 0
+  const grab = (e: PointerEvent) => {
+    if (e.button !== 0 || from || (e.target as Element).closest('button, .scrub, .group')) return
+    from = { x: e.screenX, y: e.screenY }
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    say('drag,start')
+  }
+  const carry = (e: PointerEvent) => {
+    if (!from) return
+    pending = { x: e.screenX - from.x, y: e.screenY - from.y }
+    if (!frame) frame = requestAnimationFrame(() => { frame = 0; if (pending) { say(`drag,${pending.x},${pending.y}`); pending = null } })
+  }
+  const drop = () => {
+    if (!from) return
+    from = null
+    if (frame) { cancelAnimationFrame(frame); frame = 0 }
+    if (pending) { say(`drag,${pending.x},${pending.y}`); pending = null }
+    say('drag,end')
+  }
+
   // The line along the foot: a press or a drag seeks, as far as the video goes.
   let track!: HTMLDivElement
   let last = 0
@@ -62,7 +86,7 @@ export function FloatControls() {
   }
 
   return (
-    <div class="float">
+    <div class="float" onPointerDown={grab} onPointerMove={carry} onPointerUp={drop} onPointerCancel={drop}>
       <div class="chrome">
         <div class="group tl">
           <button id="close" class="b" title="Close" aria-label="Close" onClick={() => say('close')}><Symbol name="xmark" size={12} weight="medium" /></button>
