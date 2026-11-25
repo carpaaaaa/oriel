@@ -35,7 +35,8 @@ export async function doLaunch(action: LaunchAction, c: WindowController | undef
 /** Right-click on the taskbar icon (a packaged Oriel only: the program is
  * the one the user installed, or the portable file, not a temp copy). */
 export function setupJumpList(): void {
-  if (process.platform !== 'win32' || !app.isPackaged) return
+  // Not from the Store: a package has its own way (its manifest) to say what its icon offers.
+  if (process.platform !== 'win32' || !app.isPackaged || process.windowsStore) return
   const program = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath
   const base = { program, iconPath: program, iconIndex: 0 }
   try {
