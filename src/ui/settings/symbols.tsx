@@ -173,6 +173,10 @@ const paths: Record<string, string[]> = {
   'text.line.first.and.arrowtriangle.forward': ['M5 4h9M2 8h12M2 12h12', 'F:M1.8 2.4 4.4 4l-2.6 1.6z'],
   'pin.circle': ['M8 2.4a5.6 5.6 0 1 0 0 11.2A5.6 5.6 0 0 0 8 2.4', 'M6.6 5h2.8M7 5l-.4 2.8-1 1h4.8l-1-1L9 5M8 8.8v2.2'],
   'minus.circle': ['M8 2.4a5.6 5.6 0 1 0 0 11.2A5.6 5.6 0 0 0 8 2.4', 'M5.4 8h5.2'],
+  // The downloads list's buttons (Downloads.tsx).
+  'pause.fill': ['F:M4.6 3.4h2.3v9.2H4.6zM9.1 3.4h2.3v9.2H9.1z'],
+  'play.fill': ['F:M5 3.2v9.6c0 .5.5.8.9.5l7.1-4.8c.4-.3.4-.8 0-1L5.9 2.7c-.4-.3-.9 0-.9.5z'],
+  'arrow.clockwise': ['M12.8 8a4.8 4.8 0 1 1-1.4-3.4', 'M12.6 2.6v2.6H10'],
   'pause.circle': ['M8 2.4a5.6 5.6 0 1 0 0 11.2A5.6 5.6 0 0 0 8 2.4', 'M6.6 5.8v4.4M9.4 5.8v4.4'],
   'exclamationmark.circle': ['M8 2.4a5.6 5.6 0 1 0 0 11.2A5.6 5.6 0 0 0 8 2.4', 'M8 5v3.6', 'M8 10.8h.01'],
   // Translation languages (translate module): the sign of a translated page.

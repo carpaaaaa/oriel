@@ -56,8 +56,9 @@ b.cmd("settings.open", page="shortcuts")
 b.wait_for(lambda: ev(tab, "document.querySelector('.st-head h1').textContent") == "Keyboard & Mouse", what="old name")
 t.ok(True, "an old name (shortcuts) opens Keyboard & Mouse")
 
-# 3. Downloads, the same way.
-b.cmd("downloads.show")
+# 3. Downloads, the same way (in a tab: the card's "Open Downloads in a tab",
+# whichever way Settings opens them; the card itself is settings_downloads.py's).
+b.cmd("downloads.page")
 b.wait_for(lambda: [x for x in tabs() if x.get("internal") == "downloads"], what="Downloads tab")
 dl = [x for x in tabs() if x.get("internal") == "downloads"][0]["id"]
 b.wait_for(lambda: ev(dl, "document.querySelector('.plate-title')?.textContent") == "Downloads", what="Downloads drawn")

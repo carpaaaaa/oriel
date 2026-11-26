@@ -5,6 +5,7 @@
 import './ground'
 import './smooth'
 import './shield'
+import './stealth'
 import './privacy'
 import './page'
 import './links'

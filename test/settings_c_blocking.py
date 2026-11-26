@@ -114,7 +114,9 @@ t.ok(ev(tab, "window.kept") == "abc", "the rest of the player's data stays")
 t.ok(ev(tab, "JSON.stringify(window.parsed)") == '{"responseContext":{},"x":1}', "JSON.parse of a YouTube answer loses adSlots")
 t.ok(ev(tab, "JSON.stringify(window.other)") == '{"adSlots":[1]}', "an answer of another shape is left as it came")
 t.ok(ev(tab, "window.standin") == 200 and not web.seen("/api/stats/ads"), "YouTube's ad report is answered 200 in the page and never sent")
-t.ok(ev(tab, "window.pagead") == "blocked" and not web.seen("/pagead/"), "YouTube's /pagead/ is blocked")
+# Never sent; with Hide the blocker from sites (on by default) the page is
+# answered an empty 200, so it can't tell it was blocked.
+t.ok(ev(tab, "window.pagead") == "loaded" and not web.seen("/pagead/"), "YouTube's /pagead/ is blocked (never sent, and the page can't tell)")
 setting("shield", False)
 go(f"http://yt.example:{P}/watch?v=abc&off", "watch", tab)
 b.wait_for(lambda: ev(tab, "window.pagead") is not None, what="youtube requests, off")

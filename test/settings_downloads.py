@@ -4,7 +4,10 @@ Settings › Downloads, "name 2.ext" for a name taken, asking where when
 Settings says so; progress on the button and on the taskbar; pause, resume,
 cancel, retry; downloads.json in the Mac's format, 50 at most; the list in a
 tab or floating by the button; open and show in the folder (never really
-opened in a test world); a private window's never listed."""
+opened in a test world); a private window's never listed. Each file coming
+in says how fast and how long is left; the card by the button is the
+default, follows a download live, fits what it holds, and shows by itself
+for a few seconds as a download starts (downloads.peek)."""
 import json
 import os
 import shutil
@@ -50,6 +53,12 @@ def fetch(tab, path):
 b.call({"do": "settings.answers", "folder": str(folder)})
 b.cmd("settings.do", id="downloads.folder")
 t.ok(b.state()["prefs"].get("downloads") == str(folder), "Change… sets the downloads folder")
+
+prefs = b.state()["prefs"]
+t.ok(prefs.get("downloads.open", "popover") == "popover" and prefs.get("downloads.peek", True) is not False,
+     "by default: the card by the button, shown as a download starts")
+# The card showing by itself is looked at on its own (§11).
+b.cmd("settings.set", id="downloads.peek", value=False)
 
 b.cmd("tab.new", url=origin + "/page")
 b.wait_for(lambda: b.active()["title"] == "files", what="page")
@@ -97,6 +106,23 @@ kept = json.loads((Path(b.folder()) / "downloads.json").read_text())
 t.ok(kept and kept[0]["name"] == "a.bin" and kept[0]["from"] == "127.0.0.1" and kept[0]["path"] == str(folder / "a.bin")
      and isinstance(kept[0]["date"], (int, float)) and kept[0]["date"] < 2e9 and kept[0]["address"].startswith(origin),
      "downloads.json as Loot.swift writes it (name, from, path, date since 2001, address)")
+
+# 1b. A slow file: its speed and the time left, measured as it comes.
+fetch(page, "/file/s.bin?size=3000000&slow=0.05")
+b.wait_for(lambda: (current("s.bin") or {}).get("speed"), within=15, what="a speed")
+sd = current("s.bin")
+t.ok(sd["speed"] > 100000 and sd["speed"] < 5000000, f"its speed, in bytes a second ({sd['speed']})")
+b.wait_for(lambda: (current("s.bin") or {}).get("left") is not None, within=10, what="time left")
+sd = current("s.bin")
+t.ok(0 < sd["left"] < 120, f"and the seconds left ({sd['left']})")
+now = b.window()["settings"].get("downloadsNow") or {}
+t.ok(now.get("active") == 1 and now.get("speed", 0) > 0, f"the button's tooltip is told what is coming in ({now})")
+b.cmd("download.pause", id=sd["id"])
+b.wait_for(lambda: current("s.bin")["state"] == "paused", what="s paused")
+time.sleep(0.3)
+t.ok(current("s.bin").get("speed") is None and current("s.bin").get("left") is None, "paused: no speed, no time left")
+b.cmd("download.cancel", id=sd["id"])
+b.wait_for(lambda: not current("s.bin"), what="s cancelled")
 
 # 2. The same name again: "a 2.bin", not "a (1).bin".
 fetch(page, "/file/a.bin?size=1000")
@@ -149,13 +175,15 @@ t.ok(not current("x.bin") and not (folder / "x.bin").exists(), "Ask where, cance
 b.cmd("settings.set", id="downloads.ask", value=False)
 
 # 7. The list in a tab: Completed rows, Show in File Explorer, open, Remove, Clear list.
+b.cmd("settings.set", id="downloads.open", value="tab")
 b.cmd("downloads.show")
 b.wait_for(lambda: any(x.get("internal") == "downloads" for x in b.window()["tabs"]), what="Downloads tab")
 dl = next(x for x in b.window()["tabs"] if x.get("internal") == "downloads")["id"]
 b.wait_for(lambda: ev(dl, "document.querySelectorAll('.dl-row.kept').length") or 0, what="rows")
 names = ev(dl, "[...document.querySelectorAll('.dl-row.kept .dl-name')].map(e => e.textContent)")
 t.ok(names[:2] == ["elsewhere.bin", "n.bin"] and "a.bin" in names, f"Completed, newest first ({names})")
-t.ok(ev(dl, "document.querySelector('.dl-row.kept .dl-state').textContent").startswith("127.0.0.1 · "), "each says <site> · <when>")
+line = ev(dl, "document.querySelector('.dl-row.kept .dl-state').textContent") or ""
+t.ok(" · 127.0.0.1 · " in line and line.split(" · ")[0].endswith(("KB", "MB", "bytes")), f"each says <size> · <site> · <when> ({line})")
 # A long site name is cut with an ellipsis, never run under the row's buttons; the time stays.
 b.cmd("settings.set", id="text.scale", value=1.4)
 ev(dl, "document.querySelector('.dl-row.kept .dl-host').textContent = 'dp-myfit-test-function-v2.azurewebsites.net'; 1")
@@ -164,7 +192,7 @@ clear = ev(dl, """(() => { const r = document.querySelector('.dl-row.kept'); con
   return w.right <= a.left + 0.5 && getComputedStyle(h).textOverflow === 'ellipsis' && h.scrollWidth > h.clientWidth })()""")
 t.ok(clear is True, "a long site name is cut with an ellipsis, and the time stays clear of the buttons")
 b.cmd("settings.set", id="text.scale", value=1)
-ev(dl, "[...document.querySelectorAll('.dl-row.kept')].find(r => r.querySelector('.dl-name').textContent === 'a.bin').querySelector('.st-quick').click()")
+ev(dl, "[...document.querySelectorAll('.dl-row.kept')].find(r => r.querySelector('.dl-name').textContent === 'a.bin').querySelector('[data-act=reveal]').click()")
 time.sleep(0.3)
 opened = b.call({"do": "settings.state"})["opened"]
 t.ok(f"reveal:{folder / 'a.bin'}" in opened, "Show in File Explorer shows the file in its folder")
@@ -180,6 +208,19 @@ w = b.window()
 t.ok(w["overlay"]["kind"] == "panel" and w["overlay"]["name"] == "settings.downloads" and w["settings"]["downloadsOpen"], "Floating by the button: the card over the page")
 b.wait_for(lambda: b.ui("document.querySelectorAll('.dlf .dl-row').length", root="overlay"), what="card rows")
 t.ok(b.ui("document.querySelector('.dlf h2').textContent", root="overlay") == "Downloads", "the card is titled Downloads")
+# It follows a download as it comes (the store reconciles in place: the card must still hear of it).
+web.gate("l")
+fetch(page, "/file/l.bin?size=900000&gate=l")
+b.wait_for(lambda: b.ui("[...document.querySelectorAll('.dlf .dl-row.live .dl-name')].some(e => e.textContent === 'l.bin')", root="overlay"), within=10, what="live row in the card")
+t.ok(True, "a download starting while the card is open shows in it at once")
+t.ok(b.ui("!!document.querySelector('.dlf .dl-row.live [data-act=pause]') && !!document.querySelector('.dlf .dl-row.live [data-act=cancel]')", root="overlay"),
+     "with Pause and Cancel by its name")
+web.gate("l").set()
+b.wait_for(lambda: b.ui("![...document.querySelectorAll('.dlf .dl-row.live .dl-name')].some(e => e.textContent === 'l.bin')", root="overlay"), within=15, what="done in the card")
+t.ok(b.ui("[...document.querySelectorAll('.dlf .dl-row.kept .dl-name')].some(e => e.textContent === 'l.bin')", root="overlay"), "done, it moves to Completed in the card by itself")
+time.sleep(0.5)
+fits = b.ui("(() => { const d = document.querySelector('.dlf-inner'); return { h: innerHeight, inner: d ? d.offsetHeight : 0 } })()", root="overlay") or {}
+t.ok(0 < fits.get("h", 0) <= 440 and fits["h"] >= fits.get("inner", 0), f"the card is as tall as what it holds, up to its room ({fits})")
 b.cmd("downloads.show", toggle=True)
 t.ok(b.window()["overlay"]["kind"] == "none", "the button again puts it away")
 
@@ -197,6 +238,19 @@ b.wait_for(lambda: (folder / "private.bin").exists(), what="private file")
 time.sleep(0.4)
 t.ok(len(ds()["completed"]) == before, "a private download isn't listed")
 t.ok("Saved private.bin" in b.call({"do": "settings.state"})["said"], "only said: Saved private.bin")
+
+# 11. A download starting shows the card by the button for a few seconds.
+b.cmd("settings.set", id="downloads.peek", value=True)
+fetch(page, "/file/p.bin?size=2000")
+b.wait_for(lambda: (b.window()["overlay"] or {}).get("name") == "settings.downloads", within=5, what="the card shows by itself")
+w = b.window()
+t.ok(w["overlay"].get("data", {}).get("peek") is True and w["settings"]["downloadsOpen"], "a download starting: the card shows by the button")
+b.wait_for(lambda: b.window()["overlay"]["kind"] == "none", within=12, what="the card goes by itself")
+t.ok(True, "and goes by itself after a few seconds")
+b.cmd("settings.set", id="downloads.peek", value=False)
+fetch(page, "/file/q.bin?size=2000")
+time.sleep(1.5)
+t.ok(b.window()["overlay"]["kind"] == "none", "Show downloads as they start off: it doesn't")
 
 # 10. Clear list: the files stay.
 b.cmd("download.clear")

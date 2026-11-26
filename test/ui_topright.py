@@ -256,6 +256,10 @@ time.sleep(0.3)
 
 # Always show the downloads button: there with nothing coming in, before the bookmark button.
 b.cmd("prefs.set", key="downloads.button", value=True)
+# The Mac's way: Downloads in a tab, no card showing by itself (Oriel's
+# defaults are the card, and showing it as a download starts: settings_downloads.py).
+b.cmd("prefs.set", key="downloads.open", value="tab")
+b.cmd("prefs.set", key="downloads.peek", value=False)
 settle(lambda: doors("strip")["downloads"], "the downloads button", within=3)
 d = check("strip", "Always show the downloads button", ["downloads", "bookmarks"])
 t.ok(gaps(d, ["downloads", "bookmarks"]) == [2.0], f"2 between doors ({gaps(d, ['downloads', 'bookmarks'])})")
@@ -290,7 +294,7 @@ d = check("strip", "a file coming in", ["downloads", "bookmarks"])
 t.ok(b.ui("!!document.querySelector('.tabbar .fetch-door .fetch-ring')"), "the downloads button comes with a file, its ring filling")
 web.gate("a").set()
 settle(lambda: (b.window().get("settings") or {}).get("downloadsDone"), "in", within=20)
-t.ok(b.ui("!!document.querySelector('.tabbar .fetch-door .fetch-done')") and doors("strip")["downloads"], "everything in: arrow.down, the button still there")
+t.ok(b.ui("!!document.querySelector('.tabbar .fetch-door .fetch-done')") and doors("strip")["downloads"], "everything in: a check, the button still there")
 gone = settle(lambda: not doors("strip")["downloads"], "the button goes", within=9)
 t.ok(gone, "and 5 s later it goes, though the list holds the file (Fetches.linger)")
 

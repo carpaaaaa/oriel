@@ -198,6 +198,22 @@ const keep = (title: string) => title // titles keep their words when an overrid
 /** Rows Oriel has and Search doesn't, each right after the row it names. */
 const added: (Item & { after: string })[] = [
   {
+    id: 'downloads.peek', group: 'downloads', icon: 'arrow.down.circle', after: 'downloads.open',
+    title: 'Show downloads as they start',
+    detail: 'The downloads card opens by its button for a few seconds when a file starts coming in',
+    more: 'It says how fast the file comes and how long is left, and goes by itself unless the pointer is on it. It never covers anything else open there, and never takes the keys from the page.',
+    keys: ['downloads.peek'],
+    words: ['downloads', 'popup', 'bubble', 'notify', 'notification', 'speed', 'progress', 'start'],
+  },
+  {
+    id: 'shield.stealth', group: 'blocking', icon: 'hand.raised.slash', after: 'shield',
+    title: 'Hide the blocker from sites',
+    detail: "Sites that ask you to turn off your ad blocker can't tell it's on",
+    more: "What is blocked looks to the page as if it had loaded, and the empty test boxes sites use to look for a blocker stay in place, so the walls asking you to turn your ad blocker off don't come up. Pages opened after you change it. If a site misbehaves, turn it off here, or stop blocking on that site alone: right-click its tab › Stop Blocking Ads on This Site.",
+    keys: ['shield.stealth'],
+    words: ['adblock', 'ad blocker', 'anti adblock', 'adblock detection', 'adblock detected', 'detector', 'stealth', 'hide', 'wall', 'disable adblock', 'turn off adblock'],
+  },
+  {
     id: 'privacy.clearOnQuit', group: 'clear', icon: 'trash', after: 'clear.cache',
     title: 'Clear all data when Oriel quits',
     detail: 'Cookies, passwords, history, the cache and the tabs it would bring back are erased each time you quit',

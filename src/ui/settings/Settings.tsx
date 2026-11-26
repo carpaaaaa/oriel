@@ -72,6 +72,7 @@ function applies(id: string): boolean {
     case 'links.peek.stays': return !!p('links.peek') || !!p('pins.peek')
     case 'launcher.key': return !!p('launcher.on')
     case 'float.own': case 'float.minimize': case 'float.fade': return p('float.enabled') !== false
+    case 'shield.stealth': return p('shield') !== false
     default: return true
   }
 }
@@ -97,6 +98,7 @@ function needs(id: string): string {
     case 'float.own': case 'float.minimize': case 'float.fade': return 'Only with the floating video on'
     case 'bookmarks.side': return 'Only with the bookmarks bar shown and the tabs down a side'
     case 'passwords.fill.prove': return 'Only with Fill in sign-ins on'
+    case 'shield.stealth': return 'Only with Block ads and trackers on'
     default: return 'Only with the tabs down a side'
   }
 }

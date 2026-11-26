@@ -25,6 +25,7 @@ import { hooks, runtimes } from '../views/tabs'
 import { hostOf, shieldOn, testHosts, thirdParty, topAddress } from './facts'
 import { isUnwanted, youtubeRule } from './lists'
 import { blocker, cspFor, excepted, forDocuments, pageAllowed, popupBlocked, request } from './blocker'
+import { frameHooked, note as noteQuietly, stealthOn, surrogateFor } from './stealth'
 
 addDefaults({ 'shield.paused': [] as string[] })
 
@@ -59,10 +60,21 @@ export function contextOf(d: Details): string {
 /** $redirect: Chromium in Electron refuses a webRequest redirect to a data:
  * address (or to any scheme but http and https), so the stand-in script
  * runs in the frame that asked, in its own world, sent before the request
- * is refused; any other resource (an image, a sound) is refused as is. */
-function standIn(d: Details, resource: { body: string; contentType: string }): void {
-  if (d.resourceType !== 'script' || !/javascript/i.test(resource.contentType) || /base64/i.test(resource.contentType)) return
-  try { void d.frame?.executeJavaScript(`(function(){try{\n${resource.body}\n}catch(e){}})();`).catch(() => {}) } catch {}
+ * is refused; any other resource (an image, a sound) is refused as is.
+ * With Hide the blocker from sites (`quiet`, stealth.ts), the refusal is
+ * noted for the page's preload, and a frame whose preload hooks the page
+ * runs the stand-in itself at the script's error event, so the page finds
+ * it in place when it hears the script loaded. */
+function standIn(d: Details, resource: { body: string; contentType: string } | null, quiet: boolean, topHost: string | null): void {
+  const js = !!resource && d.resourceType === 'script' && /javascript/i.test(resource.contentType) && !/base64/i.test(resource.contentType)
+  let frame: Electron.WebFrameMain | null | undefined
+  try { frame = d.frame } catch { frame = null }
+  const run = () => { try { void frame?.executeJavaScript(`(function(){try{\n${resource!.body}\n}catch(e){}})();`).catch(() => {}) } catch {} }
+  // The preload takes it at the script's error event; one it doesn't take
+  // within a second (a worker's script, an import()) is run from here.
+  if (js && quiet && frameHooked(frame)) { noteQuietly(d.url, topHost, resource!.body, true, run); return }
+  if (js) run()
+  if (quiet) noteQuietly(d.url, topHost)
 }
 
 net.onBeforeRequest('shield', 100, d => {
@@ -78,6 +90,15 @@ net.onBeforeRequest('shield', 100, d => {
   if (yt === 'allow') return
   const e = blocker()
   const type = d.resourceType ?? 'other'
+  // Hide the blocker from sites: each refusal below is noted, and a script
+  // refused without a stand-in of the lists gets uBlock Origin's own where
+  // one exists (adsbygoogle.js, gpt.js...).
+  const quiet = type !== 'mainFrame' && stealthOn(topHost)
+  const refuse = (resource: { body: string; contentType: string } | null = null) => {
+    const r = resource ?? (quiet && type === 'script' ? surrogateFor(d.url) : null)
+    if (r || quiet) standIn(d, r, quiet, topHost)
+    return { cancel: true }
+  }
   const r = e && top ? request(d.url, type === 'mainFrame' ? d.url : contextOf(d), type) : null
   if (e && r && top) {
     if (pageAllowed(e, top)) return
@@ -86,8 +107,8 @@ net.onBeforeRequest('shield', 100, d => {
       if (verdict.match && !verdict.redirect && forDocuments(verdict.filter)) { note(blocked, d.url); return { cancel: true } }
       return
     }
-    if (verdict.redirect) { note(redirected, d.url); standIn(d, verdict.redirect); return { cancel: true } }
-    if (verdict.match) { note(blocked, d.url); return { cancel: true } }
+    if (verdict.redirect) { note(redirected, d.url); return refuse(verdict.redirect) }
+    if (verdict.match) { note(blocked, d.url); return refuse() }
     // A frame's address is Remove click trackers' (privacy.ts).
     if (verdict.rewrite?.url && type !== 'subFrame' && verdict.rewrite.url !== d.url) { note(redirected, d.url); return { redirectURL: verdict.rewrite.url } }
     if (verdict.exception) return
@@ -96,7 +117,7 @@ net.onBeforeRequest('shield', 100, d => {
   if (yt === 'block' || (thirdParty(d) && isUnwanted(url.hostname))) {
     if (e && r && excepted(e, r)) return
     note(blocked, d.url)
-    return { cancel: true }
+    return refuse()
   }
 })
 

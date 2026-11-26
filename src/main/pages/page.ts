@@ -13,6 +13,7 @@ import { hostOf, pref, shieldOn, testHosts } from './facts'
 import { hidingCSS, siteOf, standInPattern, youtubeHosts } from './lists'
 import { blocker, cosmeticsFor, cosmeticsForDOM, enclosed } from './blocker'
 import { siteStyle, styleChanged } from './styles'
+import { hookedFrame, stealthOn } from './stealth'
 import { watchEscape } from './escape'
 
 export interface PagePrefs {
@@ -42,6 +43,8 @@ export interface PagePrefs {
   bars: boolean
   /** Settings › Keyboard & Mouse › Backspace goes back. */
   backspace: boolean
+  /** Hide the blocker from sites: the page's loads Shield refuses look loaded (stealth.ts). */
+  stealth: boolean
 }
 
 /** Let me copy on every site, or this one (a tab's menu, copy.sites). */
@@ -81,6 +84,7 @@ export function pagePrefs(wc: WebContents, address: string): PagePrefs | null {
     floatOn: pref<boolean>('float.enabled') !== false,
     bars: pref<string>('pages.scrollbars') !== 'windows',
     backspace: pref<boolean>('keys.backspaceBack') === true,
+    stealth: !!(shield && host && !allowed && /^https?:/i.test(address) && stealthOn(host)),
   }
 }
 
@@ -139,7 +143,9 @@ function framePrefs(event: Electron.IpcMainEvent): unknown {
     gpc: gpcFor(wc),
     noCookies: third && protects(wc),
     bars: pref<string>('pages.scrollbars') !== 'windows',
+    stealth: !!(shield && url && !(engine && !lists) && stealthOn(topHost)),
   }
+  hookedFrame(frame, url, p.stealth)
   framesDressed.push({ url, css: p.css.length, scripts: p.scripts.length, noCookies: p.noCookies })
   if (framesDressed.length > 50) framesDressed.shift()
   return p
@@ -161,6 +167,7 @@ ipcMain.on('pages:prefs', (event, address: string) => {
   let p: PagePrefs | null = null
   try { p = pagePrefs(wc, String(address ?? '')) } catch (error) { console.warn('[pages] prefs', error) }
   event.returnValue = p
+  hookedFrame(event.senderFrame, String(address ?? ''), !!p?.stealth)
   if (!p) return
   watchEscape(wc)
   if (!pages.has(wc)) wc.once('destroyed', () => pages.delete(wc))
@@ -177,7 +184,7 @@ export function retell(): void {
   }
 }
 
-const watched = ['youtube.hideShorts', 'shield', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'sites.styles', 'privacy.gpc', 'float.enabled', 'pages.scrollbars', 'keys.backspaceBack']
+const watched = ['youtube.hideShorts', 'shield', 'shield.stealth', 'shield.paused', 'media.click', 'fullscreen.escapeTwice', 'autoscroll', 'links.optionSplit', 'links.peek', 'links.peekClick', 'sites.styles', 'privacy.gpc', 'float.enabled', 'pages.scrollbars', 'keys.backspaceBack']
 let last = ''
 let timer: NodeJS.Timeout | null = null
 model.on('window-changed', (_id: string, slices: string[]) => {

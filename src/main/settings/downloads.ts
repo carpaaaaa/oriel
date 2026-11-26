@@ -3,11 +3,15 @@
 // asking where if Settings says so, the list (downloads.json, 50 at most,
 // the Mac's format), pause, resume, retry, cancel, open, show in the folder,
 // the button's progress, and the taskbar's (setProgressBar), which stands in
-// for the Mac's progress on the file in the Dock.
+// for the Mac's progress on the file in the Dock. Each download's speed and
+// time left are measured here (Chromium's own rate, smoothed), so the list,
+// the card and the button's tooltip say how fast it comes and when it ends;
+// a download starting shows the card by the button for a few seconds
+// (downloads.peek), so it never goes unnoticed.
 
 import { clipboard, dialog, shell, type DownloadItem, type Session, type WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, promises as fsp, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { DownloadEntry } from '../../shared/modules/settings'
 import type { DownloadView, ID } from '../../shared/state'
@@ -23,8 +27,9 @@ import { openInternal, scheme, tellPages } from './internal'
 import { downloadsFolder, probeAnswers, said } from './prefs'
 import { markAllSettings, settingsPart, showPanel, hidePanel, markSettings } from './slice'
 
-/** downloads.json, as Loot.swift writes it: date in seconds since 2001. */
-interface Keep { name: string; from: string; path: string; date: number; address?: string }
+/** downloads.json, as Loot.swift writes it: date in seconds since 2001;
+ * `size` (bytes) is Oriel's, for the list. */
+interface Keep { name: string; from: string; path: string; date: number; address?: string; size?: number }
 
 interface Live {
   entry: DownloadEntry
@@ -36,6 +41,9 @@ interface Live {
   retryName: string
   /** When bytes last came in, for Stalled. */
   moved?: number
+  /** The last sample the speed was measured from. */
+  sampledAt?: number
+  sampledBytes?: number
 }
 
 const live = new Map<ID, Live>()
@@ -48,6 +56,8 @@ let kept: Keep[] = []
 let loaded = false
 let started = 0
 const open = new Set<ID>()
+/** Downloads started from each window: its card shows for a few seconds on each (downloads.peek). */
+const peeks = new Map<ID, number>()
 /** Paths being written now, so two files of one name don't take the same one. */
 const taken = new Set<string>()
 
@@ -58,6 +68,25 @@ function keptList(): Keep[] {
 function saveKept(): void { writeJSON('downloads.json', () => kept) }
 
 const say = (text: string) => { said.push(text) }
+
+/** Speed (bytes a second) and time left (seconds) of one download, from
+ * Chromium's own rate where it gives one, else the bytes since the last
+ * sample; smoothed, so the numbers don't jump with every packet. Nothing
+ * while it isn't coming in (paused, failed, stalled). */
+function measure(l: Live, now = Date.now()): void {
+  const e = l.entry
+  if (e.state !== 'downloading' || !l.item || e.stalled) { e.speed = e.state === 'downloading' && l.item ? 0 : undefined; e.left = undefined; l.sampledAt = undefined; return }
+  if (l.sampledAt === undefined) { l.sampledAt = now; l.sampledBytes = e.received; return }
+  const dt = (now - l.sampledAt) / 1000
+  if (dt < 0.4) return
+  let rate = 0
+  try { rate = l.item.getCurrentBytesPerSecond() } catch {}
+  if (!(rate > 0)) rate = Math.max(0, (e.received - (l.sampledBytes ?? e.received)) / dt)
+  l.sampledAt = now
+  l.sampledBytes = e.received
+  e.speed = e.speed ? Math.round(e.speed * 0.65 + rate * 0.35) : Math.round(rate)
+  e.left = e.total > 0 && e.speed > 0 ? Math.max(0, Math.round((e.total - e.received) / e.speed)) : undefined
+}
 
 /** Only the last part of a name a page gives: never a path out of the folder. */
 export function fileName(name: string): string {
@@ -144,6 +173,15 @@ async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): P
   watchStalls()
   started++
   doneUntil = 0
+  // The card shows by the button in the window it came from, for a few
+  // seconds (Settings › Downloads › Show downloads as they start).
+  if (model.pref<boolean>('downloads.peek') !== false) {
+    const c = windowFor(tab)
+    if (c) peeks.set(c.record.id, (peeks.get(c.record.id) ?? 0) + 1)
+    // Windows closed since: their counts go.
+    const ids = new Set(allControllers().map(w => w.record.id))
+    for (const k of peeks.keys()) if (!ids.has(k)) { peeks.delete(k); cards.delete(k) }
+  }
   say(`Downloading ${entry.name}`)
   item.on('updated', (_e, state) => {
     const before = entry.received
@@ -159,6 +197,7 @@ async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): P
     if (entry.state === 'failed' && was !== 'failed') { say('Download failed'); settle(false) }
     entry.canResume = item.canResume()
     entry.error = state === 'interrupted' ? (entry.canResume ? 'The connection was lost.' : 'The download failed.') : undefined
+    if (l) measure(l)
     if (entry.state === 'downloading') watchStalls()
     changed()
   })
@@ -168,14 +207,17 @@ async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): P
     if (!entry.path && item.getSavePath()) { entry.path = item.getSavePath(); entry.name = path.basename(entry.path) }
     const l = live.get(id)
     if (l) l.item = null
+    entry.speed = undefined
+    entry.left = undefined
     if (state === 'completed') {
       live.delete(id)
       settle(true)
+      if (entry.path) looked.delete(entry.path)
       if (entry.path && process.platform === 'win32') markDownloaded(entry.path, url)
       if (shy) say(`Saved ${entry.name}`)
       else {
         const list = keptList().filter(k => k.path !== entry.path)
-        list.unshift({ name: entry.name, from: entry.from, path: entry.path ?? '', date: toAppleDate(Date.now()), ...(entry.url ? { address: entry.url } : {}) })
+        list.unshift({ name: entry.name, from: entry.from, path: entry.path ?? '', date: toAppleDate(Date.now()), ...(entry.url ? { address: entry.url } : {}), ...(entry.received > 0 ? { size: entry.received } : {}) })
         kept = list.slice(0, 50)
         saveKept()
         say(`Saved ${entry.name}`)
@@ -290,11 +332,18 @@ function watchStalls(): void {
       if (l.entry.state === 'downloading' || l.entry.stalled) going = true
       const stalled = l.entry.state === 'downloading' && Date.now() - (l.moved ?? Date.now()) >= STALL
       if (stalled !== !!l.entry.stalled) { l.entry.stalled = stalled; touched = true }
+      // Nothing came in for a while: the speed falls, and the time left goes.
+      if (l.entry.state === 'downloading' && l.entry.speed && Date.now() - (l.moved ?? Date.now()) >= 2500) {
+        l.entry.speed = Math.round(l.entry.speed * 0.4)
+        if (l.entry.speed < 512) { l.entry.speed = 0; l.entry.left = undefined }
+        else if (l.entry.total > 0) l.entry.left = Math.round((l.entry.total - l.entry.received) / l.entry.speed)
+        touched = true
+      }
     }
     if (touched) changed()
     // Nothing coming in: no more looks until the next download.
     if (!going && stallTimer) { clearInterval(stallTimer); stallTimer = null }
-  }, 2000)
+  }, 1000)
   stallTimer.unref?.()
 }
 
@@ -304,13 +353,44 @@ function flash(): void {
   for (const c of allControllers()) if (!c.base.isFocused()) c.base.flashFrame(true)
 }
 
+/** Is a kept file still there, and how big: asked of the disk in the
+ * background, at most every few seconds a file (the list is made again many
+ * times a second while a download comes in, and a slow or network drive must
+ * never hold the window). What is known meanwhile is said; news re-tell the list. */
+const looked = new Map<string, { at: number; there: boolean; size?: number; asking?: boolean }>()
+function lookAt(file: string): { there: boolean; size?: number } {
+  const was = looked.get(file)
+  if (was && (was.asking || Date.now() - was.at < 3000)) return was
+  const now = { at: Date.now(), there: was?.there ?? true, size: was?.size, asking: true }
+  looked.set(file, now)
+  if (looked.size > 200) looked.delete(looked.keys().next().value!)
+  fsp.stat(file).then(st => ({ there: st.isFile(), size: st.size }), () => ({ there: false, size: undefined })).then(r => {
+    const news = r.there !== now.there || r.size !== now.size
+    Object.assign(now, r, { at: Date.now(), asking: false })
+    if (news) changed()
+  })
+  return now
+}
+
 function listed(): { current: DownloadEntry[]; completed: DownloadEntry[]; folder: string; folderName: string } {
   const current = [...live.values()].filter(l => !l.shy).map(l => ({ ...l.entry }))
-  const completed = keptList().map((k): DownloadEntry => ({
-    id: `kept:${k.path}`, name: k.name, from: k.from, path: k.path, url: k.address, received: 0, total: 0, state: 'completed',
-    canResume: false, canRetry: false, date: fromAppleDate(k.date), there: existsSync(k.path),
-  }))
+  const completed = keptList().map((k): DownloadEntry => {
+    const seen = k.path ? lookAt(k.path) : { there: false }
+    return {
+      id: `kept:${k.path}`, name: k.name, from: k.from, path: k.path, url: k.address, received: 0, total: 0, state: 'completed',
+      canResume: false, canRetry: false, date: fromAppleDate(k.date), there: seen.there, size: seen.there ? seen.size : k.size,
+    }
+  })
   return { current, completed, folder: downloadsFolder(), folderName: path.basename(downloadsFolder()) }
+}
+
+/** What is coming in, summed: for the button's tooltip and the card's head. */
+function summary(): { active: number; speed: number; left: number | null } {
+  const going = [...live.values()].filter(l => l.item && !l.shy && ['downloading', 'resuming', 'pausing'].includes(l.entry.state))
+  const speed = going.reduce((n, l) => n + (l.entry.speed ?? 0), 0)
+  const known = going.length > 0 && going.every(l => l.entry.total > 0)
+  const rest = going.reduce((n, l) => n + Math.max(0, l.entry.total - l.entry.received), 0)
+  return { active: going.length, speed, left: known && speed > 0 ? Math.round(rest / speed) : null }
 }
 
 /** The skeleton's DownloadView, for any module drawing a list of its own. */
@@ -330,6 +410,8 @@ settingsPart(c => ({
   downloadsProgress: progress(),
   downloadsDone: done(),
   downloadsStarted: started,
+  downloadsPeek: peeks.get(c.record.id) ?? 0,
+  downloadsNow: summary(),
 }))
 
 // Always show the downloads button, ticked or unticked: the button at once.
@@ -411,30 +493,66 @@ export function forgetDownloadAddresses(): void {
 
 /** Downloads, wherever Settings › Downloads › Open Downloads says; the
  * button toggles what it opened, Ctrl+J only ever shows (Browser.showDownloads). */
-handle('downloads.show', async ({ toggle, anchor }, ctx) => {
+handle('downloads.show', async ({ toggle, anchor, peek }, ctx) => {
   const c = need(ctx)
   const where = model.pref<string>('downloads.open')
-  if (where !== 'popover' && where !== 'panel') {
+  // A download starting (peek) floats the card by the button whichever way
+  // Downloads opens, and never over anything else floating there.
+  if (peek) {
+    if (open.has(c.record.id)) return { open: true }
+    if (c.overlayLayer.kind !== 'none') return { open: false }
+  } else if (where !== 'popover' && where !== 'panel') {
     // The side panel isn't there yet: "In the side panel" floats by the button.
     return { tab: await openInternal(c, `${scheme}://downloads`) }
   }
-  const on = toggle ? !open.has(c.record.id) : true
+  const on = peek ? true : toggle ? !open.has(c.record.id) : true
   if (on) {
     open.add(c.record.id)
     watchCards()
     const b = c.base.getContentBounds()
     // Bigger with Oriel's text size (Settings › Appearance).
-    const width = Math.round(340 * textScale()), height = Math.round(420 * textScale())
+    const width = Math.round(372 * textScale()), height = Math.round(440 * textScale())
     const x = Math.max(8, Math.min(b.width - width - 8, Math.round((anchor?.x ?? 120) - 26)))
     const top = (anchor?.y ?? b.height) < b.height / 2
     const y = top ? Math.round((anchor?.y ?? 0) + 26 + 6) : Math.max(8, Math.round((anchor?.y ?? b.height - 40) - height - 6))
-    showPanel(c, 'settings.downloads', { x, y, width, height })
+    // Its edge by the button stays put as the card fits what it holds (downloads.fit).
+    cards.set(c.record.id, { x, width, top, edge: top ? y : y + height, most: height })
+    showPanel(c, 'settings.downloads', { x, y, width, height }, { peek: !!peek })
   } else {
     open.delete(c.record.id)
     hidePanel(c, 'settings.downloads')
   }
   markSettings(c)
   return { open: on }
+})
+
+/** Where each window's card is: its edge by the button, and the most room it has. */
+const cards = new Map<ID, { x: number; width: number; top: boolean; edge: number; most: number }>()
+
+/** The card as tall as what it holds, between a little and the room it was given. */
+handle('downloads.fit', ({ height }, ctx) => {
+  const c = need(ctx)
+  const at = cards.get(c.record.id)
+  const l = c.overlayLayer
+  if (!at || !open.has(c.record.id) || !(l.kind === 'panel' && l.name === 'settings.downloads')) return
+  const h = Math.round(Math.min(at.most, Math.max(Math.round(120 * textScale()), Number(height) || 0)))
+  c.setOverlayRegion({ x: at.x, y: at.top ? at.edge : at.edge - h, width: at.width, height: h }, false)
+})
+
+/** The card put away (a peek's time up, or its close button). */
+handle('downloads.hide', (_args, ctx) => {
+  const c = need(ctx)
+  if (!open.has(c.record.id)) return
+  open.delete(c.record.id)
+  hidePanel(c, 'settings.downloads')
+  markSettings(c)
+})
+
+/** Downloads in a tab, from the card (whichever way Settings opens them). */
+handle('downloads.page', async (_args, ctx) => {
+  const c = need(ctx)
+  if (open.has(c.record.id)) { open.delete(c.record.id); hidePanel(c, 'settings.downloads'); markSettings(c) }
+  return { tab: await openInternal(c, `${scheme}://downloads`) }
 })
 
 // The card goes when anything else takes the overlay's place: looked at

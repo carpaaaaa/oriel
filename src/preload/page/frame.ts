@@ -19,14 +19,17 @@ import { runScriptlets, watchPage } from './blocker'
 import { handOn } from './blank'
 import { scrollbarCSS } from './scrollbar'
 import { holdPictureInPicture } from './float'
+import { setupStealth } from './stealth'
 
-interface FramePrefs { bars?: boolean; css: string; scripts: string[]; extended: unknown[]; dom: boolean; gpc: boolean; noCookies: boolean }
+interface FramePrefs { bars?: boolean; css: string; scripts: string[]; extended: unknown[]; dom: boolean; gpc: boolean; noCookies: boolean; stealth?: boolean }
 
 let p: FramePrefs | null = null
 try { p = ipcRenderer.sendSync('pages:frame') as FramePrefs | null } catch {}
 
 if (p) {
   const share = p
+  // Hide the blocker from sites, before the frame's scripts (stealth.ts).
+  if (p.stealth) setupStealth()
   // No picture in picture of Chromium's in a frame: the floating video takes the page's own.
   holdPictureInPicture()
   // Its cookies and navigator, and the frames it makes, before its scripts.

@@ -17,7 +17,10 @@ export const defaults = {
   'downloads': '',
   'downloads.ask': false,
   'downloads.button': false,
-  'downloads.open': 'tab', // tab | popover | panel
+  /** The card by the button by default: it says what is coming in, how fast and for how long. */
+  'downloads.open': 'popover', // tab | popover | panel
+  /** A download starting shows the card by the button for a few seconds. */
+  'downloads.peek': true,
   // Themes
   'home.theme': 'off',
   'home.theme.image': '',
@@ -149,6 +152,8 @@ export const defaults = {
   'passkeys': true,
   // Privacy
   'shield': true,
+  /** Hide the blocker from sites: refused loads look loaded, bait boxes stay (pages/stealth.ts). */
+  'shield.stealth': true,
   /** True turns cross-site tracking prevention off (the switch is inverted). */
   'sites.keep': false,
   'privacy.clickIDs': true,

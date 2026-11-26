@@ -16,6 +16,7 @@ import { runScriptlets, watchPage, type Watch } from './blocker'
 import { handOn } from './blank'
 import { hideShorts, setCopyFree } from './sites'
 import { scrollbarCSS } from './scrollbar'
+import { setupStealth } from './stealth'
 
 interface PagePrefs {
   /** Shield's hiding rules for this site, or nothing while it is off or paused. */
@@ -46,6 +47,8 @@ interface PagePrefs {
   floatOn: boolean
   bars?: boolean
   backspace?: boolean
+  /** Hide the blocker from sites (stealth.ts). */
+  stealth?: boolean
 }
 
 let p: PagePrefs | null = null
@@ -56,6 +59,8 @@ if (p) start(p)
 function start(first: PagePrefs): void {
   let now = first
 
+  // Before anything of the page's: a refused load looks loaded, bait boxes stay (stealth.ts).
+  const stealth = first.stealth ? setupStealth() : null
   // Main world, before the page's own scripts: the lists' scriptlets, then
   // Search's own for YouTube.
   if (first.scripts?.length) runScriptlets(first.scripts)
@@ -138,6 +143,7 @@ function start(first: PagePrefs): void {
   ipcRenderer.on('pages:prefs', (_e, q: PagePrefs) => {
     const was = now
     now = q
+    stealth?.set(!!q.stealth)
     hideShorts(q.noShorts ?? null)
     setFloatOn(q.floatOn !== false)
     if (q.css !== was.css || q.style !== was.style || q.bars !== was.bars) dress(q)

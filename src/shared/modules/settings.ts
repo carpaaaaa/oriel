@@ -56,6 +56,12 @@ export interface DownloadEntry {
   date: number
   /** Completed: the file is still where it was saved. */
   there?: boolean
+  /** Coming in: bytes a second, smoothed (0 while nothing comes). */
+  speed?: number
+  /** Coming in, with a known size and a speed: seconds left. */
+  left?: number
+  /** Completed: the file's size in bytes, when known. */
+  size?: number
 }
 
 /** A key as the page read it (KeyboardEvent). */
@@ -95,6 +101,10 @@ export interface SettingsState {
   downloadsStarted: number
   /** Everything is in: arrow.down on the button for 5 s (Fetches.done). */
   downloadsDone?: boolean
+  /** Bumped in the window a download started from: its card shows for a few seconds (downloads.peek). */
+  downloadsPeek?: number
+  /** What is coming in, summed: how many, bytes a second, seconds left (null when unknown). */
+  downloadsNow?: { active: number; speed: number; left: number | null }
   /** The update popup in this window, at launch (updates.dismissed puts it away). */
   update?: { version: string; notes?: string; ready: boolean; fetching: boolean } | null
   /** The first launch's offer to be the default browser in this window
@@ -153,7 +163,10 @@ declare module '../commands' {
     'history.show': None
     'history.clearData': None
     /** Where Settings › Open Downloads says; the button toggles (Browser.showDownloads). */
-    'downloads.show': { toggle?: boolean; anchor?: { x: number; y: number } }
+    'downloads.show': { toggle?: boolean; anchor?: { x: number; y: number }; peek?: boolean }
+    'downloads.hide': None
+    'downloads.fit': { height: number }
+    'downloads.page': None
     // Keyboard & Mouse › Shortcuts (ShortcutsPage.swift, studio/03 §4.2)
     'settings.shortcuts': None
     /** A key pressed in a command's box; `again`: the key pressed once
