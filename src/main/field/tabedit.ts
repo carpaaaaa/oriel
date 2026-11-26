@@ -8,7 +8,7 @@
 
 import { handle } from '../router'
 import { model, type WindowRecord } from '../model/model'
-import { registerSlice, controllerFor, type WindowController } from '../views/window'
+import { registerSlice, controllerFor, overlayFree, type WindowController } from '../views/window'
 import { runtimeFor } from '../views/tabs'
 import type { Suggestion } from '../../shared/state'
 import type { TabEditState } from '../../shared/modules/field'
@@ -53,7 +53,7 @@ function placeList(c: WindowController): void {
     if (layer === 'tabOffers') c.sendOverlay({ kind: 'none' })
     return
   }
-  if (layer !== 'none' && layer !== 'tabOffers') return
+  if (!overlayFree(c.overlayLayer) && layer !== 'tabOffers') return
   const ui = c.ui.getBounds()
   const width = Math.min(Math.max(e.anchor.width + 24, 320), 460) + 16
   const rows = e.offers.length * 34

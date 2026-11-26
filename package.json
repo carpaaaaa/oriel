@@ -1,7 +1,7 @@
 {
   "name": "oriel",
   "productName": "Oriel",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "description": "Oriel: an unofficial Windows port of Search, the small fast browser for the Mac by Office Commun.",
   "license": "MIT",
   "private": true,
@@ -56,7 +56,11 @@
       "out/preload/**",
       "out/ui/**",
       "package.json",
-      "!**/*.map"
+      "!**/*.map",
+      "!**/node_modules/{solid-js,seroval,seroval-plugins,csstype,tldts,tldts-core,tldts-experimental,electron-updater,builder-util-runtime,fs-extra,graceful-fs,jsonfile,universalify,js-yaml,argparse,lazy-val,lodash.escaperegexp,lodash.isequal,semver,sax,tiny-typed-emitter}/**",
+      "!**/node_modules/{@fontsource-variable,@ghostery,@remusao,@types}/**",
+      "!**/node_modules/eld/src/ngrams/{large,medium,extrasmall}.js",
+      "!**/node_modules/**/{README.md,CHANGELOG.md,*.d.ts}"
     ],
     "asar": true,
     "win": {

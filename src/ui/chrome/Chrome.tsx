@@ -124,7 +124,7 @@ export function ChromeRoot() {
       {/* The window's own buttons don't keep the keys after a click, as
           the Mac's don't: the + kept them, and the next key (Escape, Tab)
           drew a focus ring around it beside the tab. */}
-      <div class="window on-frame" onMouseDown={e => { const btn = (e.target as HTMLElement).closest('button'); if (btn && btn.closest('.tabbar, .sidebar, .caption-buttons')) e.preventDefault() }} classList={{ windows: state.chrome === 'windows', blurred: !state.focused, fill: fills(), line: loadingLine(), top: strip(), 'col-right': onRight(), compact: pref('tabs.compact'), 'btn-inline': ownButtons() && buttonStyle() === 'inline', [`room-${state.room?.side}`]: !!state.room, bm: barShown() }}
+      <div class="window on-frame" onMouseDown={e => { const btn = (e.target as HTMLElement).closest('button'); if (btn && btn.closest('.tabbar, .sidebar, .caption-buttons')) e.preventDefault() }} classList={{ curtained: !!state.curtain && state.curtain !== 'off', windows: state.chrome === 'windows', blurred: !state.focused, fill: fills(), line: loadingLine(), top: strip(), 'col-right': onRight(), compact: pref('tabs.compact'), 'btn-inline': ownButtons() && buttonStyle() === 'inline', [`room-${state.room?.side}`]: !!state.room, bm: barShown() }}
         style={{ '--side': `${side()}px`, '--fold-shift': columnShift(), '--top': strip() ? (pref('tabs.compact') ? 'var(--strip-compact)' : 'var(--strip)') : undefined, '--room': `${state.room?.width ?? 0}px` }}>
         <Show when={!state.sidebar.folded || slide.out() !== null}>
           <Sidebar />
@@ -177,6 +177,8 @@ export function ChromeRoot() {
           <For each={EDGES}>{edge => <div class={`grip-${edge}`} data-edge={edge} onPointerDown={e => gripDown(edge, e)} />}</For>
         </div>
       </Show>
+      {/* Behind a page going into its own full screen: black comes up as it grows, goes as it comes back. */}
+      <div class="curtain" classList={{ up: state.curtain === 'on' }} />
     </div>
   )
 }

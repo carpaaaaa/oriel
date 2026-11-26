@@ -14,6 +14,15 @@ if (location.protocol === 'oriel:' && window === window.top) {
     },
     platform: process.platform,
   })
+  // Text size (Settings › Appearance): from the page's start, and as it
+  // changes. The preload runs before the document has its root element: the
+  // size is put on it once there, before the page's own scripts run.
+  let size = '1'
+  const apply = () => document.documentElement?.style.setProperty('--text-scale', size)
+  const scale = (v: unknown) => { size = String(Math.min(1.4, Math.max(1, Number(v) || 1))); apply() }
+  try { scale(ipcRenderer.sendSync('oriel:text-scale')) } catch {}
+  if (!document.documentElement) document.addEventListener('readystatechange', apply, { once: true })
+  ipcRenderer.on('oriel:update', (_e, u: { kind: string; value: unknown }) => { if (u?.kind === 'textScale') scale(u.value) })
 }
 
 // Offer passkeys, off (Settings › Passwords; main/settings/passkeys.ts): a

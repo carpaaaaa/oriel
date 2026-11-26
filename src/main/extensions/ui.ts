@@ -563,7 +563,10 @@ export function setupUI(e: ElectronChromeExtensions, p: Session, roots: { extens
   saved.sites ??= {}
   saved.ids ??= {}
   registerSlice('ext', sliceFor)
-  onActionsChanged(e, markAll)
+  // A badge counting blocked requests changes many times a second: the
+  // windows hear of it once per 50 ms at most.
+  let marking: NodeJS.Timeout | null = null
+  onActionsChanged(e, () => { if (!marking) marking = setTimeout(() => { marking = null; markAll() }, 50) })
   onPopupChange(c => { if (!c.base.isDestroyed()) c.mark('ext') })
   p.extensions.on('extension-loaded', (_e, ext) => {
     asking.delete(ext.path); images.delete(ext.path)

@@ -74,7 +74,10 @@ export function frameColour(dark: boolean): string { return dark ? '#131313' : '
 export function windowOptions(kind: FrameKind, dark: boolean): BaseWindowConstructorOptions {
   const frame = frameColour(dark)
   // The window's title is what Windows shows in the taskbar and Alt+Tab.
-  const common = { title: 'Oriel', show: false, minimizable: true, maximizable: true, fullscreenable: true, ...iconOption() }
+  // Not Electron's full screen on Windows: Oriel covers the screen itself
+  // (cover), and Electron's moved the window under a page going full screen
+  // before Oriel heard of it (pagefull.ts).
+  const common = { title: 'Oriel', show: false, minimizable: true, maximizable: true, fullscreenable: process.platform !== 'win32', ...iconOption() }
   if (kind === 'drawn') {
     return {
       ...common,
@@ -324,15 +327,24 @@ export class Frame {
    * until it is back over the window (or gone). */
   private startPoll(): void {
     if (this.poll) return
-    this.poll = setInterval(() => {
-      if (this.c.base.isDestroyed()) return this.stopPoll()
+    // A pointer left at rest in the margin (working in the app behind) is
+    // looked at every 100 ms; one that moves, every 16.
+    let last = '', still = 0
+    const look = () => {
+      this.poll = null
+      if (this.c.base.isDestroyed()) return
       const p = screen.getCursorScreenPoint()
-      if (!inside(p, this.c.base.getBounds()) || inside(p, grow(this.visual(), GRIP.outside))) this.setHollow(false)
-    }, 16)
+      if (!inside(p, this.c.base.getBounds()) || inside(p, grow(this.visual(), GRIP.outside))) { this.setHollow(false); return }
+      const at = `${p.x},${p.y}`
+      still = at === last ? still + 1 : 0
+      last = at
+      this.poll = setTimeout(look, still > 6 ? 100 : 16)
+    }
+    this.poll = setTimeout(look, 16)
   }
 
   private stopPoll(): void {
-    if (this.poll) clearInterval(this.poll)
+    if (this.poll) clearTimeout(this.poll)
     this.poll = null
   }
 

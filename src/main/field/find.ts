@@ -5,7 +5,7 @@
 import { Menu, type WebContents } from 'electron'
 import { handle } from '../router'
 import { model, type WindowRecord } from '../model/model'
-import { registerSlice, controllerFor, type WindowController } from '../views/window'
+import { registerSlice, controllerFor, overlayFree, type WindowController } from '../views/window'
 import { runtimes } from '../views/tabs'
 import type { FindState } from '../../shared/modules/field'
 import { need } from '../context'
@@ -211,8 +211,8 @@ function follow(c: WindowController): void {
     return
   }
   // Never over something else the overlay is showing (the field, a menu).
-  if (layer !== 'none' && layer !== 'find') return
-  if (wc !== f.wc) { show(c, false); ask(c, true) } else if (layer === 'none') show(c, false)
+  if (!overlayFree(c.overlayLayer) && layer !== 'find') return
+  if (wc !== f.wc) { show(c, false); ask(c, true) } else if (layer !== 'find') show(c, false)
 }
 
 onAfterField(c => { if (findOf(c).open) show(c, false) })

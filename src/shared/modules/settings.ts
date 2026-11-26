@@ -140,6 +140,10 @@ declare module '../commands' {
     'update.dismiss': None
     /** Update and Restart: fetched, put in place, opened. */
     'update.now': None
+    // the star card after an update (settings/star.ts)
+    'star.open': None
+    'star.never': None
+    'star.later': None
     // keys.ts's table: Settings… (Ctrl+,), Passwords… (Alt+Shift+L),
     // Show History… (Ctrl+H), Downloads… (Ctrl+J), Clear Browsing Data…
     'app.settings': None

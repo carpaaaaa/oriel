@@ -22,7 +22,7 @@ import { model } from '../model/model'
 import { handle } from '../router'
 import { probe } from '../paths'
 import { benchRequest } from '../bench/server'
-import { allControllers } from '../views/window'
+import { allControllers, overlayFree } from '../views/window'
 import { openInternal, scheme, tellPages } from './internal'
 import { hidePanel, markAllSettings, settingsPart, showPanel } from './slice'
 import { said, setKey } from './prefs'
@@ -155,7 +155,7 @@ function placePopup(tries = 0): void {
   if (!c) { if (tries < 40) setTimeout(() => placePopup(tries + 1), 500); return }
   const layer = c.overlayLayer
   // Something else floats there (the field, a menu, a question): wait it out.
-  if (layer.kind !== 'none' && !(layer.kind === 'panel' && layer.name === 'settings.update')) { setTimeout(() => placePopup(tries + 1), 400); return }
+  if (!overlayFree(layer) && !(layer.kind === 'panel' && layer.name === 'settings.update')) { setTimeout(() => placePopup(tries + 1), 400); return }
   popupWindow = c.record.id
   const b = c.base.getContentBounds()
   // A plate over the whole window, with the panels' veil (studio/02 §4.6).

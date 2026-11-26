@@ -4,22 +4,24 @@
 // the end of the tab strip.
 // Owned by the settings module.
 
+import { lazy } from 'solid-js'
 import { registerOutlet, registerPage, registerPanel } from '../lib/registry'
-import { SettingsPage } from './Settings'
 import { DownloadsDoor, DownloadsFloat, DownloadsPage } from './Downloads'
 import { PermissionQuestion } from './Permission'
 import { UpdatePopup } from './UpdatePopup'
 import { DefaultOffer } from './DefaultOffer'
-import { ShortcutsEditor } from './Shortcuts'
+import { StarAsk } from './StarAsk'
 import './settings.css'
 
-registerPage('settings', SettingsPage)
+// Pages load when a tab shows them: the window's own interface never draws one.
+registerPage('settings', lazy(() => import('./Settings').then(m => ({ default: m.SettingsPage }))))
 // Keyboard & Mouse › Shortcuts, under its group in Settings.tsx.
-registerPage('settings.shortcuts', ShortcutsEditor)
+registerPage('settings.shortcuts', lazy(() => import('./Shortcuts').then(m => ({ default: m.ShortcutsEditor }))))
 registerPage('downloads', DownloadsPage)
 registerPanel('settings.permission', PermissionQuestion)
 registerPanel('settings.downloads', DownloadsFloat)
 registerPanel('settings.update', UpdatePopup)
 registerPanel('settings.default', DefaultOffer)
+registerPanel('settings.star', StarAsk)
 registerOutlet('sidebar.foot', () => <DownloadsDoor where="foot" />)
 registerOutlet('strip.end', () => <DownloadsDoor where="strip" />)

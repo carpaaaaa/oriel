@@ -16,7 +16,12 @@ const watch = process.argv.includes('--watch')
 const noUI = process.argv.includes('--no-ui')
 const release = process.argv.includes('--release')
 
-const common = { bundle: true, platform: 'node', target: 'node24', sourcemap: true, logLevel: 'warning' }
+// A release is minified and carries no source maps: less to read and parse at
+// each launch, and in every page and frame for the page preload. No keepNames:
+// its helper would land inside functions sent as text to run elsewhere (the
+// page preload's executeInMainWorld, the extensions' bridge), where it isn't.
+const lean = release ? { minify: true, legalComments: 'none', define: { 'process.env.NODE_ENV': '"production"' } } : {}
+const common = { bundle: true, platform: 'node', target: 'node24', sourcemap: !release, logLevel: 'warning', ...lean }
 const main = {
   ...common,
   entryPoints: { index: 'src/main/index.ts' },
@@ -24,6 +29,10 @@ const main = {
   format: 'esm',
   outExtension: { '.js': '.js' },
   external: ['electron', 'koffi', 'electron-chrome-extensions', 'electron-chrome-web-store'],
+  // One Public Suffix List in the main process, not two: @ghostery/adblocker's
+  // tldts-experimental is the same list in another shape, and the blocker
+  // only reads a request's hostname and domain from it.
+  alias: { 'tldts-experimental': 'tldts' },
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
 }
 const preload = {
@@ -53,7 +62,7 @@ if (watch) {
   await Promise.all([build(main), build(preload), build(worker)])
 }
 snapshot()
-if (!noUI) await vite({ configFile: 'vite.config.ts', logLevel: 'warn', build: { watch: watch ? {} : null } })
+if (!noUI) await vite({ configFile: 'vite.config.ts', logLevel: 'warn', build: { watch: watch ? {} : null, sourcemap: !release } })
 await cp('src/ui/public', 'out/ui', { recursive: true }).catch(() => {})
 console.log('built', new Date().toLocaleTimeString())
 

@@ -15,7 +15,7 @@ import { model } from '../model/model'
 import { handle } from '../router'
 import { need } from '../context'
 import { onPageSession, runtimes } from '../views/tabs'
-import { controllerFor, type WindowController } from '../views/window'
+import { controllerFor, overlayFree, type WindowController } from '../views/window'
 import { isInternal } from './internal'
 import { markSettings, settingsPart, showPanel, hidePanel } from './slice'
 
@@ -154,7 +154,7 @@ function showQuestion(c: WindowController): void {
   if (!p) return
   const layer = c.overlayLayer
   // Something else floats there (the field, a menu, another panel): wait it out.
-  if (layer.kind !== 'none' && !(layer.kind === 'panel' && layer.name === 'settings.permission')) { setTimeout(() => showQuestion(c), 400); return }
+  if (!overlayFree(layer) && !(layer.kind === 'panel' && layer.name === 'settings.permission')) { setTimeout(() => showQuestion(c), 400); return }
   const view = runtimes.get(p.ask.tab)?.view
   const b = view?.getBounds()
   if (!b || !b.width) { setTimeout(() => showQuestion(c), 200); return }

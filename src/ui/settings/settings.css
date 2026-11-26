@@ -302,3 +302,29 @@ html[data-root="page"] { --rail-ease: linear(0, 0.0720, 0.2326, 0.4206, 0.5990, 
 /* PopMenu.tsx: the dropdown's list, for actions */
 .dd-list.popmenu { min-width: 150px; }
 .dd-row.popmenu-red { color: rgb(229 72 77 / .95); }
+
+/* the star card after an update (StarAsk.tsx): small, in the page's lower
+   right corner, inside a region 12 wider on each side for its shadow */
+.star-card { position: fixed; inset: 12px; display: grid; grid-template-columns: auto 1fr auto; column-gap: 10px; align-content: start;
+  padding: 14px 10px 14px 14px; border-radius: 14px; background: var(--ground); color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--hairline), 0 3px 12px rgba(0,0,0,.14); animation: star-in var(--dur-settle) var(--ease-settle); }
+.star-card.going { animation: star-out var(--dur-quick) var(--ease-quick) forwards; }
+.star-glyph { color: #e3a008; padding-top: 1px; }
+.star-text { min-width: 0; }
+.star-title { font-size: 13px; line-height: 16px; font-weight: 600; }
+.star-line { margin-top: 2px; font-size: 12px; line-height: 15px; color: var(--muted); }
+.star-x { width: 22px; height: 22px; margin-top: -4px; border-radius: 7px; display: grid; place-items: center; color: var(--muted); transition: background var(--dur-quick) var(--ease-quick); }
+.star-x:hover { background: var(--hover); color: var(--ink-hover-text); }
+.star-foot { grid-column: 2 / 4; display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.star-go { display: inline-flex; align-items: center; gap: 5px; }
+.star-never { font-size: 11.5px; line-height: 13.7px; color: var(--muted); }
+.star-never:hover { color: var(--ink-hover-text); }
+@keyframes star-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes star-out { to { opacity: 0; transform: translateY(8px); } }
+
+/* Settings › Appearance › Text size: a small A, the slider, a big A, the size. */
+.st-textsize { display: flex; align-items: center; gap: 8px; }
+.st-textsize-a { font-size: 11px; color: var(--muted); font-weight: 600; }
+.st-textsize-a.big { font-size: 17px; }
+.st-textsize-n { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.st-textsize-reset { margin-left: 4px; }

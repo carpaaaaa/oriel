@@ -32,6 +32,8 @@
 }
 @keyframes field-breath-in { from { transform: scale(.97); opacity: .65; } to { transform: scale(1.03); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .field-breath { animation: none; } }
+/* Still while the window isn't in front: no frames drawn for a window you aren't using. */
+.window.blurred .field-breath { animation-play-state: paused; }
 
 /* the site Tab put in the field: 22 high, 8 at the sides, wash, radius 7 */
 .field-chip { flex: none; height: 22px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 7px; background: var(--wash); animation: field-chip-in var(--dur-quick) var(--ease-quick); transform-origin: left center; }

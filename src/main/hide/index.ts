@@ -19,7 +19,7 @@ import { need } from '../context'
 import { model } from '../model/model'
 import { readJSON, toAppleDate, writeJSON } from '../model/persist'
 import { runtimes, type TabRuntime } from '../views/tabs'
-import { allControllers, controllerFor, type WindowController } from '../views/window'
+import { allControllers, controllerFor, overlayFree, type WindowController } from '../views/window'
 import { bindings, findAction, keysOf, live, shortcut } from '../keys'
 import { benchRequest } from '../bench/server'
 import { pageMenuHooks } from '../contextmenu/menu'
@@ -214,7 +214,7 @@ function drawBar(c: WindowController): void {
   const hint = pointing.has(c) ? HINT : null
   const mine = isPanel(c, HIDE_BAR)
   if (!hint && !bar.said) { if (mine) c.sendOverlay({ kind: 'none' }); return }
-  if (c.overlayLayer.kind !== 'none' && !mine) return
+  if (!overlayFree(c.overlayLayer) && !mine) return
   const data: HideBarData = { hint, said: bar.said, n: bar.n }
   c.sendOverlay({ kind: 'panel', name: HIDE_BAR, data })
   placeBar(c)

@@ -6,7 +6,7 @@
 // The model is the truth; this sends the window's slice to both interface
 // roots as patches.
 
-import { BaseWindow, WebContentsView, nativeTheme, session as electronSession, type Session } from 'electron'
+import { BaseWindow, WebContentsView, nativeTheme, screen, session as electronSession, type Session } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { ID, OverlayLayer, Rect, WindowState } from '../../shared/state'
@@ -49,6 +49,14 @@ const watched = new WeakSet<Electron.WebContents>()
 const sliceMakers = new Map<string, (c: WindowController) => unknown>()
 export function registerSlice(key: string, make: (c: WindowController) => unknown): void { sliceMakers.set(key, make) }
 
+/** Panels that give way to anything else wanting the overlay (the star ask,
+ * settings/star.ts): a menu, a question or the field simply takes its place. */
+export const yielding = new Set<string>()
+/** Nothing floats over the page, or only a panel that gives way. */
+export function overlayFree(layer: OverlayLayer): boolean {
+  return layer.kind === 'none' || (layer.kind === 'panel' && yielding.has(layer.name))
+}
+
 export function controllerFor(id: ID): WindowController | undefined { return controllers.get(id) }
 export function allControllers(): WindowController[] { return [...controllers.values()] }
 export function focusedController(): WindowController | undefined {
@@ -89,7 +97,7 @@ export class WindowController {
   /** Pages of this window that are out in the floating video's window
    * (pages/float.ts): not placed here, however long their tab is in front. */
   private held = new Set<ID>()
-  private rev = 0
+  rev = 0
   private dirty = new Set<string>()
   private flushTimer: NodeJS.Timeout | null = null
   private overlayRect: Rect | null = null
@@ -134,6 +142,16 @@ export class WindowController {
     this.overlay.webContents.loadFile(uiPage, { query: { root: 'overlay' } })
     // A window closed before its interface had loaded: nothing to show.
     this.ui.webContents.once('did-finish-load', () => { if (!this.base.isDestroyed() && !this.base.isVisible()) this.base.show() })
+    // Minimized or hidden, the interface lets its timers and frames rest:
+    // one view of a window that refuses throttling keeps the whole window,
+    // pages too, drawing frames nobody sees.
+    const rest = (on: boolean) => { for (const v of [this.ui, this.overlay]) if (!v.webContents.isDestroyed()) v.webContents.setBackgroundThrottling(on) }
+    this.base.on('minimize', () => rest(true))
+    this.base.on('hide', () => rest(true))
+    this.base.on('restore', () => rest(false))
+    this.base.on('show', () => rest(false))
+    this.base.on('maximize', () => rest(false))
+    this.base.on('focus', () => rest(false))
 
     this.layout()
     // The frame is read again first, so the margin is right before the pages move.
@@ -183,44 +201,32 @@ export class WindowController {
     if (!this.dirty.size || this.base.isDestroyed()) return
     const keys = [...this.dirty]
     this.dirty.clear()
-    const full = this.state()
-    const set: Partial<WindowState> = {}
+    // Only the parts that changed are made (a background tab's new title
+    // makes the tabs, not every module's slice).
+    const set: Record<string, unknown> = {}
+    const add = (k: string) => { if (!(k in set)) set[k] = this.part(k) }
     for (const k of keys) {
-      if (k === 'window') Object.assign(set, pickWindow(full))
-      else (set as any)[k] = (full as any)[k]
+      if (k === 'window') WINDOW_KEYS.forEach(add)
+      else add(k)
     }
-    if (keys.includes('space')) Object.assign(set, { tabs: full.tabs, pins: full.pins, activeID: full.activeID })
+    if (keys.includes('space')) ['tabs', 'pins', 'activeID'].forEach(add)
     const patch = { rev: ++this.rev, set }
     for (const v of [this.ui, this.overlay]) if (!v.webContents.isDestroyed()) v.webContents.send(IPC.state, patch)
   }
 
+  /** The whole state, for an interface that has just loaded (hello). */
   state(): WindowState {
-    const r = this.record
-    return {
-      rev: this.rev,
-      windowID: r.id,
-      chrome: this.chrome,
-      look: nativeTheme.shouldUseDarkColors ? 'dark' : 'light',
-      focused: this.base.isFocused(),
-      maximized: this.base.isMaximized(),
-      fullScreen: this.frame.isFullScreen(),
-      // The window's buttons' room at the strip's end: Classic 3 × 46, Inline 3 doors and 10 (chrome/Buttons.tsx).
-      controlsWidth: this.chrome === 'windows' && !this.frame.isFullScreen() ? (model.pref<string>('window.buttons') === 'classic' ? 138 : 96) : 0,
-      space: r.space,
-      spaces: model.spaces,
-      tabs: model.spaceTabs(r).map(id => model.tabs.get(id)!).filter(Boolean).map(({ home, touched, letGo, ...view }) => view),
-      pins: model.pinViews(r),
-      pinFolders: [],
-      groups: r.groups,
-      splits: r.splits,
-      activeID: r.active[r.space] ?? null,
-      sidebar: r.sidebar,
-      field: r.field,
-      extensions: [],
-      downloads: [],
-      prefs: model.prefs,
-      ...Object.fromEntries([...sliceMakers].map(([k, make]) => [k, make(this)])),
-    }
+    const all: Record<string, unknown> = {}
+    for (const k of Object.keys(BUILT_IN)) all[k] = BUILT_IN[k](this)
+    for (const [k, make] of sliceMakers) all[k] = make(this)
+    return all as unknown as WindowState
+  }
+
+  /** One part of the state, made alone: a module's slice, else a built-in part. */
+  part(key: string): unknown {
+    const make = sliceMakers.get(key)
+    if (make) return make(this)
+    return BUILT_IN[key]?.(this)
   }
 
   sendOverlay(layer: OverlayLayer): void {
@@ -296,7 +302,7 @@ export class WindowController {
     const slot = this.slots.get(id)
     if (!slot) return null
     const { width, height } = this.base.getContentBounds()
-    if (this.filling === id) return { x: 0, y: 0, width, height }
+    if (this.filling === id) return this.glide?.id === id ? this.glideRect(this.glide) : { x: 0, y: 0, width, height }
     const { left, top, right, bottom } = slot.insets
     return { x: Math.round(left), y: Math.round(top), width: Math.max(0, Math.round(width - left - right)), height: Math.max(0, Math.round(height - top - bottom)) }
   }
@@ -314,7 +320,7 @@ export class WindowController {
       const rt = runtimes.get(id)
       if (rt?.view) this.base.contentView.removeChildView(rt.view)
       this.shown.delete(id)
-      if (this.filling === id) this.filling = null
+      if (this.filling === id) { this.filling = null; this.stopGlide() }
     }
     for (const id of want) {
       const rt = runtimeFor(id, this.pageSession)
@@ -345,7 +351,7 @@ export class WindowController {
     const view = runtimes.get(id)?.view
     if (view && this.base.contentView.children.includes(view)) this.base.contentView.removeChildView(view)
     this.shown.delete(id)
-    if (this.filling === id) this.filling = null
+    if (this.filling === id) { this.filling = null; this.stopGlide() }
   }
 
   /** The floating video landed: placePages takes the page back. */
@@ -356,7 +362,9 @@ export class WindowController {
     const rect = this.rectFor(id)
     if (!rt?.view || !rect) return
     rt.view.setBounds(rect)
-    rt.view.setBorderRadius(this.filling === id ? 0 : Math.round(this.slots.get(id)?.radius ?? 0))
+    const radius = Math.round(this.slots.get(id)?.radius ?? 0)
+    // Gliding, the card's corners go square on the way out to the screen, and come back.
+    rt.view.setBorderRadius(this.filling !== id ? radius : this.glide?.id === id ? Math.round(radius * (1 - this.glideProgress(this.glide))) : 0)
     this.pageTrace?.push({ t: performance.timeOrigin + performance.now(), id, rect })
   }
 
@@ -366,22 +374,154 @@ export class WindowController {
    * and the strip of tabs stayed around it, the video in the card's place. */
   private filling: ID | null = null
 
-  /** A page entered (on) or left its own full screen. */
-  fillWith(wc: Electron.WebContents, on: boolean): void {
+  /** A page entered (on) or left its own full screen; `after` runs once the
+   * page is there (on the way out, once it is back in its place: the window
+   * leaves the screen only then, pagefull.ts). */
+  fillWith(wc: Electron.WebContents, on: boolean, after?: () => void): void {
     const id = [...this.shown].find(i => runtimes.get(i)?.view?.webContents === wc) ?? null
+    const g = this.glide
     if (on) {
-      if (!id || this.filling === id) return
+      // Back in before it was out: it grows again from where it is.
+      if (id && g?.id === id && g.dir === 'out') { this.startGlide(id, 'in', this.screenRect(this.glideRect(g)), null); after?.(); return }
+      if (!id || this.filling === id) { after?.(); return }
+      const from = this.rectFor(id)
       this.filling = id
       // Over a split's other page, under the overlay; nothing floating left over the video.
       const view = runtimes.get(id)!.view!
       this.base.contentView.addChildView(view, this.base.contentView.children.indexOf(this.overlay))
       if (this.overlayLayer.kind !== 'none') this.sendOverlay({ kind: 'none' })
-    } else {
-      if (!this.filling || (id && id !== this.filling)) return
-      this.filling = null
+      this.fillFrom = from ? this.screenRect(from) : null
+      this.fullBefore = this.frame.isFullScreen()
+      if (this.fillFrom && this.glides()) this.startGlide(id, 'in', this.fillFrom, null)
+      this.placePages()
+      this.mark('window')
+      after?.()
+      return
     }
+    if (!this.filling || (id && id !== this.filling)) return
+    // Already on its way back: once is enough.
+    if (g?.id === this.filling && g.dir === 'out') return
+    const going = this.filling
+    if (this.fillFrom && this.glides() && this.shown.has(going)) {
+      const now = g?.id === going ? this.screenRect(this.glideRect(g)) : this.screenRect({ x: 0, y: 0, ...this.size() })
+      this.startGlide(going, 'out', now, this.fillFrom, () => this.land(going, after))
+      return
+    }
+    this.stopGlide()
+    this.filling = null
     this.placePages()
     this.mark('window')
+    after?.()
+  }
+
+  // The glide into and out of a page's own full screen (the user's wish, 26
+  // Nov 2026: a video going full screen smoothly). The page grows from where
+  // it sat on the screen to the whole screen while the interface steps aside
+  // and black comes up behind it, and goes back the same way. Rectangles are
+  // kept on the screen, so the window covering the screen (or coming back)
+  // under the page doesn't move it.
+
+  /** Where the page sat on the screen before its full screen. */
+  private fillFrom: Rect | null = null
+  /** The window was already covering the screen (F11) before the page's. */
+  private fullBefore = false
+  curtain: 'on' | 'going' | 'off' = 'off'
+  private glide: { id: ID; dir: 'in' | 'out'; from: Rect; to: Rect | null; t0: number | null; wait: number; timer: NodeJS.Timeout; done?: () => void } | null = null
+
+  private glides(): boolean { return !model.pref<boolean>('motion.instant') }
+
+  private size(): { width: number; height: number } { const b = this.base.getContentBounds(); return { width: b.width, height: b.height } }
+
+  /** A rectangle of the window's content, on the screen. */
+  private screenRect(r: Rect): Rect { const b = this.base.getContentBounds(); return { x: r.x + b.x, y: r.y + b.y, width: r.width, height: r.height } }
+
+  private setCurtain(to: 'on' | 'going' | 'off'): void {
+    if (this.curtain === to) return
+    this.curtain = to
+    this.push('curtain')
+  }
+
+  private glideProgress(g: NonNullable<WindowController['glide']>): number {
+    if (g.t0 == null) return 0
+    const t = Math.min(1, (Date.now() - g.t0) / (g.dir === 'in' ? 280 : 240))
+    // Out to the screen: quick then settling; back: eased both ways.
+    return g.dir === 'in' ? 1 - Math.pow(1 - t, 3) : t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+  }
+
+  /** The page's rectangle now, in the window's coordinates. */
+  private glideRect(g: NonNullable<WindowController['glide']>): Rect {
+    const b = this.base.getContentBounds()
+    const to = g.to ?? b
+    const p = this.glideProgress(g)
+    const mix = (a: number, z: number) => a + (z - a) * p
+    const x = mix(g.from.x, to.x), y = mix(g.from.y, to.y)
+    return { x: Math.round(x - b.x), y: Math.round(y - b.y), width: Math.max(1, Math.round(mix(g.from.width, to.width))), height: Math.max(1, Math.round(mix(g.from.height, to.height))) }
+  }
+
+  /** The window covers its screen (where a page's full screen ends up). */
+  private covering(): boolean {
+    const b = this.base.getBounds(), d = screen.getDisplayMatching(b).bounds
+    return b.x === d.x && b.y === d.y && b.width === d.width && b.height === d.height
+  }
+
+  private startGlide(id: ID, dir: 'in' | 'out', from: Rect, to: Rect | null, done?: () => void): void {
+    if (this.glide) clearInterval(this.glide.timer)
+    const g: NonNullable<WindowController['glide']> = {
+      id, dir, from, to, done,
+      // Into full screen the page waits for the window to cover the screen (a few frames at most).
+      t0: dir === 'out' || this.covering() ? Date.now() : null,
+      wait: Date.now() + 400,
+      timer: setInterval(() => this.glideStep(), 16),
+    }
+    this.glide = g
+    this.setCurtain(dir === 'in' ? 'on' : 'going')
+    this.placeOne(id)
+  }
+
+  private glideStep(): void {
+    const g = this.glide
+    if (!g || this.base.isDestroyed()) return this.stopGlide()
+    if (g.t0 == null && (this.covering() || Date.now() > g.wait)) g.t0 = Date.now()
+    this.placeOne(g.id)
+    if (g.t0 == null || this.glideProgress(g) < 1) return
+    clearInterval(g.timer)
+    if (g.dir === 'in') { this.glide = null; this.placeOne(g.id) }
+    g.done?.()
+  }
+
+  private stopGlide(): void {
+    if (this.glide) clearInterval(this.glide.timer)
+    this.glide = null
+    this.setCurtain('off')
+  }
+
+  /** Back in its place on the screen: the window leaves the screen (`after`),
+   * the page stays where it is meanwhile, and the interface comes back once
+   * the window is as it was. */
+  private land(id: ID, after?: () => void): void {
+    after?.()
+    const start = Date.now()
+    const back = () => {
+      if (this.base.isDestroyed()) return
+      const g = this.glide
+      if (g?.id !== id || g.dir !== 'out') return
+      // The window as it was: out of the full screen the page put it in (or still in F11's).
+      const ready = this.fullBefore || !this.frame.isFullScreen()
+      if (ready || Date.now() - start > 800) {
+        setTimeout(() => {
+          if (this.glide !== g) return
+          this.glide = null
+          this.filling = null
+          this.placePages()
+          this.mark('window')
+          this.setCurtain('off')
+        }, ready ? 50 : 0)
+        return
+      }
+      this.placeOne(id)
+      setTimeout(back, 16)
+    }
+    back()
   }
 
   /** A page is in its own full screen in this window. */
@@ -445,9 +585,35 @@ export class WindowController {
   }
 }
 
-function pickWindow(s: WindowState): Partial<WindowState> {
-  const { chrome, look, focused, maximized, fullScreen, controlsWidth } = s
-  return { chrome, look, focused, maximized, fullScreen, controlsWidth }
+/** The window's own parts, sent again together on mark('window'). */
+const WINDOW_KEYS = ['chrome', 'look', 'focused', 'maximized', 'fullScreen', 'controlsWidth']
+
+/** The state's parts no module's slice makes (a module's slice of the same
+ * name wins: tabs, pins, pinFolders, extensions, downloads). */
+const BUILT_IN: Record<string, (c: WindowController) => unknown> = {
+  rev: c => c.rev,
+  windowID: c => c.record.id,
+  chrome: c => c.chrome,
+  look: () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light'),
+  focused: c => c.base.isFocused(),
+  maximized: c => c.base.isMaximized(),
+  fullScreen: c => c.frame.isFullScreen(),
+  curtain: c => c.curtain,
+  // The window's buttons' room at the strip's end: Classic 3 × 46, Inline 3 doors and 10 (chrome/Buttons.tsx).
+  controlsWidth: c => (c.chrome === 'windows' && !c.frame.isFullScreen() ? (model.pref<string>('window.buttons') === 'classic' ? 138 : 96) : 0),
+  space: c => c.record.space,
+  spaces: () => model.spaces,
+  tabs: c => model.spaceTabs(c.record).map(id => model.tabs.get(id)!).filter(Boolean).map(({ home, touched, letGo, ...view }) => view),
+  pins: c => model.pinViews(c.record),
+  pinFolders: () => [],
+  groups: c => c.record.groups,
+  splits: c => c.record.splits,
+  activeID: c => c.record.active[c.record.space] ?? null,
+  sidebar: c => c.record.sidebar,
+  field: c => c.record.field,
+  extensions: () => [],
+  downloads: () => [],
+  prefs: () => model.prefs,
 }
 
 model.on('window-changed', (id: ID, slices: Slice[]) => {

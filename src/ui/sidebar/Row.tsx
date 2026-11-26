@@ -4,7 +4,7 @@
 // pointer a cross on a disc of 15, 7 from the end, the title fading out
 // under it (16 of gradient, 26 clear) rather than cut shorter.
 
-import { createEffect, createSignal, on, onMount, Show } from 'solid-js'
+import { createEffect, createRoot, createSelector, createSignal, on, onMount, Show } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import type { TabView } from '../../shared/state'
 import { G, Ring } from './glyphs'
@@ -16,7 +16,7 @@ import { press } from './drag'
 import { fadeBack } from './motion'
 import { TabField } from '../field/TabField'
 
-/** Icons asked of the data module, once per address. */
+/** Icons asked of the data module, once per address (the 300 latest). */
 const asked = new Map<string, Promise<string | null>>()
 function keptIcon(url: string, shy: boolean): Promise<string | null> {
   const key = `${shy ? 'shy:' : ''}${url}`
@@ -24,6 +24,7 @@ function keptIcon(url: string, shy: boolean): Promise<string | null> {
   if (!got) {
     got = Promise.resolve(cmd({ do: 'data.icon', url, shy })).then(v => (typeof v === 'string' ? v : null)).catch(() => null)
     asked.set(key, got)
+    if (asked.size > 300) asked.delete(asked.keys().next().value!)
     // Learnt later (the page loads, its icon is kept): ask again next time.
     void got.then(v => { if (!v) setTimeout(() => asked.delete(key), 5000) })
   }
@@ -80,10 +81,13 @@ function RestLine(p: { tab: TabView }) {
   )
 }
 
+/** The tab in front, told only to the row that gains it and the row that loses it. */
+const isActive = createRoot(() => createSelector(() => state.activeID))
+
 export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean; pair?: PairSlot }) {
   let el!: HTMLDivElement
   const t = () => p.tab
-  const live = () => t().id === state.activeID
+  const live = () => isActive(t().id)
   const loading = () => t().loading
   const speaker = () => !loading() && (t().audible || t().muted)
   const status = () => loading() || speaker()

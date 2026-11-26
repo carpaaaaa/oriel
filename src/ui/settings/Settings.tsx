@@ -270,6 +270,19 @@ function control(i: Item): JSX.Element {
       options={[[true, 'As a card', () => <CardPicture card />], [false, 'Edge to edge', () => <CardPicture card={false} />]]} />
     case 'pages.scrollbars': return <Segmented value={p<string>('pages.scrollbars') ?? 'oriel'} set={v => void set('pages.scrollbars', v)} options={[['oriel', "Oriel's"], ['windows', "Windows' own"]]} />
     case 'address.width': return <Segmented value={p<string>('address.width') ?? 'small'} set={v => void set('address.width', v)} options={[['small', 'Small'], ['medium', 'Medium']]} />
+    case 'text.scale': {
+      const scale = () => Math.min(1.4, Math.max(1, Number(p<number>('text.scale')) || 1))
+      return (
+        <div class="st-textsize">
+          <span class="st-textsize-a" aria-hidden="true">A</span>
+          <input class="st-slider" type="range" min="1" max="1.4" step="0.05" value={scale()} onInput={e => void set('text.scale', Number(e.currentTarget.value))} aria-label="Text size" aria-valuetext={`${Math.round(scale() * 100)}%`} />
+          <span class="st-textsize-a big" aria-hidden="true">A</span>
+          <span class="st-textsize-n">{Math.round(scale() * 100)}%</span>
+          {/* Back to 100%, there only when it isn't. */}
+          <button class="pill-st st-textsize-reset" disabled={scale() === 1} onClick={() => void set('text.scale', 1)}>Reset</button>
+        </div>
+      )
+    }
     case 'window.glass.clear': case 'window.glass.grain': case 'float.fade':
       return <input class="st-slider" type="range" min="0" max="1" step="0.01" value={p<number>(i.id)} onChange={e => void set(i.id, Number(e.currentTarget.value))} aria-label={i.title} />
     case 'helm.shown': return <Ticks items={[

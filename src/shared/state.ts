@@ -48,6 +48,9 @@ export interface TabView {
   internal?: string
   /** Camera, microphone or screen in use. */
   capturing?: boolean
+  /** The registrable domain of a web address's host (www. aside), from the
+   * Public Suffix List in main, so the interface carries no copy of it. */
+  site?: string
 }
 
 export interface PinView {
@@ -141,6 +144,10 @@ export interface WindowState {
   focused: boolean
   maximized: boolean
   fullScreen: boolean
+  /** A page going into or out of its own full screen (views/window.ts glide):
+   * 'on' the window's interface hides and black comes up behind the page,
+   * 'going' the black goes, the interface still hidden; 'off' as usual. */
+  curtain?: 'on' | 'going' | 'off'
   /** Width of the window's own buttons on the right (Windows), 0 on a Mac. */
   controlsWidth: number
   space: ID

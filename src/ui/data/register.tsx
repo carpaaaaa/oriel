@@ -4,8 +4,8 @@
 // its list, its right-click menu or its card in the overlay (studio/05 §3.2).
 // Owned by the data module.
 
+import { lazy } from 'solid-js'
 import { registerOutlet, registerPage, registerPanel } from '../lib/registry'
-import { HistoryPage } from './HistoryPage'
 import { FillList } from './FillList'
 import { SaveQuestion } from './SaveQuestion'
 import { ImportPanel } from './ImportPanel'
@@ -26,4 +26,4 @@ registerOutlet('strip.end', () => <BookmarkDoor where="strip" />)
 registerOutlet('chrome.end', () => <BookmarkDoor where="corner" />)
 
 // oriel://history
-registerPage('history', HistoryPage)
+registerPage('history', lazy(() => import('./HistoryPage').then(m => ({ default: m.HistoryPage }))))

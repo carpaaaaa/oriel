@@ -83,6 +83,20 @@ function KeptRow(p: { e: DownloadEntry; run: (c: string) => void }) {
   )
 }
 
+/** The list, asked for one request at a time: news while one is on its way
+ * asks once more after it. A download sends news many times a second, and
+ * answers overtaking each other had the bar going back and forth. */
+function lister(ask: () => Promise<Listed>, set: (l: Listed) => void): () => Promise<void> {
+  let busy = false, again = false
+  return async () => {
+    if (busy) { again = true; return }
+    busy = true
+    try {
+      do { again = false; set(await ask()) } while (again)
+    } catch {} finally { busy = false }
+  }
+}
+
 export function DownloadsList(p: { data: Listed | null; run: (command: string, id?: string) => void }) {
   return (
     <Show when={p.data && (p.data.current.length || p.data.completed.length)} fallback={<Card><Nothing text="Nothing downloaded yet." /></Card>}>
@@ -111,11 +125,11 @@ export function DownloadsList(p: { data: Listed | null; run: (command: string, i
 /** oriel://downloads: the plate in a tab, 560 wide. */
 export function DownloadsPage() {
   const [data, setData] = createSignal<Listed | null>(null)
-  const load = async () => setData(await call<Listed>({ do: 'download.list' }))
+  const load = lister(() => call<Listed>({ do: 'download.list' }), setData)
   onMount(() => {
     document.title = 'Downloads'
     void load()
-    onCleanup(onUpdate('downloads', v => setData(v as Listed)))
+    onCleanup(onUpdate('downloads', () => void load()))
   })
   const run = (command: string, id?: string) => void call({ do: command, ...(id ? { id } : {}) } as never).then(load)
   return (
@@ -133,7 +147,7 @@ export function DownloadsPage() {
 /** The card by the button (overlay), the same list in a narrower place. */
 export function DownloadsFloat() {
   const [data, setData] = createSignal<Listed | null>(null)
-  const load = async () => setData(await cmd({ do: 'download.list' }) as Listed)
+  const load = lister(async () => await cmd({ do: 'download.list' }) as Listed, setData)
   createEffect(on(() => state.downloads, () => void load()))
   const run = (command: string, id?: string) => void cmd({ do: command, ...(id ? { id } : {}) } as never).then(load)
   return (

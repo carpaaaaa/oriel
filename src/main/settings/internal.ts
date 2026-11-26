@@ -13,7 +13,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { brand } from '../../shared/brand'
 import type { Command } from '../../shared/commands'
-import { model } from '../model/model'
+import { model, textScale } from '../model/model'
 import { run, handle } from '../router'
 import { hooks, onPageSession, runtimes } from '../views/tabs'
 import { allControllers, controllerFor, type WindowController } from '../views/window'
@@ -165,7 +165,7 @@ ipcMain.handle('oriel:command', async (event, command: Command) => {
   if (name === 'internal.state') {
     const slice = String((command as { slice?: string }).slice ?? '')
     if (!grant?.slices.includes(slice)) throw new Error(`oriel://${page} doesn't read ${slice}`)
-    return where?.window ? (where.window.state() as unknown as Record<string, unknown>)[slice] ?? null : null
+    return where?.window ? where.window.part(slice) ?? null : null
   }
   return run(command as never, { window: where?.window ?? null })
 })
@@ -181,9 +181,20 @@ export function tellPages(kind: string, value: unknown, only?: string | ((wc: We
   }
 }
 
+// Text size (Settings › Appearance): Oriel's pages ask as they start, and hear when it changes.
+// (Only Oriel's pages ask, from their preload; the answer is a number and nothing else.)
+ipcMain.on('oriel:text-scale', e => { e.returnValue = textScale() })
+let scaleTold = 0
+model.on('window-changed', (_id: string, slices: string[]) => {
+  if (!slices.includes('prefs') || !pages.size) return
+  const now = textScale()
+  if (now !== scaleTold) { scaleTold = now; tellPages('textScale', now) }
+})
+
 let prefsTimer: NodeJS.Timeout | null = null
 model.on('window-changed', (_id: string, slices: string[]) => {
-  if (!slices.includes('prefs') || prefsTimer) return
+  // No Oriel page open: nobody to tell, nothing to gather.
+  if (!slices.includes('prefs') || prefsTimer || !pages.size) return
   prefsTimer = setTimeout(() => { prefsTimer = null; tellPages('prefs', allPrefs(), 'settings') }, 0)
 })
 
@@ -240,4 +251,4 @@ export function internalContents(id: string): WebContents | null {
 export function windows(): WindowController[] { return allControllers() }
 
 // The same, asked by the interface or the bench (no page grant to check).
-handle('internal.state', ({ slice }, ctx) => (need(ctx).state() as unknown as Record<string, unknown>)[slice] ?? null)
+handle('internal.state', ({ slice }, ctx) => need(ctx).part(slice) ?? null)

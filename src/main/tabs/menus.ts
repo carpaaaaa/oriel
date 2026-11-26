@@ -6,6 +6,7 @@
 import { handle } from '../router'
 import { need } from '../context'
 import { runtimes } from '../views/tabs'
+import { overlayFree } from '../views/window'
 
 export const MENU = 'tabs.menu'
 
@@ -31,5 +32,5 @@ handle('menu.close', ({ refocus }, ctx) => {
   const c = need(ctx)
   const up = c.overlayLayer.kind === 'panel' && c.overlayLayer.name === MENU
   if (up) c.sendOverlay({ kind: 'none' })
-  if (refocus && (up || c.overlayLayer.kind === 'none')) c.focusPage()
+  if (refocus && (up || overlayFree(c.overlayLayer))) c.focusPage()
 })

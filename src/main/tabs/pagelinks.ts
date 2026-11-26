@@ -22,8 +22,11 @@ const tabOf = (sender: Electron.WebContents): TabRecord | undefined => {
 
 // Show where links go
 
-interface Bubble { view: WebContentsView; url: string; right: boolean; timer: NodeJS.Timeout | null; serial: number }
+interface Bubble { view: WebContentsView; url: string; right: boolean; timer: NodeJS.Timeout | null; serial: number; release: NodeJS.Timeout | null }
 const bubbles = new Map<string, Bubble>()
+const watchedWindows = new WeakSet<WindowController>()
+/** The card's page is a process of its own: let go after this long unseen, made again on the next link. */
+const RELEASE = 30_000
 
 const page = (dark: boolean) => `<!doctype html><meta charset=utf-8><style>
 html,body{margin:0;background:transparent;overflow:hidden;font:12px system-ui,"Segoe UI",sans-serif}
@@ -43,10 +46,27 @@ function bubbleFor(c: WindowController): Bubble {
   view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
   keepOnPage(view.webContents)
   void view.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(page(nativeTheme.shouldUseDarkColors)))
-  b = { view, url: '', right: false, timer: null, serial: 0 }
+  b = { view, url: '', right: false, timer: null, serial: 0, release: null }
   bubbles.set(c.record.id, b)
-  c.base.on('closed', () => bubbles.delete(c.record.id))
+  if (!watchedWindows.has(c)) {
+    watchedWindows.add(c)
+    const id = c.record.id
+    c.base.on('closed', () => {
+      const gone = bubbles.get(id)
+      bubbles.delete(id)
+      if (gone?.release) clearTimeout(gone.release)
+      if (gone && !gone.view.webContents.isDestroyed()) gone.view.webContents.close()
+    })
+  }
   return b
+}
+
+function letGo(c: WindowController, b: Bubble): void {
+  b.release = null
+  if (bubbles.get(c.record.id) !== b || b.url) return
+  bubbles.delete(c.record.id)
+  try { if (!c.base.isDestroyed()) c.base.contentView.removeChildView(b.view) } catch {}
+  if (!b.view.webContents.isDestroyed()) b.view.webContents.close()
 }
 
 function hide(c: WindowController): void {
@@ -56,6 +76,9 @@ function hide(c: WindowController): void {
   b.url = ''
   b.serial++
   if (!b.view.webContents.isDestroyed()) b.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+  if (b.release) clearTimeout(b.release)
+  b.release = setTimeout(() => letGo(c, b), RELEASE)
+  b.release.unref?.()
 }
 
 async function show(c: WindowController, t: TabRecord, url: string, at: { x: number; y: number; w: number; h: number }): Promise<void> {
@@ -63,6 +86,7 @@ async function show(c: WindowController, t: TabRecord, url: string, at: { x: num
   if (!area || !area.width) return
   const b = bubbleFor(c)
   if (b.timer) { clearTimeout(b.timer); b.timer = null }
+  if (b.release) { clearTimeout(b.release); b.release = null }
   // A link under the card's corner gets the card in the other one.
   const right = at.h - at.y < 50 && at.x < Math.min(at.w * 0.6, 640) + 22
   b.url = url

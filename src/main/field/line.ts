@@ -8,7 +8,7 @@
 
 import { handle } from '../router'
 import { model } from '../model/model'
-import { controllerFor, type WindowController } from '../views/window'
+import { controllerFor, overlayFree, type WindowController } from '../views/window'
 import { need } from '../context'
 import { blankInFront, dismiss, edit, mem, putAway } from './commands'
 
@@ -53,7 +53,7 @@ export function placeLine(c: WindowController): void {
     if (layer === 'lineOffers') c.sendOverlay({ kind: 'none' })
     return
   }
-  if (layer !== 'none' && layer !== 'lineOffers') return
+  if (!overlayFree(c.overlayLayer) && layer !== 'lineOffers') return
   const ui = c.ui.getBounds()
   const a = m.anchor
   const { width: winW, height: winH } = c.base.getContentBounds()

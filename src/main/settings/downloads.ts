@@ -11,7 +11,7 @@ import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { DownloadEntry } from '../../shared/modules/settings'
 import type { DownloadView, ID } from '../../shared/state'
-import { model } from '../model/model'
+import { model, textScale } from '../model/model'
 import { readJSON, writeJSON, toAppleDate, fromAppleDate } from '../model/persist'
 import { handle } from '../router'
 import { need } from '../context'
@@ -116,8 +116,7 @@ async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): P
   const tab = tabOf(wc)
   const shy = !s.isPersistent() || !!(tab && model.tabs.get(tab)?.shy)
   const url = item.getURLChain()[0] ?? item.getURL()
-  const retried = retrying.get(url)
-  retrying.delete(url)
+  const retried = takeRetry(item)
   const name = fileName(retried ?? item.getFilename())
   const folder = downloadsFolder()
   const placed = placeFor.get(url)
@@ -142,6 +141,7 @@ async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): P
     date: Date.now(),
   }
   live.set(id, { entry, item, session: s, shy, retryName: retried ?? name, moved: Date.now() })
+  watchStalls()
   started++
   doneUntil = 0
   say(`Downloading ${entry.name}`)
@@ -152,8 +152,14 @@ async function arrive(s: Session, item: DownloadItem, wc: WebContents | null): P
     if (l && entry.received > before) { l.moved = Date.now(); entry.stalled = false }
     entry.total = item.getTotalBytes()
     if (!entry.path && item.getSavePath()) { entry.path = item.getSavePath(); entry.name = path.basename(entry.path) }
-    entry.state = state === 'interrupted' ? (item.canResume() ? 'paused' : 'failed') : item.isPaused() ? 'paused' : 'downloading'
+    // Cut off (the network, the server) is a failure that may resume, never
+    // a pause: Paused is only ever what you asked for.
+    const was = entry.state
+    entry.state = state === 'interrupted' ? 'failed' : item.isPaused() ? 'paused' : 'downloading'
+    if (entry.state === 'failed' && was !== 'failed') { say('Download failed'); settle(false) }
     entry.canResume = item.canResume()
+    entry.error = state === 'interrupted' ? (entry.canResume ? 'The connection was lost.' : 'The download failed.') : undefined
+    if (entry.state === 'downloading') watchStalls()
     changed()
   })
   item.once('done', (_e, state) => {
@@ -202,7 +208,20 @@ function markDownloaded(file: string, url: string): void {
   } catch {}
 }
 
+/** Retried downloads: the name each is numbered afresh from, by address. */
 const retrying = new Map<string, string>()
+/** The name a retried download asked for, whichever of its addresses (or
+ * their written form) the retry was made with. */
+function takeRetry(item: DownloadItem): string | undefined {
+  for (const u of [...item.getURLChain(), item.getURL()]) {
+    for (const k of [u, address(u)]) {
+      if (k && retrying.has(k)) { const name = retrying.get(k); retrying.delete(k); return name }
+    }
+  }
+  return undefined
+}
+/** Still Chromium's: cancelling it ends it and takes its part-file away. */
+const unfinished = (item: DownloadItem | null) => !!item && item.getState() !== 'completed' && item.getState() !== 'cancelled'
 
 onPageSession(s => s.on('will-download', (_e, item, wc) => { void arrive(s, item, wc) }))
 
@@ -252,7 +271,7 @@ function taskbar(): void {
   const value = !going.length ? -1 : p === null ? 2 : p
   const last = progressSaid[progressSaid.length - 1]
   if (last && last.value === value && last.mode === mode) return
-  progressSaid.push({ value, mode })
+  progressSaid.splice(0, progressSaid.length, { value, mode })
   for (const c of allControllers()) {
     try { c.base.setProgressBar(value, { mode: mode as 'none' | 'normal' | 'indeterminate' | 'paused' }) } catch {}
   }
@@ -261,15 +280,23 @@ function taskbar(): void {
 // Stalled (Search 1.0.21): a download with nothing coming in for this long says so, and says
 // Downloading again the moment bytes come. Looked at every 2 seconds while one is going.
 const STALL = Number(testEnv('ORIEL_STALL_MS')) || 10_000
-setInterval(() => {
-  let touched = false
-  for (const l of live.values()) {
-    if (!l.item) continue
-    const stalled = l.entry.state === 'downloading' && Date.now() - (l.moved ?? Date.now()) >= STALL
-    if (stalled !== !!l.entry.stalled) { l.entry.stalled = stalled; touched = true }
-  }
-  if (touched) changed()
-}, 2000).unref()
+let stallTimer: NodeJS.Timeout | null = null
+function watchStalls(): void {
+  if (stallTimer) return
+  stallTimer = setInterval(() => {
+    let touched = false, going = false
+    for (const l of live.values()) {
+      if (!l.item) continue
+      if (l.entry.state === 'downloading' || l.entry.stalled) going = true
+      const stalled = l.entry.state === 'downloading' && Date.now() - (l.moved ?? Date.now()) >= STALL
+      if (stalled !== !!l.entry.stalled) { l.entry.stalled = stalled; touched = true }
+    }
+    if (touched) changed()
+    // Nothing coming in: no more looks until the next download.
+    if (!going && stallTimer) { clearInterval(stallTimer); stallTimer = null }
+  }, 2000)
+  stallTimer.unref?.()
+}
 
 /** A file in: the taskbar button flashes, as the Mac's Downloads stack bounces. */
 function flash(): void {
@@ -287,13 +314,12 @@ function listed(): { current: DownloadEntry[]; completed: DownloadEntry[]; folde
 }
 
 /** The skeleton's DownloadView, for any module drawing a list of its own. */
-registerSlice('downloads', (): DownloadView[] => {
-  const l = listed()
-  return [
-    ...l.current.map((e): DownloadView => ({ id: e.id, name: e.name, url: e.url ?? '', received: e.received, total: e.total, state: e.state === 'failed' ? 'interrupted' : 'progressing', path: e.path })),
-    ...l.completed.map((e): DownloadView => ({ id: e.id, name: e.name, url: e.url ?? '', received: e.received, total: e.total, state: 'completed', path: e.path })),
-  ]
-})
+// Made from what's kept, without asking the disk whether each file is still
+// there (the view has no place for it): it is made on every change.
+registerSlice('downloads', (): DownloadView[] => [
+  ...[...live.values()].filter(l => !l.shy).map(({ entry: e }): DownloadView => ({ id: e.id, name: e.name, url: e.url ?? '', received: e.received, total: e.total, state: e.state === 'failed' ? 'interrupted' : 'progressing', path: e.path })),
+  ...keptList().map((k): DownloadView => ({ id: `kept:${k.path}`, name: k.name, url: k.address ?? '', received: 0, total: 0, state: 'completed', path: k.path })),
+])
 
 settingsPart(c => ({
   downloadsOpen: open.has(c.record.id),
@@ -332,17 +358,24 @@ handle('download.resume', ({ id }) => {
   const l = live.get(id)
   if (!l?.item || !l.item.canResume()) return
   l.entry.state = 'resuming'
+  l.entry.error = undefined
+  // Counted from now: a download paused a while isn't Stalled the moment it resumes.
+  l.moved = Date.now()
+  l.entry.stalled = false
   l.item.resume()
+  watchStalls()
   changed()
 })
 handle('download.retry', ({ id }) => {
   // From the beginning, numbered afresh from the name asked for (Browser.swift:9838).
   const l = live.get(id)
   if (!l?.entry.url && !l?.item) return
-  const url = l.item?.getURL() ?? l.entry.url!
+  // From the address the download started at: the last one of a redirect is often
+  // a link that only lasts a while (a store's, a cloud drive's).
+  const url = l.item?.getURLChain()[0] ?? l.item?.getURL() ?? l.entry.url!
   live.delete(id)
   // What was left of the broken one goes, and its name with it.
-  if (l.item && l.item.getState() !== 'completed') l.item.cancel()
+  if (unfinished(l.item)) l.item!.cancel()
   if (l.entry.path) { taken.delete(l.entry.path); try { if (l.entry.state !== 'completed') unlinkSync(l.entry.path) } catch {} }
   retrying.set(url, l.retryName)
   l.session.downloadURL(url)
@@ -351,13 +384,13 @@ handle('download.retry', ({ id }) => {
 handle('download.cancel', ({ id }) => {
   const l = live.get(id)
   if (!l) return
-  if (l.item && l.item.getState() === 'progressing') l.item.cancel()
+  if (unfinished(l.item)) l.item!.cancel()
   live.delete(id)
   changed()
 })
 handle('download.remove', ({ id }) => {
   const { live: l, keep } = find(id)
-  if (l) { if (l.item && l.item.getState() === 'progressing') l.item.cancel(); live.delete(id) }
+  if (l) { if (unfinished(l.item)) l.item!.cancel(); live.delete(id) }
   if (keep) { kept = keptList().filter(k => k !== keep); saveKept() }
   changed()
 })
@@ -388,8 +421,10 @@ handle('downloads.show', async ({ toggle, anchor }, ctx) => {
   const on = toggle ? !open.has(c.record.id) : true
   if (on) {
     open.add(c.record.id)
+    watchCards()
     const b = c.base.getContentBounds()
-    const width = 340, height = 420
+    // Bigger with Oriel's text size (Settings › Appearance).
+    const width = Math.round(340 * textScale()), height = Math.round(420 * textScale())
     const x = Math.max(8, Math.min(b.width - width - 8, Math.round((anchor?.x ?? 120) - 26)))
     const top = (anchor?.y ?? b.height) < b.height / 2
     const y = top ? Math.round((anchor?.y ?? 0) + 26 + 6) : Math.max(8, Math.round((anchor?.y ?? b.height - 40) - height - 6))
@@ -402,14 +437,21 @@ handle('downloads.show', async ({ toggle, anchor }, ctx) => {
   return { open: on }
 })
 
-// The card goes when anything else takes the overlay's place.
-setInterval(() => {
-  for (const c of allControllers()) {
-    if (!open.has(c.record.id)) continue
-    const l = c.overlayLayer
-    if (!(l.kind === 'panel' && l.name === 'settings.downloads')) { open.delete(c.record.id); markSettings(c) }
-  }
-}, 500).unref?.()
+// The card goes when anything else takes the overlay's place: looked at
+// while a card is open, and not otherwise.
+let cardTimer: NodeJS.Timeout | null = null
+function watchCards(): void {
+  if (cardTimer) return
+  cardTimer = setInterval(() => {
+    for (const c of allControllers()) {
+      if (!open.has(c.record.id)) continue
+      const l = c.overlayLayer
+      if (!(l.kind === 'panel' && l.name === 'settings.downloads')) { open.delete(c.record.id); markSettings(c) }
+    }
+    if (!open.size && cardTimer) { clearInterval(cardTimer); cardTimer = null }
+  }, 500)
+  cardTimer.unref?.()
+}
 
 /** For the bench: the save dialog's answer in a test world. */
 export function downloadsState() { return { ...listed(), progress: progressSaid.slice(-1)[0] ?? null, live: live.size } }

@@ -2,7 +2,6 @@
 // §6.2, §6.4, §6.24, §6.48; Side.swift `pinned`, `listed`, `loose`).
 // Pure functions of the state, so tests and the top strip share them.
 
-import { getDomain } from 'tldts'
 import { state } from '../lib/store'
 import type { GroupView, PinFolderView, PinView, SpaceView, TabView } from '../../shared/state'
 
@@ -71,15 +70,15 @@ export function monogram(t: { url: string; internal?: string; label?: string; ti
 export interface AtRest { kind: 'secure' | 'notSecure' | 'file' | 'other'; lead: string; name: string; tail: string }
 
 const restCache = new Map<string, AtRest | null>()
-export function atRest(url: string): AtRest | null {
+export function atRest(url: string, site?: string): AtRest | null {
   if (restCache.has(url)) return restCache.get(url)!
-  const made = makeRest(url)
+  const made = makeRest(url, site)
   if (restCache.size > 256) restCache.clear()
   restCache.set(url, made)
   return made
 }
 
-function makeRest(url: string): AtRest | null {
+function makeRest(url: string, site?: string): AtRest | null {
   let u: URL
   try { u = new URL(url) } catch { return null }
   const scheme = u.protocol.slice(0, -1).toLowerCase()
@@ -88,7 +87,8 @@ function makeRest(url: string): AtRest | null {
     if (!ascii) return null
     const ip = /^[\d.]+$/.test(ascii) && ascii.split('.').length === 4 || ascii.includes(':')
     const bare = !ip && ascii.startsWith('www.') && ascii.split('.').length > 2 ? ascii.slice(4) : ascii
-    const domain = ip ? bare : (getDomain(bare) ?? bare)
+    // The domain comes from main's Public Suffix List (TabView.site).
+    const domain = ip ? bare : (site ?? bare)
     const count = domain.split('.').length
     const labels = bare.split('.')
     let name: string, lead = ''
@@ -112,7 +112,7 @@ function makeRest(url: string): AtRest | null {
  * (plain http, a punycode name) with it off. */
 export function restOf(t: TabView): AtRest | null {
   if (t.empty || t.internal) return null
-  const rest = atRest(t.url)
+  const rest = atRest(t.url, t.site)
   if (!rest) return null
   const warns = rest.kind === 'notSecure' || (rest.kind === 'secure' && (rest.lead + rest.name).split('.').some(p => p.startsWith('xn--')))
   return P.address() || warns ? rest : null

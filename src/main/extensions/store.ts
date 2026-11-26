@@ -17,7 +17,7 @@ import { CARD_ROOM, type StoreOffer } from '../../shared/modules/extensions'
 import { handle } from '../router'
 import { need } from '../context'
 import { model } from '../model/model'
-import { WindowController, allControllers } from '../views/window'
+import { WindowController, allControllers, overlayFree } from '../views/window'
 import { runtimes } from '../views/tabs'
 import { probe } from '../paths'
 import { testEnv } from '../testhooks'
@@ -160,7 +160,7 @@ export function refreshOffer(c: WindowController): void {
   if (!watched.has(c)) { watched.add(c); c.base.on('resize', () => { if (offers.has(c)) place(c) }) }
   // Another layer floats now: the bar waits for it to go.
   const mine = c.overlayLayer.kind === 'panel' && c.overlayLayer.name === 'ext.store'
-  if (c.overlayLayer.kind !== 'none' && !mine) return changed(c)
+  if (!overlayFree(c.overlayLayer) && !mine) return changed(c)
   if (!mine) c.sendOverlay({ kind: 'panel', name: 'ext.store' })
   place(c)
   changed(c)

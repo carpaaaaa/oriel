@@ -10,7 +10,7 @@ import { model } from '../model/model'
 import { runtimes } from '../views/tabs'
 import { handle } from '../router'
 import { need } from '../context'
-import { allControllers, type WindowController } from '../views/window'
+import { allControllers, overlayFree, type WindowController } from '../views/window'
 import { controllerOfTab, mark, showPanel, windowData } from './store'
 import { never, vault } from './vault'
 import { fillProof } from './proof'
@@ -141,7 +141,7 @@ async function focused(id: ID, wc: WebContents, rect: { x: number; y: number; w:
 function place(c: WindowController, id: ID, wc: WebContents, rect: { x: number; y: number; w: number; h: number }, list: FillList): void {
   const view = runtimes.get(id)?.view
   if (!view) return
-  const busy = c.overlayLayer.kind !== 'none' && !(c.overlayLayer.kind === 'panel' && c.overlayLayer.name === 'data.fill')
+  const busy = !overlayFree(c.overlayLayer) && !(c.overlayLayer.kind === 'panel' && c.overlayLayer.name === 'data.fill')
   if (busy) return
   const zoom = wc.getZoomFactor()
   const b = view.getBounds()
@@ -289,7 +289,7 @@ function showQuestion(c: WindowController): void {
   // The question wins over our own account list; anything else floating
   // there (the field, a menu) is waited out.
   if (layer.kind === 'panel' && layer.name === 'data.fill') hideList(windowData(c).fill?.tab)
-  else if (layer.kind !== 'none' && !(layer.kind === 'panel' && layer.name === 'data.save')) { setTimeout(() => showQuestion(c), 500); return }
+  else if (!overlayFree(layer) && !(layer.kind === 'panel' && layer.name === 'data.save')) { setTimeout(() => showQuestion(c), 500); return }
   const view = runtimes.get(q.tab)?.view
   if (!view) return
   const b = view.getBounds()

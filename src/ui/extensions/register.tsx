@@ -4,15 +4,15 @@
 // popup, the page that manages extensions, and the bar on the Web Store; in
 // Oriel's Settings, the Extensions section. Owned by the extensions module.
 
+import { lazy } from 'solid-js'
 import { registerOutlet, registerPage, registerPanel } from '../lib/registry'
 import { Buttons } from './Buttons'
 import { List, PopupFrame } from './List'
 import { Manage } from './Manage'
 import { StoreBar } from './StoreBar'
-import { ExtensionsSettings } from './SettingsPage'
 import './extensions.css'
 
-registerPage('settings.extensions', ExtensionsSettings)
+registerPage('settings.extensions', lazy(() => import('./SettingsPage').then(m => ({ default: m.ExtensionsSettings }))))
 
 registerOutlet('sidebar.foot', () => <Buttons where="foot" />)
 registerOutlet('strip.end', () => <Buttons where="strip" />)

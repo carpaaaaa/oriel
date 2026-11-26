@@ -3,7 +3,7 @@
 // copy would make of the test knobs (§1.2), a write Windows holds (§3).
 // Only answers in a test world.
 
-import { WebContentsView, session } from 'electron'
+import { WebContentsView, app, session } from 'electron'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { benchRequest } from './server'
@@ -60,4 +60,13 @@ benchRequest('guards.heldWrite', () => {
   const used = process.cpuUsage(cpu)
   rmSync(there, { recursive: true, force: true })
   return { threw, wallMs, cpuMs: Math.round((used.user + used.system) / 1000) }
+})
+
+/** What Oriel's processes hold right now, for measuring how light it is:
+ * each process's type, its working set and private memory (KB), CPU %. */
+benchRequest('app.metrics', () => {
+  const list = app.getAppMetrics().map(m => ({ type: m.type, pid: m.pid, kb: m.memory.workingSetSize, privateKb: m.memory.privateBytes ?? 0, cpu: m.cpu.percentCPUUsage }))
+  const mem = process.memoryUsage()
+  const main = { heapMB: Math.round(mem.heapUsed / 1048576), externalMB: Math.round(mem.external / 1048576), arrayBuffersMB: Math.round(mem.arrayBuffers / 1048576), rssMB: Math.round(mem.rss / 1048576) }
+  return { main, count: list.length, kb: list.reduce((n, m) => n + m.kb, 0), privateKb: list.reduce((n, m) => n + m.privateKb, 0), list }
 })

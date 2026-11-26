@@ -11,11 +11,16 @@ import { allControllers } from '../views/window'
 
 const holderOf = (wc: WebContents) => allControllers().find(c => c.base.contentView.children.some(v => (v as Electron.WebContentsView).webContents === wc))
 
-// The page covers the whole window at once (WindowController.fillWith); the
-// window then covers the screen.
+// The page grows from its place to the whole window while the window covers
+// the screen (WindowController.fillWith); on the way out the window leaves
+// the screen once the page is back in its place. Electron's own full screen
+// is off on Windows (frame.ts windowOptions, fullscreenable): it moved the
+// window before Oriel heard of the page, and twice on the way out.
+const into = (wc: WebContents) => () => setImmediate(() => holderOf(wc)?.frame.pageFull(true))
+const outOf = (wc: WebContents) => () => setImmediate(() => holderOf(wc)?.frame.pageFull(false))
 app.on('web-contents-created', (_e, wc) => {
-  wc.on('enter-html-full-screen', () => { const c = holderOf(wc); c?.frame.note('enter-html-full-screen'); c?.fillWith(wc, true); setImmediate(() => holderOf(wc)?.frame.pageFull(true)) })
-  wc.on('leave-html-full-screen', () => { const c = holderOf(wc); c?.frame.note('leave-html-full-screen'); c?.fillWith(wc, false); setImmediate(() => holderOf(wc)?.frame.pageFull(false)) })
+  wc.on('enter-html-full-screen', () => { const c = holderOf(wc); c?.frame.note('enter-html-full-screen'); c?.fillWith(wc, true, into(wc)) })
+  wc.on('leave-html-full-screen', () => { const c = holderOf(wc); c?.frame.note('leave-html-full-screen'); c?.fillWith(wc, false, outOf(wc)) })
 })
 
 // The page's own word (src/preload/page/pages.ts): Electron's events above
@@ -24,6 +29,5 @@ ipcMain.on('pages:fullscreen', (e, on: unknown) => {
   const c = holderOf(e.sender)
   if (!c) return
   c.frame.note(`page says full ${!!on}`)
-  c.fillWith(e.sender, !!on)
-  setImmediate(() => c.frame.pageFull(!!on))
+  c.fillWith(e.sender, !!on, on ? into(e.sender) : outOf(e.sender))
 })

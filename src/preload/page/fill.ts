@@ -91,26 +91,32 @@ function formOf(el: Element): HTMLFormElement | null {
 // offered a place in the vault. One the page filled by itself never is.
 const touched = new WeakSet<Element>()
 let lastTyped: Element | null = null
-function touch(box: Element | null) { if (box) { touched.add(box); lastTyped = box } }
+function touch(box: Element | null) { if (box) { touched.add(box); lastTyped = box; watchSwaps() } }
 function boxOf(e: Event): Element | null { const p = e.composedPath ? e.composedPath() : []; return (p[0] as Element) || (e.target as Element) }
 for (const kind of ['input', 'change']) {
   document.addEventListener(kind, e => { const box = boxOf(e); if (passwordBox(box)) touch(box) }, true)
 }
-// A "show password" that swaps the box for a new one with the same value.
-try {
-  new MutationObserver(changes => {
-    const gone: HTMLInputElement[] = [], came: HTMLInputElement[] = []
-    const inputs = (node: Node, into: HTMLInputElement[]) => {
-      if (node.nodeType !== 1) return
-      const el = node as Element
-      if (el.tagName === 'INPUT') into.push(el as HTMLInputElement)
-      el.querySelectorAll?.('input').forEach(i => into.push(i))
-    }
-    changes.forEach(c => { c.removedNodes.forEach(n => inputs(n, gone)); c.addedNodes.forEach(n => inputs(n, came)) })
-    const typed = gone.filter(b => touched.has(b) && b.value).map(b => b.value)
-    if (typed.length) came.forEach(b => { if (typed.includes(b.value)) touch(b) })
-  }).observe(document, { childList: true, subtree: true })
-} catch {}
+// A "show password" that swaps the box for a new one with the same value:
+// watched from the first password typed into, never on a page without one.
+let swaps = false
+function watchSwaps(): void {
+  if (swaps) return
+  swaps = true
+  try {
+    new MutationObserver(changes => {
+      const gone: HTMLInputElement[] = [], came: HTMLInputElement[] = []
+      const inputs = (node: Node, into: HTMLInputElement[]) => {
+        if (node.nodeType !== 1) return
+        const el = node as Element
+        if (el.tagName === 'INPUT') into.push(el as HTMLInputElement)
+        el.querySelectorAll?.('input').forEach(i => into.push(i))
+      }
+      changes.forEach(c => { c.removedNodes.forEach(n => inputs(n, gone)); c.addedNodes.forEach(n => inputs(n, came)) })
+      const typed = gone.filter(b => touched.has(b) && b.value).map(b => b.value)
+      if (typed.length) came.forEach(b => { if (typed.includes(b.value)) touch(b) })
+    }).observe(document, { childList: true, subtree: true })
+  } catch {}
+}
 
 /** The password box and the last box before it that could hold a name. */
 function pair(near?: Element | null): { user: HTMLInputElement | null; pass: HTMLInputElement } | null {
@@ -273,6 +279,7 @@ function offer(): void {
   if (!both.pass.value || !touched.has(both.pass)) return
   offered = Date.now()
   tell({ kind: 'submit', user: both.user ? both.user.value : '', password: both.pass.value })
+  watchSettle()
 }
 
 document.addEventListener('submit', offer, true)
@@ -289,8 +296,10 @@ document.addEventListener('click', e => {
 }, true)
 
 // The boxes going away without a new page is the other way a sign-in shows
-// it took: looked at a quarter of a second after the page changes.
+// it took: looked at a quarter of a second after the page changes, for the
+// 45 s after a sign-in is sent (main/data/forms.ts settle() waits no longer).
 let told = false, settling: ReturnType<typeof setTimeout> | undefined, looking: ReturnType<typeof setTimeout> | null = null
+let settleWatch: MutationObserver | null = null, settleEnd: ReturnType<typeof setTimeout> | undefined
 function look(): void {
   looking = null
   if (!told) { if (pair()) told = true; return }
@@ -299,14 +308,14 @@ function look(): void {
   clearTimeout(settling)
   settling = setTimeout(() => { if (!pair()) tell({ kind: 'settled' }) }, 400)
 }
-if (!framed) {
-  const start = () => {
-    told = !!pair()
-    new MutationObserver(() => { if (!looking) looking = setTimeout(look, 250) })
-      .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'hidden'] })
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start)
-  else start()
+function watchSettle(): void {
+  if (framed || !document.documentElement) return
+  told = true
+  clearTimeout(settleEnd)
+  settleEnd = setTimeout(() => { settleWatch?.disconnect(); settleWatch = null }, 45_000)
+  if (settleWatch) return
+  settleWatch = new MutationObserver(() => { if (!looking) looking = setTimeout(look, 250) })
+  settleWatch.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'hidden'] })
 }
 
 // where the caret is (Forms.swift caret)
@@ -346,16 +355,19 @@ document.addEventListener('mouseup', () => setTimeout(() => caret(), 0), true)
 window.addEventListener('popstate', () => caret(), true)
 window.addEventListener('hashchange', () => caret(), true)
 window.addEventListener('pagehide', () => tell({ kind: 'focus', rect: null, name: false, wide: true }), true)
-if (!framed) {
-  const watch = () => new MutationObserver(() => { if (listUp.up) moved() }).observe(document.documentElement, { childList: true, subtree: true })
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch)
-  else watch()
+let listWatch: MutationObserver | null = null
+function watchList(up: boolean): void {
+  if (framed) return
+  if (up && !listWatch && document.documentElement) {
+    listWatch = new MutationObserver(() => { if (listUp.up) moved() })
+    listWatch.observe(document.documentElement, { childList: true, subtree: true })
+  } else if (!up && listWatch) { listWatch.disconnect(); listWatch = null }
 }
 
 // the account list's keys, while it hangs from a box here
 
 const listUp: { up: boolean; lit: number | null } = { up: false, lit: null }
-ipcRenderer.on('data:forms-list', (_e, state: { up: boolean; lit: number | null }) => { listUp.up = state.up; listUp.lit = state.lit })
+ipcRenderer.on('data:forms-list', (_e, state: { up: boolean; lit: number | null }) => { listUp.up = state.up; listUp.lit = state.lit; watchList(state.up) })
 window.addEventListener('keydown', e => {
   if (!listUp.up) return
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || (e.key === 'Enter' && listUp.lit != null)) {

@@ -21,7 +21,7 @@ import { benchRequest } from '../bench/server'
 import { model } from '../model/model'
 import { probe } from '../paths'
 import { testEnv } from '../testhooks'
-import { allControllers, controllerFor } from '../views/window'
+import { allControllers, controllerFor, overlayFree } from '../views/window'
 import { tellPages } from './internal'
 import { openSystem, said, setKey } from './prefs'
 import { hidePanel, markAllSettings, settingsPart, showPanel } from './slice'
@@ -180,6 +180,9 @@ export function askDefault(which: 'browser' | 'mail'): boolean {
 // Back from Settings: Oriel coming to the front reads Windows' answer again.
 let lastFront = 0
 function onFront(force = false): void {
+  // Only when Oriel sent you there (Make default, the offer): four reg.exe
+  // on every Alt+Tab would be for nothing.
+  if (!force && !asked.browser && !asked.mail && !offer) return
   if (!force && Date.now() - lastFront < 1000) return
   lastFront = Date.now()
   void recheck()
@@ -217,7 +220,7 @@ function placeOffer(tries = 0): void {
   if (!c) { if (tries < 40) setTimeout(() => placeOffer(tries + 1), 500); return }
   const layer = c.overlayLayer
   // Something else floats there (the update, the field, a menu): wait it out.
-  if (layer.kind !== 'none' && !(layer.kind === 'panel' && layer.name === OFFER)) {
+  if (!overlayFree(layer) && !(layer.kind === 'panel' && layer.name === OFFER)) {
     if (tries < 150) setTimeout(() => placeOffer(tries + 1), 400)
     return
   }

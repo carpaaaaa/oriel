@@ -2,7 +2,7 @@
 // (ImportPanel.swift, studio/05 §1.12). Drawn in the overlay by
 // src/ui/data/ImportPanel.tsx from the window's data state.
 
-import { dialog, session } from 'electron'
+import { app, dialog, session } from 'electron'
 import type { ImportPanelState, ImportSaid, ImportSourceView } from '../../shared/modules/data'
 import { handle } from '../router'
 import { need } from '../context'
@@ -19,7 +19,9 @@ import { keyAsks } from './dpapi'
 import { browserExe, startExport, stopExport, trashFile } from './export'
 import { probe } from '../paths'
 
-sweepScratch()
+// Leftovers of an import that was cut short, swept a while after launch (a
+// look through %TEMP% is no work to do before the first window).
+app.whenReady().then(() => setTimeout(() => { try { sweepScratch() } catch {} }, 20_000).unref?.())
 
 // Until the extensions module says otherwise: what the profile session has.
 importHooks.installedExtensions = () => {

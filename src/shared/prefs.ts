@@ -25,6 +25,8 @@ export const defaults = {
   'home.shuffle': false,
   // Appearance › Light and dark
   'look': 'system', // light | dark | system
+  /** Text size of Oriel's own interface and pages, 1 to 1.4 (Settings › Appearance › Text size). */
+  'text.scale': 1,
   'pages.dusk': false,
   'inspector.dark': false,
   // Appearance › Window
@@ -176,6 +178,8 @@ export const defaults = {
   'updates.dismissed': '',
   /** The version whose What's New was shown (WhatsNew.swift seenKey). */
   'whatsnew.seen': '',
+  /** Starred on GitHub, or Don't ask again: the star card after updates never comes back (settings/star.ts). */
+  'star.done': false,
   'bench': false,
   'agents': false,
   // hidden (studio/06 §1.15)

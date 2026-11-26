@@ -5,6 +5,7 @@
 // SEARCH_LOW_POWER=1 stands in for the battery saver in tests, as the Mac's
 // testLowPower does.
 
+import { app } from 'electron'
 import { model } from '../model/model'
 import { allControllers, registerSlice } from '../views/window'
 import { testEnv } from '../testhooks'
@@ -39,6 +40,15 @@ function look(): void {
   for (const c of allControllers()) c.mark('power')
 }
 
-saver = batterySaver()
-setInterval(look, 30_000).unref()
+// Windows is asked only while the switch is on: everything that saves power
+// waits on it (motion.light, off by default), so with it off no look is needed.
+let poll: NodeJS.Timeout | null = null
+function follow(): void {
+  const on = !!model.pref<boolean>('motion.light')
+  if (on && !poll) { look(); poll = setInterval(look, 30_000); poll.unref?.() }
+  else if (!on && poll) { clearInterval(poll); poll = null }
+}
+// (setImmediate: after index.ts has loaded the model.)
+app.whenReady().then(() => setImmediate(follow))
+model.on('window-changed', (_id: string, slices: string[]) => { if (slices.includes('prefs')) follow() })
 registerSlice('power', () => ({ saving: saver }))

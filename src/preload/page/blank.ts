@@ -131,12 +131,14 @@ function hooks(dress: (name: string) => void, noCookies: boolean, gpc: boolean):
   const indexOf = String.prototype.indexOf
 
   /** What a call puts in the page may hold a frame: a frame element, one
-   * inside an element or a fragment, or markup that names one. Anything
+   * inside an element or a fragment, or markup that opens one. Anything
    * else leaves the frames as they were, and costs no look. */
   function framey(a: unknown): boolean {
     if (typeof a === 'string') {
+      // Markup only: a string with no tag in it is no frame (and no copy of it is made).
+      if (apply(indexOf, a, ['<']) < 0) return false
       const l = apply(lower, a, []) as string
-      return apply(indexOf, l, ['frame']) >= 0 || apply(indexOf, l, ['object']) >= 0 || apply(indexOf, l, ['embed']) >= 0
+      return apply(indexOf, l, ['<iframe']) >= 0 || apply(indexOf, l, ['<frame']) >= 0 || apply(indexOf, l, ['<object']) >= 0 || apply(indexOf, l, ['<embed']) >= 0
     }
     if (!a || typeof a !== 'object') return false
     try {

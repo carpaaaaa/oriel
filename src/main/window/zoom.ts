@@ -27,10 +27,10 @@
 
 import type { WebContents } from 'electron'
 import { handle } from '../router'
-import { model } from '../model/model'
+import { model, textScale } from '../model/model'
 import { need, tabRuntime } from '../context'
 import { addDefaults } from '../../shared/prefs'
-import { controllerFor, pageAttached, type WindowController } from '../views/window'
+import { controllerFor, overlayFree, pageAttached, type WindowController } from '../views/window'
 import { runtimes } from '../views/tabs'
 import { benchRequest } from '../bench/server'
 import { Springs } from '../../shared/spring'
@@ -198,9 +198,10 @@ function say(id: string, zoom: number): void {
   const page = runtimes.get(id)?.view
   if (!c || !page || !model.onScreen(id)) return
   // Something else floats over the page (the field, a menu, a question): it keeps its place.
-  if (c.overlayLayer.kind !== 'none' && !isPill(c)) return
+  if (!overlayFree(c.overlayLayer) && !isPill(c)) return
   const r = page.getBounds()
-  const width = 140, height = 32 + 24 + 30
+  // Bigger with Oriel's text size (Settings › Appearance).
+  const width = Math.round(140 * textScale()), height = Math.round((32 + 24 + 30) * textScale())
   c.sendOverlay({ kind: 'panel', name: ZOOM_PILL, data: { percent: Math.round(zoom * 100), tab: id } })
   c.setOverlayRegion({ x: Math.round(r.x + r.width / 2 - width / 2), y: r.y + r.height - height, width, height }, false)
   clearTimeout(hush.get(c))

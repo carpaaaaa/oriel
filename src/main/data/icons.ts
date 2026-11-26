@@ -85,7 +85,7 @@ function remember(key: string, dataURL: string): void {
   memory.set(key, dataURL)
   memoryBytes += dataURL.length
   for (const [k, v] of memory) {
-    if (memoryBytes <= 16 * 1024 * 1024) break
+    if (memoryBytes <= 4 * 1024 * 1024) break
     memory.delete(k)
     memoryBytes -= v.length
   }

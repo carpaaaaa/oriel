@@ -41,6 +41,13 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 /* contain: what is fixed inside (the space's wash, the column coming out)
    is the window's size and stays inside it, never over the clear margin. */
 .window { position: absolute; inset: 0; background: var(--frame); border-radius: var(--window-radius); overflow: hidden; contain: paint; }
+/* A page going into its own full screen (views/window.ts glide): the window's
+   interface steps aside at once and comes back with a short fade; black comes
+   up behind the page as it grows to the screen and goes as it comes back. */
+.window { transition: opacity 180ms var(--ease-quick, ease-out); }
+.window.curtained { visibility: hidden; opacity: 0; transition: none; }
+.curtain { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 260ms cubic-bezier(.33, 1, .68, 1); }
+.curtain.up { opacity: 1; }
 :root:not([data-frame="drawn"]) .window { border-radius: 0; }
 :root[data-frame="drawn"] .window { inset: var(--m-top) var(--m-right) var(--m-bottom) var(--m-left); box-shadow: var(--window-shadow); }
 :root[data-frame="drawn"] .window.blurred { box-shadow: var(--window-shadow-rest); }

@@ -69,6 +69,9 @@ createRoot(() => createEffect(() => {
   const p = state.prefs ?? {}
   const root = document.documentElement.dataset
   root.motion = p['motion.instant'] ? 'instant' : p['motion.light'] && state.power?.saving ? 'light' : ''
+  // Text size (text.scale, Settings › Appearance): every size in the interface follows it (vite.config.ts).
+  // The window's two roots only: Oriel's pages hear it from their preload (preload/page/internal.ts).
+  if (window.search?.root) document.documentElement.style.setProperty('--text-scale', String(Math.min(1.4, Math.max(1, Number(p['text.scale']) || 1))))
   // Tabs give when pressed (tabs.give, Design.swift Motion.give)
   if (p['tabs.give']) root.give = '1'; else delete root.give
   // The overlay knows the window's clear margin too: its veils cover the

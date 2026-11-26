@@ -99,6 +99,8 @@ function call<T>(slot: Slot, op: string, args: unknown): Promise<T> {
 /** The threads go, and their memory with them. */
 export function stop(): void {
   if (idle) { clearTimeout(idle); idle = null }
+  // The engine's 5 MB of WebAssembly go too; read again on the next translation.
+  files = null
   for (const slot of slots.splice(0)) {
     for (const p of slot.pending.values()) p.reject(new Error('engine stopped'))
     void slot.worker.terminate()

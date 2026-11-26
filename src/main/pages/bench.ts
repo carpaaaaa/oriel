@@ -2,6 +2,7 @@
 
 import { app, type WebContents } from 'electron'
 import { benchRequest } from '../bench/server'
+import { probe } from '../paths'
 import { runtimes } from '../views/tabs'
 import { blocked, redirected } from './shield'
 import { describe, update, useTestList } from './blocker'
@@ -20,8 +21,11 @@ import { unpainted } from './ground'
 
 /** The last page menu each page asked for: its misspelt word, if any. */
 const menus = new Map<number, { misspelled: string; suggestions: string[] }>()
-app.on('web-contents-created', (_e, wc: WebContents) => {
-  wc.on('context-menu', (_ev, params) => { menus.set(wc.id, { misspelled: params.misspelledWord, suggestions: params.dictionarySuggestions }) })
+// Test worlds only: an installed Oriel doesn't keep a note of every page's menu.
+if (probe) app.on('web-contents-created', (_e, wc: WebContents) => {
+  const id = wc.id
+  wc.on('context-menu', (_ev, params) => { menus.set(id, { misspelled: params.misspelledWord, suggestions: params.dictionarySuggestions }) })
+  wc.once('destroyed', () => menus.delete(id))
 })
 
 benchRequest('pages.state', req => {

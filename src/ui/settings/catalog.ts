@@ -260,6 +260,15 @@ const added: (Item & { after: string })[] = [
     keys: ['pages.scrollbars'],
     words: ['scroll', 'scrollbar', 'scroll bar', 'thin', 'stock', 'native', 'windows', 'arrows'],
   },
+  // Bigger text for everyone who needs it (the user's wish, 26 Nov 2026).
+  {
+    id: 'text.scale', group: 'theme', icon: 'textformat.size', after: 'look',
+    title: 'Text size',
+    detail: "Oriel's own text, bigger: tabs, menus, Settings, What's New and the other Oriel pages",
+    more: 'Websites keep their own size: Ctrl and + makes a page bigger.',
+    keys: ['text.scale'],
+    words: ['text size', 'font size', 'bigger text', 'larger text', 'font', 'read', 'accessibility', 'zoom'],
+  },
   // Reading mode had only its two options here, so Find didn't find it (carpa, 24 Nov 2026).
   {
     id: 'note.reader', group: 'reading', icon: 'doc.text', kind: 'note', after: 'reader.follows',

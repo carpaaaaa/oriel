@@ -2,16 +2,16 @@
 // door to Settings over it (the window's interface), and Settings › Themes
 // under the Home background row (oriel://settings). Owned by the themes module.
 
+import { lazy } from 'solid-js'
 import { registerOutlet, registerPage } from '../lib/registry'
 import { BlankWall, SettingsDoor } from './Blank'
-import { ThemesPage } from './ThemesPage'
 import { lastPlaced, render } from './paint'
 import { readTuning, stored } from './model'
 import './themes.css'
 
 registerOutlet('blank.under', BlankWall)
 registerOutlet('blank.over', SettingsDoor)
-registerPage('settings.themes', ThemesPage)
+registerPage('settings.themes', lazy(() => import('./ThemesPage').then(m => ({ default: m.ThemesPage }))))
 
 // For the bench: paint a theme apart, and where the last stickers went.
 ;(window as unknown as { __themes: unknown }).__themes = {

@@ -7,6 +7,7 @@
 // Mac's names and keys (formats.ts).
 
 import { EventEmitter } from 'node:events'
+import { getDomain } from 'tldts'
 import { randomUUID } from 'node:crypto'
 import type { FieldState, GroupView, ID, PinFolderView, PinView, SidebarState, SpaceView, SplitView, TabView } from '../../shared/state'
 import { defaults, defaultOf, moduleDefaults, type PrefKey } from '../../shared/prefs'
@@ -156,6 +157,32 @@ export function monogram(url: string, internal?: string): string {
 const kept = (t: TabRecord) => !t.shy && !t.bench && !t.empty && (/^(https?|file):/i.test(t.url) || !!t.internal)
 
 /** One browser window's rows: a row of tabs for each space it has been in. */
+
+/** Text size of Oriel's own interface (Settings › Appearance, text.scale), 1 to 1.4:
+ * what floats over the page at a size of its own grows with it. */
+export function textScale(): number {
+  return Math.min(1.4, Math.max(1, Number(model.pref<number>('text.scale')) || 1))
+}
+
+/** A web address's registrable domain, as the tab says it at rest
+ * (ui/sidebar/derive.ts makeRest): the host without a leading www. when more
+ * than two labels are left, then the Public Suffix List's domain of it. */
+const sites = new Map<string, string | null>()
+export function siteOf(url: string): string | undefined {
+  if (!/^https?:/i.test(url)) return undefined
+  let host: string
+  try { host = new URL(url).hostname.replace(/^\[|\]$/g, '') } catch { return undefined }
+  if (!host || host.includes(':') || (/^[\d.]+$/.test(host) && host.split('.').length === 4)) return undefined
+  let site = sites.get(host)
+  if (site === undefined) {
+    const bare = host.startsWith('www.') && host.split('.').length > 2 ? host.slice(4) : host
+    site = getDomain(bare)
+    if (sites.size > 2000) sites.clear()
+    sites.set(host, site)
+  }
+  return site ?? undefined
+}
+
 export class WindowRecord {
   space: ID = firstSpaceID
   /** Each space's row, in order: pins first, then groups, then loose tabs. */
@@ -268,6 +295,9 @@ class Model extends EventEmitter {
    * reaches the file either (prefsFile, studio/06 §1.17). */
   setPref(key: string, value: unknown): void {
     const was = this.prefs[key]
+    // The same plain value again (a wheel or a drag says it many times): no
+    // write, no module told. A list or an object may have changed in place.
+    if (was === value && (value === null || typeof value !== 'object') && key in this.prefs) return
     this.prefs[key] = value
     this.savePrefs()
     this.touchAll(['prefs'])
@@ -720,6 +750,8 @@ class Model extends EventEmitter {
         id: t.id, url: t.url, title: t.title, label: this.label(t), loading: t.loading, audible: t.audible, muted: t.muted,
         asleep: t.asleep, empty: t.empty, canGoBack: t.canGoBack, canGoForward: t.canGoForward,
       }
+      const site = siteOf(t.url)
+      if (site) view.site = site
       for (const k of ['name', 'favicon', 'crashed', 'error', 'pinID', 'listed', 'groupID', 'shy', 'internal', 'capturing', 'resting', 'opener', 'awake'] as const) {
         if (t[k] !== undefined && t[k] !== false) (view as any)[k] = t[k]
       }

@@ -9,12 +9,14 @@
 //    macOS brings the lights back, so a window is never left without a way
 //    to close it (panel 'window.reveal', chrome/register.tsx).
 // The interface hears no pointer over the page, so the main process polls
-// the cursor, only while a window has its column folded or is in full screen.
+// the cursor, only while a window has its column folded or is in full screen:
+// every 16 ms near an edge or while something is out, less often the further
+// the pointer is from any edge that waits (up to 120 ms).
 
 import { screen } from 'electron'
 import type { Rect } from '../../shared/state'
 import { model } from '../model/model'
-import { allControllers, type WindowController } from '../views/window'
+import { allControllers, overlayFree, type WindowController } from '../views/window'
 import { benchRequest } from '../bench/server'
 import { win32 } from '../win/user32'
 
@@ -97,7 +99,7 @@ function comeOut(c: WindowController, w: Watch, v: Rect): void {
   c.setOverlayRegion(peekRegion(c, v), false)
 }
 
-function tickOne(c: WindowController, now: number): void {
+function tickOne(c: WindowController, now: number, p: { x: number; y: number }): void {
   const w = watching.get(c) ?? { left: null, arrived: null, going: null }
   watching.set(c, w)
   // A video alone on the screen (a page's own full screen): nothing comes
@@ -107,7 +109,6 @@ function tickOne(c: WindowController, now: number): void {
     w.left = w.arrived = null
     return
   }
-  const p = pointer()
   const v = c.frame.visual()
   // full screen: the strip with the buttons
   if (full(c)) {
@@ -121,7 +122,7 @@ function tickOne(c: WindowController, now: number): void {
       else if (now - w.left > GRACE * 3) { w.left = null; c.sendOverlay({ kind: 'none' }) }
       return
     }
-    if (atTop && layer(c).kind === 'none' && ours(c)) {
+    if (atTop && overlayFree(layer(c)) && ours(c)) {
       w.left = null
       const content = c.base.getContentBounds()
       c.sendOverlay({ kind: 'panel', name: REVEAL })
@@ -149,34 +150,64 @@ function tickOne(c: WindowController, now: number): void {
   const edge = resting ? HIDDEN_EDGE : EDGE
   // Not in the strip's corner of a full screen, nor over anything else floating.
   const touch = within && fromEdge >= 0 && fromEdge < edge && !(!strip && full(c) && p.y < v.y + STRIP_STAY)
-  if (!touch || !ours(c) || !(layer(c).kind === 'none' || leavingOut(c))) { w.arrived = null; return }
+  if (!touch || !ours(c) || !(overlayFree(layer(c)) || leavingOut(c))) { w.arrived = null; return }
   const dwell = strip ? DWELL : resting ? COLUMN_DWELL : 0
   if (w.arrived == null) w.arrived = now
   if (now - w.arrived >= dwell) comeOut(c, w, v)
 }
 
-function tick(): void {
-  const now = Date.now()
-  let busy = false
-  for (const c of allControllers()) {
-    if (c.base.isDestroyed()) continue
-    if (folded(c) || full(c) || peeking(c) || leavingOut(c) || revealed(c)) { busy = true; tickOne(c, now) }
+/** How far the pointer is from the nearest edge that waits in this window
+ * (the top strip in full screen, the folded column's side or top). */
+function distance(c: WindowController, p: { x: number; y: number }): number {
+  const v = c.frame.visual()
+  const zones: Rect[] = []
+  if (full(c)) zones.push({ x: v.x, y: v.y, width: v.width, height: STRIP_EDGE })
+  if (folded(c)) {
+    if (top(c)) zones.push({ x: v.x, y: v.y, width: v.width, height: HIDDEN_EDGE })
+    else if (c.record.sidebar.side === 'right') zones.push({ x: v.x + v.width - HIDDEN_EDGE, y: v.y, width: HIDDEN_EDGE, height: v.height })
+    else zones.push({ x: v.x, y: v.y, width: HIDDEN_EDGE, height: v.height })
   }
-  if (!busy) stop()
+  let near = Infinity
+  for (const r of zones) {
+    const dx = Math.max(r.x - p.x, 0, p.x - (r.x + r.width)), dy = Math.max(r.y - p.y, 0, p.y - (r.y + r.height))
+    near = Math.min(near, Math.hypot(dx, dy))
+  }
+  return near
 }
 
-function stop(): void { if (timer) clearInterval(timer); timer = null }
+function tick(): void {
+  timer = null
+  const now = Date.now()
+  const p = pointer()
+  let busy = false, close = false, near = Infinity
+  for (const c of allControllers()) {
+    if (c.base.isDestroyed()) continue
+    if (!(folded(c) || full(c) || peeking(c) || leavingOut(c) || revealed(c))) continue
+    busy = true
+    tickOne(c, now, p)
+    const w = watching.get(c)
+    // Something out, or waiting on its dwell or its grace: every frame.
+    if (peeking(c) || leavingOut(c) || revealed(c) || w?.left != null || w?.arrived != null || w?.going) close = true
+    else near = Math.min(near, distance(c, p))
+  }
+  if (!busy) return
+  // A pointer crossing 6 px a millisecond reaches the edge before the next look.
+  if (timer) clearTimeout(timer)
+  timer = setTimeout(tick, close ? 16 : Math.min(120, Math.max(16, Math.round(near / 6))))
+}
 
-/** Watch again: a column folded, a window gone to full screen. */
+function stop(): void { if (timer) clearTimeout(timer); timer = null }
+
+/** Watch again, at once: a column folded, a window gone to full screen. */
 export function watchEdges(): void {
-  if (timer) return
   if (!allControllers().some(c => folded(c) || full(c))) return
-  timer = setInterval(tick, 16)
+  stop()
+  timer = setTimeout(tick, 16)
 }
 
 model.on('window-changed', (_id: string, slices: string[]) => { if (slices.includes('sidebar')) watchEdges() })
 // Full screen comes from F11, the system or a page; a slow look is enough to start.
-setInterval(watchEdges, 500).unref()
+setInterval(() => { if (!timer) watchEdges() }, 1000).unref()
 
 // For the tests: a pointer of their own (null: the real one again), and what is out.
 benchRequest('window.pointer', req => {

@@ -9,7 +9,7 @@ import { SPLIT_DROP } from '../../shared/modules/window'
 import { handle } from '../router'
 import { model, type WindowRecord } from '../model/model'
 import { need } from '../context'
-import { allControllers, type WindowController } from '../views/window'
+import { allControllers, overlayFree, type WindowController } from '../views/window'
 
 /** TabSplit.most */
 export const MOST = 4
@@ -112,7 +112,7 @@ handle('split.dropHint', ({ hint }, ctx) => {
   const c = need(ctx)
   if (!hint) { if (showingDrop(c)) c.sendOverlay({ kind: 'none' }); return }
   // Something else over the page (the field, a menu) goes first.
-  if (c.overlayLayer.kind !== 'none' && !showingDrop(c)) return
+  if (!overlayFree(c.overlayLayer) && !showingDrop(c)) return
   c.sendOverlay({ kind: 'panel', name: SPLIT_DROP, data: hint })
   c.setOverlayRegion(hint.rect, false)
 })

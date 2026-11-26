@@ -65,7 +65,8 @@ function start(first: PagePrefs): void {
   // Picture in picture is the floating video's or none, from the page's start.
   setFloatOn(first.floatOn !== false)
   holdPictureInPicture()
-  if (first.youtube) {
+  // Only on YouTube itself: elsewhere its 7 KB would be compiled to do nothing.
+  if (first.youtube?.includes(location.hostname)) {
     try { contextBridge.executeInMainWorld({ func: youtubePage, args: [first.youtube, first.standIn] }) } catch {}
     try { youtubeSkipper(first.youtube) } catch {}
   }
@@ -148,13 +149,23 @@ function start(first: PagePrefs): void {
   // plays only from a click or a key, and once played that way it may go on.
   const freed = new WeakSet<HTMLMediaElement>()
   const quiet = (el: Element) => { if (now.mediaClick && el instanceof HTMLMediaElement && el.autoplay) el.autoplay = false }
-  new MutationObserver(records => {
+  // The page is watched only while the setting is on (off by default).
+  const media = new MutationObserver(records => {
     if (!now.mediaClick) return
     for (const r of records) for (const n of r.addedNodes) {
       if (n instanceof HTMLMediaElement) quiet(n)
       else if (n instanceof Element && n.querySelector('video, audio')) n.querySelectorAll('video, audio').forEach(quiet)
     }
-  }).observe(document, { childList: true, subtree: true })
+  })
+  let watchingMedia = false
+  const watchMedia = (on: boolean) => {
+    if (on === watchingMedia) return
+    watchingMedia = on
+    if (on) media.observe(document, { childList: true, subtree: true })
+    else media.disconnect()
+  }
+  watchMedia(!!first.mediaClick)
+  ipcRenderer.on('pages:prefs', (_e, q: PagePrefs) => watchMedia(!!q.mediaClick))
   document.addEventListener('play', e => {
     const el = e.target
     if (!(el instanceof HTMLMediaElement) || !now.mediaClick || freed.has(el)) return
