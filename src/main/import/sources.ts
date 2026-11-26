@@ -112,7 +112,7 @@ function real(p: string): string { try { return realpathSync(p) } catch { return
 
 export interface Profile { id: string; name: string; dir: string; root: string }
 
-const chromiumMarks = ['Login Data', 'Bookmarks', 'History', 'Extensions']
+const chromiumMarks = ['Login Data', 'Bookmarks', 'AccountBookmarks', 'History', 'Extensions']
 const never = new Set(['Guest Profile', 'System Profile'])
 
 /** A Chromium browser's profiles: a folder holding passwords, bookmarks,
@@ -171,7 +171,7 @@ export function usual(profiles: Profile[]): string | null {
 
 function mtime(dir: string): number {
   let t = 0
-  for (const f of ['History', 'Bookmarks', 'Preferences', 'places.sqlite']) {
+  for (const f of ['History', 'Bookmarks', 'AccountBookmarks', 'Preferences', 'places.sqlite']) {
     try { t = Math.max(t, statSync(path.join(dir, f)).mtimeMs) } catch {}
   }
   return t

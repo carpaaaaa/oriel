@@ -35,6 +35,27 @@ function nodes(raw: unknown[]): BookmarkNode[] {
   return out
 }
 
+/** Where a profile's bookmarks are: its own file, and, with Chrome signed in
+ * to a Google account, the account's (AccountBookmarks, the same format):
+ * Chrome keeps those apart from the local ones, and the local file can be
+ * empty or missing altogether (a friend's Chrome showed no bookmarks to
+ * import, 26 Nov 2026). */
+export const bookmarkFiles = ['Bookmarks', 'AccountBookmarks']
+
+/** `more` put into `into`: a folder of the same name takes its bookmarks,
+ * a bookmark the same address already there is left out. */
+function merged(into: BookmarkNode[], more: BookmarkNode[]): BookmarkNode[] {
+  const out = [...into]
+  for (const n of more) {
+    const same = n.children
+      ? out.find(o => o.children && o.title === n.title)
+      : out.find(o => !o.children && o.url === n.url)
+    if (!same) out.push(n)
+    else if (n.children) same.children = merged(same.children!, n.children)
+  }
+  return out
+}
+
 /** The bar's first, then Other and Mobile as folders; and whether every
  * profile read cleanly (Replace needs that, #375). */
 export function bookmarkRead(source: ChromiumSource, only: string | null): { nodes: BookmarkNode[]; complete: boolean } {
@@ -42,15 +63,22 @@ export function bookmarkRead(source: ChromiumSource, only: string | null): { nod
   let complete = profiles.length > 0
   const out: BookmarkNode[] = []
   for (const p of profiles) {
-    const file = path.join(p.dir, 'Bookmarks')
-    if (!existsSync(file)) continue
-    if (unreadableJSON(file, p.root)) { complete = false; continue }
-    const top = readJSONIn<Record<string, any>>(file, p.root)
-    const roots = top?.roots
-    if (!roots || typeof roots !== 'object') { complete = false; continue }
-    out.push(...nodes(roots.bookmark_bar?.children ?? []))
+    // One profile's two files read as one: the bar's of both, then Other and Mobile.
+    let bar: BookmarkNode[] = []
+    const extra = new Map<string, BookmarkNode[]>([['other', []], ['synced', []]])
+    for (const name of bookmarkFiles) {
+      const file = path.join(p.dir, name)
+      if (!existsSync(file)) continue
+      if (unreadableJSON(file, p.root)) { complete = false; continue }
+      const top = readJSONIn<Record<string, any>>(file, p.root)
+      const roots = top?.roots
+      if (!roots || typeof roots !== 'object') { complete = false; continue }
+      bar = merged(bar, nodes(roots.bookmark_bar?.children ?? []))
+      for (const key of ['other', 'synced']) extra.set(key, merged(extra.get(key)!, nodes(roots[key]?.children ?? [])))
+    }
+    out.push(...bar)
     for (const key of ['other', 'synced']) {
-      const kids = nodes(roots[key]?.children ?? [])
+      const kids = extra.get(key)!
       if (kids.length) out.push(folder(key === 'other' ? 'Other' : 'Mobile', kids))
     }
   }
