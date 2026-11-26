@@ -370,6 +370,18 @@ export class TabRuntime {
       canGoBack: wc.navigationHistory.canGoBack(),
       canGoForward: wc.navigationHistory.canGoForward(),
     })
+    // The page closed itself (window.close(): a sign-in pop-up when it is
+    // done, Google's or a payment's): its tab goes, and the tab viewed before
+    // comes back. It stayed as an empty dark page (a friend's report, 26 Nov
+    // 2026). Electron says so with 'close' (not in its types), before the page
+    // is gone; a page Oriel lets go (sleep, close) is no longer this tab's by then.
+    ;(wc as unknown as NodeJS.EventEmitter).once('close', () => {
+      if (!mine()) return
+      setImmediate(() => {
+        const win = model.windowOf(this.id)
+        if (win && model.tabs.has(this.id)) model.close(win, this.id, true)
+      })
+    })
     // A page's source (View Page Source) is told by its inner address:
     // the tab keeps saying view-source:, as Chrome's address does.
     const shown = (url: string) => (this.record?.url === `view-source:${url}` ? this.record.url : url)

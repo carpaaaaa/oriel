@@ -36,6 +36,24 @@ ev("document.body.addEventListener('click', () => window.open('about:blank', 'gs
 b.call({"do": "eval", "id": tab, "js": "document.body.click(); 1"})
 time.sleep(1.5)
 t.ok(len(b.window()["tabs"]) == before + 1 or len(b.call({"do": "settingsb.popupWindows"})["windows"]) > 0, "a sized pop-up from a click opens")
+# Done, Google's pop-up hands the answer to the page and closes itself
+# (window.close()): its tab goes and the page that opened it is in front again.
+# It stayed as an empty dark page (a friend's report, 26 Nov 2026).
+web.PAGES["/pop"] = "<title>pop</title><body>signing in<script>setTimeout(() => { opener && opener.postMessage('signed-in', '*'); window.close() }, 800)</script></body>"
+b.quit()
+b.use("pages-google-signin-close")
+b.launch()
+b.cmd("tab.new", url=origin + "/page")
+time.sleep(1.5)
+tab = next(x["id"] for x in b.window()["tabs"] if x.get("title") == "signin")
+ev("window.got = null; addEventListener('message', e => window.got = e.data); 1")
+ev("document.body.addEventListener('click', () => window.open('/pop', 'gsi2', 'width=500,height=600')); 1")
+b.call({"do": "eval", "id": tab, "js": "document.body.click(); 1"})
+b.wait_for(lambda: any(x.get("title") == "pop" for x in b.window()["tabs"]), what="the pop-up's tab")
+b.wait_for(lambda: not any(x.get("title") == "pop" for x in b.window()["tabs"]), within=10, what="the pop-up's tab gone")
+w_ = b.window()
+t.ok(w_["activeID"] == tab, f"the pop-up closed itself: its tab is gone and the page that opened it is in front ({[(x.get('title'), x['id'] == w_['activeID']) for x in w_['tabs']]})")
+t.ok(ev("window.got") == "signed-in", "and that page has the answer")
 t.ok(not b.state().get("errors"), "no error in the main process")
 b.quit()
 server.shutdown()
