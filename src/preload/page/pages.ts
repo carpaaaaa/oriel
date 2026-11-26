@@ -173,6 +173,15 @@ function start(first: PagePrefs): void {
     el.pause()
   }, true)
 
+  // Out of sight for half a minute (another tab in front, the window
+  // minimized), the page lets its caches go: decoded pictures and the like
+  // come back when it is seen again.
+  let purge: ReturnType<typeof setTimeout> | undefined
+  document.addEventListener('visibilitychange', () => {
+    clearTimeout(purge)
+    if (document.visibilityState === 'hidden') purge = setTimeout(() => { try { webFrame.clearCache() } catch {} }, 30_000)
+  })
+
   // A link clicked with the peek's keys, or Alt-clicked into Split View.
   const linkOf = (e: MouseEvent): string | null => {
     const path = e.composedPath()

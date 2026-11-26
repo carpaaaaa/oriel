@@ -7,7 +7,7 @@ import { benchRequest } from '../bench/server'
 import { model, type TabRecord, type WindowRecord } from '../model/model'
 import { runtimes, visits } from '../views/tabs'
 import { controllerFor } from '../views/window'
-import { sleepIdle, sleepTab, awakeBecause } from './sleep'
+import { sleepIdle, sleepTab, awakeBecause, sleepAfter, memoryTight } from './sleep'
 
 function tabOut(t: TabRecord) {
   return { ...t, label: model.label(t), live: !!runtimes.get(t.id)?.awake, kept: model.keeps.has(t.id) }
@@ -61,6 +61,7 @@ benchRequest('tabs.age', req => {
 })
 
 /** A sleep round now (`within` seconds, the pace's wait otherwise). */
+benchRequest('tabs.sleepAfter', () => ({ after: sleepAfter(), tight: memoryTight() }))
 benchRequest('tabs.tidy', async req => ({ slept: await sleepIdle(req.within === undefined ? undefined : Number(req.within)) }))
 benchRequest('tabs.sleep', async req => ({ reason: await sleepTab(String(req.id)) }))
 benchRequest('tabs.awake', req => { const t = model.tabs.get(String(req.id)); return { reason: t ? awakeBecause(t) : 'gone' } })

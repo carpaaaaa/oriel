@@ -5,13 +5,25 @@
 import { model, type TabRecord } from '../model/model'
 import { runtimes, onPageSession } from '../views/tabs'
 import { savingPower } from '../window/power'
+import { testEnv } from '../testhooks'
+
+/** Windows short of memory (under 15% or 1.5 GB free): tabs left alone 2
+ * minutes sleep, whatever the pace, as Chrome's Memory Saver does under
+ * pressure (the user's wish, 26 Nov 2026: as little memory as can be).
+ * ORIEL_MEMORY_TIGHT=1 stands in for it in a test world. */
+export const TIGHT_AFTER = 120
+export function memoryTight(): boolean {
+  if (testEnv('ORIEL_MEMORY_TIGHT') === '1') return true
+  try { const m = process.getSystemMemoryInfo(); return m.free < m.total * 0.15 || m.free < 1.5 * 1024 * 1024 } catch { return false }
+}
 
 /** Later 2 h, Normal 30 min, Sooner 10 min; `sleep.after` (seconds) wins, for tests. */
 export function sleepAfter(): number {
   const forced = model.pref<number>('sleep.after')
   if (typeof forced === 'number' && forced >= 0) return forced
   const pace = model.pref<string>('tabs.sleep.pace')
-  const wait = pace === 'later' ? 7200 : pace === 'sooner' ? 600 : 1800
+  const paced = pace === 'later' ? 7200 : pace === 'sooner' ? 600 : 1800
+  const wait = memoryTight() ? Math.min(paced, TIGHT_AFTER) : paced
   // Saving power: no later than Sooner (Sleep.swift:88, motion.light).
   return savingPower() ? Math.min(wait, 600) : wait
 }

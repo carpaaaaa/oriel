@@ -42,6 +42,9 @@ async function answer(req: BenchRequest): Promise<BenchReply> {
     case 'eval': {
       const wc = runtimes.get(req.id)?.contents
       if (!wc) return { ok: false, error: 'tab has no page' }
+      // world: the preload's isolated world (999) instead of the page's own.
+      const world = (req as { world?: number }).world
+      if (world) return { ok: true, value: await wc.executeJavaScriptInIsolatedWorld(Number(world), [{ code: req.js }], true) }
       return { ok: true, value: await wc.executeJavaScript(req.js, true) }
     }
     case 'ui': {

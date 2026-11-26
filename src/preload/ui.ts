@@ -1,6 +1,6 @@
 // The interface's bridge (window.search). Sandboxed: only ipcRenderer.
 
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
 import type { Bridge } from '../shared/ipc'
 
 const IPC = {
@@ -12,6 +12,13 @@ const IPC = {
   key: 'search:key',
   reading: 'search:reading',
 }
+
+// The window minimized half a minute: its interface lets its caches go.
+let purge: ReturnType<typeof setTimeout> | undefined
+document.addEventListener('visibilitychange', () => {
+  clearTimeout(purge)
+  if (document.visibilityState === 'hidden') purge = setTimeout(() => { try { webFrame.clearCache() } catch {} }, 30_000)
+})
 
 const rootArg = process.argv.find(a => a.startsWith('--search-root='))
 const root = (rootArg?.split('=')[1] === 'overlay' ? 'overlay' : 'chrome') as Bridge['root']

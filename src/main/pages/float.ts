@@ -144,7 +144,11 @@ function openWindow(tab: ID, win: ID, view: WebContentsView, away: boolean): Flo
     fullscreenable: false, minWidth: 260, minHeight: 146, backgroundColor: '#000000', title: 'Floating video', hasShadow: true, ...iconOption(),
     ...(process.platform === 'darwin' ? { visibleOnAllWorkspaces: true } : {}),
   } as Electron.BaseWindowConstructorOptions)
-  base.setAlwaysOnTop(true, 'floating')
+  // On Windows Electron puts a 'floating' window just under the taskbar, and
+  // with Oriel maximized (the taskbar stepped aside) that was under Oriel: the
+  // video floated where nobody could see it (carpa, 26 Nov 2026). 'screen-saver'
+  // is plainly on top of everything there.
+  base.setAlwaysOnTop(true, process.platform === 'win32' ? 'screen-saver' : 'floating')
   if (quietTests) { base.setOpacity(0); base.setIgnoreMouseEvents(true) }
   const controls = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: true } })
   controls.setBackgroundColor('#00000000')
@@ -540,7 +544,7 @@ export function floatInfo() {
   const f = floating
   return {
     enabled: floatEnabled(),
-    floating: f ? { tab: f.tab, win: f.win, bounds: f.base.getBounds(), tucked: !!f.tuckedFrom, away: f.away, holdsPage: f.base.contentView.children.includes(f.view), controls: f.controls.webContents.id, near: f.near } : null,
+    floating: f ? { tab: f.tab, win: f.win, bounds: f.base.getBounds(), tucked: !!f.tuckedFrom, away: f.away, holdsPage: f.base.contentView.children.includes(f.view), controls: f.controls.webContents.id, near: f.near, hwnd: f.base.getNativeWindowHandle().readBigUInt64LE(0).toString(), visible: f.base.isVisible(), opacity: f.base.getOpacity(), onTop: f.base.isAlwaysOnTop(), minimized: f.base.isMinimized() } : null,
     fade: { level: fadeLevel(), alpha, watching: !!fader, ...fadeProbe() },
     lifts: lifts.slice(-5),
   }
