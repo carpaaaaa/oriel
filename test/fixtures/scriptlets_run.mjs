@@ -3,6 +3,8 @@
 // it does to a few objects. node scriptlets_run.mjs <checkout> <quick|raw>
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import vm from 'node:vm'
 const [root, mode] = process.argv.slice(2)
 const require = createRequire(root + '/package.json')
@@ -13,7 +15,8 @@ const engine = FiltersEngine.deserialize(new Uint8Array(buf.subarray(head + 4, h
 const c = engine.getCosmeticsFilters({ url: 'https://www.youtube.com/watch?v=x', hostname: 'www.youtube.com', domain: 'youtube.com', getBaseRules: false, getInjectionRules: true, getExtendedRules: false, getRulesFromHostname: true, getRulesFromDOM: false })
 let scripts = c.scripts.filter(s => s.includes('function editInboundObjectFn(') && s.includes('JSON\\.stringify'))
 if (mode === 'quick') {
-  const { quickScriptlet } = await import(root + '/src/main/pages/blocker/scriptlets.ts')
+  // A file: address, not a path: on Windows "C:\..." reads as a URL whose scheme is "c:".
+  const { quickScriptlet } = await import(pathToFileURL(path.join(root, 'src/main/pages/blocker/scriptlets.ts')).href)
   scripts = scripts.map(quickScriptlet)
 }
 // Chromium runs injected scripts so that a class declared again replaces the
