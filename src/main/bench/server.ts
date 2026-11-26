@@ -43,6 +43,12 @@ async function answer(req: BenchRequest): Promise<BenchReply> {
       const wc = runtimes.get(req.id)?.contents
       if (!wc) return { ok: false, error: 'tab has no page' }
       // world: the preload's isolated world (999) instead of the page's own.
+      // frame: run in the frame of the page whose address holds this text (a sign-in button's iframe).
+      const inFrame = (req as { frame?: string }).frame
+      if (inFrame) {
+        const f = wc.mainFrame.framesInSubtree.find(x => x.url.includes(inFrame))
+        return f ? { ok: true, value: await f.executeJavaScript(req.js, true) } : { ok: false, error: 'no such frame' }
+      }
       const world = (req as { world?: number }).world
       if (world) return { ok: true, value: await wc.executeJavaScriptInIsolatedWorld(Number(world), [{ code: req.js }], true) }
       return { ok: true, value: await wc.executeJavaScript(req.js, true) }

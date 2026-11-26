@@ -27,6 +27,8 @@ let shownIn: string | null = null
 let asked = 0
 /** Where the card's corner is (the region's right and bottom edges): the card fits its content, and the region fits the card. */
 let corner: { right: number; bottom: number; pageWidth: number } | null = null
+/** The size the card measured, kept for as long as the text size is the same: placed again, it starts at that size. */
+let last: { s: number; width: number; height: number } | null = null
 
 const isStar = (c: WindowController) => c.overlayLayer.kind === 'panel' && c.overlayLayer.name === STAR_PANEL
 
@@ -46,7 +48,8 @@ function place(tries = 0): void {
   asked++
   corner = { right: r.x + r.width - MARGIN, bottom: r.y + r.height - MARGIN, pageWidth: r.width }
   // A first guess; the card tells its true size once drawn (star.fit).
-  showPanel(c, STAR_PANEL, { x: corner.right - width, y: corner.bottom - height, width, height })
+  const known = last && last.s === s ? { width: last.width + 2 * MARGIN, height: last.height + 2 * MARGIN } : { width, height }
+  showPanel(c, STAR_PANEL, { x: corner.right - known.width, y: corner.bottom - known.height, ...known })
 }
 
 function hide(): void {
@@ -77,6 +80,7 @@ handle('star.fit', ({ width, height }) => {
   if (!c || !isStar(c) || !corner) return
   const w = Math.ceil(Number(width)) + 2 * MARGIN, h = Math.ceil(Number(height)) + 2 * MARGIN
   if (!(w > 2 * MARGIN) || !(h > 2 * MARGIN) || w > corner.pageWidth) return
+  last = { s: textScale(), width: w - 2 * MARGIN, height: h - 2 * MARGIN }
   c.setOverlayRegion({ x: corner.right - w, y: corner.bottom - h, width: w, height: h }, false)
 })
 

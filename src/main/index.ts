@@ -65,6 +65,15 @@ if (process.platform === 'win32' && app.isPackaged && !process.windowsStore) app
 // only ever moved under a precision touchpad, so Bounce at the top and bottom
 // is not offered on Windows.)
 if (process.platform === 'win32') app.commandLine.appendSwitch('enable-features', 'FluentScrollbar,FluentOverlayScrollbar')
+// Features off, in one switch too (a second disable-features would replace the
+// first). FedCm: Chromium has the API Google's sign-in button tries first, but
+// Oriel has no account chooser behind it, so a call to it never answered and
+// "Continue with Google" (Pinterest, and every site with Google's button) did
+// nothing (a friend's report, 26 Nov 2026). Without it Google's script falls
+// back to its pop-up, which Oriel opens. And, in a test world on Windows, a
+// window covered by another (a console on the test machine) keeps drawing, so
+// pictures and layout stay true (CalculateNativeWinOcclusion).
+app.commandLine.appendSwitch('disable-features', ['FedCm', ...(process.platform === 'win32' && probe ? ['CalculateNativeWinOcclusion'] : [])].join(','))
 
 // One Search at a time per world: a second launch hands its link over.
 if (!app.requestSingleInstanceLock({ probe })) {
