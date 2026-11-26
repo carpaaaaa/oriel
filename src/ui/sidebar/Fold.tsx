@@ -14,6 +14,8 @@ import { state } from '../lib/store'
 import type { OverlayLayer } from '../../shared/state'
 import { Column } from './Sidebar'
 import { TabBar } from '../tabbar/TabBar'
+import { CaptionButtons } from '../chrome/Buttons'
+import { capBand } from '../data/where'
 import { curve, Springs } from './motion'
 import { pref } from './derive'
 
@@ -55,6 +57,8 @@ export function FoldLayer(p: { layer: OverlayLayer }) {
     <div ref={el} class="fold-out on-frame" data-tabs-ui="fold" classList={{ right: !strip() && state.sidebar.side === 'right', top: strip() }}
       style={{ width: strip() ? undefined : `${width()}px`, height: strip() ? `${height()}px` : undefined, 'border-radius': corners(), overflow: 'hidden' }}>
       <Show when={strip()} fallback={<Column />}><TabBar /></Show>
+      {/* The tabs folded in a window: the page fills it, the window's buttons come down with the strip. */}
+      <Show when={strip() && state.chrome === 'windows' && capBand()}><CaptionButtons /></Show>
     </div>
   )
 }

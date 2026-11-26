@@ -172,7 +172,6 @@ def settled():
 
 def launch():
     k.launch()
-    k.cmd("prefs.set", 0, key="fold.fullScreen", value=False)
 
     settled()
 

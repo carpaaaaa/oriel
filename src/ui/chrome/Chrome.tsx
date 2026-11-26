@@ -87,7 +87,8 @@ export function ChromeRoot() {
   const gap = () => (where() === 'fullScreen' && !pref('layout.cardsFullScreen') ? 0 : parseFloat(getComputedStyle(frameEl).getPropertyValue('--card-gap')) || 0)
   const side = () => {
     const o = slide.out()
-    if (o !== null) return gap() + (docked() - gap()) * o
+    // The page ends at the window's edge once the column is gone (`fills`), so it slides to it.
+    if (o !== null) { const edge = capBand() ? 0 : gap(); return edge + (docked() - edge) * o }
     return state.sidebar.folded || strip() ? 0 : docked()
   }
   const columnShift = () => {
@@ -102,6 +103,9 @@ export function ChromeRoot() {
   // Fold.swift LoadingLine): folded away, 2 points along the page's top while
   // it loads, clear of the card's round corners.
   const loadingLine = () => state.sidebar.folded && pref('fold.loadingLine') && !!activeTab()?.loading && !activeTab()?.empty
+  // The tabs folded with Ctrl+S: the page fills the whole window, up to its edges, in a window as in
+  // full screen (the band for the window's buttons goes; they come down at the top, main/window/edges.ts).
+  const fills = () => state.sidebar.folded && slide.out() === null && capBand()
   const margin = () => state.frame?.margin ?? { top: 0, right: 0, bottom: 0, left: 0 }
   // Our own buttons: always with the frame we draw; with Windows' frame only
   // when developing on a Mac (Windows draws its own there).
@@ -120,7 +124,7 @@ export function ChromeRoot() {
       {/* The window's own buttons don't keep the keys after a click, as
           the Mac's don't: the + kept them, and the next key (Escape, Tab)
           drew a focus ring around it beside the tab. */}
-      <div class="window on-frame" onMouseDown={e => { const btn = (e.target as HTMLElement).closest('button'); if (btn && btn.closest('.tabbar, .sidebar, .caption-buttons')) e.preventDefault() }} classList={{ windows: state.chrome === 'windows', blurred: !state.focused, top: strip(), 'col-right': onRight(), compact: pref('tabs.compact'), 'btn-inline': ownButtons() && buttonStyle() === 'inline', [`room-${state.room?.side}`]: !!state.room, bm: barShown() }}
+      <div class="window on-frame" onMouseDown={e => { const btn = (e.target as HTMLElement).closest('button'); if (btn && btn.closest('.tabbar, .sidebar, .caption-buttons')) e.preventDefault() }} classList={{ windows: state.chrome === 'windows', blurred: !state.focused, fill: fills(), line: loadingLine(), top: strip(), 'col-right': onRight(), compact: pref('tabs.compact'), 'btn-inline': ownButtons() && buttonStyle() === 'inline', [`room-${state.room?.side}`]: !!state.room, bm: barShown() }}
         style={{ '--side': `${side()}px`, '--fold-shift': columnShift(), '--top': strip() ? (pref('tabs.compact') ? 'var(--strip-compact)' : 'var(--strip)') : undefined, '--room': `${state.room?.width ?? 0}px` }}>
         <Show when={!state.sidebar.folded || slide.out() !== null}>
           <Sidebar />

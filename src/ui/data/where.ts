@@ -18,7 +18,9 @@ export const capBand = () => state.chrome === 'windows' && !state.fullScreen && 
 export type DoorPlace = 'strip' | 'corner' | 'foot'
 
 export function bookmarkPlace(): DoorPlace {
-  if (state.sidebar.layout === 'top' && !state.sidebar.folded) return 'strip'
+  // The tabs across the top: in the strip, also when it comes down over a page that fills the window
+  // (folded, chrome/Chrome.tsx `fill`).
+  if (state.sidebar.layout === 'top' && (!state.sidebar.folded || (capBand() && columnSliding() === null))) return 'strip'
   return capBand() ? 'corner' : 'foot'
 }
 

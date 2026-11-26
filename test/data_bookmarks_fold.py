@@ -16,7 +16,6 @@ import bench as b  # noqa: E402
 
 b.use("data-bookmarks-fold")
 b.launch(env={"SEARCH_LOOK": "light"})
-b.cmd("prefs.set", key="fold.fullScreen", value=False)  # these test folding alone, not full screen with it
 
 t = b.T()
 time.sleep(0.6)
@@ -32,7 +31,7 @@ time.sleep(0.4)
 SAMPLE = """JSON.stringify((() => {
   const box = e => e.getBoundingClientRect()
   const d = [...document.querySelectorAll('.bookmark-door')].find(e => box(e).width > 0)
-  if (!d) return { door: false }
+  if (!d) return { door: false, filled: !!document.querySelector('.window.fill') }
   const r = box(d)
   const hits = [...document.querySelectorAll('.sidebar .band button, .window > .caption-buttons button')].filter(e => e !== d).map(box)
     .filter(o => r.x < o.right - .5 && o.x < r.right - .5 && r.y < o.bottom - .5 && o.y < r.bottom - .5)
@@ -54,7 +53,9 @@ def watch(name, folded):
         if s.get("moving"):
             continue
         seen += 1
-        held += 1 if s["column"] and folded else 0
+        held += 1 if s.get("column") and folded else 0
+        if s.get("filled"):
+            continue
         if not s["door"] or s["hits"] or not s["top"]:
             bad.append(s)
     t.ok(seen and not bad, f"{name}: the button clear and uncovered in all {seen} looks with the column in its place"

@@ -5,9 +5,6 @@ import { model } from '../model/model'
 import { need, openWindow } from '../context'
 import { allControllers } from '../views/window'
 
-/** Windows Ctrl+S put in full screen, to take out of it when the tabs come back. */
-const foldedFull = new Set<string>()
-
 // the column
 
 handle('sidebar.resize', ({ width }, ctx) => {
@@ -30,21 +27,10 @@ handle('sidebar.toggle', (_a, ctx) => {
     for (const x of allControllers()) { x.record.sidebar = { ...x.record.sidebar, icons }; model.touch(x.record, ['sidebar']) }
     return
   }
-  const folding = !s.folded
-  c.record.sidebar = { ...s, folded: folding }
+  // Ctrl+S hides the tabs and the page fills the window, as it is: a window, maximized or full
+  // screen (the interface does it, chrome/Chrome.tsx `fill`); never full screen of its own.
+  c.record.sidebar = { ...s, folded: !s.folded }
   model.touch(c.record, ['sidebar'])
-  // Ctrl+S takes the page full screen with the tabs gone, as the Mac's page
-  // card fills the window, and gives the window back with them (fold.fullScreen).
-  // Full screen put on by something else (F11, a video) is left alone.
-  if (model.pref<boolean>('fold.fullScreen') !== false) {
-    const id = c.record.id
-    if (folding) {
-      // Already full screen (F11): it stays.
-      if (!c.frame.isFullScreen()) { foldedFull.add(id); c.frame.setFullScreen(true) }
-    } else {
-      if (foldedFull.delete(id) && c.frame.isFullScreen()) c.frame.setFullScreen(false)
-    }
-  }
 })
 handle('sidebar.fold', ({ folded }, ctx) => {
   const c = need(ctx)

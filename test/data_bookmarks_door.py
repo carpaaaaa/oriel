@@ -35,7 +35,6 @@ for name in ("alpha", "beta", "gamma", "delta", "epsilon", "page"):
 
 b.use("data-bookmarks-door")
 b.launch(env={"SEARCH_LOOK": "light"})
-b.cmd("prefs.set", key="fold.fullScreen", value=False)  # these test folding alone, not full screen with it
 
 t = b.T()
 time.sleep(0.6)
@@ -124,6 +123,15 @@ def fold(on):
     time.sleep(0.3)
 
 
+def filled(name):
+    """Folded away: no band, the page fills the window to its edges (chrome/Chrome.tsx `fill`); the
+    window's buttons and the bookmark button come down at the top."""
+    m = json.loads(b.ui("JSON.stringify((() => { const c = document.querySelector('.window > .card'); const r = c.getBoundingClientRect(); const w = document.querySelector('.window').getBoundingClientRect();"
+                        " return { fill: !!document.querySelector('.window.fill'), x: r.x - w.x, y: r.y - w.y, right: w.right - r.right, bottom: w.bottom - r.bottom, band: !!([...document.querySelectorAll('.window > .caption-buttons')].find(e => e.getBoundingClientRect().width > 0)) } })())"))
+    t.ok(m["fill"] and abs(m["x"]) < 1 and abs(m["y"]) < 1 and abs(m["right"]) < 1 and abs(m["bottom"]) < 1 and not m["band"],
+         f"{name}: the page fills the window, no band above it ({m})")
+
+
 def layout(value, settle_for=".window"):
     b.cmd("settings.set", id="tabs.layout", value=value)
     time.sleep(0.5)
@@ -159,13 +167,13 @@ for style in ("inline", "classic"):
     # 46s don't: then up above the page, 12 before the column.
     where(f"{S}, the column on the right" + ("" if style == "inline" else ", too narrow beside the helm"), column=style == "classic")
     fold(True)
-    where(f"{S}, the column on the right folded away (Ctrl+S)")
+    filled(f"{S}, the column on the right folded away (Ctrl+S)")
     fold(False)
     layout("icons")
     where(f"{S}, icons only")
     layout("left")
     fold(True)
-    where(f"{S}, the column folded away (Ctrl+S)")
+    filled(f"{S}, the column folded away (Ctrl+S)")
     fold(False)
     layout("top")
     settle(lambda: b.ui("!!document.querySelector('.tabbar .strip-far')"), "the strip")
@@ -176,7 +184,7 @@ for style in ("inline", "classic"):
     where(f"{S}, the tabs across the top, shorter", strip=True)
     b.cmd("prefs.set", key="tabs.compact", value=False)
     fold(True)
-    where(f"{S}, the tabs across the top folded away")
+    filled(f"{S}, the tabs across the top folded away")
     fold(False)
 
 b.cmd("prefs.set", key="window.buttons", value="inline")

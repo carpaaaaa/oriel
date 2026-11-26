@@ -86,6 +86,14 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .window.top .top-strip { display: none; }
 .window.top .card { left: 0; right: 0; bottom: 0; border-radius: 0; box-shadow: 0 -1px 0 var(--hairline); }
 :root[data-state="fullScreen"] .window.top :is(.card, .side-room) { top: var(--top); }
+/* Folded with Ctrl+S: the page fills the window to its edges, no band for the window's buttons (they
+   come down at the top), no gap; in a window drawn by Oriel the page takes the window's own corners. */
+.window.fill { --top: 0; }
+.window.fill .card, .window.fill:not(:has(.sidebar)) .card { top: 0; left: 0; right: 0; bottom: 0; border-radius: 0; box-shadow: none; }
+:root[data-frame="drawn"][data-state="free"] .window.fill .card { border-radius: var(--window-radius); }
+.window.fill :is(.caption-buttons, .chrome-end, .top-strip) { display: none; }
+.window.fill .loading-line { top: 0; left: var(--card-radius); right: var(--card-radius); }
+.window.fill.line .card, .window.fill.line:not(:has(.sidebar)) .card { top: 2px; }
 
 /* The window's buttons drawn by Oriel (chrome/Buttons.tsx, Settings › Themes ›
    Window buttons); with the native frame they are Windows' own (drawn here

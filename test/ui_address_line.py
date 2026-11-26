@@ -45,7 +45,6 @@ H = f"http://127.0.0.1:{srv.server_port}"
 
 b.use("ui-address-line")
 b.launch(*k.FRAMES)
-b.cmd("prefs.set", key="fold.fullScreen", value=False)  # these test folding alone, not full screen with it
 
 t = b.T()
 time.sleep(1.0)

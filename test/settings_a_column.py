@@ -40,7 +40,6 @@ SITE = f"http://127.0.0.1:{srv.server_port}"
 
 b.use("settings-a-column")
 b.launch(*k.FRAMES, env={"SEARCH_LOOK": "light"})
-b.cmd("prefs.set", key="fold.fullScreen", value=False)  # these test folding alone, not full screen with it
 
 t = b.T()
 
@@ -107,8 +106,8 @@ t.ok(not edges()["peek"], "at the top it waits a moment (the way to the window's
 out = settle(lambda: edges()["peek"], "the strip out", within=2)
 strip = k.js("const e = document.querySelector('.fold-out.top .tabbar'); return e && e.getBoundingClientRect().height", root="overlay") if out else None
 region = edges()["region"]
-t.ok(out and strip and k.near(strip, 52) and region["height"] == 52 + 40 and region["width"] == v["width"] - b.window()["controlsWidth"],
-     f"…then the strip comes down over the page, the window's buttons left in reach ({strip}, {region})")
+t.ok(out and strip and k.near(strip, 52) and region["height"] == 52 + 40 and region["width"] == v["width"],
+     f"…then the strip comes down over the page, the window's buttons in it ({strip}, {region})")
 pointer(v["x"] + 300, v["y"] + 30)
 time.sleep(0.3)
 t.ok(edges()["peek"], "over it, it stays")
@@ -184,7 +183,7 @@ time.sleep(0.4)
 # page takes the window; 10 from the edge after 0.05 s it comes out; Ctrl+S keeps it out.
 setting("sidebar.hides", True)
 w = b.window()["sidebar"]
-t.ok(w["folded"] and not k.rect(".sidebar") and k.near(k.wrect(".card")["x"], 8), f"on: the column rests folded, the page takes the window ({w['folded']})")
+t.ok(w["folded"] and not k.rect(".sidebar") and k.near(k.wrect(".card")["x"], 0), f"on: the column rests folded, the page takes the whole window ({w['folded']})")
 v = frame()["visual"]
 pointer(v["x"] + 8, v["y"] + 300)
 time.sleep(0.02)

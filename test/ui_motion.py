@@ -186,7 +186,6 @@ def open_tabs(n, prefix="t"):
 # ---------------------------------------------------------------- the column
 b.use("ui-motion")
 b.launch(*k.FRAMES, env={"SEARCH_LOOK": "light"})
-b.cmd("prefs.set", key="fold.fullScreen", value=False)  # these test folding alone, not full screen with it
 
 time.sleep(0.8)
 open_tabs(6)
@@ -301,7 +300,6 @@ window.__fold = (() => {
 """
 b.use("ui-motion-fold")
 b.launch(*k.FRAMES, env={"SEARCH_LOOK": "light"})
-b.cmd("prefs.set", key="fold.fullScreen", value=False)  # these test folding alone, not full screen with it
 
 time.sleep(0.8)
 b.cmd("tab.go", input="data:text/html,<title>page</title><body style='background:%23fd8'>a page")
@@ -319,7 +317,7 @@ for phase, spec, frm, to in (("away", FOLD_IN, docked[0], None), ("back", FOLD_O
     time.sleep(1.0)
     trace = b.call({"do": "window.pageTrace", "on": False})["trace"]
     fr = json.loads(b.ui("JSON.stringify(window.__fold.frames)"))
-    folded_x = docked[0] - 232 + gap
+    folded_x = docked[0] - 232  # the page fills the window once the column is gone (chrome/Chrome.tsx `fill`)
     frm = folded_x if frm is None else frm
     to = folded_x if to is None else to
     label = f"Ctrl+S, the column {phase}"

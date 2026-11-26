@@ -4,8 +4,9 @@
 // the layer): a strip of 40 over the page with Minimize, Exit Full Screen and
 // Close, so a window is never left without a way out.
 
-import { createEffect, createRoot, on, onMount } from 'solid-js'
-import { registerPanel } from '../lib/registry'
+import { createEffect, createRoot, For, on, onMount } from 'solid-js'
+import { outlet, registerPanel } from '../lib/registry'
+import { cornerRight } from '../data/where'
 import { cmd, state } from '../lib/store'
 import type { OverlayLayer } from '../../shared/state'
 import { CaptionButtons, buttonStyle } from './Buttons'
@@ -15,8 +16,13 @@ import { SPLIT_DROP } from '../../shared/modules/window'
 
 function Reveal() {
   return (
-    <div class="reveal-strip" classList={{ inline: buttonStyle() === 'inline' }} data-window-ui="reveal">
-      <CaptionButtons full />
+    <div class="reveal-strip" classList={{ inline: buttonStyle() === 'inline' }} data-window-ui="reveal"
+      style={{ 'border-radius': state.frame?.kind === 'drawn' && state.frame.state === 'free' ? '17.5px 17.5px 0 0' : undefined }}>
+      {/* The bookmark button, up beside the window's buttons as in the band (data/where.ts). */}
+      <div class="chrome-end" style={{ right: `${cornerRight()}px` }}>
+        <For each={outlet('chrome.end')}>{C => <C />}</For>
+      </div>
+      <CaptionButtons full={state.frame?.state === 'fullScreen'} />
     </div>
   )
 }

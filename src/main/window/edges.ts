@@ -45,7 +45,13 @@ function ours(c: WindowController): boolean {
 
 const folded = (c: WindowController) => c.record.sidebar.folded && !c.base.isMinimized()
 const top = (c: WindowController) => c.record.sidebar.layout === 'top'
-const full = (c: WindowController) => c.frame.isFullScreen() && !c.base.isMinimized()
+/** The tabs folded in a window: the page fills the window to its edges (chrome/Chrome.tsx `fill`),
+ * so its buttons come down at the top as in full screen (carpa, 26 Nov 2026: Ctrl+S hides the tabs
+ * and extends the page, in a window too, never full screen of its own). With the tabs across the top
+ * the strip that comes down carries them (sidebar/Fold.tsx); otherwise the strip of buttons (panel
+ * 'window.reveal'). */
+const filled = (c: WindowController) => c.chrome === 'windows' && c.record.sidebar.folded && !c.frame.isFullScreen() && !c.base.isMinimized()
+const full = (c: WindowController) => (c.frame.isFullScreen() && !c.base.isMinimized()) || (filled(c) && c.record.sidebar.layout !== 'top')
 const layer = (c: WindowController) => c.overlayLayer
 const peeking = (c: WindowController) => { const l = layer(c) as { kind: string; going?: boolean }; return l.kind === 'fold' && !l.going }
 const leavingOut = (c: WindowController) => { const l = layer(c) as { kind: string; going?: boolean }; return l.kind === 'fold' && !!l.going }
@@ -64,7 +70,7 @@ function peekRegion(c: WindowController, v: Rect): Rect {
   const content = c.base.getContentBounds()
   if (top(c)) {
     // The strip, its shadow under it; the window's buttons stay in reach.
-    const controls = c.chrome === 'windows' && !c.frame.isFullScreen() ? (model.pref<string>('window.buttons') === 'classic' ? 138 : 96) : 0
+    const controls = c.chrome === 'windows' && !c.frame.isFullScreen() && !filled(c) ? (model.pref<string>('window.buttons') === 'classic' ? 138 : 96) : 0
     return { x: v.x - content.x, y: v.y - content.y, width: Math.max(0, v.width - controls), height: stripHeight() + SHADOW }
   }
   const w = columnWidth(c) + SHADOW
@@ -105,7 +111,8 @@ function tickOne(c: WindowController, now: number): void {
   const v = c.frame.visual()
   // full screen: the strip with the buttons
   if (full(c)) {
-    const d = c.base.getBounds()
+    // The window as people see it (a window has its clear margin round it, a full screen none).
+    const d = v
     const atTop = p.x >= d.x && p.x < d.x + d.width && p.y >= d.y && p.y < d.y + STRIP_EDGE
     const onStrip = p.x >= d.x && p.x < d.x + d.width && p.y >= d.y - BEYOND && p.y < d.y + STRIP_STAY
     if (revealed(c)) {
@@ -118,7 +125,7 @@ function tickOne(c: WindowController, now: number): void {
       w.left = null
       const content = c.base.getContentBounds()
       c.sendOverlay({ kind: 'panel', name: REVEAL })
-      c.setOverlayRegion({ x: 0, y: 0, width: content.width, height: STRIP + 12 }, false)
+      c.setOverlayRegion({ x: v.x - content.x, y: v.y - content.y, width: v.width, height: STRIP + 12 }, false)
       return
     }
   } else if (revealed(c)) c.sendOverlay({ kind: 'none' })
