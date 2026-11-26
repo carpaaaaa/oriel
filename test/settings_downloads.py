@@ -156,6 +156,14 @@ b.wait_for(lambda: ev(dl, "document.querySelectorAll('.dl-row.kept').length") or
 names = ev(dl, "[...document.querySelectorAll('.dl-row.kept .dl-name')].map(e => e.textContent)")
 t.ok(names[:2] == ["elsewhere.bin", "n.bin"] and "a.bin" in names, f"Completed, newest first ({names})")
 t.ok(ev(dl, "document.querySelector('.dl-row.kept .dl-state').textContent").startswith("127.0.0.1 · "), "each says <site> · <when>")
+# A long site name is cut with an ellipsis, never run under the row's buttons; the time stays.
+b.cmd("settings.set", id="text.scale", value=1.4)
+ev(dl, "document.querySelector('.dl-row.kept .dl-host').textContent = 'dp-myfit-test-function-v2.azurewebsites.net'; 1")
+time.sleep(0.5)
+clear = ev(dl, """(() => { const r = document.querySelector('.dl-row.kept'); const w = r.querySelector('.dl-when').getBoundingClientRect(), a = r.querySelector('.dl-actions').getBoundingClientRect(), h = r.querySelector('.dl-host');
+  return w.right <= a.left + 0.5 && getComputedStyle(h).textOverflow === 'ellipsis' && h.scrollWidth > h.clientWidth })()""")
+t.ok(clear is True, "a long site name is cut with an ellipsis, and the time stays clear of the buttons")
+b.cmd("settings.set", id="text.scale", value=1)
 ev(dl, "[...document.querySelectorAll('.dl-row.kept')].find(r => r.querySelector('.dl-name').textContent === 'a.bin').querySelector('.st-quick').click()")
 time.sleep(0.3)
 opened = b.call({"do": "settings.state"})["opened"]

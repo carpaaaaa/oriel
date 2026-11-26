@@ -73,7 +73,8 @@ function KeptRow(p: { e: DownloadEntry; run: (c: string) => void }) {
       <span class="dl-icon"><Symbol name={p.e.there ? 'doc' : 'doc.badge.ellipsis'} size={13} weight="regular" /></span>
       <div class="dl-words">
         <div class="dl-name" title={p.e.name}>{p.e.name}</div>
-        <div class="dl-state">{p.e.from ? `${p.e.from} · ${when(p.e.date)}` : when(p.e.date)}</div>
+        {/* The site's name is cut with an ellipsis when short of room; the time stays. */}
+        <div class="dl-state">{p.e.from ? <><span class="dl-host">{p.e.from}</span>{' '}<span class="dl-when">{`· ${when(p.e.date)}`}</span></> : when(p.e.date)}</div>
       </div>
       <div class="dl-actions">
         <Show when={p.e.there}><Quick title="Show in File Explorer" act={() => p.run('download.reveal')} /></Show>
