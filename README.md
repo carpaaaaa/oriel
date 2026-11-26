@@ -12,7 +12,7 @@ A free, open source web browser for Windows. An unofficial port of [Search](http
 
 Oriel is Search's design, on Windows. A column of tabs down the left (or a strip across the top, if you prefer), one field for addresses and searches, and the page as a card beside them. No toolbar, no start page full of suggestions, no account to sign into.
 
-Search runs on WebKit, the engine built into macOS. Windows has no such engine to borrow, so Oriel is built on Chromium through Electron: pages look as they do in Chrome, Chrome extensions work, and the installer is about 120 MB rather than Search's ten. Everything else was measured from Search's own source: the column, the field, the spaces and pins, the shortcuts (Ctrl where the Mac has Cmd), the settings, the springs.
+Search runs on WebKit, the engine built into macOS. Windows does have one to borrow, WebView2, but it is made for showing web pages inside an app, not for building a browser: Chrome extensions are only partly supported, and a browser wants its own say over tabs, sessions and blocking. So Oriel is built on Chromium through Electron: pages look as they do in Chrome, Chrome extensions work, and the installer is about 120 MB rather than Search's ten. Everything else was measured from Search's own source: the column, the field, the spaces and pins, the shortcuts (Ctrl where the Mac has Cmd), the settings, the springs.
 
 Oriel is not affiliated with or endorsed by Office Commun. Search is their name and their work, and it stays on the Mac; Oriel is a separate port under the same MIT license.
 
