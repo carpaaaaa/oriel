@@ -101,4 +101,53 @@ b.wait_for(lambda: not star()["shown"], what="the capsule in its place")
 t.ok(True, "anything else wanting the overlay takes its place")
 t.ok(not b.state().get("errors"), "no error in the main process")
 b.quit()
+# 7. Centred and clean, in every text size: the card fits its content, the region
+# fits the card, the padding is the same above and below, the buttons end where
+# the card's padding does, the star and the X sit on the title's line.
+MEASURE = """JSON.stringify((() => { const q = s => document.querySelector(s).getBoundingClientRect(); const c = q('.star-card'), g = q('.star-glyph'), t = q('.star-title'), x = q('.star-x'), go = q('.star-go'), co = q('.star-coffee');
+  return {card: [c.left, c.top, c.right, c.bottom], glyph: g.top + g.height / 2, title: t.top + t.height / 2, x: x.top + x.height / 2, goTop: go.top, goBottom: go.bottom, coRight: co.right, goLeft: go.left, coLeft: co.left, glyphTop: g.top, vw: innerWidth, vh: innerHeight} })())"""
+
+
+def measured():
+    return json.loads(overlay(MEASURE))
+
+
+def fitted(label):
+    import math
+    time.sleep(0.6)
+    m = measured()
+    c = m["card"]
+    region = star()["region"]
+    t.ok(abs(region["width"] - (math.ceil(c[2] - c[0]) + 24)) <= 1 and abs(region["height"] - (math.ceil(c[3] - c[1]) + 24)) <= 1,
+         f"{label}: the region is the card and its margin ({region['width']}x{region['height']} for {c[2]-c[0]:.0f}x{c[3]-c[1]:.0f})")
+    t.ok(c[0] >= 0 and c[1] >= 0 and c[2] <= m["vw"] and c[3] <= m["vh"], f"{label}: the card is whole inside its region")
+    above, below = m["glyphTop"] - c[1], c[3] - m["goBottom"]
+    t.ok(abs(above - below) <= 1.5, f"{label}: the same room above and below ({above:.1f}, {below:.1f})")
+    t.ok(abs((c[2] - 10) - m["coRight"]) <= 1, f"{label}: the buttons end where the padding does ({c[2] - 10:.1f}, {m['coRight']:.1f})")
+    t.ok(abs(m["glyph"] - m["title"]) <= 1.5 and abs(m["x"] - m["title"]) <= 2, f"{label}: the star and the X on the title's line ({m['glyph']:.1f}, {m['x']:.1f}, {m['title']:.1f})")
+    t.ok(m["goLeft"] < m["coLeft"] and m["coLeft"] - m["goTop"] * 0 >= m["goLeft"], f"{label}: the buttons side by side")
+
+
+b.use("settings-d-star-size")
+b.launch(env={"ORIEL_STAR": "1"})
+b.cmd("tab.new", url="data:text/html,<body>page</body>")
+b.wait_for(card_up, within=20, what="the star card")
+fitted("100%")
+for scale in (1.15, 1.4):
+    b.cmd("settings.set", id="text.scale", value=scale)
+    star(show=True)
+    b.wait_for(card_up, within=10, what="the card again")
+    fitted(f"{round(scale * 100)}%")
+# Its size changing while it is up (the slider moved): the region follows.
+b.cmd("settings.set", id="text.scale", value=1)
+fitted("back to 100%, live")
+# The window changing size under it: it stays in the page's corner, whole.
+b.cmd("window.maximize")
+time.sleep(1.2)
+w = b.window()
+r = star()["region"]
+cb = w["bounds"]
+t.ok(r and r["x"] >= 0 and r["y"] >= 0 and r["x"] + r["width"] <= cb["width"] and r["y"] + r["height"] <= cb["height"], f"the window maximized, the card is still inside it ({r}, window {cb['width']}x{cb['height']})")
+t.ok(not b.state().get("errors"), "no error in the main process")
+b.quit()
 t.done()

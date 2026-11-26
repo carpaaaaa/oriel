@@ -311,19 +311,21 @@ html[data-root="page"] { --rail-ease: linear(0, 0.0720, 0.2326, 0.4206, 0.5990, 
 
 /* the star card after an update (StarAsk.tsx): small, in the page's lower
    right corner, inside a region 12 wider on each side for its shadow */
-.star-card { position: fixed; inset: 12px; display: grid; grid-template-columns: auto 1fr auto; column-gap: 10px; align-content: start;
+/* The card sizes itself to its content (width and height), anchored at the region's
+   lower right; main fits the region to it (star.fit). Lengths that aren't text
+   (the glyph's and the X's boxes) follow the text size by hand. */
+.star-card { position: fixed; right: 12px; bottom: 12px; width: max-content; display: grid; grid-template-columns: auto auto auto; column-gap: 10px; align-content: start;
   padding: 14px 10px 14px 14px; border-radius: 14px; background: var(--ground); color: var(--ink);
   box-shadow: inset 0 0 0 1px var(--hairline), 0 3px 12px rgba(0,0,0,.14); animation: star-in var(--dur-settle) var(--ease-settle); }
 .star-card.going { animation: star-out var(--dur-quick) var(--ease-quick) forwards; }
-.star-glyph { color: #e3a008; padding-top: 1px; }
+.star-glyph { color: #e3a008; align-self: start; height: calc(16px * var(--text-scale, 1)); display: grid; place-items: center; }
 .star-text { min-width: 0; }
-.star-title { font-size: 13px; line-height: 16px; font-weight: 600; }
-.star-line { margin-top: 2px; font-size: 12px; line-height: 15px; color: var(--muted); }
-.star-x { width: 22px; height: 22px; margin-top: -4px; border-radius: 7px; display: grid; place-items: center; color: var(--muted); transition: background var(--dur-quick) var(--ease-quick); }
+.star-title { font-size: 13px; line-height: 16px; font-weight: 600; white-space: nowrap; }
+.star-line { margin-top: 2px; font-size: 12px; line-height: 15px; color: var(--muted); white-space: nowrap; }
+.star-x { align-self: start; justify-self: end; width: calc(22px * var(--text-scale, 1)); height: calc(22px * var(--text-scale, 1)); margin: calc(-3px * var(--text-scale, 1)) -4px 0 0; border-radius: 7px; display: grid; place-items: center; color: var(--muted); transition: background var(--dur-quick) var(--ease-quick); }
 .star-x:hover { background: var(--hover); color: var(--ink-hover-text); }
-.star-foot { grid-column: 2 / 4; display: flex; align-items: center; gap: 8px; margin-top: 12px; }
-.star-go { display: inline-flex; align-items: center; gap: 5px; }
-.star-coffee { display: inline-flex; align-items: center; gap: 5px; }
+.star-foot { grid-column: 2 / 4; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
+.star-go, .star-coffee { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
 @keyframes star-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes star-out { to { opacity: 0; transform: translateY(8px); } }
 

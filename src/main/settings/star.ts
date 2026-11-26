@@ -25,6 +25,8 @@ yielding.add(STAR_PANEL)
 
 let shownIn: string | null = null
 let asked = 0
+/** Where the card's corner is (the region's right and bottom edges): the card fits its content, and the region fits the card. */
+let corner: { right: number; bottom: number; pageWidth: number } | null = null
 
 const isStar = (c: WindowController) => c.overlayLayer.kind === 'panel' && c.overlayLayer.name === STAR_PANEL
 
@@ -42,7 +44,9 @@ function place(tries = 0): void {
   if (r.width < width + 2 * MARGIN || r.height < height + 2 * MARGIN) return
   shownIn = c.record.id
   asked++
-  showPanel(c, STAR_PANEL, { x: r.x + r.width - width - MARGIN, y: r.y + r.height - height - MARGIN, width, height })
+  corner = { right: r.x + r.width - MARGIN, bottom: r.y + r.height - MARGIN, pageWidth: r.width }
+  // A first guess; the card tells its true size once drawn (star.fit).
+  showPanel(c, STAR_PANEL, { x: corner.right - width, y: corner.bottom - height, width, height })
 }
 
 function hide(): void {
@@ -65,6 +69,16 @@ async function openFrom(url: string, ctx: { window?: WindowController | null }):
 handle('star.open', (_args, ctx) => openFrom(REPO_URL, ctx))
 handle('star.coffee', (_args, ctx) => openFrom(COFFEE_URL, ctx))
 handle('star.later', () => hide())
+// The card's own size, in whatever text size and type it is drawn: the region
+// is that and its margin, anchored at the corner, so nothing empty over the page
+// takes the clicks and the card is never clipped.
+handle('star.fit', ({ width, height }) => {
+  const c = shownIn ? controllerFor(shownIn) : null
+  if (!c || !isStar(c) || !corner) return
+  const w = Math.ceil(Number(width)) + 2 * MARGIN, h = Math.ceil(Number(height)) + 2 * MARGIN
+  if (!(w > 2 * MARGIN) || !(h > 2 * MARGIN) || w > corner.pageWidth) return
+  c.setOverlayRegion({ x: corner.right - w, y: corner.bottom - h, width: w, height: h }, false)
+})
 
 // Read at launch, before What's New marks this version seen (updater.ts):
 // a version seen before and not this one means Oriel was just updated.

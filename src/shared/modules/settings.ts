@@ -144,6 +144,8 @@ declare module '../commands' {
     'star.open': None
     'star.coffee': None
     'star.later': None
+    /** The star card's size as drawn (CSS px), for its region. */
+    'star.fit': { width: number; height: number }
     // keys.ts's table: Settings… (Ctrl+,), Passwords… (Alt+Shift+L),
     // Show History… (Ctrl+H), Downloads… (Ctrl+J), Clear Browsing Data…
     'app.settings': None
