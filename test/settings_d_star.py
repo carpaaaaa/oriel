@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The star card after an update (settings/star.ts): once per update, never on
 a fresh install; small, in the page's lower right corner, taking no focus;
-Star on GitHub opens the repository and Don't ask again end it for good, the
+Star on GitHub opens the repository and Buy me a coffee end it for good, the
 X puts it away until the next update; anything else wanting the overlay
 takes its place."""
 import json
@@ -47,7 +47,7 @@ r = star()["region"]
 t.ok(r["width"] <= 340 and r["height"] <= 150, f"small ({r['width']}x{r['height']})")
 t.ok(overlay("document.querySelector('.star-title').textContent") == "Enjoying Oriel?", "says Enjoying Oriel?")
 t.ok(overlay("document.querySelector('.star-go').textContent") == "Star on GitHub", "Star on GitHub")
-t.ok(overlay("document.querySelector('.star-never').textContent") == "Don't ask again", "Don't ask again")
+t.ok(overlay("document.querySelector('.star-coffee').textContent") == "Buy me a coffee", "Buy me a coffee")
 t.ok(not overlay("document.hasFocus()"), "takes no focus from the page")
 # 2. The X: away, not done (the next update asks again).
 click(".star-x")
@@ -67,13 +67,14 @@ time.sleep(9)
 t.ok(star()["asked"] == 0, "not without an update")
 b.quit()
 
-# 4. Don't ask again: gone, and never again.
+# 4. Buy me a coffee: its page opens, the card is gone, and never again.
 b.use("settings-d-star-never")
 b.launch(env={"ORIEL_STAR": "1"})
 b.wait_for(card_up, within=20, what="the star card")
-click(".star-never")
+click(".star-coffee")
 b.wait_for(lambda: not star()["shown"], what="gone")
-t.ok(star()["done"], "Don't ask again is for good")
+b.wait_for(lambda: any("buymeacoffee.com/charstudio" in (x.get("url") or "") for x in b.window()["tabs"]), what="the coffee page's tab")
+t.ok(star()["done"], "Buy me a coffee is for good")
 b.quit()
 b.use("settings-d-star-never", wipe=False)
 b.launch(env={"ORIEL_STAR": "1"})

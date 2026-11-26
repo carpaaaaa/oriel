@@ -1,9 +1,9 @@
-// A star on GitHub, asked once after each update: a small card in the page's
-// lower right corner, never on a fresh install, never twice for one version.
-// It takes no focus and gives way to anything else that wants the overlay
-// (overlayFree in views/window.ts). Star on GitHub opens the repository and
-// Don't ask again end it for good (star.done); the X, or nothing done for a
-// while, put it away until the next update.
+// A star on GitHub, or a coffee for its maker, asked once after each update: a
+// small card in the page's lower right corner, never on a fresh install, never
+// twice for one version. It takes no focus and gives way to anything else that
+// wants the overlay (overlayFree in views/window.ts). Star on GitHub and Buy me
+// a coffee each open their page and end it for good (star.done); the X, or
+// nothing done for a while, put it away until the next update.
 
 import { app } from 'electron'
 import { model, textScale } from '../model/model'
@@ -18,6 +18,7 @@ import { testEnv } from '../testhooks'
 
 export const STAR_PANEL = 'settings.star'
 export const REPO_URL = 'https://github.com/carpaaaaa/oriel'
+export const COFFEE_URL = 'https://buymeacoffee.com/charstudio'
 const WIDTH = 320, HEIGHT = 124, MARGIN = 12
 
 yielding.add(STAR_PANEL)
@@ -54,13 +55,15 @@ function hide(): void {
   shownIn = null
 }
 
-handle('star.open', async (_args, ctx) => {
+/** A page of ours opened from the card, which then goes for good. */
+async function openFrom(url: string, ctx: { window?: WindowController | null }): Promise<void> {
   setKey('star.done', true)
   hide()
   const c = ctx.window ?? allControllers()[0]
-  if (c) await run({ do: 'tab.new', url: REPO_URL } as never, { window: c })
-})
-handle('star.never', () => { setKey('star.done', true); hide() })
+  if (c) await run({ do: 'tab.new', url } as never, { window: c })
+}
+handle('star.open', (_args, ctx) => openFrom(REPO_URL, ctx))
+handle('star.coffee', (_args, ctx) => openFrom(COFFEE_URL, ctx))
 handle('star.later', () => hide())
 
 // Read at launch, before What's New marks this version seen (updater.ts):
