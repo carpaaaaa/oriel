@@ -140,6 +140,10 @@ context(f'.square[data-tab="{bb}"]')
 got = items()
 t.ok(got and got[:9] == ["Show as Row", "New Live Folder… (off)", "Change Letter", "Replace Pinned Page with Current URL (off)", "Keep in Every Space", "Unpin", "Delete", "Move to Space", "Open in Split View (off)"],
      f"a square's menu: {got}")
+# Tabs show the site's icon by default since Search 1.0.22, and a square with an
+# icon shows the icon, as TabBar.swift's does: the letter is read with letters.
+b.cmd("prefs.set", key="glyph", value="letters")
+time.sleep(0.3)
 pick("Change Letter")
 time.sleep(0.3)
 k.js("const e = document.activeElement; e.value = 'q'; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return 1")
