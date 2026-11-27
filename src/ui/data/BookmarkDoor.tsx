@@ -11,7 +11,7 @@
 // place. ⇧⌘B and those rows open the card: the name, kept as typed, the
 // folder, Remove, Done. Owned by the data module.
 
-import { createSignal, For, onMount, Show } from 'solid-js'
+import { createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { state, cmd } from '../lib/store'
 import { Bookmark, BookmarkFill } from '../lib/icons'
 import { G } from '../sidebar/glyphs'
@@ -93,7 +93,7 @@ export function BookmarksPopover() {
               style={{ left: `${v().room}px`, top: `${v().room}px`, width: `${v().rect.width}px`, height: `${v().rect.height}px` }}>
               <Show when={v().card} fallback={
                 <Show when={v().ask} fallback={<List lines={v().lines} height={v().listHeight} kept={v().kept} keepable={v().keepable}
-                  menued={menued()?.line.id ?? null} menu={openMenu} />}>
+                  root={v().root} menued={menued()?.line.id ?? null} menu={openMenu} />}>
                   {a => <Ask ask={a()} />}
                 </Show>
               }>
@@ -107,7 +107,8 @@ export function BookmarksPopover() {
                     onContextMenu={e => { e.preventDefault(); elsewhere(e.clientX, e.clientY) }} />
                   {/* The overlay starts `room` left of the card: a menu flipped left
                       stops at the card's edge, its shadow whole. */}
-                  <Menu entries={entriesFor(m.line, m.folders)} at={m.at} room={{ w: window.innerWidth, h: window.innerHeight }}
+                  <Menu entries={entriesFor(m.line, m.folders, { home: v().home, homeGrid: v().homeGrid, inHome: !!v().home && parentOf(v().lines, v().lines.indexOf(m.line), v().root) === v().home })}
+                    at={m.at} room={{ w: window.innerWidth, h: window.innerHeight }}
                     edge={v().room + 4} pick={pick} close={() => void closeMenu()} />
                 </div>
               )}
@@ -119,10 +120,19 @@ export function BookmarksPopover() {
   )
 }
 
+/** The folder line `i` sits in: the line one step out above it, else the
+ * list's own folder (`root`, opened off the bar) or the top level. */
+export function parentOf(lines: BookmarkLine[], i: number, root: string | null): string | null {
+  const d = lines[i]?.depth ?? 0
+  for (let j = i - 1; j >= 0; j--) if (lines[j].depth === d - 1) return lines[j].id
+  return root
+}
+
 /** BookmarkOutline.Row's menu: Open for a site, Rename…, New Folder Inside…
  * for a folder, Move to (Top Level, then the folders it may go in, indented
- * by depth), Remove. */
-function entriesFor(l: BookmarkLine, folders: Folder[]): Entry[] {
+ * by depth), Remove. Oriel's own: Open in New Tab, and, with the Home
+ * bookmarks on a new tab, Show on New Tab (in the Home folder or not). */
+function entriesFor(l: BookmarkLine, folders: Folder[], home: { home: string | null; homeGrid: boolean; inHome: boolean }): Entry[] {
   const run = (c: Command): Entry['act'] => ({ cmd: c })
   // Not into itself nor anything inside it (Bookmarks.holds).
   const at = folders.findIndex(f => f.id === l.id)
@@ -133,7 +143,10 @@ function entriesFor(l: BookmarkLine, folders: Folder[]): Entry[] {
   }
   const targets = folders.filter(f => !inside.has(f.id))
   const out: Entry[] = []
-  if (!l.folder && l.url) out.push({ label: 'Open', act: run({ do: 'bookmark.pick', url: l.url }) }, { separator: true })
+  if (!l.folder && l.url) out.push(
+    { label: 'Open', act: run({ do: 'bookmark.pick', url: l.url }) },
+    { label: 'Open in New Tab', act: run({ do: 'bookmark.pick', url: l.url, newTab: true }) },
+    { separator: true })
   out.push({ label: 'Rename…', act: run({ do: 'bookmark.ask', id: l.id, kind: 'rename' }) })
   if (l.folder) out.push({ label: 'New Folder Inside…', act: run({ do: 'bookmark.ask', id: l.id, kind: 'folder' }) })
   out.push({
@@ -141,9 +154,10 @@ function entriesFor(l: BookmarkLine, folders: Folder[]): Entry[] {
     submenu: [
       { label: 'Top Level', act: run({ do: 'bookmark.moveTo', id: l.id, folder: null }) },
       ...(targets.length ? [{ separator: true }] : []),
-      ...targets.map(f => ({ label: '\u00a0\u00a0\u00a0'.repeat(f.depth) + f.title, act: run({ do: 'bookmark.moveTo', id: l.id, folder: f.id }) })),
+      ...targets.map(f => ({ label: '\u00a0\u00a0\u00a0'.repeat(f.depth) + f.title + (f.id === home.home && home.homeGrid ? ' (new tab)' : ''), act: run({ do: 'bookmark.moveTo', id: l.id, folder: f.id }) })),
     ],
   })
+  if (!l.folder && home.homeGrid) out.push({ label: 'Show on New Tab', checked: home.inHome, act: run({ do: 'bookmark.home', id: l.id, on: !home.inHome }) })
   out.push({ separator: true }, { label: 'Remove', act: run({ do: 'bookmark.ask', id: l.id, kind: 'remove' }) })
   return out
 }
@@ -162,14 +176,115 @@ function Arrow(p: { side: 'top' | 'bottom' | 'left' | 'right'; at: number; card:
   return <span class="bm-arrow" style={style()} />
 }
 
-/** BookmarksDropdown: the tree as tall as its rows up to 360, then the foot. */
-function List(p: { lines: BookmarkLine[]; height: number; kept: boolean; keepable: boolean; menued: string | null; menu: (l: BookmarkLine, at: { x: number; y: number }) => void }) {
+/** Where a drag in the list would put the row: into a folder, before one of
+ * its bookmarks (its end for null); the line's place, or the folder lit. */
+type ListDrop = { into: string | null; before: string | null; y?: number; indent?: number; folder?: string }
+
+/** BookmarksDropdown: the tree as tall as its rows up to 360, then the foot.
+ * Oriel's own: a row drags, before or after another at its level, or into a
+ * folder (its middle half, or the "Empty" under an open one); let go, it
+ * moves there (bookmark.place). The tiles of a new tab follow the Home
+ * folder's order, so this is also how they are put in order. */
+function List(p: { lines: BookmarkLine[]; height: number; kept: boolean; keepable: boolean; root: string | null; menued: string | null; menu: (l: BookmarkLine, at: { x: number; y: number }) => void }) {
   const arrows = () => p.lines.some(l => l.folder && l.depth === 0)
+  let rows: HTMLDivElement | undefined
+  const [dragging, setDragging] = createSignal<string | null>(null)
+  const [drop, setDrop] = createSignal<ListDrop | null>(null)
+  let press: { id: string; y: number; x: number; pointer: number } | null = null
+  let swallow = false
+
+  /** The bookmarks inside the dragged folder: nothing goes into those. */
+  const within = (id: string): Set<string> => {
+    const at = p.lines.findIndex(l => l.id === id && !l.empty)
+    const out = new Set<string>([id])
+    if (at < 0) return out
+    for (let j = at + 1; j < p.lines.length && p.lines[j].depth > p.lines[at].depth; j++) out.add(p.lines[j].id)
+    return out
+  }
+  /** The next bookmark at line i's level in its folder, or null at its end. */
+  const nextSibling = (i: number): string | null => {
+    const d = p.lines[i].depth
+    for (let j = i + 1; j < p.lines.length; j++) {
+      if (p.lines[j].depth < d) return null
+      if (p.lines[j].depth === d && !p.lines[j].empty) return p.lines[j].id
+    }
+    return null
+  }
+  const dropAt = (y: number): ListDrop | null => {
+    if (!rows) return null
+    const id = dragging()
+    if (!id) return null
+    const no = within(id)
+    const els = [...rows.querySelectorAll<HTMLElement>('[data-line]')]
+    const top = rows.getBoundingClientRect().top - rows.scrollTop
+    const ok = (d: ListDrop) => (d.into && no.has(d.into) ? null : d)
+    for (const el of els) {
+      const i = Number(el.dataset.line)
+      const l = p.lines[i]
+      if (!l) continue
+      const r = el.getBoundingClientRect()
+      if (y > r.bottom && el !== els[els.length - 1]) continue
+      const at = (v: number) => v - top
+      if (l.empty) return ok({ into: parentOf(p.lines, i, p.root), before: null, y: at(r.top + r.height / 2), indent: l.depth })
+      if (l.folder && l.id !== id && y >= r.top + r.height * 0.25 && y <= r.bottom - r.height * 0.25) return ok({ into: l.id, before: null, folder: l.id })
+      if (y < r.top + r.height / 2) return ok({ into: parentOf(p.lines, i, p.root), before: l.id, y: at(r.top), indent: l.depth })
+      // Under an open folder's row: first inside it.
+      const next = p.lines[i + 1]
+      if (l.folder && l.open && next && next.depth === l.depth + 1) return ok({ into: l.id, before: next.empty ? null : next.id, y: at(r.bottom), indent: l.depth + 1 })
+      return ok({ into: parentOf(p.lines, i, p.root), before: nextSibling(i), y: at(r.bottom), indent: l.depth })
+    }
+    return null
+  }
+  const down = (e: PointerEvent) => {
+    if (e.button !== 0 || p.menued) return
+    const row = (e.target as HTMLElement).closest<HTMLElement>('.bm-row[data-bookmark]')
+    if (row) { press = { id: row.dataset.bookmark!, x: e.clientX, y: e.clientY, pointer: e.pointerId }; listen(true) }
+  }
+  const move = (e: PointerEvent) => {
+    if (!press || e.pointerId !== press.pointer || !rows) return
+    if (!dragging()) {
+      if (Math.hypot(e.clientX - press.x, e.clientY - press.y) < 5) return
+      setDragging(press.id)
+    }
+    // Near the list's top or foot, it scrolls.
+    const r = rows.getBoundingClientRect()
+    if (e.clientY < r.top + 16) rows.scrollTop -= 8
+    else if (e.clientY > r.bottom - 16) rows.scrollTop += 8
+    setDrop(dropAt(e.clientY))
+  }
+  const up = (e: PointerEvent, cancelled = false) => {
+    if (!press || e.pointerId !== press.pointer) return
+    listen(false)
+    const id = dragging(), d = drop()
+    press = null
+    setDragging(null)
+    setDrop(null)
+    if (!id) return
+    swallow = true
+    setTimeout(() => { swallow = false }, 0)
+    if (!cancelled && d) void cmd({ do: 'bookmark.place', id, into: d.into, before: d.before })
+  }
+  // Heard on the whole page while the button is down, as in the bar.
+  const release = (e: PointerEvent) => up(e)
+  const cancel = (e: PointerEvent) => up(e, true)
+  function listen(on: boolean) {
+    if (on) { window.addEventListener('pointermove', move); window.addEventListener('pointerup', release); window.addEventListener('pointercancel', cancel) }
+    else { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', release); window.removeEventListener('pointercancel', cancel) }
+  }
+  onCleanup(() => listen(false))
+  // The click that follows a let-go isn't a pick (before the rows' own handlers).
+  const eat = (e: MouseEvent) => { if (swallow) { e.stopPropagation(); e.preventDefault() } }
+
   return (
     <div class="bm-list">
       <Show when={p.lines.length} fallback={<p class="bm-none">No bookmarks yet</p>}>
-        <div class="bm-rows" style={{ height: `${p.height}px` }}>
-          <For each={p.lines}>{l => <Line line={l} arrows={arrows()} menued={p.menued === l.id && !l.empty} menu={p.menu} />}</For>
+        <div class="bm-rows" ref={el => { rows = el; el.addEventListener('click', eat, true) }} classList={{ dragging: !!dragging() }} style={{ height: `${p.height}px` }}
+          onPointerDown={down}>
+          <For each={p.lines}>{(l, i) => <Line line={l} index={i()} arrows={arrows()} menued={p.menued === l.id && !l.empty} menu={p.menu}
+            dragged={dragging() === l.id && !l.empty} into={drop()?.folder === l.id && !l.empty} />}</For>
+          <Show when={drop()?.y != null}>
+            <span class="bm-drop" style={{ top: `${drop()!.y}px`, left: `${6 + (drop()!.indent ?? 0) * 18 + 10 + (arrows() ? 18 : 0)}px` }} />
+          </Show>
         </div>
       </Show>
       <div class="bm-rule" />
@@ -183,12 +298,12 @@ function List(p: { lines: BookmarkLine[]; height: number; kept: boolean; keepabl
   )
 }
 
-function Line(p: { line: BookmarkLine; arrows: boolean; menued: boolean; menu: (l: BookmarkLine, at: { x: number; y: number }) => void }) {
+function Line(p: { line: BookmarkLine; index: number; arrows: boolean; menued: boolean; dragged: boolean; into: boolean; menu: (l: BookmarkLine, at: { x: number; y: number }) => void }) {
   const l = () => p.line
   const [broken, setBroken] = createSignal(false)
   return (
-    <Show when={!l().empty} fallback={<div class="bm-empty" style={{ 'padding-left': `${l().depth * 18 + 26}px` }}>Empty</div>}>
-      <div class="bm-row" classList={{ menued: p.menued }} data-bookmark={l().id} data-folder={l().folder ? '1' : undefined} title={l().url ?? undefined}
+    <Show when={!l().empty} fallback={<div class="bm-empty" data-line={p.index} style={{ 'padding-left': `${l().depth * 18 + 26}px` }}>Empty</div>}>
+      <div class="bm-row" classList={{ menued: p.menued, dragged: p.dragged, 'drop-into': p.into }} data-line={p.index} data-bookmark={l().id} data-folder={l().folder ? '1' : undefined} title={l().url ?? undefined}
         style={{ 'padding-left': `${l().depth * 18 + 10}px` }}
         onContextMenu={e => { e.preventDefault(); e.stopPropagation(); p.menu(l(), { x: e.clientX, y: e.clientY }) }}
         onClick={() => void (l().folder ? cmd({ do: 'bookmark.popoverFold', id: l().id }) : l().url && cmd({ do: 'bookmark.pick', url: l().url! }))}

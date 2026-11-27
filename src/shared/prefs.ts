@@ -83,6 +83,8 @@ export const defaults = {
   'tabs.closeGoesBack': false,
   'tabs.swipeBackCloses': true,
   'home.grid': true,
+  // Oriel's own: the Settings button up beside the bookmark button (ui/settings/SettingsDoor.tsx).
+  'settings.door': false,
   'tabs.undoReopens': true,
   'tabs.switcherBehindFirst': false,
   'tabs.switcherLeavesOutPins': false,

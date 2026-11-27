@@ -95,6 +95,11 @@ async function answer(req: BenchRequest): Promise<BenchReply> {
       const x = req.x - b.x, y = req.y - b.y, button = req.button ?? 'left', clickCount = req.clicks ?? 1
       // Keys held for the click (Ctrl-click, Shift-click): names as sendInputEvent has them.
       const modifiers = ((req as { modifiers?: unknown }).modifiers ?? []) as Electron.InputEvent['modifiers']
+      // phase 'move': the pointer moved with the button still held (a drag).
+      if ((req as { phase?: string }).phase === 'move') {
+        v.webContents.sendInputEvent({ type: 'mouseMove', x, y, modifiers: [...(modifiers ?? []), 'leftbuttondown'] })
+        return { ok: true }
+      }
       v.webContents.sendInputEvent({ type: 'mouseMove', x, y, modifiers })
       // phase 'down' or 'up' alone: the button held (a tab giving under it), then let go.
       if (req.phase !== 'up') v.webContents.sendInputEvent({ type: 'mouseDown', x, y, button, clickCount, modifiers })

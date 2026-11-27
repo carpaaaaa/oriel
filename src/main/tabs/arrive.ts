@@ -18,7 +18,7 @@ import { handle, run } from '../router'
 import { model, samePage, type WindowRecord } from '../model/model'
 import { runtimeFor } from '../views/tabs'
 import { controllerFor, type WindowController } from '../views/window'
-import { openWindow, quietTests } from '../context'
+import { someWindow, quietTests } from '../context'
 import { probe } from '../paths'
 import { closeField } from '../field/commands'
 import { showPanel, hidePanel } from '../settings/slice'
@@ -106,7 +106,7 @@ function forward(c: WindowController | undefined): void {
  * typed in it, else a new tab in front after the one on screen. */
 function deliver(url: string, space: string | null): string | null {
   let win = windowFor(space)
-  if (!win) win = openWindow({ restore: false }).record
+  if (!win) win = someWindow().record
   const c = controllerFor(win.id)
   const active = model.activeTab(win)
   let id: string
@@ -143,6 +143,18 @@ function asksSpace(url: string): boolean {
 }
 
 export type Arrival = { went: 'tab' | 'little' | 'ask' | 'open' | 'nowhere'; id?: string | null }
+
+/** A link that would open in a small window with no browser window open:
+ * not sent to a space, no space asked, small windows on. At launch such
+ * links open alone, the browser's windows kept away (main/index.ts). */
+export function goesLittle(url: string): boolean {
+  if (/^mailto:/i.test(url)) {
+    const page = compose(url)
+    if (!page) return false
+    url = page
+  }
+  return !!model.pref<boolean>('links.little') && !routedSpace(url) && !asksSpace(url)
+}
 
 /** A link from another app (Links.take). */
 export function arrive(url: string, sender?: string): Arrival {
@@ -200,7 +212,7 @@ function ask(url: string, sender?: string): void {
 function showAsk(): void {
   const a = waiting[0]
   let win = frontWindow()
-  if (!win) win = openWindow({ restore: false }).record
+  if (!win) win = someWindow().record
   const c = controllerFor(win.id)
   if (!c) return
   askingIn = win.id
@@ -271,7 +283,7 @@ function arm(): void {
  * the key again puts it away. */
 export function launch(): void {
   let win = frontWindow()
-  if (!win) win = openWindow({ restore: false }).record
+  if (!win) win = someWindow().record
   const c = controllerFor(win.id)
   if (!c) return
   const active = model.activeTab(win)

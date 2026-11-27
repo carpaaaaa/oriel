@@ -245,7 +245,12 @@
 .bmbar-item:active { background: var(--g-wash); }
 .bmbar-item.bare { padding: 0 5px; }
 .bmbar-item.gone { visibility: hidden; }
-.bmbar-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+/* Its own line height, not the item's 1: cut to its box at 12 px, Plus
+   Jakarta's g, j, p, q and y lost their tails (the user's report, 27 Nov
+   2026; settings.css says why). The padding gives them room, the margin
+   keeps the title where it was. */
+.bmbar-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; line-height: 15px; padding-bottom: 2px; margin-bottom: -2px; }
+.bm-title, .bm-folder-name, .bmbar-none { line-height: 16px; padding-bottom: 2px; margin-bottom: -2px; }
 .bmbar-mark { flex: none; width: 13px; height: 13px; border-radius: 3px; overflow: hidden; display: grid; place-items: center; }
 .bmbar-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .bmbar-letter { width: 100%; height: 100%; display: grid; place-items: center; background: var(--ink-mark-bg); color: var(--muted); font-size: 7.5px; font-weight: 500; }
@@ -255,3 +260,15 @@
 .bmbar-more .bmbar-second { margin-left: -5px; }
 .bmbar-more:hover { background: var(--g-hover); }
 .bmbar-none { padding: 0 8px; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A drag along the bar (Oriel's own): the item dimmed where it was, a line of
+   2 where it goes, a folder that would take it washed. */
+.bmbar-item.dragged { opacity: .4; }
+.bmbar-item.drop-into, .bmbar-dragging .bmbar-item.drop-into:hover { background: var(--g-wash); }
+.bmbar-dragging .bmbar-item:hover:not(.drop-into) { background: transparent; }
+.bmbar-drop { position: absolute; top: 6px; bottom: 6px; width: 2px; border-radius: 1px; background: var(--ink); pointer-events: none; }
+/* The same in the list: a line at the row's indent, a folder washed. */
+.bm-rows { position: relative; }
+.bm-row.dragged { opacity: .4; }
+.bm-row.drop-into { background: var(--wash); }
+.bm-rows.dragging .bm-row:hover:not(.drop-into) { background: transparent; }
+.bm-drop { position: absolute; right: 10px; height: 2px; margin-top: -1px; border-radius: 1px; background: var(--ink); pointer-events: none; }

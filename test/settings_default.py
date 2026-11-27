@@ -192,9 +192,14 @@ def shown(url):
     return any(l.get("url") == url for l in littles) or any(x.get("url") == url for w in b.state()["windows"] for x in w["tabs"])
 
 
-b.launch("--", str(page))
+littles = lambda: b.call({"do": "settingsb.littles"})["littles"]
+# Started by a link for a small window: that window alone, the browser's kept
+# away (studio/01 §10.27 keepWindowsAway; the user's report, 27 Nov 2026:
+# the browser window came up over the small one).
+b.launch("--", str(page), ready=lambda: littles())
 b.wait_for(lambda: shown(page.as_uri()), what="the file at launch", within=20)
 t.ok(True, "launched with a file: it opens (in a small window, as links from other apps do)")
+t.ok(b.state()["windows"] == [], "…alone: no browser window comes up over it")
 
 
 def second(*args):
@@ -216,11 +221,16 @@ b.wait_for(lambda: shown(page2.as_uri()), what="the handed file", within=20)
 t.ok(True, "…its file opens in the first Oriel")
 second("--", origin + "/two")
 b.wait_for(lambda: shown(origin + "/two"), what="the handed link", within=20)
-t.ok(len(b.state()["windows"]) == 1, "…a link too, in the same Oriel")
-n = len(b.call({"do": "settingsb.littles"})["littles"]) + len(b.window()["tabs"])
+t.ok(len(b.state()["windows"]) == 0 and len(littles()) == 3, "…a link too, in the same Oriel, a small window of its own")
+# Open in Oriel with no browser window: one is made and the page is its tab.
+l = littles()[-1]
+got = b.call({"do": "settingsb.littleKeep", "id": l["id"]})["tab"]
+b.wait_for(lambda: len(b.state()["windows"]) == 1, what="a browser window", within=20)
+t.ok(got and any(x["id"] == got and x["url"] == origin + "/two" for x in b.window()["tabs"]), "Open in Oriel with Oriel's window closed: a window, the page in it")
+n = len(littles()) + len(b.window()["tabs"])
 second()
 time.sleep(1)
-t.ok(len(b.call({"do": "settingsb.littles"})["littles"]) + len(b.window()["tabs"]) == n, "a second launch with nothing opens nothing new")
+t.ok(len(littles()) + len(b.window()["tabs"]) == n and len(b.state()["windows"]) == 1, "a second launch with nothing opens nothing new")
 b.quit()
 
 # With links in a small window off: in a tab of the window.

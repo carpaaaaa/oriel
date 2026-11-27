@@ -10,6 +10,7 @@ import { FillList } from './FillList'
 import { SaveQuestion } from './SaveQuestion'
 import { ImportPanel } from './ImportPanel'
 import { BookmarkDoor, BookmarksPopover } from './BookmarkDoor'
+import { SettingsDoor } from '../settings/SettingsDoor'
 import './data.css'
 
 const mine: Record<string, () => any> = {
@@ -22,8 +23,9 @@ const mine: Record<string, () => any> = {
 for (const [name, component] of Object.entries(mine)) registerPanel(name, component)
 
 registerOutlet('sidebar.foot', () => <BookmarkDoor where="foot" />)
-registerOutlet('strip.end', () => <BookmarkDoor where="strip" />)
-registerOutlet('chrome.end', () => <BookmarkDoor where="corner" />)
+// The Settings button (settings.door) just before the bookmark button, up top only.
+registerOutlet('strip.end', () => <><SettingsDoor where="strip" /><BookmarkDoor where="strip" /></>)
+registerOutlet('chrome.end', () => <><SettingsDoor where="corner" /><BookmarkDoor where="corner" /></>)
 
 // oriel://history
 registerPage('history', lazy(() => import('./HistoryPage').then(m => ({ default: m.HistoryPage }))))

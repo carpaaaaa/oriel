@@ -1,6 +1,6 @@
 // Oriel: the main process starts here.
 
-import { app, ipcMain, session, nativeTheme, protocol, type Session } from 'electron'
+import { app, BaseWindow, ipcMain, session, nativeTheme, protocol, type Session } from 'electron'
 import { appIcon } from './win/icon'
 import { setupPaths, probe } from './paths'
 import { setupUserAgent, applyUserAgent } from './ua'
@@ -10,7 +10,8 @@ import { run } from './router'
 import { IPC } from '../shared/ipc'
 import { allControllers, controllerFor, isInterfacePage, type WindowController } from './views/window'
 import { hooks } from './views/tabs'
-import { openWindow, setSessions } from './context'
+import { openWindow, setSessions, someWindow } from './context'
+import { goesLittle } from './tabs/arrive'
 import './modules'
 import { onLeftover, wireKeys } from './keys'
 import { setupExtensions } from './extensions'
@@ -136,23 +137,29 @@ ipcMain.on('search:leftover-key', (event, key) => {
   }
 })
 
-/** Links and files from another app, in order (studio/03 §3.1). */
-async function arriveAll(urls: string[], c: WindowController): Promise<void> {
-  for (const url of urls) await run({ do: 'link.arrive', url } as never, { window: c }).catch(e => keep('link.arrive', e))
+/** Links and files from another app, in order (studio/03 §3.1). Each finds
+ * its own window (tabs/arrive.ts): a small one needs no browser window. */
+async function arriveAll(urls: string[]): Promise<void> {
+  for (const url of urls) await run({ do: 'link.arrive', url } as never, { window: null }).catch(e => keep('link.arrive', e))
 }
 
 app.on('second-instance', (_e, argv) => {
   // A link from another app goes where Settings › Browsing and Spaces say
   // (a small window, a space, a tab: the tabs module's link.arrive); a file
-  // Windows hands over (Oriel opening .html, settings/browser.ts) too.
+  // Windows hands over (Oriel opening .html, settings/browser.ts) too. A
+  // browser window isn't made first: a link for a small window, with only
+  // small windows open, opens one more of those.
   const urls = linkArgs(argv.slice(1))
   // The Jump List's New Window and New Private Tab.
   const action = launchAction(argv.slice(1))
   if (action && !urls.length) { void doLaunch(action).catch(e => keep('launch', e)); return }
-  const c = frontController() ?? openWindow({ restore: false })
-  if (urls.length) { void arriveAll(urls, c); return }
+  if (urls.length) { void arriveAll(urls); return }
+  // Oriel launched again without a link: its window in front, made (last
+  // time's tabs in it) when only small windows were open.
+  // One just made shows itself once its interface has loaded (views/window.ts).
+  const c = frontController() ?? someWindow()
   if (c.base.isMinimized()) c.base.restore()
-  c.base.focus()
+  if (c.base.isVisible()) { c.base.show(); c.base.focus() }
 })
 
 app.on('window-all-closed', () => app.quit())
@@ -188,12 +195,25 @@ app.whenReady().then(async () => {
 
   await setupExtensions(profile).catch(error => console.warn('[extensions]', error))
 
-  const first = openWindow({ restore: !model.pref<boolean>('start.fresh') })
-
   const urls = linkArgs(process.argv.slice(1))
-  if (urls.length) void arriveAll(urls, first)
-  // Opened by the Jump List's New Private Tab: its window, a private tab in it.
-  else if (launchAction(process.argv.slice(1)) === 'privateTab') void doLaunch('privateTab', first).catch(e => keep('launch', e))
+  const action = launchAction(process.argv.slice(1))
+  // Started by links that each open in a small window (Settings › Browsing ›
+  // Open links from other apps in a small window): those windows alone, the
+  // browser's kept away until Open in Oriel, Oriel launched again or the
+  // taskbar's New Window ask for one (studio/01 §10.27 keepWindowsAway).
+  // Before, the browser window opened too and, ready a moment later, came up
+  // over the small one: Oriel seemed to open without the link, and the link
+  // had to be clicked again (the user's report, 27 Nov 2026).
+  if (urls.length && !action && urls.every(goesLittle)) {
+    // Nothing came of them (a page that wouldn't open): the browser after all,
+    // never an Oriel running with no window at all.
+    void arriveAll(urls).then(() => { if (!BaseWindow.getAllWindows().length) someWindow() })
+  } else {
+    const first = openWindow({ restore: !model.pref<boolean>('start.fresh') })
+    if (urls.length) void arriveAll(urls)
+    // Opened by the Jump List's New Private Tab: its window, a private tab in it.
+    else if (action === 'privateTab') void doLaunch('privateTab', first).catch(e => keep('launch', e))
+  }
   setupJumpList()
 
   if (probe) startBench(probe)

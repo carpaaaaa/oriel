@@ -176,6 +176,12 @@ export interface BookmarksPopover {
   ask: BookmarkAskView | null
   /** A row's right-click menu is up: the overlay reaches the window's edges. */
   menu: boolean
+  /** Opened off a folder of the bar: the folder the top lines sit in. */
+  root: string | null
+  /** The folder called Home (the new tab's tiles), if there is one. */
+  home: string | null
+  /** Settings › Tabs › Show the Home bookmarks on a new tab is on. */
+  homeGrid: boolean
 }
 
 export interface DataState {
@@ -187,8 +193,14 @@ export interface DataState {
   /** The bookmark button's list or card, open in this window. */
   popover?: BookmarksPopover | null
   /** The bookmarks bar (Settings › Appearance › Show the bookmarks bar): the
-   * top level, left to right; null while it is off. */
+   * top level, left to right; null while it is off. The folder called Home
+   * is left out while a new tab shows it (home.grid). */
   bar?: BookmarkLine[] | null
+  /** Something is kept that the bar leaves out (the Home folder): the bar
+   * doesn't say "No bookmarks yet". */
+  barHidden?: boolean
+  /** The folder called Home, if there is one (the bar's menus). */
+  home?: string | null
 }
 
 declare module '../commands' {
@@ -227,6 +239,17 @@ declare module '../commands' {
     'bookmark.askClose': None
     /** Move to in that menu (Bookmarks.move): the next page kept doesn't follow. */
     'bookmark.moveTo': { id: ID; folder: ID | null }
+    /** A drag in the bar or the list let go (Oriel's own): into `into` (the
+     * top level for null), before the bookmark `before` (at the end for null). */
+    'bookmark.place': { id: ID; into: ID | null; before: ID | null }
+    /** Show on New Tab: into the folder called Home, made if there is none;
+     * off, out of it to the top level. */
+    'bookmark.home': { id: ID; on: boolean }
+    /** The folders, for a Move to menu drawn off the bar. */
+    'bookmark.folders': None
+    /** From the bar's right-click menu: the card for a site, or a question
+     * for a folder, hung under the item at `anchor`. */
+    'bookmark.edit': { id: ID; kind: 'card' | 'rename' | 'folder' | 'remove'; anchor: Rect }
     // history (studio/05 §3.5)
     'history.list': { query?: string }
     'history.forget': { url: string }

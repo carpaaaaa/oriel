@@ -15,7 +15,7 @@ import { model, newID, type TabRecord, type WindowRecord } from '../model/model'
 import { frameString, parseFrame } from '../model/formats'
 import { pagePreload, runtimeFor, sessionFor } from '../views/tabs'
 import { controllerFor, allControllers } from '../views/window'
-import { quietTests } from '../context'
+import { quietTests, someWindow } from '../context'
 import { benchRequest } from '../bench/server'
 import { handle } from '../router'
 import { need } from '../context'
@@ -162,9 +162,15 @@ function remember(l: Little): void {
 export function keep(l: Little): string | null {
   const page = l.page
   if (!page || page.webContents.isDestroyed()) return null
+  // No browser window (Oriel started by the link, or its windows closed while
+  // this one stayed): one is made, last time's tabs back in it as at a plain
+  // launch, and the page joins them (the user's report, 27 Nov 2026: Open in
+  // Oriel did nothing with Oriel closed).
+  const made = !frontWindow()
   const win = [...model.windows.values()].find(w => !w.shy && w.space === l.space && w.id === model.front)
     ?? [...model.windows.values()].find(w => !w.shy && w.space === l.space)
     ?? frontWindow()
+    ?? someWindow().record
   if (!win) return null
   if (win.space !== l.space) model.switchSpace(win, l.space)
   l.base.contentView.removeChildView(page)
@@ -181,8 +187,8 @@ export function keep(l: Little): string | null {
   if (c) {
     c.placePages()
     if (c.base.isMinimized()) c.base.restore()
-    c.base.show()
-    c.base.focus()
+    // A window just made shows itself once its interface has loaded (views/window.ts).
+    if (!made || c.base.isVisible()) { c.base.show(); c.base.focus() }
   }
   return tab.id
 }

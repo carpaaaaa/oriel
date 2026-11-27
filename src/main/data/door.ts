@@ -20,7 +20,7 @@ import { controllerFor, type WindowController } from '../views/window'
 import { runtimes } from '../views/tabs'
 import { benchRequest } from '../bench/server'
 import { bookmarks, dataPart, mark, onBookmarks } from './store'
-import { isFolder, count } from './bookmarks'
+import { isFolder, count, isHome, homeFolder } from './bookmarks'
 import { lastFolder } from './places'
 import { iconFor } from './icons'
 import { editable, parse } from './urls'
@@ -42,6 +42,8 @@ interface Open {
   menu?: boolean
   /** A question in the list's place. */
   ask?: { kind: 'rename' | 'folder' | 'remove'; id: string } | null
+  /** Opened for a question off the bar's menu: answered or cancelled, it closes. */
+  fromBar?: boolean
 }
 const open = new Map<ID, Open>()
 /** When a click elsewhere closed it: the button's own click that follows
@@ -166,13 +168,33 @@ function view(c: WindowController): BookmarksPopover | null {
     } : null,
     ask,
     menu: !!o.menu && !card && !ask,
+    root: folder && isFolder(folder) ? folder.id : null,
+    home: homeFolder(all)?.id ?? null,
+    homeGrid: !!model.pref<boolean>('home.grid'),
   }
 }
 
 // Show the bookmarks bar only on new tabs: off unless turned on (Search 1.0.20).
 addDefaults({ 'bookmarks.newTabOnly': false })
 
-dataPart(c => ({ popover: view(c), bar: model.pref<boolean>('bookmarks.bar') ? lines(bookmarks().roots, new Set()) : null }))
+/** The bar's top level: all of it but the folder called Home while a new tab
+ * shows that folder's sites (carpa, 27 Nov 2026: the Home folder up in the bar
+ * "isn't the best", its sites are on every new tab). */
+function barRoots(): BookmarkNode[] {
+  const roots = bookmarks().roots
+  return model.pref<boolean>('home.grid') ? roots.filter(n => !isHome(n)) : roots
+}
+
+dataPart(() => {
+  const on = model.pref<boolean>('bookmarks.bar')
+  const shown = on ? barRoots() : []
+  return {
+    bar: on ? lines(shown, new Set()) : null,
+    barHidden: on && shown.length < bookmarks().roots.length,
+    home: homeFolder(bookmarks().roots)?.id ?? null,
+  }
+})
+dataPart(c => ({ popover: view(c) }))
 
 // The bookmarks bar turned on or off in Settings: every window's data again.
 model.on('window-changed', (id: ID, slices: string[]) => { if (slices?.includes('prefs')) mark(controllerFor(id)) })
@@ -341,6 +363,7 @@ handle('bookmark.askClose', (_a, ctx) => {
   const o = open.get(c.record.id)
   if (!o?.ask) return
   o.ask = null
+  if (o.fromBar) { closePopover(c); return }
   show(c)
 })
 
@@ -361,10 +384,62 @@ handle('bookmark.answer', ({ title }, ctx) => {
   } else if (node) {
     bookmarks().remove(a.id)
   }
+  if (o.fromBar) { closePopover(c); return }
   show(c)
 })
 
 handle('bookmark.moveTo', ({ id, folder }) => { bookmarks().move(id, folder) })
+
+// Oriel's own ways to file bookmarks (carpa, 27 Nov 2026: "only Move to, into
+// a folder or the top" was awkward): drag a bookmark in the bar or in the
+// list, put a site on the new tab from its menu, and the same menu on the bar.
+
+/** A drag let go: into a folder (or the top), before one of its bookmarks
+ * (or at its end). Never a folder into itself or anything inside it. */
+handle('bookmark.place', ({ id, into, before }) => {
+  if (id === into || id === before) return false
+  const store = bookmarks()
+  if (!store.bookmark(id) || (into && !store.bookmark(into)) || (before && !store.bookmark(before))) return false
+  const siblings = into ? store.bookmark(into)?.children ?? [] : store.roots
+  const at = before ? siblings.findIndex(n => n.id === before) : siblings.length
+  store.move(id, into, at < 0 ? siblings.length : at)
+  return true
+})
+
+/** Show on New Tab: into the folder called Home (made if there is none), at
+ * its end; off, out to the top level, after the Home folder. */
+handle('bookmark.home', ({ id, on }) => {
+  const store = bookmarks()
+  const node = store.bookmark(id)
+  if (!node || isFolder(node)) return false
+  const home = homeFolder(store.roots) ?? (on ? store.newFolder('Home') : null)
+  if (!home) return false
+  if (on) store.move(id, home.id)
+  else {
+    const at = store.roots.findIndex(n => n.id === home.id)
+    store.move(id, null, at + 1)
+  }
+  return true
+})
+
+handle('bookmark.folders', () => ({ folders: folders(bookmarks().roots) }))
+
+/** From the bar's menu: a site's card, or a folder's question, under it. */
+handle('bookmark.edit', ({ id, kind, anchor }, ctx) => {
+  const c = need(ctx)
+  const node = bookmarks().bookmark(id)
+  if (!node) return false
+  if (kind === 'card') {
+    open.set(c.record.id, { anchor, card: node.id, expanded: new Set() })
+  } else {
+    // Remove on a site or an empty folder goes at once, as from the list.
+    if (kind === 'remove' && !(isFolder(node) && node.children?.length)) { bookmarks().remove(id); return true }
+    open.set(c.record.id, { anchor, card: null, expanded: new Set(), ask: { kind, id }, fromBar: true })
+  }
+  closedAt.delete(c.record.id)
+  show(c)
+  return true
+})
 
 // The popover goes when anything else takes the overlay's place, and with
 // the bookmark it was a card for.

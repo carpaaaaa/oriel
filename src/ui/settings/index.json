@@ -916,6 +916,24 @@
    "kind": "wide"
   },
   {
+   "id": "settings.door",
+   "group": "tablook",
+   "icon": "gearshape",
+   "title": "Show the Settings button",
+   "detail": "Up at the top right, beside the bookmarks button, so Settings is always one click away",
+   "keys": [
+    "settings.door"
+   ],
+   "words": [
+    "settings button",
+    "gear",
+    "cog",
+    "preferences",
+    "options",
+    "toolbar"
+   ]
+  },
+  {
    "id": "sidebar.foldButton",
    "group": "tablook",
    "icon": "sidebar.left",
@@ -1574,7 +1592,7 @@
    "group": "links",
    "icon": "rectangle.on.rectangle",
    "title": "Open links from other apps in a small window",
-   "detail": "To read and close, or keep with Open in Search (⌘O); a tab's menu opens one too",
+   "detail": "To read and close, or keep with Open in Search (⌘O); a tab's menu opens one too. Off, links open in a tab",
    "keys": [
     "links.little"
    ],

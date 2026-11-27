@@ -133,6 +133,36 @@ export function setupFloat(): void {
   let sheet: string | null = null
   let video: HTMLVideoElement | null = null
 
+  // Landing back in its tab (main/pages/float.ts land): the page arrives at
+  // full size still in its floating look, under a cover of its own ground
+  // colour; it lays itself out again, then the cover fades away. Nothing of
+  // the stretched video or the player's relayout shows (the user's report,
+  // 27 Nov 2026: going back to the tab "the transition is awful").
+  /** The page's own ground, read before it went black for floating. */
+  let ground = '#ffffff'
+  let cover: string | null = null
+  let landingRun = 0
+  /** How wide it was in the little window when it started back. */
+  let landFrom = 0
+  const groundOf = (): string => {
+    for (const el of [document.documentElement, document.body]) {
+      if (!el) continue
+      const c = getComputedStyle(el).backgroundColor
+      if (c && c !== 'transparent' && !/rgba\([^)]*,\s*0\)$/.test(c)) return c
+    }
+    // No ground of its own: Chromium's canvas, dark for a page that asks for
+    // a dark scheme while the system is dark.
+    const scheme = (getComputedStyle(document.documentElement).colorScheme || '') + ' ' +
+      (document.querySelector('meta[name="color-scheme"]')?.getAttribute('content') || '')
+    if (/dark/.test(scheme) && (!/light/.test(scheme) || matchMedia('(prefers-color-scheme: dark)').matches)) return '#121212'
+    return '#ffffff'
+  }
+  const dropCover = () => {
+    document.documentElement.classList.remove('oriel-landing', 'oriel-landing-in')
+    if (cover) { try { webFrame.removeInsertedCSS(cover) } catch {} cover = null }
+  }
+  const frames = (n: number, then: () => void) => { if (n <= 0) then(); else requestAnimationFrame(() => frames(n - 1, then)) }
+
   const api = {
     on(quietly: boolean): 'floating' | 'none' {
       // One a site's button named floats even paused; else the one playing.
@@ -143,7 +173,10 @@ export function setupFloat(): void {
       if (!quietly) named = null
       const v = asked ?? pick(quietly)
       if (!v) return 'none'
+      landingRun++
+      dropCover()
       api.off()
+      ground = groundOf()
       video = v
       v.setAttribute(MARK, '')
       document.documentElement.classList.add('oriel-floating')
@@ -156,6 +189,48 @@ export function setupFloat(): void {
       for (const el of document.querySelectorAll(`[${MARK}]`)) el.removeAttribute(MARK)
       if (sheet) { try { webFrame.removeInsertedCSS(sheet) } catch {} sheet = null }
       video = null
+    },
+    /** Coming back into sight: covered first, before the window shows it. */
+    landing(): boolean {
+      landingRun++
+      dropCover()
+      try {
+        cover = webFrame.insertCSS(
+          'html.oriel-landing::after { content:"" !important; display:block !important; position:fixed !important; inset:0 !important;' +
+          ` z-index:2147483647 !important; background:${ground} !important; pointer-events:none !important; opacity:1 !important; visibility:visible !important }` +
+          ' html.oriel-landing.oriel-landing-in::after { opacity:0 !important; transition:opacity .16s ease-out !important }',
+          { cssOrigin: 'user' })
+      } catch {}
+      document.documentElement.classList.add('oriel-landing')
+      landFrom = window.innerWidth
+      return true
+    },
+    /** In its tab, about `width` wide (CSS pixels, what the main process
+     * read; the view may not have its new size yet): its own look again once
+     * the page has changed size from the little window's, a few frames to
+     * lay out (a player redraws at its new size), then the cover goes. */
+    landed(width: number, still: boolean): void {
+      const run = landingRun
+      let done = false
+      const finish = () => {
+        if (done || run !== landingRun) return
+        done = true
+        window.removeEventListener('resize', check)
+        api.off()
+        frames(3, () => setTimeout(() => {
+          if (run !== landingRun) return
+          if (still || !cover) { dropCover(); return }
+          document.documentElement.classList.add('oriel-landing-in')
+          setTimeout(() => { if (run === landingRun) dropCover() }, 220)
+        }, 30))
+      }
+      const check = () => {
+        const w = window.innerWidth
+        if (Math.abs(w - landFrom) > 2 || (Math.abs(width - landFrom) > 2 && Math.abs(w - width) <= 2)) finish()
+      }
+      window.addEventListener('resize', check)
+      check()
+      setTimeout(finish, 300)
     },
     toggle(): boolean {
       const v = video

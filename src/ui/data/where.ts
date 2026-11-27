@@ -34,19 +34,26 @@ export const CORNER_GAP = 12
 const columnRight = () => state.sidebar.layout === 'side' && state.sidebar.side === 'right'
   && (!state.sidebar.folded || columnSliding() !== null) && !P.iconColumn()
 
-/** There, whether the button fits between them: 2 after the helm (10 in,
+/** The doors up there: the Settings button (settings.door, Oriel's own) and
+ * the bookmark button, 2 apart. */
+export const cornerDoors = () => (state.prefs?.['settings.door'] ? 1 : 0) + (state.prefs?.['foot.bookmarks.hidden'] ? 0 : 1)
+/** Their width: doors of 26, 2 between. */
+export const cornerDoorsWidth = () => Math.max(0, cornerDoors() * 28 - 2)
+
+/** There, whether the buttons fit between them: 2 after the helm (10 in,
  * doors of 26 and 4 between, the sidebar button's 30), 12 before Minimize.
- * Inline's buttons leave just that in a column of 232; Classic's 46s don't. */
+ * Inline's buttons leave just that for one door in a column of 232;
+ * Classic's 46s don't. */
 function fitsInBand(): boolean {
   const helm = ['back', 'forward', 'reload'].filter(d => !pref(`helm.${d}.hidden`, false)).length
   const used = 10 + helm * 26 + Math.max(0, helm - 1) * 4 + (P.foldButton() ? 30 : 0)
-  return state.sidebar.width - used - state.controlsWidth >= 2 + 26 + CORNER_GAP
+  return state.sidebar.width - used - state.controlsWidth >= 2 + Math.max(26, cornerDoorsWidth()) + CORNER_GAP
 }
 
-/** The button shown up beside the window's buttons, in the column's band on
- * the right: what that band keeps free for it (Foot.tsx capRoom). */
+/** The buttons shown up beside the window's buttons, in the column's band on
+ * the right: what that band keeps free for them (Foot.tsx capRoom). */
 export const bookmarkInColumnBand = () =>
-  bookmarkPlace() === 'corner' && !state.prefs?.['foot.bookmarks.hidden'] && columnRight() && fitsInBand()
+  bookmarkPlace() === 'corner' && cornerDoors() > 0 && columnRight() && fitsInBand()
 
 /** How far from the window's right edge the corner's doors end: 12 before
  * the window's buttons; with the column on the right too narrow to hold

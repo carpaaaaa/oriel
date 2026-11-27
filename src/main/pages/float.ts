@@ -369,30 +369,54 @@ export function land(): void {
   if (!f.controls.webContents.isDestroyed()) f.controls.webContents.close()
   if (!f.base.isDestroyed()) f.base.destroy()
   const wc = f.view.webContents
-  // On screen again: its window takes the page back, at the page's own size first.
   const c = controllerFor(f.win)
-  c?.release(f.tab)
   const back = !!c && model.onScreen(f.tab)
-  if (back) c.placePages()
-  // The page lets go of its floating look only once it is back at its own
-  // size: done while it was still the little window's size, it laid itself out
-  // small (a player's mini layout) and again at full size, and the return to
-  // the video stuttered. A moment for the window to place it first.
-  if (!wc.isDestroyed()) {
-    if (back) setTimeout(() => { if (!wc.isDestroyed() && floating?.view !== f.view) void isolated(wc, 'globalThis.__orielFloat.off()') }, 60)
-    else void isolated(wc, 'globalThis.__orielFloat.off()')
+  if (!back || wc.isDestroyed()) {
+    c?.release(f.tab)
+    if (back) c.placePages()
+    if (!wc.isDestroyed()) void isolated(wc, 'globalThis.__orielFloat.off()')
+    markAll()
+    return
   }
+  // On screen again (its tab picked, Oriel come back to, the back button).
+  // The page lets go of its floating look only once it is back at its own
+  // size: done while it was still the little window's size, it laid itself
+  // out small (a player's mini layout) and again at full size, and the return
+  // stuttered. Even after, the stretched video showed full size for a moment
+  // and then jumped into the page. So it comes back covered with its own
+  // ground colour, lays itself out, and the cover fades (preload/page/float.ts
+  // landing, landed). A page that doesn't answer is placed all the same.
+  const still = !!pref<boolean>('motion.instant')
+  let placed = false
+  const place = () => {
+    if (placed) return
+    placed = true
+    // Floated again meanwhile (Oriel left again within the moment): its new
+    // little window holds the page, and the window's hold stays.
+    if (floating?.view === f.view) return
+    c.release(f.tab)
+    if (c.base.isDestroyed() || !model.onScreen(f.tab)) { if (!wc.isDestroyed() && floating?.view !== f.view) void isolated(wc, 'globalThis.__orielFloat.off()'); return }
+    c.placePages()
+    if (wc.isDestroyed() || floating?.view === f.view) return
+    const width = Math.round(f.view.getBounds().width / (wc.getZoomFactor() || 1))
+    void isolated(wc, `globalThis.__orielFloat.landed(${width}, ${still})`).catch(() => {})
+  }
+  void isolated(wc, 'globalThis.__orielFloat.landing()').catch(() => null).then(place)
+  setTimeout(place, 250)
   markAll()
 }
 
-/** Back to the tab it came from, in front (Float onReturn). */
+/** Back to the tab it came from, in front (Float onReturn): the tab picked
+ * first, so the video lands in sight and comes back as any landing does. */
 function goBack(): void {
   const f = floating
   if (!f) return
   const win = model.windows.get(f.win)
-  land()
   const c = controllerFor(f.win)
-  if (win && model.tabs.has(f.tab)) { model.selectTab(win, f.tab); c?.base.show(); c?.base.focus(); c?.focusPage() }
+  const there = !!win && model.tabs.has(f.tab)
+  if (there) model.selectTab(win!, f.tab)
+  land()
+  if (there) { c?.base.show(); c?.base.focus(); c?.focusPage() }
 }
 
 // see through, away from the pointer (float.fade)

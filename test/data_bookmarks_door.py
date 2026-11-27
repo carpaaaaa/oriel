@@ -267,8 +267,8 @@ def roots():
 open_list()
 t.ok(titles() == ["Alpha", "Beta", "Work", "Epsilon"], f"the list: Alpha, Beta, Work, Epsilon ({titles()})")
 m = right_click("Beta")
-t.ok(m and m["labels"] == ["Open", "Rename…", "Move to", "Remove"] and m["seps"] == 2,
-     f"a right click on a bookmark: Open, then Rename…, Move to, then Remove, as the Mac's list (BookmarkOutline.Row) ({m})")
+t.ok(m and m["labels"] == ["Open", "Open in New Tab", "Rename…", "Move to", "Remove"] and m["seps"] == 2,
+     f"a right click on a bookmark: Open and Open in New Tab (Oriel's own), then Rename…, Move to, then Remove, as the Mac's list (BookmarkOutline.Row) ({m})")
 t.ok(m and m["inside"] and m["card"] and m["menued"] == "Beta" and overlay_name() == "data.bookmarks",
      f"over the list, which stays, its row washed; the menu whole inside the window, its shadow too ({m})")
 reg = b.call({"do": "window.edges"}).get("region")

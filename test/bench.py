@@ -63,7 +63,9 @@ def use(world, wipe=True):
         shutil.rmtree(folder(), ignore_errors=True)
 
 
-def launch(*args, chrome="windows", env=None, wait=30):
+def launch(*args, chrome="windows", env=None, wait=30, ready=None):
+    """ready: what says it is up (a window, unless a test started by a link
+    expects its small window alone)."""
     global PROC
     # A world left running by an earlier test that failed: close it first.
     try:
@@ -81,7 +83,7 @@ def launch(*args, chrome="windows", env=None, wait=30):
     end = time.time() + wait
     while time.time() < end:
         try:
-            if state().get("windows"):
+            if (ready() if ready else state().get("windows")):
                 return
         except OSError:
             pass

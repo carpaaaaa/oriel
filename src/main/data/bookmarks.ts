@@ -14,6 +14,11 @@ interface Site { name: string; title: string; address: string; url: string; find
 
 export const isFolder = (n: BookmarkNode) => n.url == null
 
+/** The top-level folder called Home, whose sites a new tab shows as tiles
+ * (Bookmarks.homeSites; Settings › Tabs › Show the Home bookmarks on a new tab). */
+export const isHome = (n: BookmarkNode) => isFolder(n) && n.title.trim().toLowerCase() === 'home'
+export const homeFolder = (roots: BookmarkNode[]) => roots.find(isHome)
+
 /** How many sites, folders not counted. */
 export function count(nodes: BookmarkNode[]): number {
   return nodes.reduce((sum, n) => sum + (isFolder(n) ? count(n.children ?? []) : 1), 0)

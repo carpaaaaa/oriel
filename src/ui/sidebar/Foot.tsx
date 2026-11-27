@@ -15,7 +15,7 @@ import { tint, tintAlpha } from './look'
 import { openMenu } from '../menus/open'
 import { spaceMenu } from '../menus/build'
 import { reducedMotion } from './motion'
-import { bookmarkInColumnBand, bookmarkPlace, CORNER_GAP } from '../data/where'
+import { bookmarkInColumnBand, bookmarkPlace, cornerDoorsWidth, CORNER_GAP } from '../data/where'
 
 /** The doors that always show, each 26 and 2 apart (Side.swift keptWidth,
  * 1768-1777): downloads counted whether running or not, so one starting
@@ -33,7 +33,7 @@ export function footDoors(): number {
  * the bookmark button 12 before them: the doors stop short of both (studio/01
  * §5.8 point 6). */
 export const capRoom = () => (state.chrome === 'windows' && state.sidebar.side === 'right'
-  ? state.controlsWidth + (bookmarkInColumnBand() ? CORNER_GAP + 26 : 0) : 0)
+  ? state.controlsWidth + (bookmarkInColumnBand() ? CORNER_GAP + cornerDoorsWidth() : 0) : 0)
 
 /** What the band has right of back, forward and reload (Side.swift beyondHelm):
  * the column less its margins, the helm, the sidebar button, 12 of air, and
