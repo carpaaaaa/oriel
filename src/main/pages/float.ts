@@ -12,8 +12,13 @@
 // video, a button that tucks it small. Two fingers on a touchpad flick it
 // to the corner they point at.
 // On its own (Float the video on its own): leaving a tab (float.leave, on)
-// or Oriel (float.away) floats a video that is playing and heard, from a
-// site whose video is the point of the site (Players.knows); coming back to
+// or Oriel (float.away) floats a video that is playing and heard, on any
+// site (Search 1.0.22, idea 1248: a Video.js, Plyr or broadcaster's player
+// too, not only a streaming site's); what floats is decided by the video
+// itself (preload/page/float.ts real: heard, big enough, longer than a
+// loop, not a preview), so a muted background video stays in its page.
+// Don't Float Videos Here (a tab's menu, nofloat.<host>, the Mac's site
+// card) keeps a site's videos in their tab. Coming back to
 // the tab, or to Oriel for one lifted that way, lands it. Ctrl+Shift+P
 // floats any playing video by hand, or lands it. A site's own picture in
 // picture button floats its video the same way (preload/page/float.ts); off,
@@ -43,7 +48,9 @@ const controlsPage = join(dirname(fileURLToPath(import.meta.url)), '../ui/float.
 
 const PRELOAD_WORLD = 999
 
-/** Sites with a player worth following into the little window (Players.known). */
+/** Sites people go to to watch (Players.known): where a tab's menu offers
+ * Don't Float Videos Here even before anything plays. No longer what
+ * decides whether a video floats on its own (Search 1.0.22). */
 const players: [string, string | null][] = [
   ['youtube.com', null], ['youtu.be', null], ['netflix.com', null], ['primevideo.com', null], ['amazon.com', '/gp/video'],
   ['amazon.fr', '/gp/video'], ['amazon.co.uk', '/gp/video'], ['amazon.de', '/gp/video'], ['disneyplus.com', null], ['tv.apple.com', null],
@@ -63,6 +70,30 @@ export function knownPlayer(address: string): boolean {
   }
   const path = u.pathname.toLowerCase()
   return players.some(([h, p]) => (host === h || host.endsWith('.' + h)) && (!p || path.startsWith(p)))
+}
+
+// Don't Float Videos Here (Grounded, #267; SiteCard grounded): a site whose
+// videos never float out on their own. Only leaving a tab or Oriel is held
+// back; Ctrl+Shift+P still floats one by hand. Kept by host as the Mac's
+// nofloat.<host>, forgotten with the other site choices (permissions.ts).
+
+const groundKey = (address: string | null | undefined): string | null => {
+  try {
+    const u = new URL(String(address ?? ''))
+    return /^https?:$/.test(u.protocol) && u.hostname ? 'nofloat.' + u.hostname : null
+  } catch { return null }
+}
+
+export const grounded = (address: string | null | undefined) => { const k = groundKey(address); return !!k && model.pref<boolean>(k) === true }
+
+/** Whether a tab's menu offers Don't Float Videos Here, and ticked: for a
+ * site people watch, or any site playing now (Search 1.0.22), with the
+ * floating video on and floating on its own; never in a private tab. Null:
+ * not offered. */
+export function groundOffer(t: { shy?: boolean; audible?: boolean }, address: string): boolean | null {
+  if (t.shy || !floatEnabled() || !(pref<boolean>('float.leave') !== false || pref<boolean>('float.away'))) return null
+  if (!groundKey(address) || !(knownPlayer(address) || t.audible)) return null
+  return grounded(address)
 }
 
 interface Floating {
@@ -294,7 +325,8 @@ async function lifting(tab: ID, quietly: boolean, away: boolean): Promise<string
   const wc = rt?.contents
   const win = model.windowOf(tab)
   if (!t || !rt?.view || !wc || !win || t.empty || t.internal) return 'no page'
-  if (quietly && !knownPlayer(wc.getURL())) return 'not a player'
+  // Any site's video (Search 1.0.22): the video itself decides (real), unless the site is held back.
+  if (quietly && grounded(wc.getURL())) return 'grounded'
   if (quietly && !t.audible) return 'silent'
   const found = await isolated(wc, `globalThis.__orielFloat.on(${quietly})`).catch(() => null)
   if (found !== 'floating') return `found ${found}`
@@ -460,7 +492,7 @@ function appLeft(win: ID): void {
   void (async () => {
     const t = model.tabs.get(id)
     const wc = runtimes.get(id)?.contents
-    if (!t || !wc || !knownPlayer(wc.getURL()) || !t.audible) return
+    if (!t || !wc || grounded(wc.getURL()) || !t.audible) return
     const found = await isolated(wc, 'globalThis.__orielFloat.on(true)').catch(() => null)
     if (found !== 'floating' || floating || !floatEnabled() || anyFocused()) { if (found === 'floating') void isolated(wc, 'globalThis.__orielFloat.off()'); return }
     c.hold(id)
@@ -523,6 +555,16 @@ ipcMain.on('float:request', event => {
   if (!model.onScreen(rt.id)) return
   if (floating) land()
   void floatByHand(rt.id, win.id)
+})
+
+// A tab's menu › Don't Float Videos Here, or off again (Search 1.0.22: any
+// site playing a video). A private tab remembers nothing, and isn't offered it.
+handle('pages.nofloat', ({ id, on }) => {
+  const t = model.tabs.get(id)
+  const k = groundKey(runtimes.get(id)?.contents?.getURL() || t?.url)
+  if (!t || t.shy || !k) return { grounded: false }
+  model.setPref(k, on ? true : undefined)
+  return { grounded: !!on }
 })
 
 handle('pages.float.land', () => land())

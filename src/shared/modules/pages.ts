@@ -28,6 +28,17 @@ export interface FloatState {
   tucked: boolean
 }
 
+/** What a tab's menu offers for its site, as the Mac's site card does
+ * (Search 1.0.22): by the tabs of the window's space. */
+export interface SiteTools {
+  /** Developer Mode (DevMode.swift): on or off, for every http(s) page. */
+  dev: Record<ID, boolean>
+  /** Developer Mode's key now ("Shift+F12"), shown at the item's end. */
+  devKey: string | null
+  /** Don't Float Videos Here: ticked or not, only where it is offered. */
+  nofloat: Record<ID, boolean>
+}
+
 declare module '../commands' {
   interface Commands {
     // Peek (studio/01 §10.21, §10.22)
@@ -52,6 +63,12 @@ declare module '../commands' {
     'pages.shield.site': { id: ID; on: boolean }
     /** A tab's menu › Allow Copying on This Site, or off again (copy.sites). */
     'pages.copy.site': { id: ID; on: boolean }
+    /** A tab's menu › Don't Float Videos Here, or off again (nofloat.<host>, Search 1.0.22). */
+    'pages.nofloat': { id: ID; on: boolean }
+    /** Web Inspector (F12, Ctrl+Shift+I): Chromium's Developer Tools for the page in front, or away. */
+    'view.inspector': { id?: ID }
+    /** Developer Mode for the site in front, or the tab's (Search 1.0.22, Shift+F12). */
+    'view.developerMode': { id?: ID }
   }
 }
 
@@ -59,6 +76,7 @@ declare module '../state' {
   interface WindowState {
     peek?: PeekState | null
     float?: FloatState | null
+    siteTools?: SiteTools | null
   }
 }
 

@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bench as b
 
 ROOT = Path(__file__).resolve().parent.parent
-INDEX = json.loads((ROOT / "src/ui/settings/index.json").read_text())
+INDEX = json.loads((ROOT / "src/ui/settings/index.json").read_text(encoding="utf-8"))
 SHOTS = os.environ.get("SHOTS_DIR")
 
 b.use("settings-panel")
@@ -91,7 +91,8 @@ removed = ev(tab, "Object.keys(window.__settings ? {} : {})")
 OWN = {"window.buttons"}
 catalog = [i for i in ev(tab, "window.__settings.items.map(i => i.id)") if i not in OWN]
 mac = [i["id"] for i in INDEX["items"] if i["id"] not in OWN]
-t.ok(len(mac) == 158, "SettingsIndex has 158 rows")
+# Developer Mode for local sites, from Search 1.0.22 (pages/devmode.ts).
+t.ok(len(mac) == 159, "SettingsIndex has 159 rows")
 gone = [i for i in mac if i not in catalog]
 t.ok(catalog == [i for i in mac if i in catalog], "the rows keep the Mac's order")
 # translate.target and note.translate are back with Translate Page (translate
@@ -100,7 +101,7 @@ t.ok(catalog == [i for i in mac if i in catalog], "the rows keep the Mac's order
 # Oriel has profiles (area B); the note on searching a ready-made site with Tab
 # left out while there is none (field module, settings_shortcuts.py). Where an
 # extension runs is back with "Runs on" (test/settings_extensions.py).
-t.ok(len(catalog) == 136 and len(gone) == 22, f"136 rows on Windows, 22 of the Mac's left out ({gone})")
+t.ok(len(catalog) == 137 and len(gone) == 22, f"137 rows on Windows, 22 of the Mac's left out ({gone})")
 texts = ev(tab, "JSON.stringify(window.__settings.items.map(i => [i.title, i.detail, i.more || ''].join(' ')))")
 t.ok(not any(c in texts for c in "—–⌘⌥⌃⇧"), "no long dash, no Mac key symbol in any row")
 t.ok(not any(w in texts for w in ("macOS", "Touch ID", "keychain", "Finder", "System Settings")), "no macOS, Touch ID, keychain, Finder or System Settings")

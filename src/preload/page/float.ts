@@ -136,8 +136,11 @@ export function setupFloat(): void {
   const api = {
     on(quietly: boolean): 'floating' | 'none' {
       // One a site's button named floats even paused; else the one playing.
-      const asked = named && named.isConnected ? named : null
-      named = null
+      // Floating out on its own, only the video itself decides (real): a
+      // button pressed a moment ago (the one that landed it) names nothing
+      // then, now that any site's video floats on leaving (Search 1.0.22).
+      const asked = !quietly && named && named.isConnected ? named : null
+      if (!quietly) named = null
       const v = asked ?? pick(quietly)
       if (!v) return 'none'
       api.off()

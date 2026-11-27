@@ -2656,6 +2656,33 @@
    "kind": "wide"
   },
   {
+   "id": "developer.local",
+   "group": "developer",
+   "icon": "hammer",
+   "title": "Developer Mode for local sites",
+   "detail": "localhost, 127.0.0.1 and .test pages show their whole address and a bar of tools",
+   "more": "The bar floats over the page's corner: the whole address, Developer Tools, Reload Ignoring Cache, and the cache turned off for the site's reloads. Any site can be put in Developer Mode or taken out of it from its tab's menu or with Shift+F12, and is remembered. Off, only the sites you turn on show it.",
+   "keys": [
+    "developer.local"
+   ],
+   "words": [
+    "developer mode",
+    "dev mode",
+    "localhost",
+    "local",
+    "127.0.0.1",
+    "dev server",
+    "full url",
+    "full address",
+    "cache",
+    "disable cache",
+    "hard reload",
+    "inspector",
+    "devtools",
+    "web developer"
+   ]
+  },
+  {
    "id": "bench",
    "group": "developer",
    "icon": "terminal",
