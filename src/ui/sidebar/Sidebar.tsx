@@ -274,7 +274,7 @@ export function Column() {
   })
   const shownIDs = () => new Set([state.activeID, ...(state.splits.find(s => s.tabs.includes(state.activeID ?? ''))?.tabs ?? [])])
   const player = () => {
-    if (!pref('sidebar.player', false) || icons()) return null
+    if (!pref('sidebar.player', true) || icons()) return null
     const ids = [...order(), ...stilled()]
     for (const id of ids.reverse()) {
       const t = state.tabs.find(x => x.id === id)

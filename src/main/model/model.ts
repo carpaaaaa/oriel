@@ -87,7 +87,7 @@ export const tabDefaults: Record<string, unknown> = {
   spaces: false,
   'spaces.commandNumbers': false,
   'tabs.newPlace': 'next', // next | top | end
-  'tabs.frontBeside': false,
+  'tabs.frontBeside': true,
   'tabs.lazy': false,
   'tabs.switcherBehindFirst': false,
   'tabs.switcherLeavesOutPins': false,
@@ -96,7 +96,7 @@ export const tabDefaults: Record<string, unknown> = {
   'pins.home': true,
   'pins.peek': true,
   'pins.list': false,
-  'pins.folders': false,
+  'pins.folders': true,
 }
 
 const internalTitles: Record<string, string> = {

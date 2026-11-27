@@ -8,6 +8,8 @@
 // §1.17): the settings module writes a default back as "no key".
 
 export const defaults = {
+  // Search 1.0.22 turned a run of switches on by default, for everyone who
+  // never touched them as well as for new installs; Oriel follows it.
   // General › Your browser
   'mail.webmail': 'none', // none | gmail | outlook | fastmail | proton
   'sync.folder': '',
@@ -63,30 +65,30 @@ export const defaults = {
   'sidebar.foldButton': false,
   'sidebar.narrowIcons': false,
   'sidebar.narrowed': false,
-  'sidebar.player': false,
-  'glyph': 'letters', // letters | icons
+  'sidebar.player': true,
+  'glyph': 'icons', // letters | icons
   'tabs.highContrast': false,
   'tabs.reading': false,
-  'tabs.pinCounts': false,
+  'tabs.pinCounts': true,
   'tabs.give': false,
   'bookmarks.bar': false,
   'bookmarks.side': false,
   'bookmarks.iconsOnly': false,
   // Appearance › Motion
-  'motion.light': false,
+  'motion.light': true,
   'motion.instant': false,
   // Tabs › New tabs
   'tabs.newPlace': 'next', // next | top | end
-  'tabs.frontBeside': false,
-  'tabs.newAfterLast': false,
+  'tabs.frontBeside': true,
+  'tabs.newAfterLast': true,
   'tabs.closeGoesBack': false,
-  'tabs.swipeBackCloses': false,
-  'home.grid': false,
-  'tabs.undoReopens': false,
+  'tabs.swipeBackCloses': true,
+  'home.grid': true,
+  'tabs.undoReopens': true,
   'tabs.switcherBehindFirst': false,
   'tabs.switcherLeavesOutPins': false,
   'tabs.lazy': false,
-  'tabs.popupWindows': false,
+  'tabs.popupWindows': true,
   // Tabs › Memory
   'tabs.sleep': true,
   'tabs.sleep.pace': 'normal', // later (2 h) | normal (30 min) | sooner (10 min)
@@ -103,14 +105,14 @@ export const defaults = {
   'links.little': true,
   'links.little.tabs': false,
   'reader.twins': false,
-  'reader.follows': false,
+  'reader.follows': true,
   // The floating video, on or off (studio/06 §1.5 #78). The Mac's
   // float.style (Search's window or macOS's picture in picture) is gone: both
   // values meant "on", and Oriel's window is the only one now.
   'float.enabled': true,
   'float.leave': true,
   'float.away': false,
-  'float.minimize': false,
+  'float.minimize': true,
   'float.flicks': true,
   // Away from the pointer the floating video lets what is behind show
   // through: 0 not at all, 1 the most (Oriel's own, pages/float.ts).
@@ -131,8 +133,8 @@ export const defaults = {
   'media.click': false,
   'fullscreen.escapeTwice': false,
   'pageZoom': 1,
-  'pages.capture': false,
-  'sites.styles': false,
+  'pages.capture': true,
+  'sites.styles': true,
   'links.show': true,
   // Spaces & Pins
   'spaces': false,
@@ -145,7 +147,7 @@ export const defaults = {
   'pins.home': true,
   'pins.peek': true,
   'pins.list': false,
-  'pins.folders': false,
+  'pins.folders': true,
   'pins.commandNewTab': false,
   'start.fresh': false,
   // Passwords: save, fill and prove are the data module's (data/passwords.ts)
@@ -158,7 +160,7 @@ export const defaults = {
   'sites.keep': false,
   'privacy.clickIDs': true,
   'privacy.gpc': true,
-  'privacy.httpsFirst': false,
+  'privacy.httpsFirst': true,
   'notifications.ask': true,
   'privacy.popupSites': [] as string[],
   'network.proxy': '',

@@ -143,7 +143,7 @@ function Square(p: { tab: TabView; cell: { x: number; y: number; w: number; h: n
           </Show>
         </Show>
         {/* What its page counts as waiting, from its title (UnreadBadge.swift) */}
-        <Show when={pref('tabs.pinCounts', false) && !lettering() && !state.tabHints?.[t().id] && unread(t())}>{c => (
+        <Show when={pref('tabs.pinCounts', true) && !lettering() && !state.tabHints?.[t().id] && unread(t())}>{c => (
           <span class="unread" style={{ 'font-size': `${Math.max(7, scale() * 16 / 34 * 0.45).toFixed(2)}px` }}>{c()}</span>
         )}</Show>
       </div>

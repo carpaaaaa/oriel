@@ -15,7 +15,7 @@ addDefaults({
   'search.shiftCustom': '',
   'search.keywords': [],
   'search.suggest': false,
-  commandbar: false,
+  commandbar: true,
   'newtab.floating': false,
   'field.window': false,
   'newtab.recent': false,

@@ -295,7 +295,7 @@ function control(i: Item): JSX.Element {
       ['Extensions', !p('foot.extensions.hidden'), v => void set('foot.extensions.hidden', !v)],
       ['Bookmarks', !p('foot.bookmarks.hidden'), v => void set('foot.bookmarks.hidden', !v)],
       ['Profile', !p('foot.profile.hidden'), v => void set('foot.profile.hidden', !v)]]} />
-    case 'glyph': return <Segmented value={p<string>('glyph') ?? 'letters'} set={v => void set('glyph', v)} options={[['letters', 'Letters'], ['icons', 'Site icons']]} />
+    case 'glyph': return <Segmented value={p<string>('glyph') ?? 'icons'} set={v => void set('glyph', v)} options={[['letters', 'Letters'], ['icons', 'Site icons']]} />
     case 'sidebar.narrowIcons': return <Switch on={!!p('sidebar.narrowIcons')} set={v => void set('sidebar.narrowIcons', v)} />
     // Tabs
     case 'tabs.newPlace': return <Menu label="New tab position" value={p<string>('tabs.newPlace') ?? 'next'} set={v => void set('tabs.newPlace', v)}

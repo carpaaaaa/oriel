@@ -18,7 +18,7 @@ export const pref = <T,>(key: string, fallback: T): T => {
 
 export const P = {
   /** Letters or the site's icon (Settings › Appearance › Tabs › Tabs show). */
-  icons: () => pref<string>('glyph', 'letters') === 'icons',
+  icons: () => pref<string>('glyph', 'icons') === 'icons',
   /** The address on the tab you're on (§5.17). */
   address: () => pref('tabs.address', true),
   roomy: () => pref('tabs.roomier', false) || pref('sidebar.roomy', false),
@@ -26,7 +26,7 @@ export const P = {
   dimSleeping: () => pref('tabs.sleep.dim', false),
   reading: () => pref('tabs.reading', false),
   pinRows: () => pref('pins.list', false) && state.sidebar.layout === 'side',
-  pinFolders: () => pref('pins.folders', false),
+  pinFolders: () => pref('pins.folders', true),
   spaces: () => !!(state.spacesOn ?? pref('spaces', false)),
   spaceButtons: () => P.spaces() && pref('spaces.buttons', false),
   foldButton: () => pref('sidebar.foldButton', false),
