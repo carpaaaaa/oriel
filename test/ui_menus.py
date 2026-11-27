@@ -60,11 +60,12 @@ shot("menu-tab-light")
 got = items()
 t.ok(got is not None, "a right click on a row: a menu over the page, in the overlay")
 # Open in Small Window and Open in Side Panel since settings area B; Block Ads
-# and Trackers (here Stop Blocking Ads on This Site) and Keep This Site Awake
-# are the site card's on the Mac, Oriel has no card yet.
+# and Trackers (here Stop Blocking Ads on This Site), Developer Mode (Search
+# 1.0.22, any web page) and Keep This Site Awake are the site card's on the
+# Mac, Oriel has no card yet.
 want_start = ["Move to Group", "Pin", "Pin as Row", "Move to Space", "Open in Split View (off)", "Move to New Window (off)", "Open in Small Window", "—",
               "Rename", "Duplicate", "Site Information… (off)", "Copy Address", "Copy as Markdown Link", "Copy Clean Link (off)",
-              "Open in Side Panel", "Mute Tab", "Stop Blocking Ads on This Site", "Keep This Site Awake", "Put to Sleep", "—", "Close Tab", "Close Other Tabs", "Close Tabs Below"]
+              "Open in Side Panel", "Mute Tab", "Stop Blocking Ads on This Site", "Allow Copying on This Site", "Developer Mode", "Keep This Site Awake", "Put to Sleep", "—", "Close Tab", "Close Other Tabs", "Close Tabs Below"]
 t.ok(got and got[:len(want_start)] == want_start, f"the Mac's items, in its order: {got}")
 t.ok(got and got[-1].startswith("Reopen"), "…ending with Reopen")
 m = k.js("const m = document.querySelector('.menu'); const s = getComputedStyle(m); const i = m.querySelector('.menu-item'); const r = m.getBoundingClientRect(); const ri = i.getBoundingClientRect();"

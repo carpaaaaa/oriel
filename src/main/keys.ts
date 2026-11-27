@@ -184,6 +184,9 @@ export const bindings: Binding[] = [
   b('view.console', 'JavaScript Console', 'View', '⌥⌘J', ['Ctrl+Shift+J'], first(later('view.console'))),
   // ⌥⌘C: Chrome's Ctrl+Shift+C is Copy Address here, Ctrl+Alt+C is AltGr.
   b('view.inspect', 'Inspect Element', 'View', '⌥⌘C', [], later('view.inspect')),
+  // ⇧⌥⌘I (Search 1.0.22): Alt+Shift+I is Chrome's feedback form, Ctrl+Shift+I
+  // its Developer Tools; Shift+F12 sits beside F12's.
+  b('view.developerMode', 'Developer Mode', 'View', '⇧⌥⌘I', ['Shift+F12'], later('view.developerMode')),
   b('view.fullScreen', 'Enter Full Screen', 'View', '⌃⌘F', ['F11'], first({ ...later('window.fullScreen'), fixed: true })),
   // Tabs
   b('tabs.back', 'Back', 'Tabs', '⌘[  ⌘←', ['Ctrl+Backspace', 'Ctrl+['], { action: (_c, k) => (typesHere(k) ? false : { do: 'tab.back' }) }),

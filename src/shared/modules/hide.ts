@@ -15,6 +15,14 @@ export interface Veil {
   note?: string
   /** Seconds since 1 January 2001, as the Mac writes hidden.json. */
   date: number
+  /** What it was (its kind, its picture, its words), for a thing named by
+   * its place or by a product id: hidden on a later visit only once it is
+   * seen again (Search 1.0.22, idea 1194). None for a steady id, a test
+   * hook, an Alt pick and every rule saved before, worn as they always were. */
+  print?: string
+  /** Where else to look for it when its place holds something else: its
+   * kind and steady classes (`div.card`). */
+  family?: string
 }
 
 /** The overlay's panel names. */

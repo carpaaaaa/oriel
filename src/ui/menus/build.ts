@@ -99,6 +99,17 @@ function shieldPaused(t: TabView): boolean {
   return !!site && ((state.prefs['shield.paused'] as string[] | undefined) ?? []).includes(site)
 }
 
+/** Don't Float Videos Here and Developer Mode, as the main process offers
+ * them for the tab (state.siteTools); ticked when on. */
+function siteToolItems(t: TabView): Entry[] {
+  const s = state.siteTools
+  if (!s) return []
+  const out: Entry[] = []
+  if (t.id in s.nofloat) out.push({ label: "Don't Float Videos Here", checked: s.nofloat[t.id] || undefined, act: { cmd: { do: 'pages.nofloat', id: t.id, on: !s.nofloat[t.id] } as Command } })
+  if (t.id in s.dev) out.push({ label: 'Developer Mode', checked: s.dev[t.id] || undefined, accel: s.devKey ?? undefined, act: { cmd: { do: 'view.developerMode', id: t.id } as Command } })
+  return out
+}
+
 /** A tab's or a pin's menu (§4.35). */
 export function tabMenu(t: TabView): Entry[] {
   const picked = state.picked ?? []
@@ -160,6 +171,10 @@ export function tabMenu(t: TabView): Entry[] {
       : { label: 'Stop Blocking Ads on This Site', act: { cmd: { do: 'pages.shield.site', id: t.id, on: false } as Command } }] : []),
     // Copying set free here: on the tab, as the page itself may refuse the right click (sites.ts).
     ...(copySite(t) ? [{ label: 'Allow Copying on This Site', checked: copyAllowed(t) || undefined, act: { cmd: { do: 'pages.copy.site', id: t.id, on: !copyAllowed(t) } as Command } }] : []),
+    // The Mac's site card, in its order (Search 1.0.22, pages/devmode.ts and float.ts):
+    // Don't Float Videos Here for a site people watch or one playing now, and
+    // Developer Mode for every web page.
+    ...siteToolItems(t),
     // Keep This Site Awake (§9.24): on the Mac it is on the site's card; Oriel has none yet.
     // Its tick only when on: a column for it would move every label (the Mac's tab menu has none).
     ...(siteOf(t) ? [{ label: 'Keep This Site Awake', checked: keptAwake(t) || undefined, act: { cmd: { do: 'tab.keepAwake', id: t.id, on: !keptAwake(t) } as Command } }] : []),
