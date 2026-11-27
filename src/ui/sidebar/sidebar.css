@@ -32,7 +32,8 @@
   transition: background-color var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick);
 }
 .door:not(:disabled):hover { background: var(--g-hover); color: var(--ink-hover-text); }
-.door:disabled { opacity: .3; }
+/* Nowhere to go: dimmed to half, still plainly there (Search 1.0.22, TabBar.swift Helm.dimmed). */
+.door:disabled { opacity: .5; }
 .door.on { background: var(--g-wash); color: var(--ink); }
 
 /* the body: the squares, the rows, the void under them */
@@ -168,7 +169,7 @@
 .speaker:hover { background: var(--ink-close-disc); }
 .row .x { position: absolute; right: -0.5px; top: 0; bottom: 0; width: 30px; display: none; place-items: center; }
 .row:hover .x { display: grid; }
-.x .disc, .tile-x .disc { width: var(--close); height: var(--close); border-radius: 50%; display: grid; place-items: center; background: var(--ink-close-disc); color: var(--muted); }
+.x .disc { width: var(--close); height: var(--close); border-radius: 50%; display: grid; place-items: center; background: var(--ink-close-disc); color: var(--muted); }
 .carrying .row .x, .carrying .row:hover .ground { display: none; }
 .rename { flex: 1; min-width: 0; height: 16px; font-size: var(--title); color: var(--ink); caret-color: var(--ink); }
 
@@ -242,6 +243,10 @@
   border-radius: 9px; box-shadow: inset 0 0 0 1px var(--hairline); }
 .player-title { flex: 1; min-width: 0; font-size: var(--title); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .player:hover .player-title { color: var(--ink-hover-text); }
+/* Under the pointer, the hover grey; paused from here, a cross to put it away (Player.swift) */
+.player:hover { background: var(--g-hover); }
+.player-x { display: none; }
+.player.stilled:hover .player-x { display: grid; animation: wash-in var(--dur-quick) var(--ease-quick); }
 .player-button { flex: none; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); }
 .player-button:hover { background: var(--g-hover); color: var(--ink); }
 .foot.vertical { height: auto; flex-direction: column; padding: 0 0 8px; }
@@ -265,12 +270,17 @@
 .space-button.current { opacity: 1; color: var(--tint, var(--ink)); background: var(--tint-wash, var(--hover)); }
 .space-button.current:not([style*="--tint: rgb"]) { color: var(--ink); background: var(--hover); }
 
-/* the edge: 9 wide; the pill 4 × 28, 40 and muted under the pointer */
-.grip { position: absolute; top: 0; bottom: 0; right: 0; width: 9px; cursor: col-resize; -webkit-app-region: no-drag; z-index: 3; }
+/* the edge: 12 wide, 9 missed too often (Search 1.0.22); the pill where it was
+   with the old 9, 2.5 in from the column's edge: 4 × 28, 40 and muted under
+   the pointer. The page beside is a view of its own: the edge is all column. */
+.grip { position: absolute; top: 0; bottom: 0; right: 0; width: 12px; cursor: col-resize; -webkit-app-region: no-drag; z-index: 3; }
 .sidebar.right .grip { right: auto; left: 0; }
-.grip-pill { position: absolute; left: 2.5px; top: 50%; width: var(--grip-w); height: var(--grip-rest); margin-top: calc(var(--grip-rest) / -2);
+/* Pulled, it holds the cursor wherever the pointer goes, the rows and doors included. */
+:root.col-resizing, :root.col-resizing * { cursor: col-resize !important; }
+.grip-pill { position: absolute; left: 5.5px; top: 50%; width: var(--grip-w); height: var(--grip-rest); margin-top: calc(var(--grip-rest) / -2);
   border-radius: 2px; background: var(--faint); opacity: 0;
   transition: opacity var(--dur-quick) var(--ease-quick), height var(--dur-quick) var(--ease-quick), margin var(--dur-quick) var(--ease-quick), background-color var(--dur-quick) var(--ease-quick); }
+.sidebar.right .grip-pill { left: 2.5px; }
 .grip:hover .grip-pill, .grip.held .grip-pill { opacity: 1; height: var(--grip-lit); margin-top: calc(var(--grip-lit) / -2); background: var(--muted); }
 .sidebar.icons:not(.narrowed) .grip { display: none; }
 
@@ -302,11 +312,18 @@
 .tile.in-pair:has(+ .tile:is(.live, .picked, :hover))::after { opacity: 0; }
 .tile-mark { position: relative; opacity: .85; display: grid; color: var(--muted); }
 .tile.live .tile-mark, .tile:hover .tile-mark { opacity: 1; }
-.tile-x { position: absolute; left: 5px; top: 5px; width: 22px; height: 22px; display: none; place-items: center; }
-.tile.live:hover .tile-x { display: grid; }
-.tile.live:hover .tile-mark { opacity: 0; }
-.tile-speaker { position: absolute; right: -3px; bottom: -3px; width: 13px; height: 13px; border-radius: 50%; display: grid; place-items: center;
-  background: var(--ground); box-shadow: inset 0 0 0 .5px var(--hairline); color: var(--muted); }
+/* The live tile's cross (Search 1.0.22, IconTile.crossFrame): a disc of 13 on
+   its top-left corner, 3 past it, as the speaker sits on the bottom-right one;
+   shown, and pressed, only after the pointer has stayed half a second. */
+.tile-x { position: absolute; left: -3px; top: -3px; width: 13px; height: 13px; border-radius: 50%; display: grid; place-items: center; z-index: 1;
+  background: var(--ground); box-shadow: inset 0 0 0 .5px var(--hairline); color: var(--muted);
+  opacity: 0; pointer-events: none; transition: opacity var(--dur-quick) var(--ease-quick); }
+.tile-x.shown { opacity: 1; pointer-events: auto; }
+/* The speaker of a tile and of a pinned square (CornerSpeaker): 13 on the
+   column's ground, 3 past the bottom-right corner; a press mutes it. */
+.corner-speaker { position: absolute; right: -3px; bottom: -3px; width: 13px; height: 13px; border-radius: 50%; display: grid; place-items: center; z-index: 1;
+  background: var(--ground); box-shadow: inset 0 0 0 .5px var(--hairline); color: var(--muted);
+  animation: wash-in var(--dur-quick) var(--ease-quick); -webkit-app-region: no-drag; }
 .tile-group { position: relative; display: flex; flex-direction: column; gap: 2px; border-radius: 6px; }
 .tile-group .bracket { position: absolute; left: -6px; top: 20px; bottom: 0; width: 2px; border-radius: 1px; background: rgb(var(--ink-rgb) / .18); }
 

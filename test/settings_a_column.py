@@ -5,38 +5,18 @@ Design.swift Metrics/Motion): Tabs on the right (sidebar.position), Shorter
 tab bar (tabs.compact), Ctrl+S makes the column icons only
 (sidebar.foldIcons), Hide the column until the pointer reaches the edge
 (sidebar.hides), Slide the column in and out (sidebar.slides) and the
-column going back, the strip folded coming down from the top, A loading
-line with the tabs hidden (fold.loadingLine). The pointer is the bench's."""
+column going back, the strip folded coming down from the top. The loading
+line, a switch no more since Search 1.0.22, is ui_loading_line.py's. The
+pointer is the bench's."""
 import json
 import sys
-import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bench as b
 import ui_kit as k
 
-
-class Slow(BaseHTTPRequestHandler):
-    """A page that takes its time, for the loading line."""
-    def do_GET(self):
-        time.sleep(4 if self.path.startswith("/slow") else 0)
-        body = b"<title>slow</title><body>slow"
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def log_message(self, *a):
-        pass
-
-
-srv = ThreadingHTTPServer(("127.0.0.1", 0), Slow)
-threading.Thread(target=srv.serve_forever, daemon=True).start()
-SITE = f"http://127.0.0.1:{srv.server_port}"
 
 b.use("settings-a-column")
 b.launch(*k.FRAMES, env={"SEARCH_LOOK": "light"})
@@ -101,8 +81,8 @@ time.sleep(0.4)
 v = frame()["visual"]
 t.ok(not k.rect(".tabbar"), "the strip folded away")
 pointer(v["x"] + 300, v["y"] + 2)
-time.sleep(0.08)
-t.ok(not edges()["peek"], "at the top it waits a moment (the way to the window's title)")
+time.sleep(0.01)
+t.ok(not edges()["peek"], "at the top it waits a moment, 0.05 s (Search 1.0.22; the way to the window's title)")
 out = settle(lambda: edges()["peek"], "the strip out", within=2)
 strip = k.js("const e = document.querySelector('.fold-out.top .tabbar'); return e && e.getBoundingClientRect().height", root="overlay") if out else None
 region = edges()["region"]
@@ -180,7 +160,7 @@ b.cmd("sidebar.toggle")
 time.sleep(0.4)
 
 # Hide the column until the pointer reaches the edge (sidebar.hides): it rests folded, the
-# page takes the window; 10 from the edge after 0.05 s it comes out; Ctrl+S keeps it out.
+# page takes the window; 28 from the edge (Search 1.0.22) after 0.05 s it comes out; Ctrl+S keeps it out.
 setting("sidebar.hides", True)
 w = b.window()["sidebar"]
 t.ok(w["folded"] and not k.rect(".sidebar") and k.near(k.wrect(".card")["x"], 0), f"on: the column rests folded, the page takes the whole window ({w['folded']})")
@@ -189,7 +169,7 @@ pointer(v["x"] + 8, v["y"] + 300)
 time.sleep(0.02)
 early = edges()["peek"]
 out = settle(lambda: edges()["peek"], "out", within=2)
-t.ok(not early and out, "8 from the edge (10 when it rests folded) it comes out after a moment")
+t.ok(not early and out, "8 from the edge (the band is 28 when it rests folded) it comes out after a moment")
 pointer(*away)
 settle(lambda: not edges()["peek"] and not edges()["going"], "back", within=2)
 b.cmd("sidebar.toggle")
@@ -199,32 +179,6 @@ b.cmd("sidebar.toggle")
 time.sleep(0.4)
 setting("sidebar.hides", False)
 t.ok(not b.window()["sidebar"]["folded"] and k.rect(".sidebar"), "off: the column back beside the page")
-
-# A loading line with the tabs hidden (fold.loadingLine): folded, a line along the page's top while it loads.
-line = lambda: k.js("const e = document.querySelector('.loading-line'); if (!e) return null; const r = rel(e.getBoundingClientRect()); return { x: r.x, y: r.y, w: r.width, h: r.height }")
-b.cmd("sidebar.fold", folded=True)
-time.sleep(0.3)
-b.cmd("tab.go", input=SITE + "/slow1")
-time.sleep(0.8)
-t.ok(line() is None, "off (the Mac's default): no line")
-b.wait_for(lambda: not b.active()["loading"], within=10, what="loaded")
-setting("fold.loadingLine", True)
-b.cmd("tab.go", input=SITE + "/slow2")
-got = settle(line, "the line", within=3)
-card = k.wrect(".card")
-t.ok(got and k.near(got["h"], 2) and k.near(got["y"] + 2, card["y"]) and k.near(got["x"], card["x"] + 10), f"on, folded: 2 along the page's top while it loads, clear of the corners ({got}, card {card})")
-colours = k.js("const s = document.querySelector('.loading-line span'); const probe = document.createElement('i'); probe.style.color = 'var(--ink)'; document.body.append(probe); const ink = getComputedStyle(probe).color; probe.remove(); return s ? { line: getComputedStyle(s).backgroundColor, ink } : null")
-t.ok(colours and colours["line"] == colours["ink"] and colours["ink"] in ("rgb(23, 23, 23)",), f"light: the line in the text's colour, dark, not the accent ({colours})")
-dark = k.js("const s = document.querySelector('.loading-line span'); if (!s) return null; const r = document.documentElement; const was = r.dataset.look; r.dataset.look = 'dark'; const c = getComputedStyle(s).backgroundColor; r.dataset.look = was; return c")
-t.ok(dark is None or dark == "rgb(237, 237, 237)", f"dark: the line white as the text ({dark})")
-b.wait_for(lambda: not b.active()["loading"], within=10, what="loaded")
-time.sleep(0.3)
-t.ok(line() is None, "loaded: the line goes")
-b.cmd("sidebar.fold", folded=False)
-b.cmd("tab.go", input=SITE + "/slow3")
-time.sleep(0.8)
-t.ok(line() is None, "with the column out, no line")
-setting("fold.loadingLine", False)
 
 # The overlay's veils cover the window, never the clear margin round it (the switcher's here).
 b.cmd("tab.new", url="data:text/html,<title>other</title>other")
@@ -240,5 +194,4 @@ t.ok(veil and k.near(veil["x"], m["left"]) and k.near(veil["y"], m["top"]) and k
 b.cmd("tab.switchEnd", cancel=True)
 
 pointer(None)
-srv.shutdown()
 t.done()

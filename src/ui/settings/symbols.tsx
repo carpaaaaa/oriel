@@ -129,6 +129,8 @@ const paths: Record<string, string[]> = {
   'rectangle.on.rectangle': ['M5 5h9v7.5H5z', 'M2 10.5V3h9'],
   'rectangle.3.group': ['M2 3h5.2v4.4H2zM8.8 3H14v4.4H8.8zM2 9h12v4H2z'],
   'square.stack.3d.up': ['M8 2.2 2.4 5.2 8 8.2l5.6-3z', 'm2.4 8 5.6 3 5.6-3', 'm2.4 10.8 5.6 3 5.6-3'],
+  // pencil (Double click to rename, Search 1.0.22): the shaft at 45°, its point bottom left.
+  'pencil': ['M11 2.6l2.4 2.4-7.6 7.6-3.2.8.8-3.2z', 'M9.6 4l2.4 2.4'],
   'character.cursor.ibeam': ['m1.8 12 2.4-7.6L6.6 12M2.6 9.6h3.2', 'M10.8 3v10M9.4 3h2.8M9.4 13h2.8'],
   'text.cursor': ['M8 2.5v11M6 2.5h4M6 13.5h4'],
   'textformat.abc.dottedunderline': ['m1.8 10 1.8-5.2L5.4 10M2.3 8.4h2.6', 'M7 4.6V10h1.6a1.4 1.4 0 0 0 0-2.8H7', 'M14 7.8a1.6 1.6 0 1 0 0 1.8', 'M2 12.6h.01M5 12.6h.01M8 12.6h.01M11 12.6h.01M14 12.6h.01'],

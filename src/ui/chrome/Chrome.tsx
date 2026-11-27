@@ -99,10 +99,12 @@ export function ChromeRoot() {
   // window's right, the page's card on its left (studio/01 §5.1).
   const onRight = () => state.sidebar.layout === 'side' && state.sidebar.side === 'right' && (!state.sidebar.folded || slide.out() !== null)
   const pref = (k: string) => !!state.prefs?.[k]
-  // A loading line with the tabs hidden (fold.loadingLine, App.swift:623,
-  // Fold.swift LoadingLine): folded away, 2 points along the page's top while
-  // it loads, clear of the card's round corners.
-  const loadingLine = () => state.sidebar.folded && pref('fold.loadingLine') && !!activeTab()?.loading && !activeTab()?.empty
+  // The loading line (App.swift TabLoadingLine, Fold.swift LoadingLine): 2
+  // points along the page's top while it loads, clear of the card's round
+  // corners; with the tabs in sight too, down the side or across the top, for
+  // everyone, no switch (Search 1.0.22): it is in the line of sight, where the
+  // tab's ring is small and off to the side.
+  const loadingLine = () => !!activeTab()?.loading && !activeTab()?.empty
   // The tabs folded with Ctrl+S: the page fills the whole window, up to its edges, in a window as in
   // full screen (the band for the window's buttons goes; they come down at the top, main/window/edges.ts).
   const fills = () => state.sidebar.folded && slide.out() === null && capBand()
@@ -133,6 +135,10 @@ export function ChromeRoot() {
         {/* Settings › Appearance › Show the bookmarks bar: right above the page (data/BookmarksBar.tsx). */}
         <Show when={barShown()}><BookmarksBar /></Show>
         <div class="card" ref={slot} classList={{ stage: !!split() }}>
+          {/* Along the card's top, in the gap above it: the page's view covers the card itself. */}
+          <Show when={loadingLine()}>
+            <div class="loading-line" data-window-ui="loading-line"><span /></div>
+          </Show>
           <Show when={split()} fallback={<>
             <Show when={activeTab()?.empty}>
               <div class="empty-page">
@@ -157,9 +163,6 @@ export function ChromeRoot() {
         </div>
         <Show when={state.room}>
           <div class="side-room" ref={roomEl} />
-        </Show>
-        <Show when={loadingLine()}>
-          <div class="loading-line" data-window-ui="loading-line"><span /></div>
         </Show>
         {/* Beside the window's buttons, up in the band above the page: the
             bookmark button (data/where.ts), 12 left of them. */}

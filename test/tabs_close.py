@@ -58,8 +58,8 @@ s = k.st()
 t.ok(k.win(s)["activeID"] == e and loose(s) == [e], "another tab left: it is picked, no new tab made")
 b.quit()
 
-# The switch off, as it comes: a pin is picked.
-k.world("tabs-close-off")
+# The switch off (on as it comes since Search 1.0.22): a pin is picked.
+k.world("tabs-close-off", **{"tabs.newAfterLast": False})
 k.launch()
 a = k.page("a"); k.cmd("tab.pin", id=a)
 bb = k.page("b")
@@ -88,7 +88,8 @@ t.ok(len(s["windows"]) == 1 and s["windows"][0]["id"] != first, "⌘W on the las
 b.quit()
 
 # Where you land (§3.14): the neighbour; the tab before with the switch; the opener.
-k.world("tabs-close-land")
+# Links opened in front at the end of the row, as close_opened_link.py has them (beside their page is on as it comes since Search 1.0.22).
+k.world("tabs-close-land", **{"tabs.frontBeside": False})
 k.launch()
 a = k.page("a"); bb = k.page("b"); c = k.page("c"); d = k.page("d")
 k.cmd("tab.select", id=bb); k.settle(0.2)

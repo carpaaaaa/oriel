@@ -26,6 +26,11 @@ import { setColumn } from './drag'
 import { TabBar } from '../tabbar/TabBar'
 import { AddressLine } from '../field/AddressLine'
 
+/** A turn of the wheel ends after this long at rest (SpaceSwipe.swift `notched`). */
+const WHEEL_REST = 300
+/** How far sideways a stroke or a turn goes before it brings a space: about a notch (WheelSteps.smooth). */
+const WHEEL_STEP = 30
+
 export function Sidebar() {
   wireMenuPicks()
   return (
@@ -60,7 +65,8 @@ export function Wash() {
 }
 
 /** Back, forward and reload (TabBar.swift `Helm`, Side.swift `Door`):
- * doors of 26, radius 8, 4 apart; greyed to 0.3 with nowhere to go. On
+ * doors of 26, radius 8, 4 apart; dimmed to half with nowhere to go
+ * (Search 1.0.22: at 0.3 the row looked as if it had lost a button). On
  * Windows the window's buttons are at the far end, so the doors start at
  * the column's edge, as the Mac's do in full screen (lights 0). */
 function Helm(p: { vertical?: boolean }) {
@@ -206,7 +212,7 @@ export function Column() {
   })
   onCleanup(() => setColumn(null))
 
-  // the edge (§5.3): 9 wide, the pill 4 × 28, 40 lit; double click, 232
+  // the edge (§5.3): 12 wide (Search 1.0.22), the pill 4 × 28, 40 lit; double click, 232
   const [gripping, setGripping] = createSignal(false)
   const startResize = (e: PointerEvent) => {
     if (e.button !== 0 || icons() && !P.narrowIcons()) return
@@ -214,6 +220,8 @@ export function Column() {
     const start = e.clientX
     const from = icons() ? 200 - 24 : state.sidebar.width
     setGripping(true)
+    // Held, the cursor stays the edge's over anything it passes (Search 1.0.22).
+    document.documentElement.classList.add('col-resizing')
     let raf = 0, wanted = from
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* synthetic */ }
     const move = (m: PointerEvent) => {
@@ -232,11 +240,14 @@ export function Column() {
     }
     const up = () => {
       setGripping(false)
+      document.documentElement.classList.remove('col-resizing')
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
   }
 
   // the void under the rows: a new tab on a double click, the column's menu
@@ -259,37 +270,51 @@ export function Column() {
 
   const rowsHeight = () => L().height
 
+  // Two fingers sideways, or a mouse's sideways wheel (a tilt, a thumb wheel),
+  // over the column: the next space or the one before (SpaceSwipe.swift). A
+  // turn of the wheel, notches close together, or one stroke brings one space;
+  // the next waits for the wheel to rest 0.3 s. Only what goes more sideways
+  // than up or down: scrolling the tabs is never taken for it. The way two
+  // fingers moving the same way go (Search 1.0.22, #1646): on Windows a tilt to
+  // the right and two fingers moving left both scroll right, to the next.
+  // Not over a field being typed in: there it moves along the text.
+  let turnAt = -Infinity, turned = false, gathered = 0
+  const wheel = (e: WheelEvent) => {
+    if (!P.spaces() || state.spaces.length < 2 || e.ctrlKey) return
+    const unit = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1
+    const dx = e.deltaX * unit, dy = e.deltaY * unit
+    if (Math.abs(dx) <= Math.abs(dy) || (e.target as HTMLElement).closest('input, textarea, [contenteditable="true"], [contenteditable=""]')) return
+    e.preventDefault()
+    const now = performance.now()
+    if (now - turnAt > WHEEL_REST || gathered * dx < 0 && !turned) { turned = false; gathered = 0 }
+    turnAt = now
+    if (turned) return
+    gathered += dx
+    if (Math.abs(gathered) < WHEEL_STEP) return
+    turned = true
+    void cmd({ do: 'space.step', by: gathered > 0 ? 1 : -1 })
+  }
+
   // Buttons at the top (sidebar.doorsUp; Side.swift:196-203): up only if they
   // fit beside the helm, keptWidth ≤ beyondHelm (Foot.tsx); never with icons only.
 
-  // What's playing in other tabs (sidebar.player; Player.swift): the newest
-  // tab to make a sound that is out of sight, its pause; paused from here it
-  // stays, with its play, until it plays again or goes.
-  const [order, setOrder] = createSignal<string[]>([])
-  const [stilled, setStilled] = createSignal<Set<string>>(new Set())
-  createEffect(() => {
-    const sounding = state.tabs.filter(t => t.audible).map(t => t.id)
-    setOrder(o => [...o.filter(id => sounding.includes(id)), ...sounding.filter(id => !o.includes(id))])
-    setStilled(s => { const n = new Set([...s].filter(id => state.tabs.some(t => t.id === id && !t.asleep && !t.audible))); return n.size === s.size ? s : n })
-  })
+  // What's playing in other tabs (sidebar.player; Player.swift, Search
+  // 1.0.22): a row for every tab playing out of sight, the newest on top,
+  // pinned tabs and tabs left playing in another space included (main's
+  // tabs/player.ts keeps the list and what was paused from here). Not the
+  // pages on screen, nor the one out in the floating window, which has its
+  // own controls. Paused from here, a row stays with its play.
   const shownIDs = () => new Set([state.activeID, ...(state.splits.find(s => s.tabs.includes(state.activeID ?? ''))?.tabs ?? [])])
-  const player = () => {
-    if (!pref('sidebar.player', true) || icons()) return null
-    const ids = [...order(), ...stilled()]
-    for (const id of ids.reverse()) {
-      const t = state.tabs.find(x => x.id === id)
-      if (t && !shownIDs().has(id)) return t
-    }
-    return null
+  const players = () => {
+    if (!pref('sidebar.player', true) || icons()) return []
+    const shown = shownIDs()
+    return (state.players ?? []).filter(t => !shown.has(t.id) && t.id !== state.float?.tab)
   }
-  const playOrPause = (id: string, play: boolean) => {
-    void cmd({ do: 'tab.media', id, play })
-    setStilled(s => { const n = new Set(s); if (play) n.delete(id); else n.add(id); return n })
-  }
+  const playOrPause = (id: string, play: boolean) => void cmd({ do: 'tab.media', id, play })
 
   return (
     <aside class="sidebar on-frame" data-tabs-ui="column" classList={{ icons: icons(), right: state.sidebar.side === 'right', contrast: P.contrast() }}
-      style={{ width: `${width()}px` }}
+      style={{ width: `${width()}px` }} onWheel={wheel}
       onContextMenu={e => { if (!(e.target as HTMLElement).closest('.row, .square, .tile, .group-heading, .folder-heading, .door, .address-line, .foot > *')) { e.preventDefault(); void openColumnMenu(e) } }}>
       <Wash />
       <div class="band drag" style={{ 'padding-right': capRoom() ? `${capRoom()}px` : undefined }}>
@@ -327,7 +352,7 @@ export function Column() {
         </Show>
         <div class="void" onDblClick={() => void cmd({ do: 'tab.new' })} onPointerDown={voidDown} />
       </div>
-      <Show when={player()}>{t => <PlayerRow tab={t()} stilled={stilled().has(t().id)} still={playOrPause} />}</Show>
+      <For each={players()}>{t => <PlayerRow tab={t} stilled={!!t.stilled} still={playOrPause} />}</For>
       <Show when={!doorsUp()}><Foot vertical={icons()} /></Show>
       <div class="grip" classList={{ held: gripping() }} onPointerDown={startResize}
         onDblClick={() => { void cmd({ do: 'prefs.set', key: 'sidebar.narrowed', value: false }); void cmd({ do: 'sidebar.resize', width: 232 }) }}>

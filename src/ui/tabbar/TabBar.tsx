@@ -15,13 +15,14 @@ import { outlet } from '../lib/registry'
 import type { GroupView, TabView } from '../../shared/state'
 import { G, Ring } from '../sidebar/glyphs'
 import { P, label, monogram, pinOf, picked, pickedAmongOthers, pref, restOf, pairSlot, type PairSlot } from '../sidebar/derive'
-import { Mark } from '../sidebar/Row'
+import { Mark, RenameField, clickRenames } from '../sidebar/Row'
+import { CornerSpeaker, cornerSpeaks } from '../sidebar/Tiles'
 import { SpaceDot, SpaceButtons } from '../sidebar/Foot'
 import { Wash, groupColour } from '../sidebar/Sidebar'
 import { Chase, Springs, curve, keepLeaving, quietOn, stay, fadeBack, type Box } from '../sidebar/motion'
 import { openMenu } from '../menus/open'
 import { tabMenu, groupMenu } from '../menus/build'
-import { activeTab, reading, dropTarget } from '../sidebar/ui'
+import { activeTab, reading, dropTarget, editing, setEditing } from '../sidebar/ui'
 import { TabField, tabFieldText, fieldTextWidth } from '../field/TabField'
 import { AddressLine } from '../field/AddressLine'
 import { press as carryPress, lifted, stripMark } from './drag'
@@ -303,7 +304,7 @@ export function TabBar() {
 
 function press(t: TabView) {
   return (e: PointerEvent) => {
-    if (e.button !== 0 || (e.target as HTMLElement).closest('.strip-x, .speaker')) return
+    if (e.button !== 0 || (e.target as HTMLElement).closest('.strip-x, .speaker, .corner-speaker')) return
     const ctrl = e.ctrlKey || (window.search.platform === 'darwin' && e.metaKey)
     if (ctrl && !e.shiftKey && t.pinID) { void cmd({ do: 'pin.commandClick', id: t.id }); return }
     const pick = () => void cmd({ do: 'tab.pick', id: t.id, mode: ctrl && e.shiftKey ? 'addRange' : ctrl ? 'toggle' : 'range' })
@@ -325,10 +326,12 @@ function press(t: TabView) {
     }
     if ((state.picked ?? []).length) void cmd({ do: 'tab.pick', id: t.id, mode: 'clear' })
     // A press on the tab you're on edits its address, in the tab (§5.18),
-    // once the button is up, so a carry from it doesn't open the field.
+    // once the button is up, so a carry from it doesn't open the field; with
+    // Settings › Tabs › Double click to rename, its name (Search 1.0.22). A
+    // pin across the top has no title to type over: its address, as before.
     if (t.id === state.activeID) {
-      if (state.tabEdit?.id === t.id) return
-      const edit = () => void cmd({ do: 'field.editTab', id: t.id })
+      if (state.tabEdit?.id === t.id || renaming(t.id)) return
+      const edit = () => (clickRenames() && !t.pinID ? setEditing({ kind: 'tab', id: t.id }) : void cmd({ do: 'field.editTab', id: t.id }))
       if (t.pinID) edit()
       else carryPress(e, t.id, edit)
       return
@@ -337,6 +340,9 @@ function press(t: TabView) {
     if (!t.pinID) carryPress(e, t.id, null)
   }
 }
+
+/** The tab whose name is typed over in it (Rename, Double click to rename). */
+const renaming = (id: string) => editing()?.kind === 'tab' && editing()?.id === id
 
 interface Coming { motion?: StripMotion; fresh?: boolean; leaving?: boolean; done?: () => void }
 
@@ -373,7 +379,9 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
     const need = Math.ceil(fieldTextWidth(tabFieldText()) + 11 * 2 + 14)
     return Math.max(Math.min(p.width, most), Math.min(most, need))
   }
-  const width = held(() => !!p.leaving, () => (addressing() ? fits() : p.width))
+  // Its name typed over in it: at least a whole tab's width, for the name.
+  const named = () => renaming(t().id)
+  const width = held(() => !!p.leaving, () => (addressing() ? fits() : named() ? Math.max(p.width, Math.min(TAB, p.room ?? TAB)) : p.width))
   const titled = held(() => !!p.leaving, () => p.titled)
   let wasAddressing = untrack(addressing)
   const glides = createMemo(() => { void p.width; const a = addressing(); const g = a !== wasAddressing; wasAddressing = a; return g })
@@ -386,7 +394,7 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
         translate: lifted()?.id === t().id ? `${lifted()!.dx}px ${lifted()!.dy}px` : undefined,
       }}
       classList={{
-        live: live() && !p.leaving, titled: titled() || addressing(), addressing: addressing(), picked: picked(t().id), gliding: p.gliding, 'put-away': !!p.grouped && t().asleep && !live(), loading: t().loading, leaving: !!p.leaving,
+        live: live() && !p.leaving, titled: titled() || addressing() || named(), addressing: addressing(), renaming: named(), picked: picked(t().id), gliding: p.gliding, 'put-away': !!p.grouped && t().asleep && !live(), loading: t().loading, leaving: !!p.leaving,
         'split-target': dropTarget() === `s:${t().id}`, carried: lifted()?.id === t().id, faded: lifted()?.id === t().id && lifted()!.faded,
         'in-pair': !!p.pair, 'pair-first': p.pair?.index === 0, 'pair-last': !!p.pair && p.pair.index === p.pair.count - 1, 'pair-live': !!p.pair?.live,
       }}
@@ -406,13 +414,16 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
       <Show when={addressing()}><TabField /></Show>
       {/* A private tab (§2.35): the column's eye, here too. */}
       <Show when={t().shy && titled() && !addressing()}><G.eyeSlash pt={9} class="sign" /></Show>
-      <Show when={titled()}>
+      <Show when={named()}>
+        <RenameField initial={t().name || label(t())} done={name => { if (name !== null) void cmd({ do: 'tab.rename', id: t().id, name: name || null }); setEditing(null) }} />
+      </Show>
+      <Show when={titled() && !named()}>
         <span class="strip-title">
           <span class="title">{label(t())}</span>
           <Show when={rest()}>{r => <span class="rest"><span class="rest-name">{r().name}</span></span>}</Show>
         </span>
       </Show>
-      <Show when={titled() && !addressing()}>
+      <Show when={titled() && !addressing() && !named()}>
         <Show when={speaker()}>
           <button class="speaker" title={t().muted ? 'Unmute Tab' : 'Mute Tab'} onClick={e => { e.stopPropagation(); void cmd({ do: 'tab.mute', id: t().id, muted: !t().muted }) }}>
             {t().muted ? <G.speakerSlash pt={8} /> : <G.speaker pt={8} />}
@@ -420,7 +431,7 @@ function StripTab(p: { tab: TabView; width: number; titled: boolean; gliding: bo
         </Show>
         <span class="strip-slot"><Show when={t().loading}><Ring /></Show></span>
       </Show>
-      <Show when={(titled() || live()) && !addressing()}>
+      <Show when={(titled() || live()) && !addressing() && !named()}>
         <button class="strip-x" title={p.grouped && !t().asleep ? 'Put Away' : 'Close Tab'} onPointerDown={e => e.stopPropagation()}
           onClick={e => {
             e.stopPropagation()
@@ -453,6 +464,8 @@ function StripPin(p: { tab: TabView; gliding: boolean } & Coming) {
           <Mark tab={{ ...t(), label: label(t()) }} size={16} icon dim={t().asleep} />
         </Show>
       </Show>
+      {/* Its page plays sound, or was muted: the column's corner speaker (Search 1.0.22, idea 1328). */}
+      <Show when={cornerSpeaks(t())}><CornerSpeaker tab={t()} /></Show>
     </div>
   )
 }

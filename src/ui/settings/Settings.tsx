@@ -75,6 +75,10 @@ function applies(id: string): boolean {
     case 'launcher.key': return !!p('launcher.on')
     case 'float.own': case 'float.minimize': case 'float.fade': return p('float.enabled') !== false
     case 'shield.stealth': return p('shield') !== false
+    // Double click to rename takes the click over; the column of icons, with
+    // no title to type over, still opens the address (Search 1.0.22).
+    case 'tabs.clickAddressOnly': return (side && icons) || !p('tabs.clickRenames')
+    case 'tabs.clickRenames': return !(side && icons)
     default: return true
   }
 }
@@ -103,6 +107,8 @@ function needs(id: string): string {
     case 'pages.capture.copyOnly': return 'Only with Capture pages on'
     case 'passwords.fill.prove': return 'Only with Fill in sign-ins on'
     case 'shield.stealth': return 'Only with Block ads and trackers on'
+    case 'tabs.clickAddressOnly': return 'Has no effect while Double click to rename is on'
+    case 'tabs.clickRenames': return 'Only with titles in the column or tabs across the top'
     default: return 'Only with the tabs down a side'
   }
 }

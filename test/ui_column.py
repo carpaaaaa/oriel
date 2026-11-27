@@ -47,7 +47,7 @@ t.ok(len(doors) == 3, "back, forward and reload")
 t.ok(k.near(doors[0][0], 10) and k.near(doors[1][0], 40) and k.near(doors[2][0], 70), f"doors from the edge, 26 + 4 apart (Windows: no lights): {[d[0] for d in doors]}")
 t.ok(all(k.near(d[2], 26) and k.near(d[3], 26) and d[4] == "8px" for d in doors), "each door 26 × 26, radius 8")
 t.ok(k.near(doors[0][1] + 13, 26), f"centred in the band: {doors[0][1] + 13}")
-t.ok(k.js("return [...document.querySelectorAll('.helm > .door')].slice(0, 2).every(e => e.disabled && getComputedStyle(e).opacity === '0.3')"), "with nowhere to go, back and forward greyed to 0.3")
+t.ok(k.js("return [...document.querySelectorAll('.helm > .door')].slice(0, 2).every(e => e.disabled && getComputedStyle(e).opacity === '0.5')"), "with nowhere to go, back and forward dimmed to half (Search 1.0.22)")
 
 sq = k.js("return [...document.querySelectorAll('.square')].map(e => { const r = rel(e.getBoundingClientRect()); return [r.x, r.y, r.width, r.height, getComputedStyle(e.querySelector('.ground')).borderTopLeftRadius, getComputedStyle(e.querySelector('.ground')).backgroundColor] })")
 t.ok(len(sq) == 4, f"four pinned squares: {len(sq)}")

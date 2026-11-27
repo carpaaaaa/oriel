@@ -16,6 +16,7 @@ import { openMenu } from '../menus/open'
 import { tabMenu } from '../menus/build'
 import { press } from './drag'
 import { arrive, leave, stay, keepLeaving, quietOn } from './motion'
+import { CornerSpeaker, cornerSpeaks } from './Tiles'
 
 /** A page's unread count as a pin shows it, read off the front of its title
  * ("(3) WhatsApp", "(12+) …"); nothing while it sleeps (UnreadBadge.swift). */
@@ -147,6 +148,9 @@ function Square(p: { tab: TabView; cell: { x: number; y: number; w: number; h: n
           <span class="unread" style={{ 'font-size': `${Math.max(7, scale() * 16 / 34 * 0.45).toFixed(2)}px` }}>{c()}</span>
         )}</Show>
       </div>
+      {/* Its page plays sound, or was muted: the icons-only tile's speaker, in
+          the same corner, a press muting it (Search 1.0.22, idea 1328). */}
+      <Show when={cornerSpeaks(t()) && !lettering()}><CornerSpeaker tab={t()} /></Show>
     </div>
   )
 }

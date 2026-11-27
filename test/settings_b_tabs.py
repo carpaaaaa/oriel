@@ -15,7 +15,8 @@ import bench as b  # noqa: E402
 import tabs_kit as k  # noqa: E402
 
 t = b.T()
-k.world("settings-b-tabs")
+# Pop-ups in small windows and Ctrl+Z reopening are on as they come since Search 1.0.22: off first, to see each change.
+k.world("settings-b-tabs", **{"tabs.popupWindows": False, "tabs.undoReopens": False})
 k.launch()
 CTRL = "control"
 

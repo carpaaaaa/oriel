@@ -54,6 +54,8 @@
 .strip-tab.live:hover .title { opacity: 1; }
 .strip-tab.live:hover .rest { opacity: 0; }
 .strip-title .rest { color: var(--ink); }
+/* Its name typed over in the tab (Rename, Double click to rename): where the title was. */
+.strip-tab .rename { font-size: var(--fs-tab); margin-right: 8px; }
 .strip-title .rest-name { font-weight: 500; }
 .strip-tab.put-away .strip-title, .strip-tab.put-away .mark { opacity: .45; }
 .strip-slot { flex: none; width: var(--close); height: var(--close); display: grid; place-items: center; color: var(--muted); }
@@ -112,6 +114,9 @@
 .strip-pin:hover .pin-letter { color: var(--ink-hover-text); }
 .strip-pin.live .pin-letter { color: var(--ink); }
 .strip-pin.asleep .pin-letter { opacity: .45; }
+/* Its corner speaker (Search 1.0.22): 3 past the right edge, 1 under the
+   bottom, so the band's 30 (the row scrolls, and clips) keeps all of it. */
+.strip-pin > .corner-speaker { position: absolute; right: -3px; bottom: -1px; }
 .pin-line { flex: none; width: 1px; height: 20px; background: var(--hairline); margin: 0 1px; }
 
 /* + right after the last tab: 15 with 7 each side, radius 9, there with the pointer in the strip */

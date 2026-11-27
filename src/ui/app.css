@@ -84,10 +84,13 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .window.col-right.room-left .side-room { left: var(--card-gap); }
 .window.col-right.room-right .card { right: calc(var(--side) + var(--room-w) + var(--card-gap)); }
 .window.col-right.room-right .side-room { right: var(--side); }
-/* fold.loadingLine: 2 along the page's top, clear of the corners, in the
-   text's colour (the user's wish, 24 Nov 2026: dark on light, white on dark,
-   never the accent's blue) */
-.loading-line { position: absolute; left: calc(var(--card-gap) + var(--card-radius)); right: calc(var(--card-gap) + var(--card-radius)); top: calc(var(--top, var(--card-gap)) - 2px); height: 2px; pointer-events: none; z-index: 5; }
+/* The loading line: 2 along the page's top, in the gap just over the card,
+   clear of its corners, wherever the card is (the tabs in sight or not, Search
+   1.0.22); in the text's colour (the user's wish, 24 Nov 2026: dark on light,
+   white on dark, never the accent's blue) */
+.loading-line { position: absolute; left: var(--card-radius); right: var(--card-radius); top: -2px; height: 2px; pointer-events: none; z-index: 5; }
+/* Across the top the page goes edge to edge under the strip: so does the line. */
+.window.top .loading-line { left: 0; right: 0; }
 .loading-line span { display: block; height: 100%; width: 8%; background: var(--ink); opacity: .9; animation: loading-line 3s cubic-bezier(0, 0, .2, 1) forwards; }
 @keyframes loading-line { to { width: 90%; } }
 .window.top .top-strip { display: none; }
@@ -99,7 +102,6 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .window.fill .card, .window.fill:not(:has(.sidebar)) .card { top: 0; left: 0; right: 0; bottom: 0; border-radius: 0; box-shadow: none; }
 :root[data-frame="drawn"][data-state="free"] .window.fill .card { border-radius: var(--window-radius); }
 .window.fill :is(.caption-buttons, .chrome-end, .top-strip) { display: none; }
-.window.fill .loading-line { top: 0; left: var(--card-radius); right: var(--card-radius); }
 .window.fill.line .card, .window.fill.line:not(:has(.sidebar)) .card { top: 2px; }
 
 /* The window's buttons drawn by Oriel (chrome/Buttons.tsx, Settings › Themes ›
@@ -239,7 +241,6 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
    the room beside it and the loading line come down by its 30 (studio/01
    §8.13 point 4: the bar's height above the card). */
 .window.bm :is(.card, .side-room) { top: calc(var(--top, var(--card-gap)) + var(--bookmarks-bar)); }
-.window.bm .loading-line { top: calc(var(--top, var(--card-gap)) + var(--bookmarks-bar) - 2px); }
 :root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .window.bm .card { top: var(--bookmarks-bar); }
 :root[data-state="fullScreen"] .window.top.bm :is(.card, .side-room) { top: calc(var(--top) + var(--bookmarks-bar)); }
 
