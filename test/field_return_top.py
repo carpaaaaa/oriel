@@ -82,6 +82,25 @@ f = typed("zzqx nothing like it")
 t.ok(f["selected"] == -1, "a search on top: nothing picked")
 b.cmd("field.close")
 
+# The address in the tab (Search 1.0.21): the same.
+here = start()
+b.cmd("field.close")
+time.sleep(0.3)
+b.cmd("field.editTab", id=here)
+time.sleep(0.5)
+b.cmd("field.tabType", text="kettlebell")
+time.sleep(0.4)
+e = b.window()["tabEdit"]
+t.ok(e and e["selected"] == 0 and e["offers"][0]["url"] == PAGE, f"the address in the tab: the top place picked as you type ({e and e['selected']})")
+b.cmd("field.tabMove", by=-1)
+time.sleep(0.2)
+t.ok(b.window()["tabEdit"]["selected"] == -1, "…↑ lets go of it")
+b.cmd("field.tabType", text="kettlebel")
+b.cmd("field.tabType", text="kettlebell")
+time.sleep(0.4)
+b.cmd("field.tabCommit", text="kettlebell")
+t.ok(landed("Kettlebell club")["url"] == PAGE, "…and Return goes to the page")
+
 # The field raised from any app (launcher.on): the same.
 b.call({"do": "settingsb.launch"})
 time.sleep(0.6)

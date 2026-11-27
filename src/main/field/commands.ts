@@ -644,8 +644,8 @@ export async function submit(c: WindowController, o: Submit): Promise<void> {
   // with no scheme and finished by nothing, it is the field's guess: a name
   // that can't be found isn't tried again unless you have been there
   // (Search 1.0.22, Browser.submit).
-  const typedAddress = !picked && (m.ending != null || !!addressURL(m.typed))
-  const typed = typedAddress ? { guessed: m.ending == null && !m.chip && !m.typed.includes('://') } : undefined
+  const typedAddress = !picked && !m.chip && (m.ending != null || !!addressURL(m.typed))
+  const typed = typedAddress ? { guessed: m.ending == null && !m.typed.includes('://') } : undefined
   // The floating new tab: what was typed gets a tab of its own, and the page
   // the field was raised over stays as it was; the same for ⌘K's words
   // (Browser.submit, :8398-8402). Alt+Return is ⌘Return: behind, as a link.
