@@ -42,7 +42,6 @@ export const defaults = {
   'sidebar.hides': false,
   'sidebar.slides': false,
   'sidebar.foldIcons': false,
-  'fold.loadingLine': false,
   'layout.cards': true,
   'layout.cardsFullScreen': false,
   'toolbar.left': true,
