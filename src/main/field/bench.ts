@@ -1,5 +1,6 @@
 // The field module's bench requests (test worlds only).
 
+import { clipboard } from 'electron'
 import { benchRequest } from '../bench/server'
 import { focusedController } from '../views/window'
 import { runtimes } from '../views/tabs'
@@ -19,6 +20,13 @@ benchRequest('field.dnsfail', req => {
   if (req.host) testFailures.set(String(req.host).toLowerCase(), Number(req.times ?? 1))
   if (req.network) networkChanged()
   return { left: Object.fromEntries(testFailures) }
+})
+
+/** Text on the clipboard, for Paste and Go (field/menu.ts); the test keeps
+ * and gives back whatever was there (ctxmenu.clipboard save, restore). */
+benchRequest('field.clipboard', async req => {
+  clipboard.writeText(String(req.text ?? ''))
+  return { text: await clipboard.readText() }
 })
 
 /** Pages out of sight loading in their turn, and waiting for one (views/turns.ts). */

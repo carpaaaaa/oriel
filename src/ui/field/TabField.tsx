@@ -8,6 +8,8 @@ import { createEffect, createSignal, For, on, onCleanup, onMount } from 'solid-j
 import { state, cmd } from '../lib/store'
 import { OfferRow, shake } from './Field'
 import { curve, Springs } from '../sidebar/motion'
+import { menuFor } from '../menus/open'
+import { FIELD_MENU, openFieldMenu } from './menu'
 
 const [typed, setTyped] = createSignal('')
 /** What the tab's address field holds now: the tab across the top is as
@@ -102,7 +104,10 @@ export function TabField() {
       onCompositionStart={() => { composing = true }}
       onCompositionEnd={() => { composing = false; void send() }}
       onKeyDown={key}
-      onBlur={() => void cmd({ do: 'field.tabBlur', text: input.value })} />
+      onContextMenu={ev => { ev.stopPropagation(); void openFieldMenu(ev, input, true) }}
+      // Its right-click menu, drawn over everything, takes the keys for a
+      // while: that is not the edit let go of (menu.ts gives them back).
+      onBlur={() => { if (menuFor() !== FIELD_MENU) void cmd({ do: 'field.tabBlur', text: input.value }) }} />
   )
 }
 

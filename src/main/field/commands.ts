@@ -62,6 +62,9 @@ interface Memory {
   /** Keys typed between ⌘L/⌘T/⌘K and the field taking them (holdKey). */
   focusAsked: number | null
   held: Electron.Input[]
+  /** The field over the page has its right-click menu up (field/menu.ts). */
+  menuUp: boolean
+  menuClose: number
 }
 
 const memories = new WeakMap<WindowRecord, Memory>()
@@ -74,7 +77,7 @@ export function mem(c: WindowController): Memory {
       launching: false, launchDraft: '', launchGroup: null, inline: false, anchor: null,
       chip: null, offer: null, refusals: 0, sync: 0, focus: 0, selectFrom: null, shown: '', serial: 0, pending: Promise.resolve(),
       engineWords: { asked: '', words: [] }, suggester: new EngineSuggester(), drafts: new Map(),
-      lastActive: c.record.active[c.record.space] ?? null, focusAsked: null, held: [],
+      lastActive: c.record.active[c.record.space] ?? null, focusAsked: null, held: [], menuUp: false, menuClose: 0,
     }
     memories.set(c.record, m)
     // The window's field state, whole, from the start.
@@ -169,6 +172,7 @@ export function publish(c: WindowController, rewrite = false, selectFrom?: numbe
     label: labels[m.editing && m.inline ? 'blank' : md],
     high: onWindow(c, m),
     inline: m.editing && m.inline,
+    menuClose: m.menuClose,
   }
   model.touch(c.record, ['field'])
   placeLine(c)
@@ -762,6 +766,8 @@ export function escape(c: WindowController): boolean {
   const m = mem(c)
   const active = activeOf(c)
   if (!fieldShowing(c)) return false
+  // Its right-click menu up: the menu goes first (field/menu.ts).
+  if (m.menuUp) { m.menuUp = false; m.menuClose++; publish(c); return true }
   if (m.picked != null) { pick(m, null); publish(c, true, m.typed.length); return true }
   if (active?.empty && (m.typed || m.chip)) {
     m.chip = null

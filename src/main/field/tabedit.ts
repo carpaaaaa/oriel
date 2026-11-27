@@ -156,6 +156,18 @@ async function commit(c: WindowController, text?: string): Promise<void> {
   go(c, e.id, url)
 }
 
+/** Paste and Go in the tab's own field (Search 1.0.22): that tab goes to
+ * the clipboard's website, as an address typed, and the edit ends. */
+export function tabPasteAndGo(c: WindowController, url: string): boolean {
+  const e = edits.get(c.record)
+  if (!e) return false
+  if (e.finishing) { clearTimeout(e.finishing); e.finishing = null }
+  cancelTabEdit(c)
+  runtimeFor(e.id, c.pageSession).noteTyped(url, false)
+  go(c, e.id, url)
+  return true
+}
+
 /** finishTabEdit: a click elsewhere keeps what was typed, as Return does;
  * an address left as it was, an empty field or words going nowhere let go. */
 function finish(c: WindowController): void {

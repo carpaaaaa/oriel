@@ -4,10 +4,14 @@
 // below, hanging so that it never moves the field. Omnibox.swift.
 
 import './field.css'
-import { createEffect, For, on, onMount, Show } from 'solid-js'
+import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js'
+import { Portal } from 'solid-js/web'
 import type { Suggestion } from '../../shared/state'
 import { state, cmd } from '../lib/store'
 import { Bookmark, CommandKey, History, Lens, Pin, XMark } from './icons'
+import { Menu } from '../menus/Menu'
+import type { Entry } from '../menus/bridge'
+import { clipWebsite, doFieldAction, fieldEntries, openFieldMenu, type FieldAction } from './menu'
 
 const hostOf = (url: string) => { try { return new URL(url).host.replace(/^www\./, '') } catch { return '' } }
 const withoutWWW = (a: string) => (a.toLowerCase().startsWith('www.') ? a.slice(4) : a)
@@ -28,6 +32,26 @@ export function Field(p: { place: 'page' | 'overlay' | 'line' }) {
   /** The ending this input put in after the caret, while it is still there. */
   let ending: string | null = null
   let refused = false
+  /** The field over the page's own right-click menu, drawn in its view so
+   * the field stays (menu.ts); the interface's fields have theirs in the overlay. */
+  const [menu, setMenu] = createSignal<{ entries: Entry[]; at: { x: number; y: number } } | null>(null)
+  const showMenu = (m: { entries: Entry[]; at: { x: number; y: number } } | null) => {
+    if (!!m !== !!menu()) void cmd({ do: 'field.menuUp', up: !!m })
+    setMenu(m)
+  }
+  onCleanup(() => { if (menu()) void cmd({ do: 'field.menuUp', up: false }) })
+  const contextMenu = async (e: MouseEvent) => {
+    if (p.place !== 'overlay') { void openFieldMenu(e, input); return }
+    e.preventDefault()
+    const at = { x: e.clientX, y: e.clientY }
+    const url = await clipWebsite()
+    showMenu({ entries: fieldEntries(input, url), at })
+  }
+  const pickMenu = (entry: Entry) => {
+    showMenu(null)
+    const action = entry.act && 'ui' in entry.act ? (entry.act.data as { action?: FieldAction } | undefined)?.action : undefined
+    if (action) void doFieldAction(input, action, 'overlay')
+  }
 
   const write = (value: string, from: number | null | undefined) => {
     input.value = value
@@ -64,6 +88,8 @@ export function Field(p: { place: 'page' | 'overlay' | 'line' }) {
     input.focus()
     void cmd({ do: 'field.focused' })
   }, { defer: true }))
+  // Escape with the menu up closes the menu, not the field (the main process has the key first).
+  createEffect(on(() => f().menuClose ?? 0, () => setMenu(null), { defer: true }))
   // Refused: a red edge and a shake, gone at the next key.
   createEffect(on(() => f().refused, n => {
     if (n <= refusals) { refusals = n; return }
@@ -90,6 +116,11 @@ export function Field(p: { place: 'page' | 'overlay' | 'line' }) {
 
   const key = (e: KeyboardEvent) => {
     if (e.isComposing || composing) return
+    // The menu up has the arrows and Return (Menu); any other key puts it away.
+    if (menu()) {
+      if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(e.key)) return
+      showMenu(null)
+    }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       if (e.altKey || e.ctrlKey || e.metaKey) return
       e.preventDefault()
@@ -146,9 +177,18 @@ export function Field(p: { place: 'page' | 'overlay' | 'line' }) {
           onInput={() => { if (!composing) void send() }}
           onCompositionStart={() => { composing = true }}
           onCompositionEnd={() => { composing = false; void send() }}
-          onKeyDown={key} />
+          onKeyDown={key}
+          onContextMenu={e => void contextMenu(e)} />
       </div>
       <Show when={p.place !== 'line' && listShown()}><FieldList /></Show>
+      <Show when={menu()}>{m => (
+        <Portal>
+          <div class="menu-host" data-field-menu>
+            <div class="menu-scrim" onPointerDown={() => showMenu(null)} onContextMenu={e => { e.preventDefault(); showMenu(null) }} />
+            <Menu entries={m().entries} at={m().at} room={{ w: window.innerWidth, h: window.innerHeight }} pick={pickMenu} close={() => showMenu(null)} />
+          </div>
+        </Portal>
+      )}</Show>
     </div>
   )
 }
