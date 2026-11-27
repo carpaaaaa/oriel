@@ -13,7 +13,7 @@ import { runtimeFor } from '../views/tabs'
 import type { Suggestion } from '../../shared/state'
 import type { TabEditState } from '../../shared/modules/field'
 import { need } from '../context'
-import { editable, fileURL, reachable } from '../address'
+import { addressURL, editable, fileURL, reachable } from '../address'
 import { destination } from './engines'
 import { placeOffers } from './suggest'
 import { closeField, stayUp } from './commands'
@@ -110,6 +110,11 @@ async function typed(c: WindowController, text: string, deleting: boolean): Prom
   const { offers, ending } = await placeOffers(text)
   if (edits.get(c.record) !== e || serial !== e.serial) return { text, ending: null }
   e.offers = offers
+  // Return takes the top suggestion here too (Search 1.0.21): the place on
+  // top is picked as you type, unless an address is typed out or the grey
+  // ending finishes one; ↑ lets go of it.
+  if (model.pref<boolean>('search.returnTop') && ending == null && !addressURL(text)
+    && ['open', 'visited', 'bookmark', 'known', 'searched'].includes(offers[0]?.how ?? '')) e.picked = 0
   changed(c)
   return { text, ending: deleting ? null : ending }
 }
@@ -154,6 +159,18 @@ async function commit(c: WindowController, text?: string): Promise<void> {
   }
   cancelTabEdit(c)
   go(c, e.id, url)
+}
+
+/** Paste and Go in the tab's own field (Search 1.0.22): that tab goes to
+ * the clipboard's website, as an address typed, and the edit ends. */
+export function tabPasteAndGo(c: WindowController, url: string): boolean {
+  const e = edits.get(c.record)
+  if (!e) return false
+  if (e.finishing) { clearTimeout(e.finishing); e.finishing = null }
+  cancelTabEdit(c)
+  runtimeFor(e.id, c.pageSession).noteTyped(url, false)
+  go(c, e.id, url)
+  return true
 }
 
 /** finishTabEdit: a click elsewhere keeps what was typed, as Return does;

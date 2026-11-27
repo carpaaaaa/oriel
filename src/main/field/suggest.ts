@@ -11,7 +11,7 @@ import { model, type WindowRecord } from '../model/model'
 import { probe } from '../paths'
 import { addressURL, editable, fileURL, identity, pretty, withoutWWW } from '../address'
 import {
-  bareHost, builtInSites, destination, engineID, engineName, engineTable, engineTemplate, engineURL,
+  bareHost, builtInSites, customSuggestTemplate, destination, engineID, engineName, engineTable, engineTemplate, engineURL,
   keywordAccepts, keywordMatch, keywordName, keywords, searchedWords, searchURL, siteURL, type SearchSite,
 } from './engines'
 
@@ -287,13 +287,14 @@ export function engineQuestion(typed: string, o: { summoning: boolean; shy: bool
   } else if (keywordMatch(typed)) return null
   const test = probe ? model.pref<string>('suggest.testURL') : ''
   const id = engineID()
-  const template = test || (id === 'custom' ? null : engineTable[id].suggest)
+  // A custom engine asks its own suggestions address, if one is set (Search 1.0.20).
+  const template = test || (id === 'custom' ? customSuggestTemplate() : engineTable[id].suggest)
   if (!template) return null
   const url = engineURL(words, template)
   if (!url) return null
   const u = new URL(url)
   if (u.protocol === 'https:') return url
-  if (test && u.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(u.hostname)) return url
+  if ((test || (probe && id === 'custom')) && u.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(u.hostname)) return url
   return null
 }
 

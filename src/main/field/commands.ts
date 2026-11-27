@@ -62,6 +62,9 @@ interface Memory {
   /** Keys typed between ⌘L/⌘T/⌘K and the field taking them (holdKey). */
   focusAsked: number | null
   held: Electron.Input[]
+  /** The field over the page has its right-click menu up (field/menu.ts). */
+  menuUp: boolean
+  menuClose: number
 }
 
 const memories = new WeakMap<WindowRecord, Memory>()
@@ -74,7 +77,7 @@ export function mem(c: WindowController): Memory {
       launching: false, launchDraft: '', launchGroup: null, inline: false, anchor: null,
       chip: null, offer: null, refusals: 0, sync: 0, focus: 0, selectFrom: null, shown: '', serial: 0, pending: Promise.resolve(),
       engineWords: { asked: '', words: [] }, suggester: new EngineSuggester(), drafts: new Map(),
-      lastActive: c.record.active[c.record.space] ?? null, focusAsked: null, held: [],
+      lastActive: c.record.active[c.record.space] ?? null, focusAsked: null, held: [], menuUp: false, menuClose: 0,
     }
     memories.set(c.record, m)
     // The window's field state, whole, from the start.
@@ -169,6 +172,7 @@ export function publish(c: WindowController, rewrite = false, selectFrom?: numbe
     label: labels[m.editing && m.inline ? 'blank' : md],
     high: onWindow(c, m),
     inline: m.editing && m.inline,
+    menuClose: m.menuClose,
   }
   model.touch(c.record, ['field'])
   placeLine(c)
@@ -223,10 +227,26 @@ function guess(c: WindowController, deleting = false): Promise<void> {
     m.ending = deleting ? null : ending
     pick(m, null)
     if (m.launching && model.pref<boolean>('newtab.arc')) offerTabs(c, m, deleting)
+    if (model.pref<boolean>('search.returnTop') && m.picked == null) pickTop(m)
     askEngine(c)
   })()
   m.pending = work.catch(e => console.warn('[field] guess', e))
   return m.pending
+}
+
+/** Return takes the top suggestion (Settings › Browsing, search.returnTop;
+ * Browser.pickTop): the place on top of the list is picked as you type, so
+ * Return goes to it rather than searching for the words. The field keeps
+ * what was typed and ↑ lets go of the row, in every field, the one raised
+ * from any app too (Search 1.0.22). Only a place: a search or a command on
+ * top keeps Return as it is, an address typed out goes where it says, and
+ * one the grey ending finishes goes where the field shows. */
+function pickTop(m: Memory): void {
+  const top = m.offers[0]
+  if (!top || m.ending != null || m.chip || addressURL(m.typed)) return
+  if (!['open', 'visited', 'bookmark', 'known', 'searched'].includes(top.how ?? '')) return
+  pick(m, 0)
+  m.pickedByTyping = true
 }
 
 /** ⌘T finds your open tabs (Browser.offerTabs, Browser.swift:7863-7880): the
@@ -594,12 +614,9 @@ export async function submit(c: WindowController, o: Submit): Promise<void> {
   const aside = !!o.newTab
   const active = activeOf(c)
   const fromSwitcher = m.summoning && !!active && !active.empty
-  // Return takes the top suggestion (Settings › Browsing, search.returnTop): a place on top of the
-  // list is the one chosen as you type, so Return goes to it and not to a search for the words.
-  // A search or a command on top, an address typed out and the grey ending go where they went.
-  const top = m.picked == null && m.chip == null && m.ending == null && !m.summoning && model.pref<boolean>('search.returnTop') && !addressURL(m.typed) ? m.offers[0] : undefined
-  const place = top && (top.how === 'visited' || top.how === 'known' || top.how === 'bookmark' || top.how === 'open') ? top : undefined
-  const picked = m.picked != null ? m.offers[m.picked] : place
+  // Return takes the top suggestion picks its row as you type (pickTop), so
+  // ↑ can let go of it and Return searches.
+  const picked = m.picked != null ? m.offers[m.picked] : undefined
   if (picked?.tabID && model.tabs.has(picked.tabID)) {
     m.summoning = false
     model.selectTab(c.record, picked.tabID)
@@ -622,11 +639,28 @@ export async function submit(c: WindowController, o: Submit): Promise<void> {
     publish(c)
     return
   }
+  // An address typed (or finished from what was typed), not a search: kept
+  // under the name it was typed by if the site sends you elsewhere. Typed
+  // with no scheme and finished by nothing, it is the field's guess: a name
+  // that can't be found isn't tried again unless you have been there
+  // (Search 1.0.22, Browser.submit).
+  const typedAddress = !picked && !m.chip && (m.ending != null || !!addressURL(m.typed))
+  const typed = typedAddress ? { guessed: m.ending == null && !m.typed.includes('://') } : undefined
   // The floating new tab: what was typed gets a tab of its own, and the page
   // the field was raised over stays as it was; the same for ⌘K's words
   // (Browser.submit, :8398-8402). Alt+Return is ⌘Return: behind, as a link.
-  if ((m.launching || fromSwitcher) && !aside) go(c, reachable(target), { loose: true })
-  else go(c, reachable(target), aside ? { newTab: true, front: !!o.front } : {})
+  if ((m.launching || fromSwitcher) && !aside) go(c, reachable(target), { loose: true, typed })
+  else go(c, reachable(target), aside ? { newTab: true, front: !!o.front, typed } : { typed })
+}
+
+/** Paste and Go: an address from the clipboard, where Return would send one
+ * typed out (Browser.submit(address:), Search 1.0.22). */
+export function pasteAndGo(c: WindowController, url: string): void {
+  const m = mem(c)
+  const active = activeOf(c)
+  const fromSwitcher = m.summoning && !!active && !active.empty
+  m.summoning = false
+  go(c, reachable(url), m.launching || fromSwitcher ? { loose: true, typed: { guessed: false } } : { typed: { guessed: false } })
 }
 
 /** Shift-Return (Browser.submitToShiftEngine, studio/03 §1.4): exactly what
@@ -676,24 +710,27 @@ async function take(c: WindowController, index: number): Promise<void> {
 /** Where Return sends it. `loose`: the floating new tab's or ⌘K's, which is
  * ⌘T's tab and came from no page: in front, in no group, beside the page
  * (Browser.open's `loose`); raised by New Tab in Group, at that group's end. */
-function go(c: WindowController, url: string, o: { newTab?: boolean; front?: boolean; loose?: boolean }): void {
+function go(c: WindowController, url: string, o: { newTab?: boolean; front?: boolean; loose?: boolean; typed?: { guessed: boolean } }): void {
   const m = mem(c)
   const active = activeOf(c)
   const group = o.loose && m.launching ? m.launchGroup : null
   if (active?.empty) m.drafts.delete(active.id)
   closeOver(c, m)
+  // The tab told the address was typed (tabs.ts noteTyped).
+  const typed = (id: unknown) => { if (o.typed && typeof id === 'string' && model.tabs.has(id)) runtimeFor(id, c.pageSession).noteTyped(url, o.typed.guessed) }
   if (o.loose) {
     void run({ do: 'tab.open', url, foreground: true, from: active?.id, loose: true } as never, { window: c })
-      .then(id => { if (group && typeof id === 'string') intoGroup(c, id, group); c.placePages(); c.focusPage() })
+      .then(id => { typed(id); if (group && typeof id === 'string') intoGroup(c, id, group); c.placePages(); c.focusPage() })
       .catch(e => console.warn('[field] tab.open', e))
     return
   }
   if (o.newTab || !active) {
     void run({ do: 'tab.new', url, background: !o.front, after: active?.id } as never, { window: c })
-      .then(() => { c.placePages(); if (o.front) c.focusPage() })
+      .then(id => { typed(id); c.placePages(); if (o.front) c.focusPage() })
       .catch(e => console.warn('[field] tab.new', e))
     return
   }
+  typed(active.id)
   runtimeFor(active.id, c.pageSession).go(url)
   c.placePages()
   c.focusPage()
@@ -729,6 +766,8 @@ export function escape(c: WindowController): boolean {
   const m = mem(c)
   const active = activeOf(c)
   if (!fieldShowing(c)) return false
+  // Its right-click menu up: the menu goes first (field/menu.ts).
+  if (m.menuUp) { m.menuUp = false; m.menuClose++; publish(c); return true }
   if (m.picked != null) { pick(m, null); publish(c, true, m.typed.length); return true }
   if (active?.empty && (m.typed || m.chip)) {
     m.chip = null

@@ -70,6 +70,8 @@ declare module '../state' {
     /** The field is the address line's, in its row and not over the page; its
      * places hang under the row (studio/03 §1.6, AddressLine.swift). */
     inline?: boolean
+    /** Bumped when the menu of the field over the page is to close (Escape). */
+    menuClose?: number
   }
   interface WindowState {
     /** Sent by the field module (registerSlice), so optional here. */
@@ -137,6 +139,18 @@ declare module '../commands' {
     'field.lineAnchor': { rect: { x: number; y: number; width: number; height: number } }
     /** The line's field let go of the keys: a click elsewhere puts it away. */
     'field.lineBlur': None
+    /** An address field's right-click menu (Search 1.0.22): the website's
+     * address on the clipboard, for Paste and Go, or null. */
+    'field.clip': None
+    /** Paste and Go: the clipboard's website, from the window's field or the
+     * address in the tab (`tab`). */
+    'field.pasteGo': { where?: 'field' | 'tab' }
+    /** An editing row of the menu, done in the view whose field it is. */
+    'field.edit': { action: 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'selectAll'; where: 'ui' | 'overlay' }
+    /** The field over the page has its menu up: Escape closes the menu first. */
+    'field.menuUp': { up: boolean }
+    /** The keys back to the interface, to its field, once a menu is gone. */
+    'field.focusUI': None
   }
 }
 

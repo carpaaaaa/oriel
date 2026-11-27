@@ -210,6 +210,10 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: non
 .error-page { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 10px; }
 .error-page h1 { font-size: var(--fs-panel-title); font-weight: 600; }
 .error-page p { color: var(--muted); }
+/* A second line is a hint, drawn smaller: "Couldn't find this site." then
+   "Check the address or your connection." (Search 1.0.22, main/views/dns.ts). */
+.error-page h1 { white-space: pre-line; font-size: var(--fs-body); font-weight: 400; color: var(--muted); line-height: 1.6; }
+.error-page h1::first-line { font-size: var(--fs-panel-title); font-weight: 600; color: var(--ink); }
 .pill { padding: 5px 10px; border-radius: 999px; background: var(--ink); color: var(--ground); justify-self: center; }
 
 /* A tab carried over the page (studio/01 §8.17): bands 6 in from the edges,

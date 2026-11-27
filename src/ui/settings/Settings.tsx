@@ -115,11 +115,14 @@ function bareHost(template: string): string | null {
   try { const u = new URL(written(template).replace('%s', 'x')); if (u.protocol !== 'https:' && u.protocol !== 'http:') return null; return u.hostname.replace(/^www\./, '') || null } catch { return null }
 }
 const engineName = (engine: string, custom: string) => (engine === 'custom' ? bareHost(custom) ?? 'Google' : engineTitles.find(([k]) => k === engine)?.[1] ?? 'Google')
-const hasSuggestions = (engine: string) => engine !== 'custom'
+/** A custom engine's suggestions address the field may ask: https, %s once
+ * on one host (EngineSuggest.customEndpoint, Search 1.0.20). */
+const customSuggests = (address: string) => { const t = written(address ?? ''); return /^https:\/\//i.test(t) && !!templateHost(t) }
+const hasSuggestions = (engine: string) => engine !== 'custom' || customSuggests(p<string>('search.customSuggest'))
 
-// Site shortcuts (Keyword.swift; studio/03 §1.10, studio/06 row 73). The
-// address is taken as typed: no https:// is put in front of it, as the Mac
-// does for a custom engine but never for a shortcut (Keyword.accepts).
+// Site shortcuts (Keyword.swift; studio/03 §1.10, studio/06 row 73). An
+// address typed without its scheme is taken as https, as the field takes a
+// site typed without one (Keyword.address, Search 1.0.22).
 
 interface Keyword { id: string; keyword: string; template: string }
 /** A shortcut being written, kept out of the prefs until it's saved. */
@@ -143,6 +146,11 @@ function keywordAccepts(template: string): boolean {
   if (!templateHost(t) || t.split('%s').length !== 2) return false
   try { const u = new URL(t.replace('%s', 'SEARCHWORDSGOHERE')); return (u.pathname + u.search + u.hash).includes('SEARCHWORDSGOHERE') } catch { return false }
 }
+/** Keyword.address: www.youtube.com/results?search_query=%s is https (Search 1.0.22). */
+function keywordAddress(typed: string): string {
+  const t = typed.trim()
+  return !t || t.includes('://') || !/^[\p{L}\p{N}]/u.test(t) ? t : 'https://' + t
+}
 /** Keyword.problem, among the others (the one being changed left out). */
 function keywordProblem(d: Keyword): string | null {
   const word = d.keyword.trim()
@@ -150,7 +158,7 @@ function keywordProblem(d: Keyword): string | null {
   if (/\s/.test(word)) return 'One word, with no spaces in it'
   const taken = keywords().find(k => k.id !== d.id && k.keyword.toLowerCase() === word.toLowerCase())
   if (taken) return `${taken.keyword} already goes to ${keywordName(taken.template)}`
-  if (!keywordAccepts(d.template)) return 'An http or https address with %s once, where the words go'
+  if (!keywordAccepts(keywordAddress(d.template))) return 'An http or https address with %s once, where the words go'
   return null
 }
 
@@ -205,13 +213,20 @@ function detail(i: Item): string {
     }
     case 'search.suggest': {
       const e = p<string>('search.engine') ?? 'google'
-      return hasSuggestions(e) ? `What you type is sent to ${engineName(e, p<string>('search.custom'))} as you type` : 'A custom engine has no suggestions to give, so nothing is sent'
+      // A custom engine's suggestions come from the address given under it (Search 1.0.20).
+      if (e === 'custom') {
+        if (hasSuggestions(e)) return 'What you type is sent to the suggestions address as you type'
+        return (p<string>('search.customSuggest') ?? '').trim()
+          ? "A custom engine's suggestions need an https address with %s, so nothing is sent"
+          : 'A custom engine has no suggestions until you give it an address, so nothing is sent'
+      }
+      return `What you type is sent to ${engineName(e, p<string>('search.custom'))} as you type`
     }
     case 'search.keywords': {
       const d = draft()
       if (!d) return i.detail
       if (!d.keyword && !d.template) return 'Type a word, like yt, then the site\'s search address with %s where the words you type go'
-      return keywordProblem(d) ?? `${d.keyword.trim()} will search ${keywordName(d.template)}`
+      return keywordProblem(d) ?? `${d.keyword.trim()} will search ${keywordName(keywordAddress(d.template))}`
     }
     case 'passwords.save': return 'Asked once per site, never again for a site you refuse'
     case 'arc.import': return f?.arcHere ? i.detail : "Arc isn't on this PC. Bring Things Over can read an export"
@@ -368,7 +383,7 @@ function control(i: Item): JSX.Element {
 function saveDraft(): void {
   const d = draft()
   if (!d || keywordProblem(d)) return
-  const saved = { id: d.id, keyword: d.keyword.trim(), template: d.template.trim() }
+  const saved = { id: d.id, keyword: d.keyword.trim(), template: keywordAddress(d.template) }
   const list = [...keywords()]
   const at = list.findIndex(k => k.id === saved.id)
   if (at >= 0) list[at] = saved; else list.push(saved)
@@ -410,7 +425,7 @@ const [permissionsSeen, setPermissionsSeen] = createSignal(0)
 /** What goes under a row (Settings.swift:928). */
 function after(i: Item, searched: boolean): JSX.Element {
   switch (i.id) {
-    case 'search.engine': return <Show when={p('search.engine') === 'custom'}><TemplateField id="search.custom" /></Show>
+    case 'search.engine': return <Show when={p('search.engine') === 'custom'}><TemplateField id="search.custom" suggest="search.customSuggest" /></Show>
     case 'search.shift': return <Show when={p('search.shift') === 'custom'}><TemplateField id="search.shiftCustom" /></Show>
     case 'search.keywords': return <KeywordEditor />
     case 'privacy.forget': return <Show when={!searched}><div class="st-under"><PermissionSites seen={permissionsSeen()} notificationsOn={p('notifications.ask') !== false} /><PopupSites sites={p<string[]>('privacy.popupSites') ?? []} remove={s => void set('privacy.popupSites', (p<string[]>('privacy.popupSites') ?? []).filter(x => x !== s))} /></div></Show>
@@ -420,11 +435,23 @@ function after(i: Item, searched: boolean): JSX.Element {
   }
 }
 
-function TemplateField(q: { id: string }) {
+/** A custom engine's address; and, under it, where its suggestions may
+ * come from, optional (Settings.swift templateField, Search 1.0.20). */
+function TemplateField(q: { id: string; suggest?: string }) {
   return (
-    <div class="st-template">
-      <input placeholder="https://example.com/search?q=%s" value={p<string>(q.id) ?? ''} onChange={e => void set(q.id, e.currentTarget.value)} aria-label="Search address" />
-    </div>
+    <>
+      <div class="st-template">
+        <input placeholder="https://example.com/search?q=%s" value={p<string>(q.id) ?? ''} onChange={e => void set(q.id, e.currentTarget.value)} aria-label="Search address" />
+      </div>
+      <Show when={q.suggest}>{key => (
+        <>
+          <div class="st-template-label">Suggestions address (optional)</div>
+          <div class="st-template">
+            <input placeholder="https://example.com/suggest?q=%s" value={p<string>(key()) ?? ''} onChange={e => void set(key(), e.currentTarget.value)} aria-label="Suggestions address" />
+          </div>
+        </>
+      )}</Show>
+    </>
   )
 }
 
@@ -439,12 +466,10 @@ function KeywordEditor() {
           {/* Plainly examples, not an entry already there: in italics, with "e.g.". */}
           <input class="kw-word" placeholder="word" value={d().keyword} onInput={e => setDraft({ ...d(), keyword: e.currentTarget.value })} />
           <span class="kw-arrow">→</span>
-          <input class="kw-template" placeholder="address with %s for the words, e.g. https://youtube.com/results?search_query=%s" value={d().template}
+          <input class="kw-template" placeholder="e.g. https://youtube.com/results?search_query=%s" value={d().template}
             onInput={e => setDraft({ ...d(), template: e.currentTarget.value })} onKeyDown={e => { if (e.key === 'Enter') saveDraft() }} />
         </div>
       )}</Show>
-      {/* Said before it's refused: the address isn't completed with https://. */}
-      <Show when={draft()}><div class="kw-hint">The address starts with https:// or http://, with %s where the words go.</div></Show>
       {/* The one being changed is up in the editor, not here as well. */}
       <For each={keywords().filter(k => k.id !== draft()?.id)}>{k => (
         <div class="kw">

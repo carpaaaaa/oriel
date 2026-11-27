@@ -6,11 +6,14 @@ import { app } from 'electron'
 import { addDefaults } from '../../shared/prefs'
 import { model } from '../model/model'
 import { addressURL } from '../address'
+import { probe } from '../paths'
 
 // The field's settings, with Prefs.swift's names and defaults (studio/03 §1.14, §9).
 addDefaults({
   'search.engine': 'google',
   'search.custom': '',
+  /** Where a custom engine's suggestions come from, %s for the words (Search 1.0.20). */
+  'search.customSuggest': '',
   'search.shift': '',
   'search.shiftCustom': '',
   'search.keywords': [],
@@ -83,6 +86,18 @@ export function written(template: string): string {
   return text
 }
 
+/** A custom engine's suggestions address, when the field may ask it
+ * (EngineSuggest.customEndpoint, Search 1.0.20): https, with %s where the
+ * words go, on one host. Empty or anything else: no suggestions. A test
+ * world's fake engine on this computer may be http. */
+export function customSuggestTemplate(custom = model.pref<string>('search.customSuggest') ?? ''): string | null {
+  const t = written(custom)
+  if (!templateHost(t)) return null
+  if (/^https:\/\//i.test(t)) return t
+  const host = templateHost(t)
+  return probe && /^http:\/\//i.test(t) && (host === '127.0.0.1' || host === 'localhost') ? t : null
+}
+
 export function engineID(): EngineID {
   const id = model.pref<string>('search.engine')
   return (id in engineTable || id === 'custom' ? id : 'google') as EngineID
@@ -150,6 +165,15 @@ export function keywordMatch(typed: string, list = keywords()): [Keyword, string
   return null
 }
 
+/** A site's search address as typed into Settings: one written without its
+ * scheme (www.youtube.com/results?search_query=%s) is taken as https, as the
+ * field takes a site typed without one (Keyword.address, Search 1.0.22). */
+export function keywordAddress(typed: string): string {
+  const t = typed.trim()
+  if (!t || t.includes('://') || !/^[\p{L}\p{N}]/u.test(t)) return t
+  return 'https://' + t
+}
+
 /** Why a shortcut can't be saved, in Settings' words (Keyword.problem). */
 export function keywordProblem(word: string, template: string, list = keywords()): string | null {
   const w = word.trim()
@@ -157,7 +181,7 @@ export function keywordProblem(word: string, template: string, list = keywords()
   if (/\s/.test(w)) return 'One word, with no spaces in it'
   const taken = list.find(k => k.keyword.toLowerCase() === w.toLowerCase())
   if (taken) return `${taken.keyword} already goes to ${keywordName(taken)}`
-  if (!keywordAccepts(template)) return 'An http or https address with %s once, where the words go'
+  if (!keywordAccepts(keywordAddress(template))) return 'An http or https address with %s once, where the words go'
   return null
 }
 

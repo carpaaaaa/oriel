@@ -77,6 +77,21 @@ export function addressURL(typed: string): string | null {
   return parse((local ? 'http://' : 'https://') + text)
 }
 
+/** A website's address on the clipboard, for Paste and Go (Omnibox.swift
+ * AddressEditor.website, Search 1.0.22): one line with no space in it that
+ * the field takes for an http or https address with a host. Words, a
+ * version number, an email address, another scheme's address: null. */
+export function website(text: string): string | null {
+  const t = text.trim()
+  if (!t || t.length >= 4096 || /[\s\p{Cc}]/u.test(t) || /^[a-z][a-z0-9+.-]*:\/\/\//i.test(t)) return null
+  const url = addressURL(t)
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    return (u.protocol === 'http:' || u.protocol === 'https:') && u.hostname ? u.href : null
+  } catch { return null }
+}
+
 /** Address.file(from:): a path to a file on this computer, checked on the
  * disk, so only when Return is pressed. Windows paths too: C:\…, \\server\…,
  * %USERPROFILE% for ~. */

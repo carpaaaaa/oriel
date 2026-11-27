@@ -34,6 +34,11 @@ same(a("0.0.0.0:8000")["resolved"], "http://localhost:8000/", "0.0.0.0 is opened
 same(a("[::1]:3000")["address"], "http://[::1]:3000/", "[::1]:port in http")
 same(a("printer.local")["address"], "http://printer.local/", "*.local: http")
 same(a("app.localhost")["address"], "http://app.localhost/", "*.localhost: http")
+# Local names in capitals open over HTTP too (Search 1.0.21, AddressTests).
+same(a("LOCALHOST:3000")["address"], "http://localhost:3000/", "LOCALHOST:3000: http")
+same(a("dev.LOCALHOST:3000")["address"], "http://dev.localhost:3000/", "dev.LOCALHOST:3000: http")
+same(a("printer.LOCAL")["address"], "http://printer.local/", "printer.LOCAL: http")
+same(a("LocalHost:8080/x")["resolved"], "http://localhost:8080/x", "LocalHost typed in the field opens over http")
 same(a("1.2.3")["address"], None, "1.2.3 is a version number")
 same(a("x.c")["address"], None, "a one-letter ending isn't a domain")
 same(a("foo.123")["address"], None, "digits at the end aren't a domain")

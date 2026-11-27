@@ -135,7 +135,7 @@ def write():
         by = {x["label"]: x for x in s["tabs"]}
         by["YouTube: Lo-fi beats"]["audible"] = True
         by["Hacker News"].update(asleep=False, loading=True)
-        by["The Verge"].update(asleep=False, error={"code": -105, "description": "No site at that address.", "url": U + "www.theverge.com/"})
+        by["The Verge"].update(asleep=False, error={"code": -105, "description": "Couldn't find this site.\nCheck the address or your connection.", "url": U + "www.theverge.com/"})
     dump("many", patch=many, real={"front": (U + "www.figma.com/design/oriel-column", "Oriel column, Figma")})
     b.quit()
 
