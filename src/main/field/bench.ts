@@ -10,6 +10,7 @@ import { bindings, chordName, findBinding, live } from '../keys'
 import { destination, siteMatch } from './engines'
 import { completion, sendable } from './suggest'
 import { networkChanged, testFailures } from '../views/dns'
+import { turnsNow } from '../views/turns'
 
 /** A site that couldn't be found for a moment (views/dns.ts): the next
  * `times` main-frame loads of `host` fail as a lookup does; `network`, the
@@ -19,6 +20,9 @@ benchRequest('field.dnsfail', req => {
   if (req.network) networkChanged()
   return { left: Object.fromEntries(testFailures) }
 })
+
+/** Pages out of sight loading in their turn, and waiting for one (views/turns.ts). */
+benchRequest('field.turns', () => turnsNow())
 
 /** A tab's tries at a name that couldn't be found. */
 benchRequest('field.dnstab', req => {

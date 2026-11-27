@@ -17,6 +17,7 @@ import { pageMayNotOpen } from '../settings/openers'
 import { groundPage } from '../pages/ground'
 import { localHost } from '../pages/lists'
 import { DnsRetry, GAVE_UP, askedFor, forgetPage, isLookupFailure, madeForTest } from './dns'
+import { forgetLoad, shownLoad, startLoad } from './turns'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 export const pagePreload = path.join(here, '../preload/page.cjs')
@@ -188,8 +189,9 @@ export class TabRuntime {
     const wanted = !tab || !tab.asleep || model.onScreen(this.id)
     if (this.view && !this.view.webContents.isDestroyed()) {
       if (this.shell && wanted) { this.shell = false; this.fill(this.view.webContents) }
-      // On screen: a try at a name that couldn't be found goes now.
-      if (model.onScreen(this.id)) this.dns.shown()
+      // On screen: a load waiting its turn goes now (turns.ts), and so
+      // does a try at a name that couldn't be found (dns.ts).
+      if (model.onScreen(this.id)) { shownLoad(this); this.dns.shown() }
       return this.view
     }
     this.partition = tab ? partitionFor(tab) : null
@@ -239,15 +241,22 @@ export class TabRuntime {
     const tab = this.record
     const keep = model.keeps.get(this.id)
     model.keeps.delete(this.id)
+    // Out of sight, the load waits its turn (turns.ts, Search 1.0.22).
+    const live = () => !wc.isDestroyed() && this.contents === wc
     if (tab && !tab.internal && keep?.entries.length && !/^file:/i.test(tab.url)) {
       // The page can be gone by the time this settles (closed or put back to
       // sleep): touching a destroyed WebContents throws.
-      wc.navigationHistory.restore({ entries: keep.entries, index: keep.index })
-        .catch(() => { if (tab.url && !wc.isDestroyed()) wc.loadURL(tab.url).catch(() => {}) })
+      startLoad(this, () => {
+        if (!live()) return false
+        wc.navigationHistory.restore({ entries: keep.entries, index: keep.index })
+          .catch(() => { if (tab.url && !wc.isDestroyed()) wc.loadURL(tab.url).catch(() => {}) })
+        return true
+      })
     } else if (tab?.url && !tab.empty && !tab.internal) {
-      this.asked = tab.url
+      const url = tab.url
+      this.asked = url
       this.second = null
-      wc.loadURL(tab.url).catch(() => {})
+      startLoad(this, () => { if (!live()) return false; wc.loadURL(url).catch(() => {}); return true })
     }
     model.updateTab(this.id, { asleep: false, resting: undefined })
   }
@@ -303,7 +312,8 @@ export class TabRuntime {
     if (!this.contents) { this.ensure(); return }
     this.asked = url
     this.second = null
-    this.contents.loadURL(url).catch(() => {})
+    const wc = this.contents
+    startLoad(this, () => { if (wc.isDestroyed() || this.contents !== wc) return false; wc.loadURL(url).catch(() => {}); return true })
   }
 
   /** History as it is now, unless the page is still arriving (Tab.keepsake). */
@@ -338,6 +348,7 @@ export class TabRuntime {
     this.shell = false
     this.lastVisit = ''
     this.dns.stop()
+    forgetLoad(this)
     viewHost.parentOf(view)?.removeChildView(view)
     wc.setAudioMuted(true)
     // A page still arriving has no history to keep yet (keepsake). Read
@@ -370,7 +381,12 @@ export class TabRuntime {
     if (!wc || this.shell) { this.ensure(); return }
     const url = wc.getURL()
     if (t.dead || t.stale || !url || url === 'about:blank' || /^file:/i.test(t.url)) { this.revive(true); return }
-    if (hard) wc.reloadIgnoringCache(); else wc.reload()
+    // Twenty tabs reloaded at once take their turns (turns.ts).
+    startLoad(this, () => {
+      if (wc.isDestroyed() || this.contents !== wc) return false
+      if (hard) wc.reloadIgnoringCache(); else wc.reload()
+      return true
+    })
   }
 
   /** A page that died behind, or gave up: asked for its address again. */
@@ -380,7 +396,8 @@ export class TabRuntime {
     model.updateTab(this.id, { stale: undefined, dead: undefined, crashed: undefined, error: undefined, ...(force ? { crashes: [] } : {}) })
     const wc = this.contents
     if (!wc || this.shell) { this.shell = false; if (wc) this.fill(wc); else this.ensure(); return }
-    wc.loadURL(t.url).catch(() => {})
+    const url = t.url
+    startLoad(this, () => { if (wc.isDestroyed() || this.contents !== wc) return false; wc.loadURL(url).catch(() => {}); return true })
   }
 
   destroy(): void {
@@ -393,6 +410,7 @@ export class TabRuntime {
     if (view && !view.webContents.isDestroyed()) view.webContents.close({ waitForBeforeUnload: false })
     this.lastVisit = ''
     this.dns.stop()
+    forgetLoad(this)
   }
 
   private visit(url: string): void {
