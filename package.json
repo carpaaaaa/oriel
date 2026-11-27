@@ -1,7 +1,7 @@
 {
   "name": "oriel",
   "productName": "Oriel",
-  "version": "0.1.33",
+  "version": "0.1.34",
   "description": "Oriel: an unofficial Windows port of Search, the small fast browser for the Mac by Office Commun.",
   "license": "MIT",
   "private": true,
