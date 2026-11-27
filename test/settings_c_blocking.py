@@ -47,6 +47,10 @@ t = b.T()
 # block more (pixel.quantserve.com even as a first party), have their own
 # tests in test/privacy_blocking.py.
 b.call({"do": "pages.blockerTest", "none": True})
+# Try HTTPS first is on by default since Search 1.0.22; these pages are the
+# test server's http ones, so it is off here until its own part below.
+b.cmd("settings.set", id="privacy.httpsFirst", value=False)
+time.sleep(1.0)
 
 
 def setting(key, value):
@@ -160,7 +164,7 @@ t.ok(r and "Sec-GPC" not in r[-1][3], "off: no Sec-GPC")
 t.ok(ev(tab, "navigator.globalPrivacyControl") is not True, "off: navigator.globalPrivacyControl isn't true")
 setting("privacy.gpc", True)
 
-# 7. Try HTTPS first (off by default).
+# 7. Try HTTPS first (turned off at the start).
 web.clear()
 go(f"http://up.example:{P}/hf", "hf", tab)
 t.ok(ev(tab, "location.protocol") == "http:", "off: an http page loads over http")

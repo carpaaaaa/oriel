@@ -137,6 +137,11 @@ def setting(key, value):
     time.sleep(1.0)
 
 
+# Try HTTPS first is on by default since Search 1.0.22; these pages are the
+# test server's http ones, so it is off here until its own part below.
+setting("privacy.httpsFirst", False)
+
+
 def tab_of(tab):
     return next((x for x in b.state()["tabs"] if x["id"] == tab), {})
 
@@ -290,7 +295,7 @@ r = web.seen("/gpc?off")
 t.ok(r and "Sec-GPC" not in r[-1][3] and ev(tab, "navigator.globalPrivacyControl") is not True, "off: neither")
 setting("privacy.gpc", True)
 
-# 9. Try HTTPS first (off by default).
+# 9. Try HTTPS first (turned off at the start).
 go(f"http://up.example:{P}/hf", "hf", tab)
 t.ok(ev(tab, "location.protocol") == "http:", "off: an http page stays http")
 setting("privacy.httpsFirst", True)

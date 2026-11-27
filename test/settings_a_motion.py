@@ -58,6 +58,8 @@ b.wait_for(lambda: b.active()["title"] == "front", what="page")
 back = b.cmd("tab.new", url="data:text/html,<title>behind</title>behind", background=True)
 b.wait_for(lambda: any(x.get("title") == "behind" for x in b.window()["tabs"]), what="tab behind")
 time.sleep(0.5)
+# Save power is on by default since Search 1.0.22: off first, as the Mac's was.
+setting("motion.light", False)
 t.ok(ms("--dur-glide") == 467, "battery saver, switch off (the Mac's default): nothing changes")
 b.call({"do": "tabs.age", "id": back, "seconds": 700})
 slept = b.call({"do": "tabs.tidy"})["slept"]

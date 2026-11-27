@@ -69,7 +69,8 @@ ids = [x["id"] for x in k.tabs(s)]
 t.ok(ids.index(nt["id"]) == ids.index(lt) + 1, "beside the page it was clicked in")
 k.cmd("prefs.set", key="mail.webmail", value="none")
 
-# Swipe back closes a tab a link opened (§3.15)
+# Swipe back closes a tab a link opened (§3.15); on by default since Search 1.0.22, off first.
+k.cmd("prefs.set", key="tabs.swipeBackCloses", value=False)
 op = k.page("opener")
 b.ev(op, f"window.open('{k.url('child')}'); true")
 b.wait_for(lambda: (x := k.active()) and k.name_of(x["url"]) == "child" and not x["loading"], what="child")
@@ -94,7 +95,9 @@ t.ok(k.tab(op) is not None, "a tab no link opened never closes on a swipe")
 # Show the Home bookmarks on a new tab (HomeGrid.swift)
 k.cmd("tab.blank"); k.settle(0.6)
 grid = lambda: b.ui("JSON.stringify([...document.querySelectorAll('[data-home-grid] .home-tile')].map(e => e.textContent))")
-t.ok(json.loads(grid()) == [], "off, as it comes: a blank tab shows no tiles")
+# The Home bookmarks on a new tab are on by default since Search 1.0.22: off first.
+k.cmd("prefs.set", key="home.grid", value=False); k.settle(0.6)
+t.ok(json.loads(grid()) == [], "off: a blank tab shows no tiles")
 k.cmd("prefs.set", key="home.grid", value=True); k.settle(0.6)
 t.ok(json.loads(grid()) == ["Alpha", "Beta"], "on: the sites of the folder called Home, in their order, folders left out")
 blank = k.active()["id"]

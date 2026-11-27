@@ -299,6 +299,11 @@ class Model extends EventEmitter {
    * reaches the file either (prefsFile, studio/06 §1.17). */
   setPref(key: string, value: unknown): void {
     const was = this.prefs[key]
+    // A key taken back to its default holds the default, never nothing: the
+    // interface reads state.prefs as it is, and since Search 1.0.22 turned
+    // many switches on by default, nothing there read as off (prefsFile still
+    // leaves defaults out of the file).
+    if (value === undefined) { const d = this.defaultFor(key); value = d !== null && typeof d === 'object' ? structuredClone(d) : d }
     // The same plain value again (a wheel or a drag says it many times): no
     // write, no module told. A list or an object may have changed in place.
     if (was === value && (value === null || typeof value !== 'object') && key in this.prefs) return

@@ -61,6 +61,8 @@ def bg(tab):
 
 
 # 1. Reading mode: the article alone, the page's styles gone, light.
+# Reading mode follows light and dark is on by default since Search 1.0.22: off here first.
+setting("reader.follows", False)
 setting("look", "dark")
 tab = tab_titled("An article", H + "/article")
 b.cmd("view.reader")

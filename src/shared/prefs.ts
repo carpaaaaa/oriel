@@ -87,7 +87,9 @@ export const defaults = {
   'tabs.switcherBehindFirst': false,
   'tabs.switcherLeavesOutPins': false,
   'tabs.lazy': false,
-  'tabs.popupWindows': true,
+  // Off, unlike Search 1.0.22: Oriel's small pop-up window is a bare window
+  // that shows no address, and sign-ins (Google's) are proven in a tab.
+  'tabs.popupWindows': false,
   // Tabs › Memory
   'tabs.sleep': true,
   'tabs.sleep.pace': 'normal', // later (2 h) | normal (30 min) | sooner (10 min)
