@@ -15,6 +15,8 @@ import { attachNet } from '../net'
 import { data } from '../data/api'
 import { pageMayNotOpen } from '../settings/openers'
 import { groundPage } from '../pages/ground'
+import { localHost } from '../pages/lists'
+import { DnsRetry, GAVE_UP, askedFor, forgetPage, isLookupFailure, madeForTest } from './dns'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 export const pagePreload = path.join(here, '../preload/page.cjs')
@@ -114,6 +116,11 @@ function sameAddress(a: string, b: string): boolean {
   try { return new URL(a).href === new URL(b).href } catch { return a === b }
 }
 
+/** A host without its www, to tell one site from another. */
+function bareHost(url: string): string {
+  try { return new URL(url).hostname.toLowerCase().replace(/^www\./, '') } catch { return '' }
+}
+
 export function sessionFor(t: TabRecord): Session {
   return sessionNamed(partitionFor(t))
 }
@@ -121,7 +128,8 @@ export function sessionFor(t: TabRecord): Session {
 // what a failed load says (Browser.swift:9761-9776, §2.33)
 
 export function failure(code: number): string {
-  if (code === -105 || code === -137 || code === -800 || code === -803) return 'No site at that address.'
+  // A name that couldn't be looked up is not a site that doesn't exist (Search 1.0.22, dns.ts).
+  if (isLookupFailure(code)) return GAVE_UP
   if (code === -106 || code === -21 || code === -100 || code === -101 || code === -109 || code === -130) return 'No connection.'
   if (code === -7 || code === -118) return 'The site took too long to answer.'
   if (code === -102) return 'The site refused the connection.'
@@ -144,6 +152,20 @@ export class TabRuntime {
   private asked = ''
   /** The first name, while the other one is being tried. */
   private second: { first: string; other: string } | null = null
+  /** The address the tab's frame last started for. */
+  private starting = ''
+  /** An address typed in the field (not a search), and when: kept in
+   * History under that name too if the site sends you elsewhere, as
+   * twitter.com sends you to x.com (Search 1.0.22). */
+  private typed: { url: string; at: number } | null = null
+  /** That name, retitled with the page it led to. */
+  private alias = ''
+  /** Tries at a page whose name couldn't be looked up (Search 1.0.22). */
+  readonly dns = new DnsRetry({
+    sight: () => model.onScreen(this.id),
+    load: url => this.retry(url),
+    failing: () => { const e = this.record?.error; return e && isLookupFailure(e.code) ? e.url : null },
+  }, host => (data.visits([host])[host] ?? 0) > 0)
 
   constructor(public id: ID, public session?: Session) {}
 
@@ -166,6 +188,8 @@ export class TabRuntime {
     const wanted = !tab || !tab.asleep || model.onScreen(this.id)
     if (this.view && !this.view.webContents.isDestroyed()) {
       if (this.shell && wanted) { this.shell = false; this.fill(this.view.webContents) }
+      // On screen: a try at a name that couldn't be found goes now.
+      if (model.onScreen(this.id)) this.dns.shown()
       return this.view
     }
     this.partition = tab ? partitionFor(tab) : null
@@ -242,6 +266,24 @@ export class TabRuntime {
     if (url) this.load(url)
   }
 
+  /** The field sent this tab to an address typed (not a search, not a row
+   * picked); `guessed`: typed with no scheme and finished by nothing, so a
+   * name that can't be found isn't tried again unless you have been there. */
+  noteTyped(url: string, guessed: boolean): void {
+    this.typed = { url, at: Date.now() }
+    if (guessed) this.dns.typedGuess(url)
+  }
+
+  /** A try at a page whose name couldn't be looked up: the address again,
+   * its other name tried too (see did-fail-load). */
+  private retry(url: string): void {
+    const wc = this.contents
+    if (!wc || this.shell) return
+    this.asked = url
+    this.second = null
+    wc.loadURL(url).catch(() => {})
+  }
+
   load(url: string): void {
     const kind = internalKind(url)
     model.keeps.delete(this.id)
@@ -295,6 +337,7 @@ export class TabRuntime {
     this.view = null
     this.shell = false
     this.lastVisit = ''
+    this.dns.stop()
     viewHost.parentOf(view)?.removeChildView(view)
     wc.setAudioMuted(true)
     // A page still arriving has no history to keep yet (keepsake). Read
@@ -349,6 +392,7 @@ export class TabRuntime {
     if (view) viewHost.parentOf(view)?.removeChildView(view)
     if (view && !view.webContents.isDestroyed()) view.webContents.close({ waitForBeforeUnload: false })
     this.lastVisit = ''
+    this.dns.stop()
   }
 
   private visit(url: string): void {
@@ -359,12 +403,25 @@ export class TabRuntime {
     visits.push(v)
     if (visits.length > 200) visits.shift()
     data.recordVisit(v)
+    // Typed, and the site sent you to another: kept under the name typed
+    // too, so its first letters finish it next time (Search 1.0.22).
+    const typed = this.typed
+    this.typed = null
+    this.alias = ''
+    if (typed && Date.now() - typed.at < 30_000 && bareHost(typed.url) !== bareHost(url)) {
+      this.alias = typed.url
+      const w = { url: typed.url, title: t!.title, visitedAt: v.visitedAt }
+      visits.push(w)
+      data.recordVisit(w)
+    }
   }
 
   private wire(wc: WebContents): void {
     // A page being let go (letGo) still answers for a moment: it no longer
     // speaks for the tab.
     const mine = () => this.view?.webContents === wc
+    const wcID = wc.id
+    wc.once('destroyed', () => forgetPage(wcID))
     const update = (patch: Partial<TabRecord>) => { if (mine()) model.updateTab(this.id, patch) }
     const nav = () => update({
       canGoBack: wc.navigationHistory.canGoBack(),
@@ -388,7 +445,11 @@ export class TabRuntime {
     wc.on('did-start-navigation', details => {
       if (!details.isMainFrame || details.isSameDocument || !details.url || details.url === 'about:blank') return
       const t = this.record
-      if (!t || details.url.startsWith('chrome-error:')) return
+      if (!t || details.url.startsWith('chrome-error:') || !mine()) return
+      this.starting = details.url
+      // Going anywhere but the page being tried ends the tries; its other
+      // name, tried with it, doesn't.
+      if (!this.second || !sameAddress(details.url, this.second.other)) this.dns.going(details.url)
       // The address goes forward as soon as the load starts; the title waits
       // for the page (§2.7, §2.8).
       const url = shown(details.url)
@@ -401,6 +462,7 @@ export class TabRuntime {
       // A new document: whatever the last one captured has ended with it.
       if (url && url !== 'about:blank' && !url.startsWith('chrome-error:')) {
         this.second = null
+        this.dns.stop()
         update({ url: shown(url), error: undefined, dead: undefined, crashed: undefined, capturing: undefined })
       }
       nav()
@@ -420,18 +482,24 @@ export class TabRuntime {
       update({ title: t })
       const tab = this.record
       if (t && recordable(tab, tab!.url)) data.recordTitle(tab!.url, t)
+      if (t && this.alias && recordable(tab, this.alias)) data.recordTitle(this.alias, t)
     })
     wc.on('page-favicon-updated', (_e, favicons) => update({ favicon: favicons[0] }))
     wc.on('audio-state-changed', e => update({ audible: e.audible }))
     wc.on('render-process-gone', (_e, details) => { if (mine()) this.gone(details.reason) })
-    wc.on('did-fail-load', (_e, code, _description, url, isMainFrame) => {
+    wc.on('did-fail-load', (_e, failed, _description, url, isMainFrame) => {
       // Not errors: a load stopped or replaced, a page become a download (§2.33).
-      if (!isMainFrame || code === -3) return
+      if (!isMainFrame || failed === -3 || !mine()) return
+      // A test world's stand-in for a lookup that failed (dns.ts).
+      const code = failed === -20 && madeForTest(wcID, url) ? -105 : failed
+      // Try HTTPS first asks for the http address next (pages/privacy.ts):
+      // its https attempt failing on the name is not the page's failure.
+      if (isLookupFailure(code) && this.upgradeOf(url)) return
       // A name with no address at all (unibg.it: only www.unibg.it answers)
-      // is tried once under its other name before the page says "No site".
+      // is tried once under its other name before the page says it failed.
       let said = url
       if (this.second && sameAddress(url, this.second.other)) { said = this.second.first; this.second = null }
-      else if (code === -105 && !this.second && sameAddress(url, this.asked) && mine()) {
+      else if (code === -105 && !this.second && sameAddress(url, this.asked)) {
         const other = otherName(url)
         if (other) {
           this.second = { first: url, other }
@@ -439,8 +507,13 @@ export class TabRuntime {
           return
         }
       }
-      // The second name failed too: the tab goes back to the name that was asked for.
-      update({ error: { code, description: failure(code), url: said }, loading: false, ...(said !== url ? { url: said } : {}) })
+      // A name that couldn't be looked up is asked for again by itself (dns.ts).
+      let description = failure(code)
+      if (isLookupFailure(code)) description = this.dns.failed(said, askedFor(wcID, said))
+      else this.dns.stop()
+      // The tab shows and copies the address that failed, query and all, not
+      // the page it was leaving (Search 1.0.20); after a second name, the one asked for.
+      update({ error: { code, description, url: shown(said) }, loading: false, url: shown(said) })
     })
     wc.on('before-mouse-event', (_e, mouse) => { if (mouse.type === 'mouseDown') for (const f of pageInput) f(this.id, 'mouse', mouse) })
     wc.on('before-input-event', (event, input) => {
@@ -466,6 +539,15 @@ export class TabRuntime {
       else hooks.open?.(this, details.url, details.disposition)
       return { action: 'deny' }
     })
+  }
+
+  /** An https address the tab didn't start for, Try HTTPS first's upgrade
+   * of the http one it did (pages/privacy.ts), which it falls back from. */
+  private upgradeOf(url: string): boolean {
+    if (!/^https:/i.test(url) || !/^http:/i.test(this.starting) || !model.pref<boolean>('privacy.httpsFirst')) return false
+    let u: URL
+    try { u = new URL(url) } catch { return false }
+    return !localHost(u.hostname) && this.starting.slice(5) === url.slice(6)
   }
 
   /** The page's process ended (§2.32): on screen, asked for again at once;

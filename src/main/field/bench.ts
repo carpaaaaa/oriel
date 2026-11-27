@@ -9,6 +9,23 @@ import { addressURL, editable, fileURL, identity, resolveInput } from '../addres
 import { bindings, chordName, findBinding, live } from '../keys'
 import { destination, siteMatch } from './engines'
 import { completion, sendable } from './suggest'
+import { networkChanged, testFailures } from '../views/dns'
+
+/** A site that couldn't be found for a moment (views/dns.ts): the next
+ * `times` main-frame loads of `host` fail as a lookup does; `network`, the
+ * network changed. Answers what is left of each. */
+benchRequest('field.dnsfail', req => {
+  if (req.host) testFailures.set(String(req.host).toLowerCase(), Number(req.times ?? 1))
+  if (req.network) networkChanged()
+  return { left: Object.fromEntries(testFailures) }
+})
+
+/** A tab's tries at a name that couldn't be found. */
+benchRequest('field.dnstab', req => {
+  const rt = runtimes.get(String(req.id))
+  if (!rt) throw new Error('no such tab')
+  return { tries: rt.dns.done, pending: rt.dns.pending, url: rt.dns.url }
+})
 
 /** A history and bookmarks of the test's own, in place of the data module's:
  * every word typed somewhere in the title or the address, in the given order. */
