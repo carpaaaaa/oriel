@@ -161,6 +161,8 @@ export class TabRuntime {
   private typed: { url: string; at: number } | null = null
   /** That name, retitled with the page it led to. */
   private alias = ''
+  /** The view's ground is clear, for the words of a failed load to show. */
+  private clear = false
   /** Tries at a page whose name couldn't be looked up (Search 1.0.22). */
   readonly dns = new DnsRetry({
     sight: () => model.onScreen(this.id),
@@ -482,6 +484,8 @@ export class TabRuntime {
         this.second = null
         this.dns.stop()
         update({ url: shown(url), error: undefined, dead: undefined, crashed: undefined, capturing: undefined })
+        // A page after a failed one: its ground as any page's (pages/ground.ts).
+        if (this.clear && this.view?.webContents === wc) { this.clear = false; groundPage(this.view) }
       }
       nav()
       this.visit(shown(url))
@@ -532,6 +536,10 @@ export class TabRuntime {
       // The tab shows and copies the address that failed, query and all, not
       // the page it was leaving (Search 1.0.20); after a second name, the one asked for.
       update({ error: { code, description, url: shown(said) }, loading: false, url: shown(said) })
+      // Chromium's failed page is empty and was painted white over the
+      // window's words for it (the card's "Couldn't find this site."): its
+      // ground is clear until a page arrives, so they show through.
+      if (this.view?.webContents === wc) { this.view.setBackgroundColor('#00000000'); this.clear = true }
     })
     wc.on('before-mouse-event', (_e, mouse) => { if (mouse.type === 'mouseDown') for (const f of pageInput) f(this.id, 'mouse', mouse) })
     wc.on('before-input-event', (event, input) => {
