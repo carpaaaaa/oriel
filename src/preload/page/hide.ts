@@ -8,11 +8,17 @@
 // The pointing mode sleeps here until Ctrl+Shift+H wakes it: an outline
 // follows the pointer, ↑ and ↓ widen and narrow it, a click hides. Every
 // press is the picker's then, never the page's. The main frame's only.
+// A pick names exactly what was picked (Search 1.0.21); one named by its
+// place or by a product id is hidden on a later visit only once it is seen
+// to be the same thing again (Search 1.0.22, Veiling.marks); Alt held takes
+// every element like the one outlined (Search 1.0.22).
 // Owned by the hide module.
 
 import { ipcRenderer, webFrame } from 'electron'
 
-export interface HidePick { selector: string; label: string; note: string }
+/** A pick. `print` and `family`: what it was and where else to look for it,
+ * for one named by its place or by a product id (Search 1.0.22). */
+export interface HidePick { selector: string; label: string; note: string; print?: string; family?: string }
 
 // the sheets: what is hidden, the one shown from the list, the crosshair
 
@@ -25,12 +31,105 @@ function sheet(name: keyof typeof sheets, css: string): void {
   if (old) { try { webFrame.removeInsertedCSS(old) } catch {} }
 }
 
-const ask = () => { try { return String(ipcRenderer.sendSync('hide:css', location.href) ?? '') } catch { return '' } }
-sheet('veil', ask())
-// A page back from the back-forward cache wears what is hidden now.
-addEventListener('pageshow', e => { if (e.persisted) { sheet('veil', ask()); sheet('peek', '') } })
+/** The site's sheet on the page, and the things it checks first marked. */
+function veil(css: string): void {
+  guard(css)
+  sheet('veil', css)
+}
 
-ipcRenderer.on('hide:css', (_e, css: string) => { sheet('veil', String(css ?? '')); sheet('peek', '') })
+// the marks: which things on the page are the ones hidden (Search 1.0.22,
+// Veiling.marks, idea 1194). A thing named by where it sat, or by a product
+// id, is hidden only once it is seen to be the same thing: what it says
+// close enough at the same place, or word for word, the only one, elsewhere
+// among its kind. Checked again whenever the page changes, before it is
+// drawn, so a grid built after load, or in another order, gets neither a
+// hidden card back nor a cart's product hidden instead. Nothing the same
+// enough, nothing hidden.
+
+const MARK = 'data-oriel-veiled'
+
+/** Its kind, the picture it carries, and what it says, from the document
+ * rather than the screen, so a hidden thing reads the same. */
+function print(el: Element): string {
+  const media = /^(IMG|VIDEO|IFRAME)$/.test(el.tagName) ? el : el.querySelector('img,video,iframe')
+  const src = media ? (media.getAttribute('src') || '').split('?')[0].slice(0, 200) : ''
+  const text = (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 160)
+  return el.tagName.toLowerCase() + '\n' + src + '\n' + text
+}
+
+function parts(p: string): { tag: string; src: string; text: string } {
+  const at = p.indexOf('\n'), next = p.indexOf('\n', at + 1)
+  return { tag: p.slice(0, at), src: p.slice(at + 1, next), text: p.slice(next + 1) }
+}
+
+const words = (text: string) => [...new Set(text.toLowerCase().split(' ').filter(Boolean))]
+
+/** The same thing at the same place: of the same kind, and three quarters
+ * of its words in common (a price or a date may move), or, with no words at
+ * all, the same picture. */
+function alike(el: Element, was: string): boolean {
+  const a = parts(was), b = parts(print(el))
+  if (a.tag !== b.tag) return false
+  if (!a.text || !b.text) return !a.text && !b.text && a.src === b.src
+  const x = words(a.text), y = words(b.text)
+  const shared = x.filter(w => y.includes(w)).length
+  return shared / (x.length + y.length - shared) >= 0.75
+}
+
+/** One thing to check, from the site's sheet: its mark, selector, print and family. */
+interface Guard { k: string; s: string; p: string; f: string }
+let guards: Guard[] = []
+let seen: MutationObserver | null = null
+
+function mark(el: Element, key: string, on: boolean): void {
+  const list = (el.getAttribute(MARK) || '').split(' ').filter(k => k && k !== key)
+  if (on) list.push(key)
+  if (list.length) el.setAttribute(MARK, list.join(' '))
+  else el.removeAttribute(MARK)
+}
+
+function pass(): void {
+  for (const g of guards) {
+    let found: Element[] = []
+    try { found = [...document.querySelectorAll(g.s)].filter(el => alike(el, g.p)) } catch {}
+    // Not at its place: word for word, and the only one, among its kind.
+    if (!found.length && g.f && parts(g.p).text.length >= 4) {
+      try {
+        const kin = document.querySelectorAll(g.f)
+        for (let i = 0; i < kin.length && i < 1000; i++) if (print(kin[i]) === g.p) found.push(kin[i])
+      } catch {}
+    }
+    if (found.length !== 1) found = []
+    for (const el of document.querySelectorAll(`[${MARK}~="${g.k}"]`)) if (!found.includes(el)) mark(el, g.k, false)
+    for (const el of found) mark(el, g.k, true)
+  }
+}
+
+/** The things to check, read from the comments in the site's sheet. */
+function guard(css: string): void {
+  guards = []
+  const re = /\/\*oriel-guard (.*?)\*\//g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(css))) {
+    try {
+      const g = JSON.parse(m[1]) as Guard
+      if (g && typeof g.k === 'string' && /^v[0-9a-z]+$/.test(g.k) && typeof g.s === 'string' && typeof g.p === 'string') guards.push({ ...g, f: typeof g.f === 'string' ? g.f : '' })
+    } catch {}
+  }
+  if (guards.length && !seen) {
+    // A mutation observer's turn comes before the frame: nothing is seen arriving.
+    seen = new MutationObserver(() => { if (guards.length) pass() })
+    seen.observe(document, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['src', 'class', 'id'] })
+  }
+  pass()
+}
+
+const ask = () => { try { return String(ipcRenderer.sendSync('hide:css', location.href) ?? '') } catch { return '' } }
+veil(ask())
+// A page back from the back-forward cache wears what is hidden now.
+addEventListener('pageshow', e => { if (e.persisted) { veil(ask()); sheet('peek', '') } })
+
+ipcRenderer.on('hide:css', (_e, css: string) => { veil(String(css ?? '')); sheet('peek', '') })
 ipcRenderer.on('hide:peek', (_e, p: { css: string; selector: string }) => peek(String(p?.css ?? ''), String(p?.selector ?? '')))
 ipcRenderer.on('hide:pointing', (_e, on: boolean) => (on ? start() : off()))
 
@@ -44,9 +143,10 @@ function shows(selector: string): boolean {
 }
 
 /** One hidden thing back while the pointer rests on its row: the sheet
- * without it, so it comes back with the layout it had, outlined. */
+ * without it, so it comes back with the layout it had, outlined. A checked
+ * one keeps its mark (its check is out of the sheet), which finds it. */
 function peek(css: string, selector: string): void {
-  sheet('veil', css)
+  veil(css)
   sheet('peek', selector ? `${selector} { outline: 2px solid rgba(23,23,23,.9) !important; outline-offset: 2px !important; }` : '')
   try { document.querySelector(selector)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) } catch {}
 }
@@ -92,7 +192,8 @@ function place(el: Element): void {
   box.style.top = r.top + 'px'
   box.style.width = r.width + 'px'
   box.style.height = r.height + 'px'
-  tag!.textContent = name(el)
+  // Alt held: how many are like it, before anything goes (Search 1.0.22).
+  tag!.textContent = name(el) + (every ? ' · ' + likeIt(el) : '')
   // Above the element if there is room above it, tucked inside its top
   // edge if there isn't; never off the left or right edge either.
   tag!.style.top = r.top >= 26 ? '-21px' : '3px'
@@ -133,46 +234,129 @@ function shape(el: Element): string {
   return Math.round(r.width) + '×' + Math.round(r.height) + ' · ' + band + ' ' + side
 }
 
-// the selector (Curtain.swift selectorFor)
+// the selector (Curtain.swift selectorFor, Search 1.0.21 and 1.0.22)
 
 /** A class worth hanging a rule on: a word, not a build artefact. */
 const steady = (c: string) => /^[a-zA-Z][\w-]{2,29}$/.test(c) && !/\d{3,}/.test(c) && !/^(css|sc|jsx|emotion|svelte|styles?)-/.test(c)
 
-function unique(sel: string): boolean {
-  try { return document.querySelectorAll(sel).length === 1 } catch { return false }
+/** An id a person gave it, not one a framework counted out. */
+const steadyId = (id: string) => /^[a-zA-Z][\w-]{0,59}$/.test(id) && !/\d{3,}/.test(id)
+
+/** What the selector names must be this one thing, now: not one like it,
+ * and not several (a list of cards, one of them picked). */
+function only(sel: string, el: Element): boolean {
+  try {
+    const all = document.querySelectorAll(sel)
+    return all.length === 1 && all[0] === el
+  } catch { return false }
 }
 
-function selectorFor(el: Element): string {
-  if (el.id && unique('#' + CSS.escape(el.id))) return '#' + CSS.escape(el.id)
-  const hooks = ['data-testid', 'data-test', 'data-qa', 'data-cy', 'aria-label', 'name', 'role']
-  for (const hook of hooks) {
-    const v = el.getAttribute(hook)
-    if (v) {
-      const s = `${el.tagName.toLowerCase()}[${hook}="${CSS.escape(v)}"]`
-      if (unique(s)) return s
-    }
-  }
-  const classes = typeof el.className === 'string' ? el.className.trim().split(/\s+/).filter(steady) : []
-  if (classes.length) {
-    const byClass = el.tagName.toLowerCase() + '.' + classes.map(c => CSS.escape(c)).join('.')
-    if (unique(byClass)) return byClass
-  }
-  // Last resort: a path, anchored on the nearest thing with a name.
-  const parts: string[] = []
+const classesOf = (el: Element) => (typeof el.className === 'string' ? el.className.trim().split(/\s+/) : []).filter(steady).slice(0, 2)
+
+/** Its place among its parent's children of its kind, always written out:
+ * a step without it would match every sibling of that kind that a later
+ * visit brings (idea 1133). */
+function step(node: Element): string {
+  const tagName = node.tagName.toLowerCase()
+  const parent = node.parentElement
+  if (!parent) return tagName
+  const kin = Array.prototype.filter.call(parent.children, (c: Element) => c.tagName === node.tagName) as Element[]
+  return `${tagName}:nth-of-type(${kin.indexOf(node) + 1})`
+}
+
+/** A path of such steps from the nearest thing with a steady id of its own
+ * (or from the body), the picked thing's own step with its steady classes
+ * too: it names one element at most, and when the page is laid out
+ * otherwise on a later visit it names none rather than the wrong one. */
+function path(el: Element, anchored: boolean): string {
+  const out: string[] = []
   let node: Element | null = el
   while (node && node.nodeType === 1 && node !== document.documentElement) {
-    if (node.id && unique('#' + CSS.escape(node.id))) { parts.unshift('#' + CSS.escape(node.id)); break }
-    const tagName = node.tagName.toLowerCase()
-    const parent: Element | null = node.parentElement
-    if (!parent) { parts.unshift(tagName); break }
-    const kin = Array.prototype.filter.call(parent.children, (c: Element) => c.tagName === node!.tagName) as Element[]
-    parts.unshift(kin.length > 1 ? `${tagName}:nth-of-type(${kin.indexOf(node) + 1})` : tagName)
-    node = parent
+    if (node === document.body) { out.unshift('body'); break }
+    if (anchored && node !== el && node.id && steadyId(node.id) && only('#' + CSS.escape(node.id), node)) {
+      out.unshift('#' + CSS.escape(node.id))
+      break
+    }
+    let here = step(node)
+    if (node === el) {
+      const classes = classesOf(el)
+      if (classes.length) here = here.replace(/:nth-of-type/, '.' + classes.map(c => CSS.escape(c)).join('.') + ':nth-of-type')
+    }
+    out.unshift(here)
+    node = node.parentElement
   }
-  return parts.join(' > ')
+  return out.join(' > ')
 }
 
-const describe = (el: Element): HidePick => ({ selector: selectorFor(el), label: name(el), note: shape(el) })
+/** Its kind and steady classes, with no place: where to look for it when
+ * its place holds something else, and what Alt takes. None without a
+ * class, which would be every element of its kind. */
+function family(el: Element): string {
+  const classes = classesOf(el)
+  return classes.length ? el.tagName.toLowerCase() + '.' + classes.map(c => CSS.escape(c)).join('.') : ''
+}
+
+/** A data-* attribute that names the thing itself (a product's id, a SKU)
+ * rather than a state or a place. */
+const identities = /(^|-)(id|sku|ean|gtin|ref|product|item|offer)(-|$)/i
+
+/** The most specific name that still survives the page's next visit: its
+ * own steady id; a hook the site put there for its own tests; the product
+ * id it carries; else its place. Each checked to name exactly this
+ * element, or none is given and nothing is hidden. Words a page reuses (a
+ * role, an aria-label, a class on its own) once named the only one there
+ * was, and on a later visit every one of them (idea 1133). The last two
+ * come with what the thing is, and are hidden on a later visit only once
+ * they are seen to be that thing again (idea 1194). */
+function selectorFor(el: Element): { s: string; p?: string; f?: string } | null {
+  if (el.id && steadyId(el.id) && only('#' + CSS.escape(el.id), el)) return { s: '#' + CSS.escape(el.id) }
+  const tagName = el.tagName.toLowerCase()
+  for (const hook of ['data-testid', 'data-test', 'data-qa', 'data-cy']) {
+    const v = el.getAttribute(hook)
+    if (!v) continue
+    const s = `${tagName}[${hook}="${CSS.escape(v)}"]`
+    if (only(s, el)) return { s }
+  }
+  const p = print(el)
+  for (const a of Array.from(el.attributes)) {
+    if (!a.name.startsWith('data-') || !identities.test(a.name.slice(5))) continue
+    if (!a.value || a.value.length > 80) continue
+    const named = `${tagName}[${a.name}="${CSS.escape(a.value)}"]`
+    if (only(named, el)) return { s: named, p }
+  }
+  const anchored = path(el, true)
+  if (only(anchored, el)) return { s: anchored, p, f: family(el) }
+  const whole = path(el, false)
+  return only(whole, el) ? { s: whole, p, f: family(el) } : null
+}
+
+/** How many are like it: every element of its kind and classes. */
+function alikeCount(el: Element): number {
+  const kind = family(el)
+  if (!kind) return 0
+  try { return document.querySelectorAll(kind).length } catch { return 0 }
+}
+
+/** How many are like it, in words, for the outline while Alt is held. */
+function likeIt(el: Element): string {
+  const n = alikeCount(el)
+  return n > 1 ? `all ${n} like it` : 'nothing else like it'
+}
+
+const NO_NAME = 'it has no name of its own on this page'
+
+/** The one thing picked, or every one like it (Alt): a pattern, not one
+ * thing, so worn as it is, unchecked, and new ones like it go too. */
+function describe(el: Element, all = false): HidePick | { trouble: string } {
+  if (all) {
+    const n = alikeCount(el)
+    if (n < 2) return { trouble: 'nothing else here looks like it' }
+    return { selector: family(el), label: `All like “${name(el)}” (${n})`, note: shape(el) }
+  }
+  const sel = selectorFor(el)
+  if (!sel) return { trouble: NO_NAME }
+  return { selector: sel.s, label: name(el), note: shape(el), ...(sel.p ? { print: sel.p, family: sel.f ?? '' } : {}) }
+}
 
 /** Nothing a person would mean: the page itself, or the outline. */
 const nothing = (el: Element | null) => !el || el === host || el === document.documentElement || el === document.body
@@ -185,9 +369,13 @@ let target: Element | null = null
  * made the outline wider than that. */
 let under: Element | null = null
 let trail: Element[] = []
+/** Alt held: a press takes every element like the one outlined, as Arc's
+ * "Zap all related elements" does (Search 1.0.22, idea 1195). */
+let every = false
 
 function onMove(e: MouseEvent): void {
   if (!live) return
+  every = e.altKey
   const el = document.elementFromPoint(e.clientX, e.clientY)
   if (nothing(el)) return
   // Still over the same thing: a wider choice made with ↑ stays, drawn
@@ -203,6 +391,13 @@ function onMove(e: MouseEvent): void {
 // what is innermost (the words of a cookie banner, not the banner), and
 // hiding those left the banner where it was (#1270).
 function onKey(e: KeyboardEvent): void {
+  if (live && e.key === 'Alt') {
+    every = e.type === 'keydown'
+    if (target) place(target)
+    swallow(e)
+    return
+  }
+  if (e.type !== 'keydown') return
   if (!live || !target || e.metaKey || e.ctrlKey || e.altKey) return
   if (e.key === 'ArrowUp') {
     const up = target.parentElement
@@ -241,7 +436,9 @@ function onPress(e: PointerEvent): void {
   const el = target || document.elementFromPoint(e.clientX, e.clientY)
   if (nothing(el)) return
   try {
-    ipcRenderer.send('hide:picked', describe(el!))
+    const pick = describe(el!, e.altKey)
+    if ('trouble' in pick) ipcRenderer.send('hide:trouble', pick.trouble)
+    else ipcRenderer.send('hide:picked', pick)
   } catch (err) {
     ipcRenderer.send('hide:trouble', String(err))
   }
@@ -254,6 +451,7 @@ function onPress(e: PointerEvent): void {
 function start(): void {
   if (live) return
   live = true
+  every = false
   chrome()
   document.documentElement.style.cursor = 'crosshair'
   sheet('point', '* { cursor: crosshair !important; }')
@@ -265,6 +463,7 @@ function start(): void {
 function off(): void {
   if (!live) return
   live = false
+  every = false
   target = null
   under = null
   trail = []
@@ -284,6 +483,7 @@ for (const kind of presses) addEventListener(kind, swallow, true)
 addEventListener('mousemove', onMove, true)
 addEventListener('pointermove', onMove, true)
 addEventListener('keydown', onKey, true)
+addEventListener('keyup', onKey, true)
 // The page going away ends the pointing with it: kept for Back, it would
 // have come back still swallowing every click.
 addEventListener('pagehide', off)
@@ -316,11 +516,11 @@ function underMenu(x: number, y: number): Element | null {
 // the preload's world only, never the page's.
 ;(globalThis as unknown as { __orielHide: unknown }).__orielHide = {
   /** Wears `css` and says whether `selector` is still on screen. */
-  wear(css: string, selector: string): boolean { sheet('veil', css); sheet('peek', ''); return shows(selector) },
+  wear(css: string, selector: string): boolean { veil(css); sheet('peek', ''); return shows(selector) },
   shows,
   can: (x: number, y: number) => !!underMenu(x, y),
-  at(x: number, y: number): HidePick | null { const el = underMenu(x, y); return el ? describe(el) : null },
+  at(x: number, y: number): HidePick | { trouble: string } | null { const el = underMenu(x, y); return el ? describe(el) : null },
   live: () => live,
-  /** What the outline is round now, for the bench. */
-  outlined: () => (target && frame?.style.display === 'block' ? { id: target.id, tag: target.tagName.toLowerCase(), label: name(target) } : null),
+  /** What the outline is round now, and what its tag says, for the bench. */
+  outlined: () => (target && frame?.style.display === 'block' ? { id: target.id, tag: target.tagName.toLowerCase(), label: name(target), says: tag?.textContent ?? '' } : null),
 }

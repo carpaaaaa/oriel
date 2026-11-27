@@ -11,9 +11,15 @@
 // (Ctrl+Shift+U) lists them: resting on a row shows that one, Restore puts
 // it back for good. The page menu's Hide Element takes off what the right
 // click was on, at once. A private tab writes nothing down: what it takes
-// off is for its page only. Owned by the hide module.
+// off is for its page only.
+// A pick names exactly what was picked, and goes at once from every open
+// page of the site: tabs, small windows, peeks, pop-ups (Search 1.0.21). One
+// named by its place or by a product id carries what it was, and is hidden
+// on a later visit only once that same thing is seen again (Search 1.0.22);
+// Alt-click takes every element like it, as one line (Search 1.0.22).
+// Owned by the hide module.
 
-import { ipcMain, type WebContents } from 'electron'
+import { ipcMain, webContents as allContents, type WebContents } from 'electron'
 import { handle } from '../router'
 import { need } from '../context'
 import { model } from '../model/model'
@@ -54,7 +60,12 @@ function all(): Record<string, Veil[]> {
       for (const [host, list] of Object.entries(raw as Record<string, unknown>)) {
         if (!Array.isArray(list)) continue
         const veils = list.filter((v): v is Veil => !!v && typeof v === 'object' && typeof (v as Veil).selector === 'string' && !!(v as Veil).selector)
-          .map(v => ({ selector: v.selector, label: typeof v.label === 'string' ? v.label : v.selector, ...(typeof v.note === 'string' ? { note: v.note } : {}), date: typeof v.date === 'number' ? v.date : 0 }))
+          .map(v => ({
+            selector: v.selector, label: typeof v.label === 'string' ? v.label : v.selector, ...(typeof v.note === 'string' ? { note: v.note } : {}),
+            date: typeof v.date === 'number' ? v.date : 0,
+            // What it was, for one checked before it is hidden (Search 1.0.22).
+            ...(typeof v.print === 'string' && v.print ? { print: v.print } : {}), ...(typeof v.family === 'string' && v.family ? { family: v.family } : {}),
+          }))
         if (veils.length) out[host] = veils
       }
       return out
@@ -79,10 +90,13 @@ export function veilHost(address: string | undefined | null): string | null {
 
 const veilsOn = (host: string | null): Veil[] => (host ? all()[host] ?? [] : [])
 
-function hideOn(host: string, selector: string, label: string, note: string): void {
+/** A pick as it travels: a veil without its date. */
+type Pick = { selector: string; label: string; note: string; print?: string; family?: string }
+
+function hideOn(host: string, p: Pick): void {
   const list = all()[host] ?? []
-  if (list.some(v => v.selector === selector)) return
-  list.push({ selector, label, note, date: toAppleDate(Date.now()) })
+  if (list.some(v => v.selector === p.selector)) return
+  list.push({ selector: p.selector, label: p.label, note: p.note, date: toAppleDate(Date.now()), ...(p.print ? { print: p.print, family: p.family ?? '' } : {}) })
   all()[host] = list
   save()
 }
@@ -115,14 +129,37 @@ function restoreAllOn(host: string): void {
 export const rule = (selector: string) =>
   `:is(${selector}):not(#oriel-veiled):not(#oriel-veiled):not(#oriel-veiled) { display: none !important; }`
 
+type Named = { selector: string; print?: string; family?: string }
+
+/** The name the page's marks give a checked one (Veil.key): FNV-1a of its
+ * selector and print, as the Mac counts it, the same from one launch to the next. */
+export function veilKey(v: Named): string {
+  let hash = 2166136261
+  for (const byte of Buffer.from(v.selector + '\n' + (v.print ?? ''), 'utf8')) hash = Math.imul(hash ^ byte, 16777619) >>> 0
+  return 'v' + hash.toString(36)
+}
+
+/** What finds it on the page as hidden: the mark for one that is checked,
+ * the selector for one that isn't (Veil.target). */
+export const veilTarget = (v: Named) => (v.print ? `[data-oriel-veiled~="${veilKey(v)}"]` : v.selector)
+
+/** Its rule in the site's sheet. One that is checked hides only what the
+ * page marked as it, and carries what to check in a comment the page reads
+ * from the same sheet (Veil.rule; every "/" escaped, so no "*\/" ends it). */
+export function veilRule(v: Named): string {
+  if (!v.print) return rule(v.selector)
+  const json = JSON.stringify({ k: veilKey(v), s: v.selector, p: v.print, f: v.family ?? '' }).replace(/\//g, '\\/')
+  return `/*oriel-guard ${json}*/\n` + rule(veilTarget(v))
+}
+
 /** A site's sheet; one selector may be left out (the row being looked at). */
 const cssOn = (host: string | null, without?: string) =>
-  veilsOn(host).filter(v => v.selector !== without).map(v => rule(v.selector)).join('\n')
+  veilsOn(host).filter(v => v.selector !== without).map(veilRule).join('\n')
 
 // private tabs: what they take off is kept for their page only (§10.41)
 
-const passing = new Map<ID, string[]>()
-const passingCSS = (id: ID) => (passing.get(id) ?? []).map(s => '\n' + rule(s)).join('')
+const passing = new Map<ID, Named[]>()
+const passingCSS = (id: ID) => (passing.get(id) ?? []).map(v => '\n' + veilRule(v)).join('')
 
 /** What a tab's page wears now: its site's, and its own if private. */
 function cssFor(rt: TabRuntime, without?: string): string {
@@ -156,12 +193,15 @@ async function wear(wc: WebContents, css: string, selector: string): Promise<boo
   return (await inPage<boolean>(wc, call('wear', css, selector))) === true
 }
 
-/** Every open page of a site wears its sheet as it stands now. */
+/** Every open page of a site wears its sheet as it stands now: its tabs in
+ * every window, and the pages that aren't tabs, a small window's, a peek's,
+ * a site's pop-up, which kept showing it until reloaded (Search 1.0.21,
+ * idea 1142). A private tab keeps what it took off for itself as well. */
 function dress(host: string, except?: WebContents): void {
-  for (const rt of runtimes.values()) {
-    const wc = rt.contents
-    if (!wc || wc === except || veilHost(wc.getURL()) !== host) continue
-    wc.send('hide:css', cssFor(rt))
+  for (const wc of allContents.getAllWebContents()) {
+    if (wc === except || wc.isDestroyed() || veilHost(wc.getURL()) !== host) continue
+    const rt = tabOf(wc)
+    wc.send('hide:css', rt ? cssFor(rt) : cssOn(host))
   }
 }
 
@@ -284,14 +324,17 @@ function undo(c: WindowController): boolean {
   return true
 }
 
-const clean = (p: unknown): { selector: string; label: string; note: string } | null => {
+const clean = (p: unknown): Pick | null => {
   if (!p || typeof p !== 'object') return null
-  const { selector, label, note } = p as Record<string, unknown>
+  const { selector, label, note, print, family } = p as Record<string, unknown>
   if (typeof selector !== 'string' || !selector.trim() || selector.length > 4000) return null
+  // What it was: its kind, a picture's address and its words, under a thousand characters.
+  const checked = typeof print === 'string' && /^[a-z][a-z0-9-]*\n[^\n]*\n/.test(print) && print.length <= 1000
   return {
     selector,
     label: (typeof label === 'string' && label ? label : selector).slice(0, 200),
     note: (typeof note === 'string' ? note : '').slice(0, 100),
+    ...(checked ? { print, family: typeof family === 'string' && family.length <= 200 ? family : '' } : {}),
   }
 }
 
@@ -304,24 +347,26 @@ function keyOf(id: string): string | null {
 /** A pick, from pointing or from the page menu (Browser.swift:7537-7576).
  * Said once the page shows it gone, not before; one the page keeps on
  * screen is neither kept nor listed. */
-async function picked(c: WindowController, rt: TabRuntime, p: { selector: string; label: string; note: string }, how: 'point' | 'menu'): Promise<{ hidden: boolean; said?: string }> {
+async function picked(c: WindowController, rt: TabRuntime, p: Pick, how: 'point' | 'menu'): Promise<{ hidden: boolean; said?: string }> {
   const wc = rt.contents
   const host = veilHost(wc?.getURL())
   if (!wc || !host) return { hidden: false }
   const { selector } = p
+  // Still shown, asked of what the page marked for a checked one (Veil.target).
+  const target = veilTarget(p)
   if (rt.record?.shy) {
     const list = passing.get(rt.id) ?? []
-    if (!list.includes(selector)) list.push(selector)
+    if (!list.some(v => v.selector === selector)) list.push({ selector, ...(p.print ? { print: p.print, family: p.family } : {}) })
     passing.set(rt.id, list)
     watch(wc)
-    if (!(await wear(wc, cssFor(rt), selector))) return { hidden: true, ...say(c, how === 'point' ? HIDDEN_HERE : 'Hidden on this page') }
-    passing.set(rt.id, list.filter(s => s !== selector))
+    if (!(await wear(wc, cssFor(rt), target))) return { hidden: true, ...say(c, how === 'point' ? HIDDEN_HERE : 'Hidden on this page') }
+    passing.set(rt.id, list.filter(v => v.selector !== selector))
     await wear(wc, cssFor(rt), '')
     return { hidden: false, ...say(c, KEPT) }
   }
-  hideOn(host, selector, p.label, p.note)
+  hideOn(host, p)
   dress(host, wc)
-  if (!(await wear(wc, cssFor(rt), selector))) {
+  if (!(await wear(wc, cssFor(rt), target))) {
     listChanged(c)
     const key = keyOf('view.hidden')
     return { hidden: true, ...say(c, how === 'point' ? HIDDEN : key ? `Hidden, ${key} puts it back` : 'Hidden') }
@@ -432,7 +477,9 @@ handle('hide.peek', ({ selector }, ctx) => {
   const rt = activeRuntime(need(ctx))
   const wc = rt?.contents
   if (!rt || !wc || typeof selector !== 'string') return
-  wc.send('hide:peek', { css: cssFor(rt, selector), selector })
+  // A checked one is found by its mark, which stays once its check is out of the sheet.
+  const v = veilsOn(veilHost(wc.getURL())).find(x => x.selector === selector)
+  wc.send('hide:peek', { css: cssFor(rt, selector), selector: v ? veilTarget(v) : selector })
 })
 
 handle('hide.unpeek', (_a, ctx) => { unpeek(need(ctx)) })
@@ -461,7 +508,9 @@ handle('hide.element', async ({ id, x, y }, ctx) => {
   const rt = runtimes.get(id)
   const wc = rt?.contents
   if (!rt || !wc) return { hidden: false }
-  const p = clean(await inPage(wc, call('at', Number(x) || 0, Number(y) || 0)))
+  const at = await inPage<{ trouble?: unknown } | null>(wc, call('at', Number(x) || 0, Number(y) || 0))
+  if (at && typeof at.trouble === 'string') return { hidden: false, ...say(c, `Couldn't hide that: ${at.trouble.slice(0, 120)}`) }
+  const p = clean(at)
   return p ? picked(c, rt, p, 'menu') : { hidden: false }
 })
 
