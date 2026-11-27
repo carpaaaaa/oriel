@@ -1,7 +1,7 @@
 // The column's resting place (Settings › Hide the column until the pointer
 // reaches the edge, sidebar.hides; Fold.swift:501, :519, Browser.swift:3116):
 // on, the column rests folded away and the page takes the whole window, the
-// pointer at the edge brings it out (edges.ts, 10 from the edge after 0.05 s)
+// pointer at the edge brings it out (edges.ts, 28 from the edge after 0.05 s)
 // and Ctrl+S keeps it out; off, it comes back beside the page. A window opened
 // with it on starts folded.
 

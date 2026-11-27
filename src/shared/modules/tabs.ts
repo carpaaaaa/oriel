@@ -66,8 +66,9 @@ declare module '../commands' {
     'space.order': { id: ID; by: 1 | -1 }
     'space.delete': { id: ID }
     /** The player at the column's foot (Player.swift): pause what plays in a
-     * tab out of sight, remembered, or play again what it paused. */
-    'tab.media': { id: ID; play: boolean }
+     * tab out of sight, remembered, or play again what it paused; `letGo`:
+     * its row's Put Away, the pause handed back to the page (Search 1.0.22). */
+    'tab.media': { id: ID; play: boolean; letGo?: boolean }
     // drawn menus (studio/02 §4.6; studio/01 §4.35-§4.37, §6.25, §7.12)
     /** A drawn menu (`entries`) or popover (`panel`) over the page: the main
      * process raises the overlay over the window with the keys, as the
@@ -87,6 +88,17 @@ declare module '../state' {
     /** The Ctrl+Tab switcher up: a picture of each card's page, for those
      * Oriel has one of (tabs/previews.ts), else null. */
     switcherPictures?: Record<ID, string> | null
+    /** What's playing (Player.swift `players`, Search 1.0.22): every tab of
+     * this window making a sound, or paused from the column, the newest
+     * first, pinned or not, in this space or left playing in another. The
+     * column leaves out the tabs on screen and the floating one. */
+    players?: PlayerView[]
+  }
+  interface PlayerView extends TabView {
+    /** Its space, when it isn't the one on screen: a click goes there. */
+    space?: ID
+    /** Paused from the column: its row stays, with its play. */
+    stilled?: boolean
   }
   interface TabView {
     /** What the tab says, in Tab.label's order (§2.8). */

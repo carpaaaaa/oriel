@@ -8,7 +8,7 @@ import { createEffect, createRoot, createSelector, createSignal, on, onMount, Sh
 import { state, cmd } from '../lib/store'
 import type { TabView } from '../../shared/state'
 import { G, Ring } from './glyphs'
-import { P, label, monogram, restOf, markSize, picked, pickedAmongOthers, pinOf, type PairSlot } from './derive'
+import { P, label, monogram, restOf, markSize, picked, pickedAmongOthers, pinOf, pref, type PairSlot } from './derive'
 import { editing, setEditing, reading, dropTarget } from './ui'
 import { openMenu } from '../menus/open'
 import { tabMenu } from '../menus/build'
@@ -81,6 +81,11 @@ function RestLine(p: { tab: TabView }) {
   )
 }
 
+/** Settings › Tabs › Double click to rename (Search 1.0.22): a click on the
+ * tab you're on opens its name to type over. Not in the column of icons, which
+ * has no title to type over: there the click still opens the address. */
+export const clickRenames = () => pref('tabs.clickRenames', false) && !P.iconColumn()
+
 /** The tab in front, told only to the row that gains it and the row that loses it. */
 const isActive = createRoot(() => createSelector(() => state.activeID))
 
@@ -136,8 +141,13 @@ export function Row(p: { tab: TabView; grouped?: boolean; pinned?: boolean; pair
       void cmd({ do: 'tab.select', id: t().id })
       return
     }
-    // A click on the tab you're on edits its address, in the row (§5.18, §3.48).
-    if (wasLive) void cmd({ do: 'field.editTab', id: t().id })
+    // A click on the tab you're on edits its address, in the row (§5.18, §3.48);
+    // with Settings › Tabs › Double click to rename, its name instead, as
+    // Rename in its menu does (Search 1.0.22, Browser.clickRenamesTab).
+    if (wasLive) {
+      if (clickRenames()) setEditing({ kind: 'tab', id: t().id })
+      else void cmd({ do: 'field.editTab', id: t().id })
+    }
   }
 
   // Picked among others (Ctrl- or Shift-click), its X closes all of them,

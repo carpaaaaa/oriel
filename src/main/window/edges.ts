@@ -20,15 +20,17 @@ import { allControllers, overlayFree, type WindowController } from '../views/win
 import { benchRequest } from '../bench/server'
 import { win32 } from '../win/user32'
 
-/** Fold.swift:348-375: the edge (10 for a column resting folded), the
- * dwell before it comes (0.15 for the strip, 0.05 for a resting column),
+/** Fold.swift:389-422 (Search 1.0.22): the edge (6; 28 for a column resting
+ * folded, where 10 let a pointer arriving fast go past it; a press there still
+ * reaches the page until the column is out), the dwell before it comes (0.05
+ * for the strip as for a resting column, the strip's 0.15 felt as a wait),
  * the grace before it goes. */
-const EDGE = 6, HIDDEN_EDGE = 10, BEYOND = 48, GRACE = 65, SHADOW = 40, DWELL = 150, COLUMN_DWELL = 50
+const EDGE = 6, HIDDEN_EDGE = 28, BEYOND = 48, GRACE = 65, SHADOW = 40, DWELL = 50, COLUMN_DWELL = 50
 /** The strip with the window's buttons in full screen (CAPTION height). */
 const STRIP = 40, STRIP_EDGE = 2, STRIP_STAY = STRIP + 12
 export const REVEAL = 'window.reveal'
 
-interface Watch { left: number | null; arrived: number | null; going: NodeJS.Timeout | null }
+interface Watch { left: number | null; arrived: number | null; going: NodeJS.Timeout | null; lastY?: number }
 const watching = new WeakMap<WindowController, Watch>()
 /** The tests' pointer, in screen DIP, in place of the real one. */
 let fake: { x: number; y: number } | null = null
@@ -37,6 +39,14 @@ let timer: NodeJS.Timeout | null = null
 const inside = (p: { x: number; y: number }, r: Rect) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.width && p.y < r.y + r.height
 
 function pointer(): { x: number; y: number } { return fake ?? screen.getCursorScreenPoint() }
+
+/** The primary button held (Fold.edgeBrings, Search 1.0.22): a drag in the
+ * page that reaches the edge (a selection, a page's own sidebar pulled open)
+ * doesn't bring the column out over it halfway. The tests' pointer holds none. */
+function pressing(): boolean {
+  const w = win32()
+  return !fake && !!w && w.primaryDown()
+}
 
 /** The window under the pointer is this one (another app in front doesn't count). */
 function ours(c: WindowController): boolean {
@@ -150,9 +160,12 @@ function tickOne(c: WindowController, now: number, p: { x: number; y: number }):
   const edge = resting ? HIDDEN_EDGE : EDGE
   // Not in the strip's corner of a full screen, nor over anything else floating.
   const touch = within && fromEdge >= 0 && fromEdge < edge && !(!strip && full(c) && p.y < v.y + STRIP_STAY)
-  if (!touch || !ours(c) || !(overlayFree(layer(c)) || leavingOut(c))) { w.arrived = null; return }
+  // Still going up through the strip's edge (Fold.rising): on its way past it, not come to rest on it.
+  const rising = strip && w.lastY != null && p.y < w.lastY
+  w.lastY = p.y
+  if (!touch || pressing() || !ours(c) || !(overlayFree(layer(c)) || leavingOut(c))) { w.arrived = null; return }
   const dwell = strip ? DWELL : resting ? COLUMN_DWELL : 0
-  if (w.arrived == null) w.arrived = now
+  if (w.arrived == null || rising) w.arrived = now
   if (now - w.arrived >= dwell) comeOut(c, w, v)
 }
 

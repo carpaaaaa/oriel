@@ -149,23 +149,23 @@ k.fake({**sp, "sidebar": {**sp["sidebar"], "width": 180}, "ext": many_ext, "pref
 time.sleep(0.3)
 t.ok(where() and where()[0] == "foot", f"too many to fit beside the helm: they stay at the foot ({where()})")
 
-# What's playing in other tabs (sidebar.player): the newest tab making a sound out of sight, at the foot.
+# What's playing in other tabs (sidebar.player): a tab making a sound out of sight, at the foot
+# (every one of them since Search 1.0.22, test/tabs_player.py), on by default since Search 1.0.22.
 pl = json.loads(json.dumps(s))
 loose = [x for x in pl["tabs"] if not x.get("pinID") and x["id"] != pl["activeID"]]
 loose[0]["audible"] = True
+pl["players"] = [loose[0]]
 row = lambda: k.js("const e = document.querySelector('.sidebar .player'); return e && [e.querySelector('.player-title').textContent, e.querySelector('.player-button').title, e.dataset.tab]")
+k.fake({**pl, "prefs": {"sidebar.player": False}}, look="light")
+time.sleep(0.3)
+t.ok(row() is None, "off: no player")
 k.fake({**pl, "prefs": {}}, look="light")
 time.sleep(0.3)
-t.ok(row() is None, "off (the default): no player")
-k.fake({**pl, "prefs": {"sidebar.player": True}}, look="light")
-time.sleep(0.3)
 got = row()
-sounding = [x["id"] for x in pl["tabs"] if x.get("audible") and x["id"] != pl["activeID"]]
-t.ok(got and got[2] in sounding and got[1] == "Pause", f"on: a tab playing out of sight, its title and its pause ({got})")
+t.ok(got and got[2] == loose[0]["id"] and got[1] == "Pause", f"on (the default): a tab playing out of sight, its title and its pause ({got})")
 front = json.loads(json.dumps(pl))
-for x in front["tabs"]:
-    x["audible"] = x["id"] == front["activeID"]
-k.fake({**front, "prefs": {"sidebar.player": True}}, look="light")
+front["players"] = [next(x for x in front["tabs"] if x["id"] == front["activeID"])]
+k.fake({**front, "prefs": {}}, look="light")
 time.sleep(0.3)
 t.ok(row() is None, "the tab on screen playing: nothing to show")
 k.thaw()

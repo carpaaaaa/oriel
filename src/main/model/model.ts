@@ -10,7 +10,7 @@ import { EventEmitter } from 'node:events'
 import { getDomain } from 'tldts'
 import { randomUUID } from 'node:crypto'
 import type { FieldState, GroupView, ID, PinFolderView, PinView, SidebarState, SpaceView, SplitView, TabView } from '../../shared/state'
-import { defaults, defaultOf, moduleDefaults, type PrefKey } from '../../shared/prefs'
+import { addDefaults, defaults, defaultOf, moduleDefaults, type PrefKey } from '../../shared/prefs'
 import { readJSON, writeJSON, writeJSONNow, removeFile, fileExists, toAppleDate, fromAppleDate, onFlush } from './persist'
 import {
   firstSpaceID, personalProfileID, sessionFile, decodeShape, encodeShape, emptyShape, freshShape,
@@ -98,6 +98,10 @@ export const tabDefaults: Record<string, unknown> = {
   'pins.list': false,
   'pins.folders': true,
 }
+
+// Settings › Tabs › Double click to rename (Search 1.0.22): a click on the tab
+// you're on opens its name to type over, not its address. Off unless turned on.
+addDefaults({ 'tabs.clickRenames': false })
 
 const internalTitles: Record<string, string> = {
   settings: 'Settings', history: 'History', downloads: 'Downloads', bookmarks: 'Bookmarks',
@@ -745,18 +749,22 @@ class Model extends EventEmitter {
   tabViews(win: WindowRecord): TabView[] {
     return this.spaceTabs(win).flatMap(id => {
       const t = this.tabs.get(id)
-      if (!t) return []
-      const view: TabView = {
-        id: t.id, url: t.url, title: t.title, label: this.label(t), loading: t.loading, audible: t.audible, muted: t.muted,
-        asleep: t.asleep, empty: t.empty, canGoBack: t.canGoBack, canGoForward: t.canGoForward,
-      }
-      const site = siteOf(t.url)
-      if (site) view.site = site
-      for (const k of ['name', 'favicon', 'crashed', 'error', 'pinID', 'listed', 'groupID', 'shy', 'internal', 'capturing', 'resting', 'opener', 'awake'] as const) {
-        if (t[k] !== undefined && t[k] !== false) (view as any)[k] = t[k]
-      }
-      return [view]
+      return t ? [this.viewOf(t)] : []
     })
+  }
+
+  /** One tab as the interface draws it, whatever space it is in. */
+  viewOf(t: TabRecord): TabView {
+    const view: TabView = {
+      id: t.id, url: t.url, title: t.title, label: this.label(t), loading: t.loading, audible: t.audible, muted: t.muted,
+      asleep: t.asleep, empty: t.empty, canGoBack: t.canGoBack, canGoForward: t.canGoForward,
+    }
+    const site = siteOf(t.url)
+    if (site) view.site = site
+    for (const k of ['name', 'favicon', 'crashed', 'error', 'pinID', 'listed', 'groupID', 'shy', 'internal', 'capturing', 'resting', 'opener', 'awake'] as const) {
+      if (t[k] !== undefined && t[k] !== false) (view as any)[k] = t[k]
+    }
+    return view
   }
 
   /** Runtime news from a page (views/tabs.ts). */
@@ -889,9 +897,12 @@ class Model extends EventEmitter {
     this.emit('selected', win, id)
   }
 
-  /** The tab left last that is still in the row, other than `id`. */
-  tabBefore(win: WindowRecord, id: ID): ID | null {
-    const row = new Set(this.spaceTabs(win))
+  /** The tab left last that is still in the row, other than `id`. `awake`:
+   * never a pin put down, which closing a tab must not wake: Ctrl+W on a new
+   * tab went back to the pin put down before it, and Ctrl+W on that pin left
+   * a new tab again, for ever (Search 1.0.22, #1656). */
+  tabBefore(win: WindowRecord, id: ID, awake = false): ID | null {
+    const row = new Set(this.spaceTabs(win).filter(x => { const t = this.tabs.get(x); return !(awake && t?.pinID && t.asleep) }))
     return win.recent.find(x => x !== id && row.has(x)) ?? null
   }
 
@@ -1268,9 +1279,13 @@ class Model extends EventEmitter {
     const partner = split?.tabs.find(x => x !== id)
     const onLeft = split ? split.tabs.indexOf(id) < split.tabs.indexOf(partner ?? '') : false
 
-    // A pin is put down, not closed (§6.7).
+    // A pin is put down, not closed (§6.7): out of its split first, and you
+    // moved off it only when it is the tab you're on. Put down in the
+    // background, it leaves you on the tab you were looking at, the other
+    // page of its split included (Search 1.0.22, #1624).
     if (tab.pinID) {
       const home = this.pref<boolean>('pins.home') || this.pref<boolean>('pins.peek') ? tab.home : undefined
+      if (split) { this.leaveSplit(win, space, id); this.touch(win, ['splits']) }
       if (win.active[space] === id) this.leave(win, tab)
       this.rest(tab, home)
       this.sessionNow(win, space)
@@ -1295,7 +1310,14 @@ class Model extends EventEmitter {
     const kept = (x: TabRecord) => !!x.pinID || !!this.groupOf(win, x, space)
     const others = row.filter(x => x !== id).map(x => this.tabs.get(x)!).filter(Boolean)
     const besideGroups = others.some(x => !x.pinID && this.groupOf(win, x, space))
-    const onlyPins = this.pref<boolean>('tabs.newAfterLast') && !others.some(x => !x.pinID)
+    // The last tab that isn't a pin, with only pins beside it: Settings › Tabs ›
+    // Leave a new tab when the last tab closes (on) leaves a new tab rather than
+    // taking you into a pin. An empty tab closed beside a pin still open (Ctrl+T
+    // over the pin, then Ctrl+W) goes back to that pin, and the window stays: it
+    // isn't a page, and the pin is where you were (Search 1.0.22, #1577).
+    const onlyPinsBeside = !others.some(x => !x.pinID)
+    const backToPin = !!tab.empty && !besideGroups && onlyPinsBeside && others.some(x => x.pinID && !x.asleep)
+    const onlyPins = this.pref<boolean>('tabs.newAfterLast') && !backToPin && onlyPinsBeside
     const onlyKept = besideGroups && !kept(tab) && !others.some(x => !kept(x))
     if (win.active[space] === id && (onlyPins || onlyKept)) {
       if (tab.empty) {
@@ -1316,16 +1338,29 @@ class Model extends EventEmitter {
       return
     }
 
+    // The new tab left by putting the last pin down, closed with nothing beside
+    // it but pins already put down: landing on one woke it, and Ctrl+W went pin,
+    // new tab, pin, new tab for ever. It closes the window, as the only tab does (#1480).
+    if (win.active[space] === id && tab.empty && !besideGroups && !others.some(x => !x.pinID || !x.asleep)) {
+      this.emit('close-window', win.id)
+      return
+    }
+
     this.remember(win, tab, index, partner, onLeft)
     const wasActive = win.active[space] === id
-    const back = wasActive ? this.tabBefore(win, id) : null
+    // Never a pin put down: closing a tab doesn't wake one (#1656).
+    const back = wasActive ? this.tabBefore(win, id, true) : null
     this.removeFromRow(win, id)
     this.dropTab(id)
     this.removeEmptyGroup(win, space, tab.groupID)
     if (wasActive) {
       win.active[space] = null
       const before = goingBack || this.pref<boolean>('tabs.closeGoesBack') || tab.internal ? back : back && back === tab.opener ? back : null
-      const next = (partner && row.includes(partner) ? partner : null) ?? before ?? row[Math.min(index, row.length - 1)]
+      // The empty tab closed beside a pin still open: that pin, the one viewed
+      // last if it is one, never a pin put down (backToPin).
+      const open = (x: ID | null | undefined) => { const r = x ? this.tabs.get(x) : undefined; return !!r?.pinID && !r.asleep }
+      const openPin = backToPin ? (open(back) ? back : row.find(open) ?? null) : null
+      const next = (partner && row.includes(partner) ? partner : null) ?? openPin ?? before ?? row[Math.min(index, row.length - 1)]
       if (next) this.selectTab(win, next)
     }
     this.touch(win, ['tabs', 'activeID', 'groups', 'picked'])
