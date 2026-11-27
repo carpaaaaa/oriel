@@ -28,6 +28,33 @@ const stilled = new Map<ID, Held>()
 
 const GROUP = 'oriel-player'
 
+/** A paused page's own leaving (a document of its own, not a step in its
+ * history as single-page sites take): the pause is handed back. */
+const leaving = new Map<ID, () => void>()
+function watchLeaving(id: ID): void {
+  const wc = runtimes.get(id)?.contents
+  if (leaving.has(id) || !wc || wc.isDestroyed()) return
+  const left = () => { leaving.delete(id); drop(id) }
+  wc.once('did-navigate', left)
+  leaving.set(id, () => { if (!wc.isDestroyed()) wc.removeListener('did-navigate', left) })
+}
+function stopWatching(id: ID): void {
+  leaving.get(id)?.()
+  leaving.delete(id)
+}
+
+/** The debugger let go by someone else (the page crashed, its tools took it):
+ * what it held is gone with it, and a later play goes by the page alone. */
+const watched = new WeakSet<Electron.Debugger>()
+function watchDetach(id: ID, dbg: Electron.Debugger): void {
+  if (watched.has(dbg)) return
+  watched.add(dbg)
+  dbg.on('detach', () => {
+    const held = stilled.get(id)
+    if (held?.group) stilled.set(id, { group: null, mine: false })
+  })
+}
+
 const STILL = `(() => {
   const held = []
   const walk = root => {
@@ -87,6 +114,7 @@ async function withDebugger<T>(id: ID, run: (send: (method: string, params?: obj
   let mine = false
   try {
     if (!dbg.isAttached()) { dbg.attach('1.3'); mine = true }
+    watchDetach(id, dbg)
     const value = await run((method, params) => dbg.sendCommand(method, params))
     return { value, mine }
   } catch {
@@ -140,6 +168,7 @@ async function stillOutOfReach(id: ID): Promise<number> {
 async function letGo(id: ID, how: 'play' | 'wake' | 'leave'): Promise<number> {
   const held = stilled.get(id)
   stilled.delete(id)
+  stopWatching(id)
   const wc = runtimes.get(id)?.contents
   if (how !== 'play' && wc && !wc.isDestroyed()) void wc.executeJavaScriptInIsolatedWorld(1003, [{ code: 'window.__orielStilled = null' }]).catch(() => {})
   if (!held?.group) return 0
@@ -195,6 +224,7 @@ handle('tab.media', async ({ id, play, letGo: away }) => {
   const deep = stilled.get(id)?.group ? 0 : await stillOutOfReach(id)
   if (dom + deep > 0 || stilled.has(id)) {
     if (!stilled.has(id)) stilled.set(id, { group: null, mine: false })
+    watchLeaving(id)
     if (t) { const list = sounding.get(t.win) ?? []; if (!list.includes(id)) sounding.set(t.win, [...list, id]) }
   }
   mark(t?.win)
@@ -203,13 +233,14 @@ handle('tab.media', async ({ id, play, letGo: away }) => {
 
 model.on('tab-changed', (t: TabRecord, patch: Partial<TabRecord>) => {
   if ('audible' in patch) heard(t)
-  // Asleep, or a tab paused from the column leaving its page: out of the list.
-  if (patch.asleep === true || ('url' in patch && stilled.has(t.id))) drop(t.id)
+  // Asleep: out of the list. A paused page leaving is heard from its own
+  // navigation (watchLeaving), so a single-page site's step keeps the pause.
+  if (patch.asleep === true) drop(t.id)
   // Its title, icon or mute changed: the row says so.
   else if (sounding.get(t.win)?.includes(t.id) && ('title' in patch || 'favicon' in patch || 'muted' in patch || 'name' in patch)) mark(t.win)
 })
 model.on('tab-rest', (id: ID) => drop(id))
-model.on('tab-closed', (id: ID) => drop(id))
+model.on('tab-closed', (id: ID) => { drop(id); stopWatching(id) })
 // Gone to, or come on screen beside it in a split: the pause is handed back.
 model.on('selected', (win: { id: ID; splits?: { tabs: ID[] }[] }, id: ID) => {
   const pages = win.splits?.find(s => s.tabs.includes(id))?.tabs ?? [id]

@@ -22,6 +22,10 @@ import { FORMAT, type Bundle, type Pin, type Space } from '../data/spaces'
 /** The size no spaces file comes near (SpacesExport.limit). */
 export const LIMIT = 32 << 20
 
+/** The most a spaces file brings in: well past any real sidebar, short of a
+ * file made to keep Oriel busy (each page is checked against the ones there). */
+export const MOST = { profiles: 20, spaces: 200, pages: 10000 }
+
 /** A spaces file, or null for any other JSON (SpacesExport.bundle). */
 export function readBundle(text: string): Bundle | null {
   let raw: unknown
@@ -29,25 +33,32 @@ export function readBundle(text: string): Bundle | null {
   const o = raw as Partial<Bundle> | null
   if (!o || typeof o !== 'object' || o.format !== FORMAT || !Array.isArray(o.profiles)) return null
   const str = (v: unknown) => (typeof v === 'string' ? v : '')
-  const pins = (v: unknown): Pin[] => (Array.isArray(v) ? v : []).filter(p => p && typeof p.url === 'string')
+  // Pins, tabs, folders, groups and a folder's rows share one count, across the file.
+  let left = MOST.pages
+  const take = <T,>(v: unknown): T[] => {
+    const list = (Array.isArray(v) ? v : []).slice(0, Math.max(0, left)) as T[]
+    left -= list.length
+    return list
+  }
+  const pins = (v: unknown): Pin[] => take<any>(v).filter(p => p && typeof p.url === 'string')
     .map(p => ({ title: str(p.title), url: p.url, listed: p.listed === true, ...(typeof p.folder === 'string' ? { folder: p.folder } : {}) }))
   return {
     format: FORMAT, version: Number(o.version) || 1, exported: str(o.exported),
-    profiles: o.profiles.filter(p => p && typeof p === 'object').map(p => ({
+    profiles: o.profiles.slice(0, MOST.profiles).filter(p => p && typeof p === 'object').map(p => ({
       name: str(p.name),
       everySpace: pins(p.everySpace),
-      spaces: (Array.isArray(p.spaces) ? p.spaces : []).filter(s => s && typeof s.name === 'string' && s.name.trim()).map(s => ({
+      spaces: (Array.isArray(p.spaces) ? p.spaces.slice(0, MOST.spaces) : []).filter(s => s && typeof s.name === 'string' && s.name.trim()).map(s => ({
         name: s.name.trim(),
         colour: Number.isInteger(s.colour) && s.colour >= 0 && s.colour <= 5 ? s.colour : 0,
         ...(typeof s.icon === 'string' ? { icon: s.icon } : {}),
         ...(s.gradient && Array.isArray(s.gradient.colours) && s.gradient.colours.every((c: unknown) => typeof c === 'string') ? { gradient: s.gradient } : {}),
         pins: pins(s.pins),
-        folders: (Array.isArray(s.folders) ? s.folders : []).filter(f => f && typeof f.id === 'string')
+        folders: take<any>(s.folders).filter(f => f && typeof f.id === 'string')
           .map(f => ({ id: f.id, name: str(f.name) || 'Folder', ...(typeof f.parent === 'string' ? { parent: f.parent } : {}),
-            ...(typeof f.feed === 'string' ? { feed: f.feed } : {}), ...(Array.isArray(f.items) ? { items: f.items.filter((i: { url?: unknown }) => i && typeof i.url === 'string') } : {}) })),
-        tabs: (Array.isArray(s.tabs) ? s.tabs : []).filter(t => t && typeof t.url === 'string')
+            ...(typeof f.feed === 'string' ? { feed: f.feed } : {}), ...(Array.isArray(f.items) ? { items: take<any>(f.items).filter(i => i && typeof i.url === 'string') } : {}) })),
+        tabs: take<any>(s.tabs).filter(t => t && typeof t.url === 'string')
           .map(t => ({ title: str(t.title), url: t.url, ...(typeof t.group === 'string' ? { group: t.group } : {}) })),
-        groups: (Array.isArray(s.groups) ? s.groups : []).filter(g => g && typeof g.id === 'string').map(g => ({ id: g.id, name: str(g.name) || 'Group' })),
+        groups: take<any>(s.groups).filter(g => g && typeof g.id === 'string').map(g => ({ id: g.id, name: str(g.name) || 'Group' })),
       })),
     })),
   }

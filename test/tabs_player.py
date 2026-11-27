@@ -140,6 +140,19 @@ b.cmd("tab.media", id=one, play=False, letGo=True)
 time.sleep(0.5)
 t.ok(not next((p for p in players() if p["id"] == one), {}).get("stilled") and b.ev(one, "window.__a.paused"), "Put Away: no longer held, the page's player paused as by its own button")
 
+# A step in the page's own history (as single-page music sites take) keeps the
+# pause from here; leaving the page (a reload) hands it back.
+b.ev(two, "window.__a.play().then(() => 1, () => 0)")
+time.sleep(0.4)
+b.cmd("tab.media", id=two, play=False)
+time.sleep(0.3)
+b.ev(two, "(location.hash = 'moved', 1)")
+time.sleep(0.5)
+t.ok(next((p for p in players() if p["id"] == two), {}).get("stilled"), "a step in the page's own history: still paused from here")
+b.cmd("tab.reload", id=two)
+time.sleep(1.0)
+t.ok(not next((p for p in players() if p["id"] == two), {}).get("stilled"), "the page left (reloaded): the pause is handed back, the row goes")
+
 # Left playing in another space: still listed, a click goes there.
 if heard:
     b.ev(one, "window.__a.play().then(() => 1, () => 0)")
