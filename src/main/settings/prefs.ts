@@ -20,6 +20,7 @@ import { arm, confirmWipe, KEY as WIPE_KEY } from './wipe'
 import { check, install, relaunch, updateFacts, updateNow } from './updater'
 import { askDefault, defaultFacts, dismissOffer, recheck } from './browser'
 import { testEnv } from '../testhooks'
+import { focusPageSoon } from '../tabs/focus'
 
 /** What Oriel said last (the Mac's announcement line), for the bench. */
 export const said: string[] = []
@@ -194,6 +195,9 @@ handle('settings.open', async ({ page, find }, ctx) => {
   const c = need(ctx)
   const section = page ?? (updateFacts().pending ? 'update' : (pref<string>('settings.page') || 'general'))
   const id = await openInternal(c, `${scheme}://settings/${section}${find ? `?find=${encodeURIComponent(find)}` : ''}`)
+  // The Settings tab already open, shown again: its page takes the keys, for
+  // Find a setting to have them as Settings opens (Search 1.0.22, #1611).
+  if (id && c.record.active[c.record.space] === id) focusPageSoon(c)
   return { tab: id }
 })
 
@@ -249,6 +253,9 @@ handle('settings.do', async ({ id, arg }, ctx) => {
       return run({ do: 'import.open' } as never, { window: c })
     case 'arc.import':
       return run({ do: 'import.open', source: 'arc' } as never, { window: c })
+    case 'general.exportSpaces':
+      // Every space to a file (Search 1.0.22, data/spaces.ts): what it wrote is said here.
+      return (await run({ do: 'spaces.export', ...(typeof arg === 'string' ? { path: arg } : {}) } as never, { window: c })) ?? settingsValues()
     case 'downloads.folder': {
       const folder = await chooseFolder(c, downloadsFolder())
       if (folder) setKey('downloads', folder)

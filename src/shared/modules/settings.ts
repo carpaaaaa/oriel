@@ -140,6 +140,9 @@ declare module '../commands' {
     'download.clear': None
     'download.copy': { id: ID }
     'download.folder': None
+    /** A finished download dragged out of the list as its file (Search 1.0.20):
+     * from the Downloads tab, or from the card by the button. */
+    'download.drag': { id: ID; from?: 'page' | 'card' }
     // updates (06 §4) and What's New
     'update.check': None
     'update.install': None

@@ -216,8 +216,8 @@ handle('import.file', async ({ path: given }, ctx) => {
     if (probe) return null
     const picked = await dialog.showOpenDialog(c.base as never, {
       buttonLabel: 'Bring In',
-      message: 'A file another browser exported: bookmarks (.html) or passwords (.csv).',
-      filters: [{ name: 'Bookmarks or passwords', extensions: ['html', 'htm', 'csv', 'txt'] }],
+      message: 'A file another browser exported: bookmarks (.html) or passwords (.csv), or spaces Export Spaces… saved (.json).',
+      filters: [{ name: 'Bookmarks, passwords or spaces', extensions: ['html', 'htm', 'csv', 'txt', 'json'] }],
       properties: ['openFile'],
     })
     if (picked.canceled || !picked.filePaths[0]) return null

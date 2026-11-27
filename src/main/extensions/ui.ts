@@ -6,7 +6,7 @@
 // turned-off extensions, unpacked sources and "Runs on" are kept in
 // extensions.json.
 
-import { app, dialog, Menu, webContents, type Session } from 'electron'
+import { app, dialog, Menu, nativeImage, webContents, type Session } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { ElectronChromeExtensions } from 'electron-chrome-extensions'
@@ -336,6 +336,16 @@ function idIn(text: string): string | null {
   return /[a-p]{32}/.exec(String(text).toLowerCase())?.[0] ?? null
 }
 
+/** A Chrome theme: a manifest with "theme" and nothing else to run. Only
+ * Chrome's own window draws from it, so it would install and change nothing:
+ * refused, saying where Oriel's own colours are (Search 1.0.22, Crx.isTheme). */
+export function isTheme(m: Record<string, unknown> | null | undefined): boolean {
+  if (!m || m.theme == null) return false
+  return !['background', 'content_scripts', 'action', 'browser_action', 'page_action', 'side_panel', 'chrome_url_overrides',
+    'devtools_page', 'options_page', 'options_ui', 'declarative_net_request', 'commands'].some(k => k in m)
+}
+const themesRefused = () => `Chrome themes aren't supported in ${brand.name}. Colour a space from its menu › Colour…, or choose a new tab's picture in Settings › Themes`
+
 export async function install(text: string): Promise<void> {
   const id = idIn(text)
   if (!id) return say("That isn't a Chrome Web Store link or extension id", true)
@@ -347,6 +357,10 @@ export async function install(text: string): Promise<void> {
     folder = await downloadExtension(id, extensionsRoot)
     const m = readManifest(folder) ?? {}
     const name = localize(folder, m, m.name) || id
+    if (isTheme(m)) {
+      fs.rmSync(path.dirname(folder), { recursive: true, force: true })
+      return say(themesRefused(), true)
+    }
     if (!(await askToAdd(name, m, brand.name, iconOf(folder, m)))) {
       fs.rmSync(path.dirname(folder), { recursive: true, force: true })
       return
@@ -374,9 +388,19 @@ importHooks.installExtensions = ids => {
   void (async () => { for (const id of ids) await install(id) })()
 }
 benchRequest('ext.broughtOver', () => ({ ids: [...broughtOver] }))
+/** The store page's button, as its install would ask (test/extensions_themes.py). */
+benchRequest('ext.beforeStoreInstall', async req => beforeStoreInstall({
+  id: String(req.id ?? ''), localizedName: String(req.name ?? ''), manifest: (req.manifest ?? {}) as chrome.runtime.Manifest, icon: nativeImage.createEmpty(),
+}))
 
 /** The Web Store page's own button: the same question first. */
 export async function beforeStoreInstall(details: { id: string; localizedName: string; manifest: chrome.runtime.Manifest; icon: Electron.NativeImage }): Promise<{ action: 'allow' | 'deny' }> {
+  // A theme: said on the window, as the store's button gives no word of its own.
+  if (isTheme(details.manifest as never)) {
+    say(themesRefused(), true)
+    await ask({ message: `Chrome themes aren't supported in ${brand.name}`, detail: "Colour a space from its menu › Colour…, or choose a new tab's picture in Settings › Themes.", buttons: ['OK'], cancel: 0 })
+    return { action: 'deny' }
+  }
   const ok = await askToAdd(details.localizedName, details.manifest as never, brand.name, details.icon.isEmpty() ? undefined : details.icon.resize({ width: 64, height: 64 }))
   return { action: ok ? 'allow' : 'deny' }
 }
@@ -449,6 +473,7 @@ export async function loadUnpacked(c: WindowController | null, given?: string): 
     source = r.filePaths[0]
   }
   if (!fs.existsSync(path.join(source, 'manifest.json'))) return say('That folder has no manifest.json', true)
+  if (isTheme(readManifest(source))) return say(themesRefused(), true)
   const to = path.join(unpackedRoot, path.basename(source))
   for (const e of profile!.extensions.getAllExtensions()) if (path.resolve(e.path) === path.resolve(to)) return say('Already installed. Press Reload to take its changes', true)
   try {

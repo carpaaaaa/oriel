@@ -3,8 +3,9 @@
 // light layer over the page (src/preload/page/capture.ts); an area dragged,
 // an element clicked or Whole Page is drawn, copied and saved as a PNG in
 // the downloads folder, "Capture 2026-11-17 at 14.03.22.png", and nothing
-// else. The command again, or Escape, and nothing is taken. Off, the
-// command says so and does nothing.
+// else; with Copy captures only on, copied and not saved (Search 1.0.22).
+// The command again, or Escape, and nothing is taken. Off, the command says
+// so and does nothing.
 
 import { clipboard, ClipboardItem, ipcMain, nativeImage, type WebContents } from 'electron'
 import { existsSync } from 'node:fs'
@@ -16,7 +17,12 @@ import { need } from '../context'
 import { runtimes } from '../views/tabs'
 import type { WindowController } from '../views/window'
 import { downloadsFolder } from '../settings/prefs'
+import { addDefaults } from '../../shared/prefs'
 import { pref } from './facts'
+
+// Copy captures only: the picture on the clipboard, no PNG in the downloads
+// folder. Off unless turned on (Search 1.0.22, SnapGeometry.file).
+addDefaults({ 'pages.capture.copyOnly': false })
 
 const PRELOAD_WORLD = 999
 
@@ -77,20 +83,22 @@ export async function snap(wc: WebContents, c: Choice, shy: boolean): Promise<{ 
   void shy
   try { await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) })]) } catch {}
   const folder = downloadsFolder()
-  const file = free(folder, captureName(new Date()))
+  const file = pref<boolean>('pages.capture.copyOnly') ? null : free(folder, captureName(new Date()))
   const copied = cropped ? 'The top of the page copied' : 'Copied'
-  let said: string
-  try {
-    await writeFile(file, png)
-    said = `${copied} and saved to ${path.basename(folder)}`
-  } catch {
-    said = `${copied}, but couldn't save it`
+  let said: string = copied
+  if (file) {
+    try {
+      await writeFile(file, png)
+      said = `${copied} and saved to ${path.basename(folder)}`
+    } catch {
+      said = `${copied}, but couldn't save it`
+    }
   }
   const size = image.getSize()
   const scale = image.getScaleFactors?.()[0] ?? 1
-  captures.push({ path: file, width: Math.round(size.width * scale), height: Math.round(size.height * scale), said, kind: c.kind })
+  captures.push({ path: file ?? '', width: Math.round(size.width * scale), height: Math.round(size.height * scale), said, kind: c.kind })
   if (captures.length > 20) captures.shift()
-  return { said, path: file }
+  return { said, ...(file ? { path: file } : {}) }
 }
 
 /** Other pointing modes stop before the layer comes up (Hide Elements, main/hide). */

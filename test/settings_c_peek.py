@@ -168,6 +168,8 @@ setting("links.peek", "shift")
 
 # 8. Your own style for a site.
 st = tab_titled("styled", H + "/styled")
+# On by default since Search 1.0.22: turned off first, to see it do nothing.
+setting("sites.styles", False)
 r = b.cmd("view.style")
 t.ok("said" in (r or {}), f"off: Edit Site Style… does nothing ({r})")
 setting("sites.styles", True)
@@ -210,6 +212,8 @@ def caps():
     return b.call({"do": "pages.state"})["captures"]
 
 
+# On by default since Search 1.0.22: turned off first, to see it do nothing.
+setting("pages.capture", False)
 r = b.cmd("view.capture")
 t.ok("said" in r and not caps(), f"off: Capture… does nothing ({r})")
 setting("pages.capture", True)

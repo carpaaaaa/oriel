@@ -1,6 +1,7 @@
 // A file another browser exported (ImportFile.swift, BookmarksFile.swift,
 // Vault.take(csv:); studio/05 §1.8): passwords as CSV, the universal way in
-// on Windows, and bookmarks as a Netscape HTML page. Read once, never kept.
+// on Windows, bookmarks as a Netscape HTML page, and a spaces file Export
+// Spaces… wrote (Search 1.0.22, spacesfile.ts). Read once, never kept.
 
 import { readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
@@ -11,6 +12,7 @@ import { folder, site } from '../data/bookmarks'
 import { siteHost } from '../data/urls'
 import { vault } from '../data/vault'
 import { n } from './bring'
+import { LIMIT, readBundle, spacesSaid, takeSpaces } from './spacesfile'
 
 const maxFile = 64 * 1024 * 1024
 
@@ -135,6 +137,12 @@ export function bringFile(file: string, recordAs?: string): { said: ImportSaid[]
     return { said: [{ ok: false, text: "That file couldn't be read" }], passwords: 0, bookmarks: 0 }
   }
   const ext = path.extname(file).toLowerCase()
+  // Export Spaces…'s own file, Oriel's or Search's: its spaces come in (Search 1.0.22).
+  if (ext === '.json') {
+    const bundle = text.length <= LIMIT ? readBundle(text) : null
+    if (!bundle) return { said: [{ ok: false, text: "That file couldn't be read" }], passwords: 0, bookmarks: 0 }
+    return { said: [{ ok: true, text: spacesSaid(takeSpaces(bundle)) }], passwords: 0, bookmarks: 0 }
+  }
   if (ext === '.csv' || ext === '.txt' || (!/<DL/i.test(text) && text.includes(','))) {
     const { kept, skipped } = takeCSV(text)
     if (!kept && !skipped) return { said: [{ ok: false, text: 'Nothing to bring in from that file' }], passwords: 0, bookmarks: 0 }

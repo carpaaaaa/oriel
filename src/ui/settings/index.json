@@ -260,6 +260,26 @@
    ]
   },
   {
+   "id": "general.exportSpaces",
+   "group": "browser",
+   "icon": "square.and.arrow.up.on.square",
+   "title": "Export spaces",
+   "detail": "Every space, its pins, folders and open tabs, to a file",
+   "more": "A bookmarks file any browser imports, a folder per space with its pins and folders and its open tabs in a folder of their own; or Search's own spaces file, which keeps colours and icons and comes back in through Bring Things Over › File…. Also in File › Export Spaces….",
+   "words": [
+    "export",
+    "backup",
+    "spaces",
+    "pins",
+    "bookmarks",
+    "html",
+    "save",
+    "leave",
+    "moving"
+   ],
+   "parent": "general.import"
+  },
+  {
    "id": "sync",
    "group": "browser",
    "icon": "arrow.triangle.2.circlepath",
@@ -1116,6 +1136,27 @@
    "parent": "bookmarks.bar"
   },
   {
+   "id": "bookmarks.newTabOnly",
+   "group": "tablook",
+   "icon": "plus.square",
+   "title": "Show the bookmarks bar only on new tabs",
+   "detail": "Hidden while a page is open, as Chrome and Edge can",
+   "more": "The bar comes back as soon as the tab on screen is a new one, also with the column folded away.",
+   "keys": [
+    "bookmarks.newTabOnly"
+   ],
+   "words": [
+    "favorites bar",
+    "bookmarks toolbar",
+    "new tab",
+    "only",
+    "hide",
+    "chrome",
+    "edge"
+   ],
+   "parent": "bookmarks.bar"
+  },
+  {
    "id": "motion.light",
    "group": "motion",
    "icon": "leaf",
@@ -1720,7 +1761,7 @@
    "icon": "camera.viewfinder",
    "title": "Capture pages",
    "detail": "Capture… in the View menu copies an area, an element or the whole page",
-   "more": "Drag across an area, click an element, or choose Whole Page; Esc cancels. The picture is copied and saved as a PNG in your downloads folder, and goes nowhere else.",
+   "more": "Drag across an area, click an element, or choose Whole Page; Esc cancels. The picture is copied and saved as a PNG in your downloads folder (unless Copy captures only is on), and goes nowhere else.",
    "keys": [
     "pages.capture"
    ],
@@ -1732,6 +1773,26 @@
     "png",
     "arc"
    ]
+  },
+  {
+   "id": "pages.capture.copyOnly",
+   "group": "pages",
+   "icon": "doc.on.clipboard",
+   "title": "Copy captures only",
+   "detail": "The picture goes on the clipboard, with no PNG saved in your downloads folder",
+   "keys": [
+    "pages.capture.copyOnly"
+   ],
+   "words": [
+    "screenshot",
+    "capture",
+    "clipboard",
+    "copy",
+    "png",
+    "downloads",
+    "save"
+   ],
+   "parent": "pages.capture"
   },
   {
    "id": "sites.styles",

@@ -9,7 +9,7 @@
 // a download starting shows the card by the button for a few seconds
 // (downloads.peek), so it never goes unnoticed.
 
-import { clipboard, dialog, shell, type DownloadItem, type Session, type WebContents } from 'electron'
+import { app, clipboard, dialog, nativeImage, shell, type DownloadItem, type Session, type WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, promises as fsp, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -482,6 +482,29 @@ handle('download.reveal', ({ id }) => { const { live: l, keep } = find(id); cons
 handle('download.copy', ({ id }) => { const { live: l, keep } = find(id); const a = keep?.address ?? l?.entry.url; if (a) clipboard.writeText(a) })
 handle('download.folder', () => openPath(downloadsFolder(), 'open'))
 
+/** Dragged out of the list as its file, with the file's icon under the
+ * pointer: onto a page to upload it, or into File Explorer or another app
+ * (Search 1.0.20, DownloadDragOut). Only a finished download whose file is
+ * still there; the drag starts from the page the row is in. */
+const dragged: string[] = []
+handle('download.drag', async ({ id, from }, ctx) => {
+  const { keep } = find(id)
+  const file = keep?.path
+  if (!file || !existsSync(file)) return { dragged: false }
+  const c = need(ctx)
+  const tab = c.record.active[c.record.space]
+  const wc = from === 'card' ? c.overlay.webContents : (tab && model.tabs.get(tab)?.internal === 'downloads' ? runtimes.get(tab)?.contents : null)
+  if (!wc || wc.isDestroyed()) return { dragged: false }
+  // A test world never starts a drag the system would hold the pointer for.
+  if (probe) { dragged.push(file); return { dragged: true } }
+  let icon = await app.getFileIcon(file, { size: 'normal' }).catch(() => null)
+  if (!icon || icon.isEmpty()) icon = nativeImage.createFromDataURL(BLANK_ICON)
+  wc.startDrag({ file, icon })
+  return { dragged: true }
+})
+/** A plain square, should Windows have no icon for the file. */
+const BLANK_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGklEQVR42mP8z8DwnxGIwYBRdAWjBgwPAwAiNQ8BHNUIrwAAAABJRU5ErkJggg=='
+
 /** History › Clear History takes the addresses the list kept (Shared.forgetDownloadAddresses). */
 export function forgetDownloadAddresses(): void {
   let touched = false
@@ -572,5 +595,5 @@ function watchCards(): void {
 }
 
 /** For the bench: the save dialog's answer in a test world. */
-export function downloadsState() { return { ...listed(), progress: progressSaid.slice(-1)[0] ?? null, live: live.size } }
+export function downloadsState() { return { ...listed(), progress: progressSaid.slice(-1)[0] ?? null, live: live.size, dragged: dragged.slice(-10) } }
 void dialog

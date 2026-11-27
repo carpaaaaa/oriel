@@ -6,17 +6,25 @@
 // fit goes behind "»", which opens the whole list. Items 22 high, 8 of
 // padding, radius 6; titles 12, at most 150 wide; the site's icon at 13.
 // With Icons only on the bookmarks bar, a site is its icon, its name on
-// hover; folders keep their names. Owned by the data module.
+// hover; folders keep their names. With Show the bookmarks bar only on new
+// tabs, it is above a new tab alone and goes as a page opens in it (Search
+// 1.0.20), the column folded away or hidden until the edge included (Search
+// 1.0.22), leaving room then for the column's edge. Owned by the data module.
 
 import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js'
-import { state, cmd } from '../lib/store'
+import { state, cmd, activeTab } from '../lib/store'
 import { G } from '../sidebar/glyphs'
 import type { BookmarkLine } from '../../shared/modules/data'
 
 const rectOf = (el: Element) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height } }
 
-/** On, and with something to show or say: the row is there. */
+/** Only on new tabs (bookmarks.newTabOnly), while the bar is above the page. */
+const newTabOnly = () => !!state.prefs?.['bookmarks.newTabOnly'] && !state.prefs?.['bookmarks.side']
+
+/** On, and with something to show or say: the row is there; with Only on
+ * new tabs, while the tab on screen is a new one (a split is pages). */
 export const barShown = () => !!state.prefs?.['bookmarks.bar'] && Array.isArray(state.data?.bar)
+  && (!newTabOnly() || (!!activeTab()?.empty && !state.splits?.some(s => s.tabs.includes(state.activeID ?? ''))))
 
 export function BookmarksBar() {
   let row!: HTMLDivElement
@@ -47,8 +55,11 @@ export function BookmarksBar() {
     void cmd({ do: 'bookmark.pick', url: l.url, newTab: e.ctrlKey || e.metaKey })
   }
 
+  // The column folded away down a side: the bar keeps clear of the edge
+  // that brings it out (main/window/edges.ts), as Search 1.0.22 does.
+  const edge = () => (state.sidebar.layout === 'side' && state.sidebar.folded ? (state.sidebar.side === 'right' ? 'right' : 'left') : null)
   return (
-    <div class="bookmarks-bar" data-window-ui="bookmarks-bar">
+    <div class="bookmarks-bar" data-window-ui="bookmarks-bar" classList={{ 'edge-left': edge() === 'left', 'edge-right': edge() === 'right' }}>
       <div class="bmbar-row" ref={row}>
         <Show when={items().length} fallback={<span class="bmbar-none">No bookmarks yet: Ctrl+Shift+B keeps the page you're on</span>}>
           <For each={items()}>{(l, i) => (

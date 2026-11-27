@@ -61,6 +61,8 @@ function applies(id: string): boolean {
     case 'sidebar.foldIcons': return side && !p('sidebar.hides')
     case 'bookmarks.side': return side && !!p('bookmarks.bar')
     case 'bookmarks.iconsOnly': return !!p('bookmarks.bar') && !p('bookmarks.side')
+    case 'bookmarks.newTabOnly': return !!p('bookmarks.bar') && !p('bookmarks.side')
+    case 'pages.capture.copyOnly': return !!p('pages.capture')
     case 'passwords.fill.prove': return !!p('passwords.fill')
     case 'toolbar.left': case 'tabs.compact': return !side
     case 'profiles.oneWindow': return false
@@ -97,6 +99,8 @@ function needs(id: string): string {
     case 'launcher.key': return 'Only with the address field from any app on'
     case 'float.own': case 'float.minimize': case 'float.fade': return 'Only with the floating video on'
     case 'bookmarks.side': return 'Only with the bookmarks bar shown and the tabs down a side'
+    case 'bookmarks.newTabOnly': return 'Only with the bookmarks bar shown above the page'
+    case 'pages.capture.copyOnly': return 'Only with Capture pages on'
     case 'passwords.fill.prove': return 'Only with Fill in sign-ins on'
     case 'shield.stealth': return 'Only with Block ads and trackers on'
     default: return 'Only with the tabs down a side'
@@ -245,6 +249,7 @@ function control(i: Item): JSX.Element {
       options={[['none', 'Your mail app'], null, ['gmail', 'Gmail'], ['outlook', 'Outlook.com'], ['fastmail', 'Fastmail'], ['proton', 'Proton Mail']]} />
     case 'mail.default': return facts()?.mailDefault ? check() : facts()?.defaultHow === 'settings' ? <Pill title="Make default" filled act={() => void act('mail.default')} /> : null
     case 'general.import': return <Pill title="Bring Things Over…" act={() => void act('general.import')} />
+    case 'general.exportSpaces': return <Pill title="Export Spaces…" act={() => void act('general.exportSpaces')} />
     case 'sync': return <Switch on={!!p('sync.folder')} set={v => void set('sync', v)} />
     case 'quit.confirm': return sw('quit.confirm')
     case 'downloads.folder': return <Pill title="Change…" act={() => void act('downloads.folder')} />
@@ -508,8 +513,11 @@ export function SettingsPage() {
       const url = new URL(String(v))
       const n = url.pathname.replace(/^\//, '').split('/')[0] ?? ''
       const named = n === 'update' ? 'update' as const : pageNamed(n)
-      if (named) { setQuery(''); setPage(named) }
+      // Settings asked for again at the section it shows (Ctrl+,) keeps the words (Search 1.0.22, follow).
+      if (named && named !== page()) { setQuery(''); setPage(named) }
       const f = url.searchParams.get('find'); if (f) setQuery(f)
+      // The tab was told an address without them: it is told again.
+      else if (query().trim()) history.replaceState(null, '', `${location.pathname}?find=${encodeURIComponent(query())}`)
     })
     onCleanup(() => { off1(); off2() })
     const keys = (e: KeyboardEvent) => {
@@ -517,7 +525,30 @@ export function SettingsPage() {
     }
     window.addEventListener('keydown', keys)
     onCleanup(() => window.removeEventListener('keydown', keys))
+    // Find a setting takes the keys as Settings opens, as Windows Settings'
+    // search does, and again each time its tab comes back on screen, unless
+    // another field had them (Search 1.0.22, #1611).
+    const take = () => {
+      const now = document.activeElement
+      if (findInput && (!now || now === document.body || now === findInput)) findInput.focus()
+    }
+    requestAnimationFrame(take)
+    const shown = () => { if (document.visibilityState === 'visible') requestAnimationFrame(take) }
+    document.addEventListener('visibilitychange', shown)
+    onCleanup(() => document.removeEventListener('visibilitychange', shown))
   })
+
+  // The words in Find a setting are kept in the tab's address, as its section
+  // is: a tab that slept or reloaded comes back with them (Search 1.0.22, #1655).
+  let keepTimer: ReturnType<typeof setTimeout> | undefined
+  createEffect(on(query, words => {
+    clearTimeout(keepTimer)
+    keepTimer = setTimeout(() => {
+      const want = location.pathname + (words.trim() ? `?find=${encodeURIComponent(words)}` : '')
+      if (location.pathname + location.search !== want) history.replaceState(null, '', want)
+    }, 400)
+  }, { defer: true }))
+  onCleanup(() => clearTimeout(keepTimer))
 
   // Each section opens at its top; the address and settings.page follow it.
   createEffect(on(page, pg => {
@@ -600,7 +631,9 @@ function Rail(q: { page: PageID | 'update'; searching: boolean; counts: Record<s
       <div class="st-find">
         <Symbol name="magnifyingglass" size={11} weight="medium" />
         <input ref={q.findRef} value={q.query} placeholder="Find a setting" aria-label="Find a setting"
-          onInput={e => q.setQuery(e.currentTarget.value)} onKeyDown={e => { if (e.key === 'Escape') { q.setQuery(''); e.preventDefault() } }} />
+          onInput={e => q.setQuery(e.currentTarget.value)}
+          // Escape empties it; empty, it lets go of the keys, for Tab and the arrows to move around Settings (Search 1.0.22).
+          onKeyDown={e => { if (e.key === 'Escape') { if (q.query) q.setQuery(''); else e.currentTarget.blur(); e.preventDefault() } }} />
         <Show when={q.query} fallback={<span class="st-find-key">Ctrl+F</span>}>
           <button class="st-find-clear" aria-label="Clear" onClick={() => q.setQuery('')}><Symbol name="xmark.circle.fill" size={11} /></button>
         </Show>

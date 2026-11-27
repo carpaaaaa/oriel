@@ -117,6 +117,10 @@ export function windowsText(s: string): string {
 /** Rows rewritten for Windows where a word swap isn't enough. */
 const overrides: Record<string, Partial<Item>> = {
   'general.default': { detail: 'Make Oriel the browser Outlook, Slack and the rest send links to' },
+  // Search 1.0.22's row; Oriel has no File menu: the command is in Settings › Keyboard & Mouse, to give it a key.
+  'general.exportSpaces': {
+    more: "A bookmarks file any browser imports, a folder per space with its pins and folders and its open tabs in a folder of their own; or Oriel's own spaces file, which keeps colours and icons and comes back in through Bring Things Over › File…, in Oriel or in Search on a Mac. Export Spaces… can be given a key in Settings › Keyboard & Mouse.",
+  },
   // Alt+F4 is how Windows quits a program (settings/quit.ts).
   'quit.confirm': { detail: 'Ask before Alt+F4 or Quit Oriel closes the browser', words: ['quit', 'alt f4', 'ctrl shift q', 'close'] },
   'mail.default': { more: 'Windows asks you to choose it in Settings › Apps › Default apps. Pick another app there to undo it.' },

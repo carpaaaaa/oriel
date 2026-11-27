@@ -140,6 +140,8 @@ export const bindings: Binding[] = [
   b('file.closeTab', 'Close Tab', 'File', '⌘W', ['Ctrl+W', 'Ctrl+F4'], first({ action: closeFront })),
   b('file.closeWindow', 'Close Window', 'File', '⇧⌘W', ['Ctrl+Shift+W'], first({ action: () => ({ do: 'window.close' }) })),
   b('file.import', 'Bring Things Over…', 'File', '', [], later('file.import')),
+  // Search 1.0.22: every space to a file (data/spaces.ts); a key can be given in Settings › Shortcuts.
+  b('file.exportSpaces', 'Export Spaces…', 'File', '', [], later('spaces.export')),
   b('file.share', 'Share…', 'File', '', [], later('page.share')),
   // Ctrl+S is Hide Sidebar, as ⌘S: no key for saving a page, as on the Mac.
   b('file.savePage', 'Save Page As…', 'File', '', [], later('page.save')),

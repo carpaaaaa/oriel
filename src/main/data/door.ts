@@ -15,6 +15,7 @@ import type { ID, Rect } from '../../shared/state'
 import { handle, run } from '../router'
 import { need } from '../context'
 import { model } from '../model/model'
+import { addDefaults } from '../../shared/prefs'
 import { controllerFor, type WindowController } from '../views/window'
 import { runtimes } from '../views/tabs'
 import { benchRequest } from '../bench/server'
@@ -167,6 +168,9 @@ function view(c: WindowController): BookmarksPopover | null {
     menu: !!o.menu && !card && !ask,
   }
 }
+
+// Show the bookmarks bar only on new tabs: off unless turned on (Search 1.0.20).
+addDefaults({ 'bookmarks.newTabOnly': false })
 
 dataPart(c => ({ popover: view(c), bar: model.pref<boolean>('bookmarks.bar') ? lines(bookmarks().roots, new Set()) : null }))
 

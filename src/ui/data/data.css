@@ -227,6 +227,17 @@
 :root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .bookmarks-bar { top: 0; right: 0; }
 :root[data-state="fullScreen"]:not([data-cards-full-screen="true"]) .window:not(:has(.sidebar)) .bookmarks-bar { left: 0; }
 :root[data-state="fullScreen"] .window.top .bookmarks-bar { top: var(--top); }
+/* Folded with Ctrl+S or hidden until the edge, the page fills the window
+   (app.css .window.fill): the bar stays above it, across the window's top,
+   and the page starts under it, where it covered the bar and left the
+   bookmarks out of reach (Search 1.0.22, #1625). */
+.window.fill.bm .bookmarks-bar { top: 0; left: 0; right: 0; }
+.window.fill.bm .card, .window.fill.bm:not(:has(.sidebar)) .card { top: var(--bookmarks-bar); }
+.window.fill.bm .loading-line { top: calc(var(--bookmarks-bar) - 2px); }
+/* The column folded away down a side: the bar keeps clear of the edge that
+   brings it out (main/window/edges.ts HIDDEN_EDGE; Search 1.0.22). */
+.bookmarks-bar.edge-left { padding-left: 10px; }
+.bookmarks-bar.edge-right { padding-right: 10px; }
 .bmbar-row { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 2px; overflow: hidden; }
 .bmbar-item { flex: none; height: 22px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; display: flex; align-items: center; gap: 6px;
   color: var(--ink); font: inherit; font-size: 12px; line-height: 1; cursor: default; transition: background-color var(--dur-quick) var(--ease-quick); }

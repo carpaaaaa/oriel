@@ -255,6 +255,9 @@ declare module '../commands' {
     'import.trashFile': { path: string }
     'import.export': { source: string }
     'import.exportStop': None
+    /** Export Spaces…: every space to a bookmarks page or a spaces file
+     * (Search 1.0.22); `path` names the file in a test world only. */
+    'spaces.export': { path?: string }
   }
 }
 

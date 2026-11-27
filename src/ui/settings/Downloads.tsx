@@ -140,8 +140,11 @@ function FetchRow(p: { e: DownloadEntry; run: (c: string) => void }) {
 }
 
 function KeptRow(p: { e: DownloadEntry; run: (c: string) => void }) {
+  // Dragged out as its file, onto a page or into File Explorer (Search 1.0.20):
+  // the system's drag, started by the main process; a file gone has nothing to drag.
   return (
     <div class="dl-row kept" classList={{ gone: !p.e.there }} data-download={p.e.id} onClick={e => { if (!(e.target as HTMLElement).closest('button') && p.e.there) p.run('download.open') }}
+      draggable={!!p.e.there} onDragStart={e => { e.preventDefault(); if (p.e.there) p.run('download.drag') }}
       onContextMenu={e => { if (p.e.url) { e.preventDefault(); p.run('download.copy') } }}
       title={p.e.there ? `Open ${p.e.name}${p.e.url ? '. Right-click: Copy Address' : ''}` : 'The file was moved or deleted'}>
       <Tile name={p.e.name} gone={!p.e.there} />
@@ -259,7 +262,7 @@ export function DownloadsFloat(p: { layer?: OverlayLayer }) {
   // Stalled, the speed falling and the time left: asked again each second while something is listed as current.
   const tick = setInterval(() => { if (data()?.current.length) void load() }, 1000)
   onCleanup(() => clearInterval(tick))
-  const run = (command: string, id?: string) => void cmd({ do: command, ...(id ? { id } : {}) } as never).then(load)
+  const run = (command: string, id?: string) => void cmd({ do: command, ...(id ? { id } : {}), ...(command === 'download.drag' ? { from: 'card' } : {}) } as never).then(load)
   // The card is as tall as what it holds (up to the room it was given): main is told, and places it by the button.
   let head!: HTMLDivElement, inner!: HTMLDivElement, foot: HTMLDivElement | undefined
   const fit = () => {
