@@ -6,8 +6,9 @@ Browser.destination; SiteSearch.match with the keywords; studio/03 §1.9,
 
 No ready-made site: the row and its Add, nothing under it. A shortcut is the
 word, then an http or https address with %s once where the words go; one
-without http(s), without %s, with %s in the host or twice is refused with the
-Mac's line and Save stays off. Saved, it is listed, clicked it opens to be
+typed without its scheme is saved as https (Search 1.0.22, KeywordAddressTests);
+one without %s, with %s in the host or twice, or not http(s), is refused with
+the Mac's line and Save stays off. Saved, it is listed, clicked it opens to be
 changed, its X deletes it. In the field the word, a space and the words, or
 the word, Tab and the words, go to the address with the words in place of %s,
 until it is deleted. An earlier Oriel's ready-made sites (search.sites) are
@@ -208,10 +209,10 @@ press("Add")
 t.ok(pills() == [["Cancel", False], ["Save", True]], f"Add gives Cancel and Save, Save off: {pills()}")
 t.ok(detail() == "Type a word, like yt, then the site's search address with %s where the words you type go", f"the first words: {detail()!r}")
 e = editor()
-t.ok(e and e["wordHint"] == "word" and e["addressHint"] == "address with %s for the words, e.g. https://youtube.com/results?search_query=%s",
-     f"the Mac's two placeholders, the example with its https:// (the user's wish, 24 Nov 2026): {e}")
+t.ok(e and e["wordHint"] == "word" and e["addressHint"] == "e.g. https://youtube.com/results?search_query=%s",
+     f"the Mac's two placeholders, the example a whole address, short enough to show its %s (Search 1.0.22): {e}")
 hint = ev("document.querySelector('.kw-hint')?.textContent ?? null")
-t.ok(hint == "The address starts with https:// or http://, with %s where the words go.", f"said under the editor: http or https ({hint!r})")
+t.ok(hint is None, f"nothing said of http or https under the editor: an address without it is taken as https ({hint!r})")
 hints = [style(".kw.editing input:nth-of-type(%d)" % n, "fontStyle", pseudo="::placeholder")["fontStyle"] for n in (1, 2)]
 t.ok(hints == ["italic", "italic"], f"both in italics, plainly examples: {hints}")
 look = style(".kw.editing", "marginLeft", "marginRight", "marginBottom", "paddingTop", "paddingLeft", "borderTopLeftRadius", "backgroundColor", "fontSize")
@@ -225,9 +226,10 @@ t.ok(ev("document.querySelector('.kw.editing .kw-arrow').textContent") == "→",
 ADDRESS = "An http or https address with %s once, where the words go"
 for word, address, why, what in [
     ("yt", "", ADDRESS, "a word and no address yet"),
-    ("yt", "youtube.com/results?search_query=%s", ADDRESS, "no http or https in front (taken as typed, never given https://)"),
-    ("yt", "www.youtube.com/results?search_query=%s", ADDRESS, "www. without http or https"),
     ("yt", "https://www.youtube.com/results?search_query=", ADDRESS, "no %s"),
+    ("yt", "www.youtube.com/results?search_query=", ADDRESS, "no %s, and no https either"),
+    ("yt", "%s.example.com", ADDRESS, "%s in the host, without https"),
+    ("yt", "javascript:alert(%s)", ADDRESS, "javascript:"),
     ("yt", "https://www.youtube.com/results?search_query=%s&again=%s", ADDRESS, "%s twice"),
     ("yt", "https://%s.youtube.com/", ADDRESS, "%s in the host"),
     ("yt", "ftp://www.youtube.com/results?search_query=%s", ADDRESS, "ftp, not http or https"),
@@ -236,21 +238,24 @@ for word, address, why, what in [
 ]:
     write(word, address)
     t.ok(detail() == why and pills() == [["Cancel", False], ["Save", True]], f"{what}: {detail()!r}, Save off")
-write("yt", "youtube.com/results?search_query=%s")
+write("yt", "www.youtube.com/results?search_query=")
 enter()
 t.ok(shortcuts() == [] and editor() is not None, "Return on a refused address saves nothing")
+write("yt", "www.youtube.com/results?search_query=%s")
+t.ok(detail() == "yt will search youtube.com" and pills() == [["Cancel", False], ["Save", False]],
+     f"an address without https (Search 1.0.22): accepted, Save on ({detail()!r})")
 
 # Accepted: the Mac's line, Save on, saved by Return or by Save.
 write("yt", YT)
 t.ok(detail() == "yt will search youtube.com", f"accepted: {detail()!r}")
 t.ok(pills() == [["Cancel", False], ["Save", False]], "Save on")
-write(" yt ", " " + YT + " ")
+write(" yt ", " www.youtube.com/results?search_query=%s ")
 t.ok(detail() == "yt will search youtube.com", "spaces round the word and the address don't count")
 press("Save")
 b.wait_for(lambda: len(shortcuts()) == 1, what="the shortcut saved")
 saved = shortcuts()[0]
 t.ok(saved["keyword"] == "yt" and saved["template"] == YT and len(saved.get("id", "")) == 36,
-     f"saved trimmed, with an id of its own: {saved}")
+     f"saved trimmed, as https, with an id of its own: {saved}")
 t.ok(editor() is None and pills() == [["Add", False]], "the editor goes, Add is back")
 t.ok(detail() == 'A word before your search sends it to that site: "yt cats"', "the row's own words are back")
 t.ok(listed() == [["yt", "→", YT, "Click to change"]], f"it appears under the row: {listed()}")
